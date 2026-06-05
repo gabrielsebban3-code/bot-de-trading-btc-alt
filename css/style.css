@@ -297,6 +297,43 @@ h1, h2, h3 { font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; }
 .step h3 { font-size: 1.2rem; font-weight: 700; margin: 0.6rem 0 0.5rem; }
 .step p { font-size: 0.88rem; color: var(--graphite); font-weight: 400; }
 
+/* ===== COMMANDE AUTOMATIQUE ===== */
+.autoorder { background: var(--red); color: #fff; padding: 6rem 4rem; }
+.autoorder__inner {
+  max-width: 1100px; margin: 0 auto;
+  display: grid; grid-template-columns: 1.2fr 0.8fr;
+  gap: 4rem; align-items: center;
+}
+.autoorder__label { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.85; margin-bottom: 0.9rem; }
+.autoorder__title { font-size: clamp(1.8rem, 3.6vw, 2.8rem); margin-bottom: 1.2rem; }
+.autoorder__title span { opacity: 0.75; }
+.autoorder__desc { font-size: 1rem; line-height: 1.8; margin-bottom: 1.6rem; opacity: 0.95; }
+.autoorder__desc strong, .hero__sub strong { font-weight: 700; }
+.autoorder__list { list-style: none; margin-bottom: 2rem; }
+.autoorder__list li { position: relative; padding-left: 1.8rem; margin-bottom: 0.7rem; font-size: 0.95rem; }
+.autoorder__list li::before { content: '✓'; position: absolute; left: 0; top: 0; font-weight: 800; color: #fff; }
+.btn--white { background: #fff; color: var(--red); }
+.btn--white:hover { background: #1a1a1a; color: #fff; transform: translateY(-2px); }
+
+/* Mockup téléphone */
+.autoorder__phone { display: flex; justify-content: center; }
+.phone {
+  width: 230px; background: #0E0E0E; border-radius: 32px;
+  padding: 14px; box-shadow: 0 30px 70px rgba(0,0,0,0.35);
+  position: relative;
+}
+.phone__notch { width: 90px; height: 18px; background: #0E0E0E; border-radius: 0 0 14px 14px; position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 2; }
+.phone__screen { background: #F6F6F4; border-radius: 22px; padding: 1.4rem 1.1rem; min-height: 420px; display: flex; flex-direction: column; gap: 0.9rem; }
+.phone__bar { border-radius: 10px; padding: 0.7rem; font-size: 0.78rem; font-weight: 700; text-align: center; color: var(--ink); }
+.phone__bar--crit { background: #FFE3E5; color: var(--red-dark); margin-top: 1.2rem; }
+.phone__card { background: #fff; border-radius: 14px; padding: 1.3rem; text-align: center; box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+.phone__pct { display: block; font-size: 2.6rem; font-weight: 800; color: var(--red); line-height: 1; }
+.phone__lbl { font-size: 0.72rem; color: var(--graphite); }
+.phone__order { background: #E6F7EC; border-radius: 12px; padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.phone__order span { font-size: 0.72rem; color: var(--graphite); }
+.phone__order strong { font-size: 0.85rem; color: #157a3a; }
+.phone__btn { margin-top: auto; background: var(--red); color: #fff; text-align: center; padding: 0.8rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
+
 /* ===== BUY ===== */
 .buy {
   display: grid;
@@ -463,7 +500,8 @@ h1, h2, h3 { font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; }
   .hero__visual { order: -1; }
   .strip { grid-template-columns: 1fr 1fr; }
   .strip__item:nth-child(2) { border-right: none; }
-  .features, .steps, .buy, .specs, .contact { padding: 4rem 1.5rem; }
+  .features, .steps, .buy, .specs, .contact, .autoorder { padding: 4rem 1.5rem; }
+  .autoorder__inner { grid-template-columns: 1fr; gap: 2.5rem; }
   .features__grid, .steps__grid { grid-template-columns: 1fr; }
   .buy { grid-template-columns: 1fr; gap: 2rem; }
   .form-row { grid-template-columns: 1fr; }
