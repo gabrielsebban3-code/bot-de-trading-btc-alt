@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bac à Croquettes Connecté – Royal Canin</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --rc-red: #CC0000;
+    --rc-dark: #1a1a2e;
+    --rc-blue: #0d3b5e;
+    --rc-light: #f8f9fa;
+    --rc-accent: #e8f4fd;
+    --rc-green: #2ecc71;
+    --rc-orange: #e67e22;
+    --rc-gray: #6c757d;
+    --font: 'Segoe UI', Arial, sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: #111;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    z-index: 100;
+    flex-wrap: wrap;
+  }
+
+  .nav button {
+    background: var(--rc-red);
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .nav button:hover { background: #aa0000; transform: scale(1.05); }
+  .nav span { color: #ccc; font-size: 13px; }
+
+  .slide {
+    width: 100%;
+    max-width: 960px;
+    min-height: 540px;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ── SLIDE 1 : Couverture ── */
+  .slide-cover {
+    background: linear-gradient(135deg, var(--rc-dark) 0%, var(--rc-blue) 60%, #1a4a7a 100%);
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 60px 40px;
+    color: white;
+    min-height: 540px;
+  }
+  .slide-cover .logo-crown { font-size: 48px; margin-bottom: 16px; }
+  .slide-cover h1 {
+    font-size: 48px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .slide-cover h1 span { color: var(--rc-red); }
+  .slide-cover .subtitle {
+    font-size: 22px;
+    font-weight: 300;
+    opacity: 0.85;
+    margin-bottom: 32px;
+  }
+  .slide-cover .pill {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 8px 24px;
+    border-radius: 30px;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ── SLIDE générique ── */
+  .slide-header {
+    background: linear-gradient(90deg, var(--rc-blue), var(--rc-dark));
+    color: white;
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .slide-header .num {
+    background: var(--rc-red);
+    color: white;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px;
+    flex-shrink: 0;
+  }
+  .slide-header h2 { font-size: 26px; font-weight: 700; }
+
+  .slide-body {
+    padding: 32px 40px;
+    flex: 1;
+  }
+
+  /* ── Listes ── */
+  .bullet-list { list-style: none; }
+  .bullet-list li {
+    padding: 10px 0 10px 28px;
+    position: relative;
+    font-size: 17px;
+    border-bottom: 1px solid #f0f0f0;
+    line-height: 1.5;
+  }
+  .bullet-list li:last-child { border-bottom: none; }
+  .bullet-list li::before {
+    content: '';
+    position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 10px; height: 10px;
+    background: var(--rc-red);
+    border-radius: 50%;
+  }
+
+  /* ── Chiffres clés ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: var(--rc-accent);
+    border-left: 4px solid var(--rc-red);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+  }
+  .kpi-card .kpi-number {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--rc-red);
+    line-height: 1;
+  }
+  .kpi-card .kpi-label {
+    font-size: 13px;
+    color: var(--rc-gray);
+    margin-top: 6px;
+    line-height: 1.3;
+  }
+
+  /* ── Tableaux ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    margin-top: 12px;
+  }
+  thead tr { background: var(--rc-blue); color: white; }
+  thead th { padding: 12px 16px; text-align: left; font-weight: 600; }
+  tbody tr:nth-child(even) { background: var(--rc-accent); }
+  tbody td { padding: 11px 16px; }
+
+  /* ── Split layout ── */
+  .split { display: flex; gap: 0; flex: 1; }
+  .split-left {
+    background: linear-gradient(160deg, var(--rc-blue), var(--rc-dark));
+    color: white;
+    width: 38%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 32px;
+    flex-shrink: 0;
+  }
+  .split-left h2 { font-size: 32px; font-weight: 700; }
+  .split-right { flex: 1; padding: 32px; display: flex; flex-direction: column; justify-content: center; }
+
+  /* ── Photo produit ── */
+  .product-img {
+    width: 100%;
+    max-height: 340px;
+    object-fit: contain;
+    border-radius: 8px;
+    margin-top: 10px;
+  }
+
+  /* ── Points forts/faibles ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .point-block { border-radius: 10px; padding: 20px; }
+  .point-block.green { background: #e8f8f0; border-left: 4px solid var(--rc-green); }
+  .point-block.red   { background: #fdf0f0; border-left: 4px solid #e74c3c; }
+  .point-block h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .point-block.green h3 { color: #27ae60; }
+  .point-block.red h3   { color: #e74c3c; }
+  .point-block li { font-size: 15px; margin-bottom: 8px; padding-left: 18px; position: relative; list-style: none; }
+  .point-block li::before { content: '▸'; position: absolute; left: 0; }
+  .point-block.green li::before { color: var(--rc-green); }
+  .point-block.red li::before { color: #e74c3c; }
+
+  /* ── Caractéristiques connectées ── */
+  .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .feat-item {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: var(--rc-accent);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .feat-icon {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--rc-red);
+    color: white; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .feat-text h4 { font-size: 14px; font-weight: 700; margin-bottom: 3px; color: var(--rc-dark); }
+  .feat-text p  { font-size: 13px; color: var(--rc-gray); line-height: 1.4; }
+
+  /* ── SWOT ── */
+  .swot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; flex: 1; }
+  .swot-cell { padding: 24px 28px; }
+  .swot-cell h3 { font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .swot-cell h3 .badge {
+    width: 30px; height: 30px; border-radius: 50%;
+    color: white; font-weight: 800; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .swot-cell ul { list-style: none; }
+  .swot-cell li { font-size: 14px; padding: 5px 0 5px 18px; position: relative; line-height: 1.4; }
+  .swot-cell li::before { content: '•'; position: absolute; left: 0; font-size: 18px; line-height: 1; }
+  .swot-s { background: #e8f8f0; }
+  .swot-s h3 { color: #27ae60; }
+  .swot-s .badge { background: #27ae60; }
+  .swot-s li::before { color: #27ae60; }
+  .swot-w { background: #fdf0f0; }
+  .swot-w h3 { color: #e74c3c; }
+  .swot-w .badge { background: #e74c3c; }
+  .swot-w li::before { color: #e74c3c; }
+  .swot-o { background: #eaf3fd; }
+  .swot-o h3 { color: #2980b9; }
+  .swot-o .badge { background: #2980b9; }
+  .swot-o li::before { color: #2980b9; }
+  .swot-t { background: #fef5e7; }
+  .swot-t h3 { color: #d35400; }
+  .swot-t .badge { background: #d35400; }
+  .swot-t li::before { color: #d35400; }
+
+  /* ── Concurrents ── */
+  .competitor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 28px; }
+  .competitor-card {
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  .competitor-card:hover { border-color: var(--rc-red); }
+  .competitor-card .c-name { font-size: 20px; font-weight: 700; color: var(--rc-dark); margin-bottom: 6px; }
+  .competitor-card .c-type { font-size: 12px; color: var(--rc-gray); text-transform: uppercase; letter-spacing: 1px; }
+  .price-banner {
+    background: var(--rc-red);
+    color: white;
+    border-radius: 10px;
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .price-banner .label { font-size: 16px; font-weight: 600; }
+  .price-banner .price { font-size: 28px; font-weight: 800; }
+
+  /* ── Slide fidélisation ── */
+  .fidelity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .fidelity-card {
+    background: var(--rc-accent);
+    border-radius: 10px;
+    padding: 24px;
+    border-top: 4px solid var(--rc-red);
+  }
+  .fidelity-card h3 { font-size: 16px; font-weight: 700; color: var(--rc-dark); margin-bottom: 12px; }
+  .fidelity-card p { font-size: 15px; color: #555; line-height: 1.5; }
+  .fidelity-card .big { font-size: 36px; font-weight: 800; color: var(--rc-red); margin-bottom: 6px; }
+
+  /* ── Numéro de slide ── */
+  .slide-num {
+    position: absolute;
+    bottom: 14px; right: 20px;
+    font-size: 12px;
+    color: #ccc;
+  }
+
+  /* ── Print ── */
+  @media print {
+    body { background: white; padding: 0; gap: 0; }
+    .nav { display: none; }
+    .slide { box-shadow: none; border-radius: 0; page-break-after: always; margin-bottom: 0; }
+  }
+
+  /* ── Scroll margin ── */
+  .slide { scroll-margin-top: 70px; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <span>Navigation rapide :</span>
+  <button onclick="document.getElementById('s1').scrollIntoView({behavior:'smooth'})">Couverture</button>
+  <button onclick="document.getElementById('s3').scrollIntoView({behavior:'smooth'})">Marché</button>
+  <button onclick="document.getElementById('s8').scrollIntoView({behavior:'smooth'})">Concurrents</button>
+  <button onclick="document.getElementById('s9').scrollIntoView({behavior:'smooth'})">Fiche produit</button>
+  <button onclick="document.getElementById('s11').scrollIntoView({behavior:'smooth'})">Innovation</button>
+  <button onclick="document.getElementById('s15').scrollIntoView({behavior:'smooth'})">SWOT</button>
+</div>
+
+<div style="height:60px"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 1 — COUVERTURE
+══════════════════════════════════════════════════════ -->
+<div class="slide slide-cover" id="s1">
+  <div class="logo-crown">👑</div>
+  <h1><span>ROYAL CANIN</span></h1>
+  <div class="subtitle">Bac conteneur à croquettes</div>
+  <div style="font-size:15px; opacity:0.7; margin-bottom:28px;">Produit de base &amp; Concept d'innovation connectée</div>
+  <div class="pill">Présentation Produit</div>
+  <div class="slide-num" style="color:rgba(255,255,255,0.3)">1 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 2 — PRÉSENTATION DU PRODUIT
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s2">
+  <div class="slide-header">
+    <div class="num">2</div>
+    <h2>Présentation du produit</h2>
+  </div>
+  <div class="split" style="flex:1">
+    <div class="split-left">
+      <div style="text-align:center">
+        <div style="font-size:48px;margin-bottom:12px">🪣</div>
+        <h2 style="font-size:22px;line-height:1.3">Bac à croquettes<br>Royal Canin<br>40 L</h2>
+      </div>
+    </div>
+    <div class="split-right">
+      <p style="font-size:16px;color:#555;margin-bottom:20px;line-height:1.6">
+        Le bac à croquettes <strong>Royal Canin 40 L</strong> est un contenant de stockage pour aliments secs
+        destiné aux chiens. Fabriqué en plastique rigide, il offre une capacité adaptée
+        aux grands formats de sacs de croquettes.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div style="background:#f8f9fa;border-radius:8px;padding:12px 18px;text-align:center;flex:1">
+          <div style="font-size:24px;font-weight:800;color:var(--rc-red)">40 L</div>
+          <div style="font-size:12px;color:#888">Capacité</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:8px;padding:12px 18px;text-align:center;flex:1">
+          <div style="font-size:24px;font-weight:800;color:var(--rc-red)">20 kg</div>
+          <div style="font-size:12px;color:#888">Sac compatible</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:8px;padding:12px 18px;text-align:center;flex:1">
+          <div style="font-size:24px;font-weight:800;color:var(--rc-red)">PP</div>
+          <div style="font-size:12px;color:#888">Polypropylène</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">2 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 3 — CHIFFRES CLÉS DU MARCHÉ
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s3">
+  <div class="slide-header">
+    <div class="num">3</div>
+    <h2>Chiffres clés — Propriétaires de chiens et chats en France</h2>
+  </div>
+  <div class="slide-body">
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-number">53 %</div>
+        <div class="kpi-label">des Français possèdent un chien et/ou un chat</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-number">9,7 M</div>
+        <div class="kpi-label">chiens en France</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-number">16,7 M</div>
+        <div class="kpi-label">chats en France</div>
+      </div>
+    </div>
+    <div class="kpi-grid" style="grid-template-columns:1fr 1fr;margin-bottom:0">
+      <div class="kpi-card">
+        <div class="kpi-number">~80 %</div>
+        <div class="kpi-label">des propriétaires de chiens donnent des croquettes comme aliment principal</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-number">5,7 Md €</div>
+        <div class="kpi-label">valeur du marché des aliments secs pour animaux en France</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#aaa;margin-top:16px">Sources : FACCO / TNS Sofres — données estimatives 2023-2024</p>
+  </div>
+  <div class="slide-num">3 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 4 — ÉTUDE DE MARCHÉ
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s4">
+  <div class="slide-header">
+    <div class="num">4</div>
+    <h2>Étude de marché — Alimentation du chien en France</h2>
+  </div>
+  <div class="slide-body">
+    <p style="font-size:15px;color:#555;margin-bottom:20px">
+      Le marché du <em>pet food</em> français est l'un des plus dynamiques d'Europe, porté par la
+      humanisation de l'animal de compagnie et la montée en gamme des offres.
+    </p>
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
+      <div class="kpi-card">
+        <div class="kpi-number">5,7 Md€</div>
+        <div class="kpi-label">Taille du marché pet food</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-number">+5–7 %</div>
+        <div class="kpi-label">Croissance annuelle</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-number">~10 M</div>
+        <div class="kpi-label">Chiens en France</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-number">~500 €</div>
+        <div class="kpi-label">Budget alimentaire moyen / chien / an</div>
+      </div>
+    </div>
+    <h3 style="font-size:16px;font-weight:700;color:var(--rc-dark);margin-bottom:10px">Segments exploitables pour une nouvelle marque</h3>
+    <table>
+      <thead>
+        <tr><th>Segment</th><th>Valeur estimée</th><th>Opportunité</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Croquettes premium</td><td>900 M €</td><td>⭐⭐⭐ Forte marge</td></tr>
+        <tr><td>Croquettes milieu de gamme</td><td>1,2 Md €</td><td>⭐⭐⭐⭐ Volume élevé</td></tr>
+        <tr><td>Nourriture humide</td><td>700 M €</td><td>⭐⭐ Croissance modérée</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="slide-num">4 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 5 — CANAUX D'ACHAT & PROFIL
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s5">
+  <div class="slide-header">
+    <div class="num">5</div>
+    <h2>Canaux d'achat &amp; Profil des propriétaires de chiens</h2>
+  </div>
+  <div class="slide-body" style="display:grid;grid-template-columns:1fr 1fr;gap:28px">
+    <div>
+      <h3 style="font-size:16px;font-weight:700;color:var(--rc-dark);margin-bottom:12px">📍 Où achètent-ils ?</h3>
+      <table>
+        <thead><tr><th>Canal</th><th>Part de marché</th></tr></thead>
+        <tbody>
+          <tr><td>Supermarchés / hypermarchés</td><td><strong>48,6 %</strong></td></tr>
+          <tr><td>E-commerce</td><td><strong>24,6 %</strong></td></tr>
+          <tr><td>Animaleries spécialisées</td><td><strong>22,4 %</strong></td></tr>
+          <tr><td>Cliniques vétérinaires</td><td><strong>4,4 %</strong></td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:14px;background:#fff3cd;border-radius:8px;padding:12px;font-size:13px;color:#856404">
+        💡 Le e-commerce est en forte croissance (+15 % / an) — canal prioritaire pour le bac connecté.
+      </div>
+    </div>
+    <div>
+      <h3 style="font-size:16px;font-weight:700;color:var(--rc-dark);margin-bottom:12px">👤 Profil par âge</h3>
+      <table>
+        <thead><tr><th>Tranche d'âge</th><th>Part des propriétaires</th></tr></thead>
+        <tbody>
+          <tr><td>18 – 34 ans</td><td>~25 %</td></tr>
+          <tr><td>35 – 49 ans</td><td>~30 % <span style="color:var(--rc-red);font-weight:700">▲ cœur de cible</span></td></tr>
+          <tr><td>50 – 64 ans</td><td>~27 %</td></tr>
+          <tr><td>65 ans et plus</td><td>~18 %</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="slide-num">5 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 6 — COMPORTEMENT PAR REVENU
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s6">
+  <div class="slide-header">
+    <div class="num">6</div>
+    <h2>Segmentation par niveau de revenu</h2>
+  </div>
+  <div class="slide-body">
+    <p style="font-size:15px;color:#555;margin-bottom:24px">
+      Le comportement d'achat varie fortement selon le revenu du foyer.
+      La cible principale du bac connecté se situe dans la <strong>classe moyenne à haut revenu</strong>.
+    </p>
+    <table>
+      <thead><tr><th>Niveau de revenu</th><th>Comportement d'achat</th><th>Potentiel pour le bac connecté</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Bas revenu (&lt; 1 500 €/mois)</td>
+          <td>Croquettes en supermarché, marques premier prix</td>
+          <td style="color:#e74c3c">❌ Faible</td>
+        </tr>
+        <tr>
+          <td>Classe moyenne (1 500–3 500 €)</td>
+          <td>Marques premium accessibles (Purina, Royal Canin entry)</td>
+          <td style="color:#f39c12">⚠️ Moyen</td>
+        </tr>
+        <tr>
+          <td>Haut revenu (&gt; 3 500 €/mois)</td>
+          <td>Alimentation spécialisée, vétérinaire, <em>fresh food</em></td>
+          <td style="color:#27ae60">✅ Élevé</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="margin-top:20px;background:#e8f8f0;border-left:4px solid var(--rc-green);border-radius:0 8px 8px 0;padding:14px 18px;font-size:14px;color:#27ae60;font-weight:600">
+      Cible prioritaire : propriétaires à revenus moyens-élevés, 35-55 ans, attachés à la santé de leur animal.
+    </div>
+  </div>
+  <div class="slide-num">6 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 7 — MODÈLE ÉCONOMIQUE
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s7">
+  <div class="slide-header">
+    <div class="num">7</div>
+    <h2>Modèle économique &amp; Programme de fidélisation</h2>
+  </div>
+  <div class="slide-body">
+    <div class="fidelity-grid">
+      <div class="fidelity-card">
+        <div class="big">80 %</div>
+        <h3>Chiffre d'affaires issu de l'alimentation</h3>
+        <p>L'alimentation représente la majeure partie du CA pour un acteur du pet food. Le bac est un produit d'appel qui génère un flux d'achats récurrents de croquettes.</p>
+      </div>
+      <div class="fidelity-card">
+        <div style="font-size:36px;margin-bottom:6px">🎁</div>
+        <h3>Programme de fidélisation intégré</h3>
+        <p>Le bac connecté est vendu avec un programme de fidélisation : chaque commande de croquettes via l'application génère des points convertibles en remises ou en services vétérinaires.</p>
+      </div>
+      <div class="fidelity-card">
+        <div style="font-size:36px;margin-bottom:6px">🔄</div>
+        <h3>Modèle d'abonnement possible</h3>
+        <p>Offre d'abonnement mensuel aux croquettes avec livraison automatique déclenchée par le capteur de poids intégré — réapprovisionnement zéro effort.</p>
+      </div>
+      <div class="fidelity-card">
+        <div style="font-size:36px;margin-bottom:6px">📊</div>
+        <h3>Valorisation des données</h3>
+        <p>Les données de consommation collectées via l'application permettent de personnaliser les offres et d'anticiper les besoins nutritionnels de l'animal.</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">7 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 8 — CONCURRENTS
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s8">
+  <div class="slide-header">
+    <div class="num">8</div>
+    <h2>Analyse concurrentielle</h2>
+  </div>
+  <div class="slide-body">
+    <p style="font-size:15px;color:#555;margin-bottom:20px">
+      Le marché des bacs à croquettes est occupé par des distributeurs généralistes à bas prix,
+      sans innovation technologique — une opportunité claire pour le produit connecté.
+    </p>
+    <div class="competitor-grid">
+      <div class="competitor-card">
+        <div style="font-size:32px;margin-bottom:8px">🏪</div>
+        <div class="c-name">Action</div>
+        <div class="c-type">Discount / hard discount</div>
+        <div style="margin-top:10px;font-size:13px;color:#555">Produits entrée de gamme, pas de marque, faible durabilité</div>
+      </div>
+      <div class="competitor-card">
+        <div style="font-size:32px;margin-bottom:8px">🛍️</div>
+        <div class="c-name">GiFi</div>
+        <div class="c-type">Bazar / déstockage</div>
+        <div style="margin-top:10px;font-size:13px;color:#555">Gamme variée sans positionnement pet food spécifique</div>
+      </div>
+      <div class="competitor-card">
+        <div style="font-size:32px;margin-bottom:8px">🛒</div>
+        <div class="c-name">Carrefour</div>
+        <div class="c-type">Grande distribution</div>
+        <div style="margin-top:10px;font-size:13px;color:#555">Présence en rayon avec quelques références basiques</div>
+      </div>
+    </div>
+    <div class="price-banner">
+      <div>
+        <div class="label">Prix moyen du marché — produits existants</div>
+        <div style="font-size:13px;opacity:0.8;margin-top:3px">Bacs plastique classiques sans fonctionnalité connectée</div>
+      </div>
+      <div class="price">20 – 40 €</div>
+    </div>
+  </div>
+  <div class="slide-num">8 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 9 — FICHE PRODUIT EXISTANT
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s9">
+  <div class="slide-header">
+    <div class="num">9</div>
+    <h2>Fiche produit — Bac à croquettes Royal Canin 40 L (existant)</h2>
+  </div>
+  <div class="slide-body">
+    <div class="two-col">
+      <div class="point-block green">
+        <h3>✅ Points forts</h3>
+        <ul>
+          <li>Capacité pour un sac entier de 20 kg</li>
+          <li>Fermeture sécurisée et hermétique</li>
+          <li>Dos plat — facile à ranger contre un mur</li>
+          <li>Plastique alimentaire résistant</li>
+          <li>Design à l'effigie Royal Canin</li>
+        </ul>
+      </div>
+      <div class="point-block red">
+        <h3>❌ Points faibles</h3>
+        <ul>
+          <li>Couvercle peu durable, légèrement fragile</li>
+          <li>Surface blanche salissante et difficile à entretenir</li>
+          <li>Aucune indication du niveau restant</li>
+          <li>Pas de connectivité ni de fonctionnalité intelligente</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:20px;background:#fff3cd;border-left:4px solid #f39c12;border-radius:0 8px 8px 0;padding:14px 18px;font-size:14px;color:#856404">
+      <strong>Constat :</strong> le produit actuel répond au besoin de stockage mais n'apporte aucune valeur ajoutée technologique.
+      C'est l'opportunité d'innovation identifiée.
+    </div>
+  </div>
+  <div class="slide-num">9 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 10 — CARACTÉRISTIQUES PHYSIQUES
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s10">
+  <div class="slide-header">
+    <div class="num">10</div>
+    <h2>Caractéristiques physiques du produit</h2>
+  </div>
+  <div class="slide-body" style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start">
+    <div>
+      <table>
+        <thead><tr><th>Critère</th><th>Valeur</th></tr></thead>
+        <tbody>
+          <tr><td>Volume</td><td><strong>40 litres</strong></td></tr>
+          <tr><td>Matière</td><td>Plastique polypropylène (PP)</td></tr>
+          <tr><td>Couleur</td><td>Blanc avec impression Royal Canin</td></tr>
+          <tr><td>Forme</td><td>Semi-cylindrique (dos plat)</td></tr>
+          <tr><td>Couvercle</td><td>Rabattable avec clips de verrouillage</td></tr>
+          <tr><td>Étanchéité</td><td>Hermétique — conserve la fraîcheur</td></tr>
+          <tr><td>Compatibilité</td><td>Sacs jusqu'à 20 kg</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="background:var(--rc-accent);border-radius:10px;padding:24px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--rc-dark)">Points d'usage clés</h3>
+      <ul class="bullet-list">
+        <li>Dos plat → range facilement contre un mur ou dans un placard</li>
+        <li>Clips latéraux → résiste aux ouvertures accidentelles par l'animal</li>
+        <li>Large ouverture → transvase facilement un sac entier</li>
+        <li>Plastique alimentaire certifié → sans risque pour les aliments</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-num">10 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 11 — CONCEPT D'INNOVATION
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s11">
+  <div class="slide-header" style="background:linear-gradient(90deg,#b71c1c,#7f0000)">
+    <div class="num" style="background:white;color:var(--rc-red)">11</div>
+    <h2>Concept d'innovation — Bac à croquettes connecté</h2>
+  </div>
+  <div class="slide-body" style="display:flex;flex-direction:column;gap:20px">
+    <div style="background:linear-gradient(135deg,var(--rc-dark),var(--rc-blue));color:white;border-radius:10px;padding:20px 28px;display:flex;gap:20px;align-items:center">
+      <div style="font-size:48px">🔗</div>
+      <div>
+        <div style="font-size:20px;font-weight:700;margin-bottom:4px">Bac à croquettes intelligent — Royal Canin Smart 40</div>
+        <div style="opacity:0.8;font-size:14px">Pesée intelligente &amp; réapprovisionnement automatique via application mobile</div>
+      </div>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-item">
+        <div class="feat-icon">⚖️</div>
+        <div class="feat-text">
+          <h4>Balance intégrée</h4>
+          <p>Mesure automatiquement le poids des croquettes restantes en temps réel</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">📱</div>
+        <div class="feat-text">
+          <h4>Application connectée</h4>
+          <p>Suivi du niveau de stock, historique de consommation, recommandations</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">🔔</div>
+        <div class="feat-text">
+          <h4>Alertes automatiques</h4>
+          <p>Notification sur le téléphone lorsque le bac est presque vide</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">📦</div>
+        <div class="feat-text">
+          <h4>Commande en un clic</h4>
+          <p>Réapprovisionnement directement depuis l'app auprès du magasin partenaire</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">11 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 12 — VISUEL PRODUIT CONNECTÉ
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s12">
+  <div class="slide-header">
+    <div class="num">12</div>
+    <h2>Bac à croquettes connecté — Visuel concept</h2>
+  </div>
+  <div class="slide-body" style="display:flex;align-items:center;justify-content:center">
+    <div style="text-align:center;max-width:700px">
+      <div style="background:linear-gradient(135deg,#f8f9fa,#e9ecef);border-radius:12px;padding:40px;margin-bottom:20px">
+        <div style="font-size:80px;margin-bottom:8px">🪣</div>
+        <div style="font-size:28px;font-weight:800;color:var(--rc-red)">ROYAL CANIN</div>
+        <div style="font-size:18px;font-weight:700;color:var(--rc-dark);margin:6px 0">BAC À CROQUETTES CONNECTÉ — 40 LITRES</div>
+        <div style="display:flex;justify-content:center;gap:30px;margin-top:20px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#555"><span style="color:var(--rc-red);font-size:20px">⚖️</span> Balance intégrée</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#555"><span style="color:var(--rc-red);font-size:20px">🔔</span> Alertes temps réel</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#555"><span style="color:var(--rc-red);font-size:20px">📱</span> App connectée</div>
+        </div>
+      </div>
+      <p style="font-size:14px;color:#888;font-style:italic">Visuel concept — design final à définir avec le service R&amp;D</p>
+    </div>
+  </div>
+  <div class="slide-num">12 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 13 — CARACTÉRISTIQUES CONNECTÉES
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s13">
+  <div class="slide-header">
+    <div class="num">13</div>
+    <h2>Caractéristiques techniques — Version connectée</h2>
+  </div>
+  <div class="slide-body">
+    <div class="feat-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="feat-item">
+        <div class="feat-icon">📦</div>
+        <div class="feat-text">
+          <h4>Capacité 40 L</h4>
+          <p>Compatible sacs de 10 à 20 kg de croquettes</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">⚖️</div>
+        <div class="feat-text">
+          <h4>Balance intégrée</h4>
+          <p>Mesure précise du poids restant en continu</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">📱</div>
+        <div class="feat-text">
+          <h4>Application mobile</h4>
+          <p>Suivi du stock en temps réel, iOS &amp; Android</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">🔔</div>
+        <div class="feat-text">
+          <h4>Alertes automatiques</h4>
+          <p>Notification sur smartphone dès que le stock est faible</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">📶</div>
+        <div class="feat-text">
+          <h4>Connectivité Wi-Fi / Bluetooth</h4>
+          <p>Synchronisation avec l'application en temps réel</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">🖥️</div>
+        <div class="feat-text">
+          <h4>Écran digital</h4>
+          <p>Affichage du niveau de stock directement sur le bac</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">👁️</div>
+        <div class="feat-text">
+          <h4>Fenêtre transparente</h4>
+          <p>Contrôle visuel rapide sans ouvrir le couvercle</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">🔒</div>
+        <div class="feat-text">
+          <h4>Couvercle hermétique</h4>
+          <p>Conservation optimale — fraîcheur et protection contre l'humidité</p>
+        </div>
+      </div>
+      <div class="feat-item">
+        <div class="feat-icon">✨</div>
+        <div class="feat-text">
+          <h4>Design moderne</h4>
+          <p>Finition premium, s'intègre dans tous les intérieurs</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">13 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 14 — AVANTAGES CONCURRENTIELS
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s14">
+  <div class="slide-header">
+    <div class="num">14</div>
+    <h2>Avantages concurrentiels</h2>
+  </div>
+  <div class="slide-body">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+      <div style="background:var(--rc-accent);border-radius:10px;padding:20px;text-align:center;border-top:3px solid var(--rc-red)">
+        <div style="font-size:32px;margin-bottom:8px">📱</div>
+        <div style="font-weight:700;font-size:14px;color:var(--rc-dark)">Application mobile connectée</div>
+      </div>
+      <div style="background:var(--rc-accent);border-radius:10px;padding:20px;text-align:center;border-top:3px solid var(--rc-red)">
+        <div style="font-size:32px;margin-bottom:8px">⚖️</div>
+        <div style="font-weight:700;font-size:14px;color:var(--rc-dark)">Balance intégrée précise</div>
+      </div>
+      <div style="background:var(--rc-accent);border-radius:10px;padding:20px;text-align:center;border-top:3px solid var(--rc-red)">
+        <div style="font-size:32px;margin-bottom:8px">🔔</div>
+        <div style="font-weight:700;font-size:14px;color:var(--rc-dark)">Alertes automatiques</div>
+      </div>
+      <div style="background:var(--rc-accent);border-radius:10px;padding:20px;text-align:center;border-top:3px solid var(--rc-red)">
+        <div style="font-size:32px;margin-bottom:8px">🐕</div>
+        <div style="font-weight:700;font-size:14px;color:var(--rc-dark)">Meilleure gestion de l'alimentation</div>
+      </div>
+      <div style="background:var(--rc-accent);border-radius:10px;padding:20px;text-align:center;border-top:3px solid var(--rc-red)">
+        <div style="font-size:32px;margin-bottom:8px">🛒</div>
+        <div style="font-weight:700;font-size:14px;color:var(--rc-dark)">Évite les ruptures de stock</div>
+      </div>
+      <div style="background:var(--rc-accent);border-radius:10px;padding:20px;text-align:center;border-top:3px solid var(--rc-red)">
+        <div style="font-size:32px;margin-bottom:8px">🔒</div>
+        <div style="font-weight:700;font-size:14px;color:var(--rc-dark)">Couvercle hermétique</div>
+      </div>
+      <div style="background:var(--rc-accent);border-radius:10px;padding:20px;text-align:center;border-top:3px solid var(--rc-red)">
+        <div style="font-size:32px;margin-bottom:8px">📦</div>
+        <div style="font-weight:700;font-size:14px;color:var(--rc-dark)">Grande capacité 40 L</div>
+      </div>
+      <div style="background:var(--rc-accent);border-radius:10px;padding:20px;text-align:center;border-top:3px solid var(--rc-red)">
+        <div style="font-size:32px;margin-bottom:8px">🧹</div>
+        <div style="font-weight:700;font-size:14px;color:var(--rc-dark)">Facile à nettoyer</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">14 / 15</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 15 — SWOT
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s15">
+  <div class="slide-header" style="background:linear-gradient(90deg,#1a1a2e,#2c2c54)">
+    <div class="num">15</div>
+    <h2>Analyse SWOT — Bac à croquettes connecté Royal Canin</h2>
+  </div>
+  <div class="swot-grid" style="flex:1">
+    <div class="swot-cell swot-s">
+      <h3><span class="badge">S</span>Forces</h3>
+      <ul>
+        <li>Suivi en temps réel du niveau de croquettes par pesée</li>
+        <li>Alerte et recommande le réachat avant la rupture de stock</li>
+        <li>Fidélise le client au magasin partenaire via l'application</li>
+        <li>Simple d'utilisation : aucune mécanique, juste une balance connectée</li>
+        <li>Marque Royal Canin — forte notoriété et crédibilité</li>
+      </ul>
+    </div>
+    <div class="swot-cell swot-w">
+      <h3><span class="badge">W</span>Faiblesses</h3>
+      <ul>
+        <li>Nécessite une connexion Wi-Fi et un smartphone</li>
+        <li>Prix d'achat plus élevé qu'un bac classique</li>
+        <li>Dépendant d'un seul magasin partenaire (liberté d'achat limitée)</li>
+        <li>Précision de la pesée à valider selon la taille des croquettes</li>
+      </ul>
+    </div>
+    <div class="swot-cell swot-o">
+      <h3><span class="badge">O</span>Opportunités</h3>
+      <ul>
+        <li>Modèle B2B fort : outil de fidélisation clé pour animaleries &amp; vétérinaires</li>
+        <li>Données de consommation valorisables pour personnaliser les offres</li>
+        <li>Extension possible : multi-animaux, suivi santé, rappels vétérinaires</li>
+        <li>Marché du pet-care connecté en forte croissance en Europe</li>
+      </ul>
+    </div>
+    <div class="swot-cell swot-t">
+      <h3><span class="badge">T</span>Menaces</h3>
+      <ul>
+        <li>Résistance des propriétaires à changer leurs habitudes d'achat</li>
+        <li>Risque de contournement : achat ailleurs malgré l'alerte</li>
+        <li>Concurrents pouvant copier le concept (protection brevet limitée)</li>
+        <li>Dépendance à la relation commerciale avec les magasins partenaires</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-num">15 / 15</div>
+</div>
+
+<div style="color:#666;font-size:13px;text-align:center;padding:20px 0">
+  Présentation générée — Royal Canin · Bac à croquettes connecté · 2024
+</div>
+
+</body>
+</html>
