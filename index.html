@@ -3,142 +3,176 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MAISON SOLE — Chaussures de Luxe</title>
+  <title>Royal Canin — Bac à Croquettes Connecté · Nouveauté</title>
+  <meta name="description" content="Nouveauté Royal Canin : le bac à croquettes connecté 40 L. Balance intégrée, alertes en temps réel et application mobile pour ne jamais tomber à court de croquettes." />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@200;300;400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 </head>
 <body>
 
   <!-- NAVIGATION -->
   <nav class="nav">
-    <div class="nav__logo">MAISON SOLE</div>
+    <a href="#" class="nav__logo" aria-label="Royal Canin">
+      <svg class="nav__crown" viewBox="0 0 64 40" aria-hidden="true">
+        <path d="M4 36 L8 12 L20 24 L32 6 L44 24 L56 12 L60 36 Z" />
+        <circle cx="8" cy="10" r="3" /><circle cx="32" cy="4" r="3.5" /><circle cx="56" cy="10" r="3" />
+        <rect x="4" y="36" width="56" height="3" rx="1.5" />
+      </svg>
+      <span class="nav__wordmark">ROYAL CANIN</span>
+    </a>
     <ul class="nav__links">
-      <li><a href="#collection">Collection</a></li>
-      <li><a href="#about">L'Atelier</a></li>
+      <li><a href="#produit">Le Produit</a></li>
+      <li><a href="#features">Caractéristiques</a></li>
+      <li><a href="#etapes">Comment ça marche</a></li>
       <li><a href="#contact">Contact</a></li>
     </ul>
-    <div class="nav__cart">
-      <span class="cart-icon">◯</span>
+    <div class="nav__cart" role="button" aria-label="Ouvrir le panier">
+      <svg class="cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z M6 6 5 3H2 M9 20a1 1 0 100 2 1 1 0 000-2 M18 20a1 1 0 100 2 1 1 0 000-2"/></svg>
       <span class="cart-count">0</span>
     </div>
   </nav>
 
   <!-- HERO -->
-  <section class="hero">
+  <section class="hero" id="produit">
     <div class="hero__content">
-      <p class="hero__eyebrow">Nouvelle Collection — 2026</p>
-      <h1 class="hero__title">L'Art du<br /><em>Pas Juste</em></h1>
-      <p class="hero__sub">Chaque paire est une déclaration silencieuse.</p>
-      <a href="#collection" class="btn btn--outline">Découvrir</a>
+      <p class="hero__eyebrow"><span class="dot"></span> Nouveauté Royal Canin</p>
+      <h1 class="hero__title">Bac à Croquettes <span>Connecté</span></h1>
+      <p class="hero__sub">Pesée intelligente &amp; réapprovisionnement automatique via l'application. Ne tombez plus jamais à court de croquettes.</p>
+      <div class="hero__meta">
+        <span class="hero__chip">40 Litres</span>
+        <span class="hero__chip">Balance intégrée</span>
+        <span class="hero__chip">Wi-Fi · Bluetooth</span>
+      </div>
+      <div class="hero__cta">
+        <a href="#commander" class="btn btn--red">Commander — 89,90 €</a>
+        <a href="#features" class="btn btn--ghost">En savoir plus</a>
+      </div>
     </div>
     <div class="hero__visual">
-      <div class="shoe-placeholder shoe-placeholder--hero">
-        <div class="shoe-silhouette"></div>
-      </div>
+      <img src="assets/img/bac-connecte.png" alt="Bac à croquettes connecté Royal Canin 40 litres avec son application mobile" />
     </div>
-    <div class="hero__scroll-hint">↓</div>
   </section>
 
-  <!-- COLLECTION -->
-  <section class="collection" id="collection">
+  <!-- BANDEAU ARGUMENTS -->
+  <div class="strip">
+    <div class="strip__item"><strong>Suivi en temps réel</strong><span>du niveau de croquettes</span></div>
+    <div class="strip__item"><strong>Alerte automatique</strong><span>avant la rupture de stock</span></div>
+    <div class="strip__item"><strong>Application mobile</strong><span>iOS &amp; Android connectée</span></div>
+    <div class="strip__item"><strong>Couvercle hermétique</strong><span>fraîcheur préservée</span></div>
+  </div>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
     <div class="section-header">
-      <p class="section-header__label">Collection</p>
-      <h2 class="section-header__title">Trois Pièces.<br />Un Univers.</h2>
+      <p class="section-header__label">Caractéristiques</p>
+      <h2 class="section-header__title">Tout pour gérer l'alimentation,<br /><span>en toute simplicité.</span></h2>
     </div>
 
-    <div class="products">
-
-      <!-- PRODUIT 1 -->
-      <article class="product" data-id="1">
-        <div class="product__image-wrap">
-          <div class="shoe-placeholder shoe-placeholder--card">
-            <div class="shoe-silhouette shoe-silhouette--oxford"></div>
-          </div>
-          <button class="product__quick-add" onclick="addToCart('Oxford Noir', 395)">+ Ajouter</button>
-        </div>
-        <div class="product__info">
-          <span class="product__tag">Bestseller</span>
-          <h3 class="product__name">Oxford Noir</h3>
-          <p class="product__desc">Cuir pleine fleur, semelle Goodyear welt.</p>
-          <div class="product__footer">
-            <span class="product__price">395 €</span>
-            <button class="btn btn--dark" onclick="addToCart('Oxford Noir', 395)">Acquérir</button>
-          </div>
-        </div>
+    <div class="features__grid">
+      <article class="feature">
+        <div class="feature__icon">⚖️</div>
+        <h3>Balance intégrée</h3>
+        <p>Mesure automatiquement le poids des croquettes restantes, en continu et sans manipulation.</p>
       </article>
-
-      <!-- PRODUIT 2 -->
-      <article class="product product--featured" data-id="2">
-        <div class="product__image-wrap">
-          <div class="shoe-placeholder shoe-placeholder--card">
-            <div class="shoe-silhouette shoe-silhouette--chelsea"></div>
-          </div>
-          <button class="product__quick-add" onclick="addToCart('Chelsea Crème', 445)">+ Ajouter</button>
-        </div>
-        <div class="product__info">
-          <span class="product__tag product__tag--gold">Exclusif</span>
-          <h3 class="product__name">Chelsea Crème</h3>
-          <p class="product__desc">Nubuck italien, élastiques tressés à la main.</p>
-          <div class="product__footer">
-            <span class="product__price">445 €</span>
-            <button class="btn btn--dark" onclick="addToCart('Chelsea Crème', 445)">Acquérir</button>
-          </div>
-        </div>
+      <article class="feature">
+        <div class="feature__icon">📱</div>
+        <h3>Application connectée</h3>
+        <p>Suivez le volume restant en temps réel depuis votre smartphone, où que vous soyez.</p>
       </article>
-
-      <!-- PRODUIT 3 -->
-      <article class="product" data-id="3">
-        <div class="product__image-wrap">
-          <div class="shoe-placeholder shoe-placeholder--card">
-            <div class="shoe-silhouette shoe-silhouette--loafer"></div>
-          </div>
-          <button class="product__quick-add" onclick="addToCart('Loafer Tabac', 420)">+ Ajouter</button>
-        </div>
-        <div class="product__info">
-          <span class="product__tag">Nouveau</span>
-          <h3 class="product__name">Loafer Tabac</h3>
-          <p class="product__desc">Veau velours, pennée artisanale, doublure soie.</p>
-          <div class="product__footer">
-            <span class="product__price">420 €</span>
-            <button class="btn btn--dark" onclick="addToCart('Loafer Tabac', 420)">Acquérir</button>
-          </div>
-        </div>
+      <article class="feature">
+        <div class="feature__icon">🔔</div>
+        <h3>Alerte automatique</h3>
+        <p>Recevez une notification dès que le bac est presque vide. Le réachat est suggéré au bon moment.</p>
       </article>
-
+      <article class="feature">
+        <div class="feature__icon">📶</div>
+        <h3>Wi-Fi &amp; Bluetooth</h3>
+        <p>Connexion simple et stable. Aucune mécanique complexe : juste une balance connectée.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__icon">🛡️</div>
+        <h3>Couvercle hermétique</h3>
+        <p>Protège les croquettes de l'humidité et de l'air pour préserver tous leurs arômes.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__icon">🪣</div>
+        <h3>Grande capacité 40 L</h3>
+        <p>Adapté aux sacs de croquettes de 10 à 15 kg. Une fenêtre transparente pour vérifier d'un coup d'œil.</p>
+      </article>
     </div>
   </section>
 
-  <!-- ABOUT -->
-  <section class="about" id="about">
-    <div class="about__text">
-      <p class="section-header__label">L'Atelier</p>
-      <h2 class="about__title">Fait à la main.<br /><em>Porté pour durer.</em></h2>
-      <p class="about__body">Chaque paire naît dans notre atelier florentin. Nos artisans perpétuent des techniques centenaires — couture norvégienne, teinture à la main, finition miroir. Aucune machine ne remplace ce regard.</p>
-      <a href="#contact" class="btn btn--outline">Nous écrire</a>
+  <!-- COMMENT CA MARCHE -->
+  <section class="steps" id="etapes">
+    <div class="section-header">
+      <p class="section-header__label">Comment ça marche</p>
+      <h2 class="section-header__title">Trois étapes.<br /><span>Zéro oubli.</span></h2>
     </div>
-    <div class="about__visual">
-      <div class="about__line"></div>
-      <div class="about__stat">
-        <span class="about__stat-num">XIV</span>
-        <span class="about__stat-label">Étapes de fabrication</span>
+    <div class="steps__grid">
+      <div class="step">
+        <span class="step__num">01</span>
+        <h3>Remplissez le bac</h3>
+        <p>Versez votre sac de croquettes dans le bac 40 L et fermez le couvercle hermétique.</p>
       </div>
-      <div class="about__stat">
-        <span class="about__stat-num">48h</span>
-        <span class="about__stat-label">Par paire</span>
+      <div class="step">
+        <span class="step__num">02</span>
+        <h3>Le bac pèse</h3>
+        <p>La balance intégrée mesure le stock en continu et synchronise les données avec l'application.</p>
       </div>
-      <div class="about__stat">
-        <span class="about__stat-num">∞</span>
-        <span class="about__stat-label">Garantie ressemelage</span>
+      <div class="step">
+        <span class="step__num">03</span>
+        <h3>Soyez alerté</h3>
+        <p>Quand le niveau baisse, vous recevez une alerte et pouvez réapprovisionner en un clic.</p>
       </div>
+    </div>
+  </section>
+
+  <!-- PRODUIT / COMMANDER -->
+  <section class="buy" id="commander">
+    <div class="buy__visual">
+      <img src="assets/img/bac-connecte.png" alt="Bac à croquettes connecté Royal Canin" />
+    </div>
+    <div class="buy__info">
+      <span class="buy__badge">Nouveauté</span>
+      <h2 class="buy__name">Bac à Croquettes Connecté 40 L</h2>
+      <p class="buy__desc">Le compagnon intelligent de l'alimentation de votre animal. Design moderne, écran digital, fenêtre transparente et application connectée.</p>
+      <ul class="buy__list">
+        <li>Balance &amp; suivi en temps réel</li>
+        <li>Alertes de réachat automatiques</li>
+        <li>Couvercle hermétique &amp; fenêtre transparente</li>
+        <li>Compatible Wi-Fi / Bluetooth</li>
+      </ul>
+      <div class="buy__footer">
+        <span class="buy__price">89,90 €</span>
+        <button class="btn btn--red" onclick="addToCart('Bac à Croquettes Connecté 40 L', 89.90)">Ajouter au panier</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SPECS -->
+  <section class="specs">
+    <div class="section-header">
+      <p class="section-header__label">Fiche technique</p>
+      <h2 class="section-header__title">Caractéristiques détaillées</h2>
+    </div>
+    <div class="specs__table">
+      <div class="specs__row"><span>Capacité</span><span>40 litres (sacs de 10 à 15 kg)</span></div>
+      <div class="specs__row"><span>Mesure</span><span>Balance intégrée automatique</span></div>
+      <div class="specs__row"><span>Connectivité</span><span>Wi-Fi &amp; Bluetooth</span></div>
+      <div class="specs__row"><span>Application</span><span>iOS &amp; Android — suivi en temps réel</span></div>
+      <div class="specs__row"><span>Affichage</span><span>Écran digital + fenêtre transparente</span></div>
+      <div class="specs__row"><span>Couvercle</span><span>Hermétique, anti-humidité</span></div>
+      <div class="specs__row"><span>Matière</span><span>Plastique alimentaire, facile à nettoyer</span></div>
+      <div class="specs__row"><span>Design</span><span>Forme moderne, un côté plat</span></div>
     </div>
   </section>
 
   <!-- CONTACT -->
   <section class="contact" id="contact">
     <p class="section-header__label">Contact</p>
-    <h2 class="contact__title">Une question ?<br /><em>Un désir sur-mesure ?</em></h2>
+    <h2 class="contact__title">Une question sur le<br /><span>bac connecté&nbsp;?</span></h2>
     <form class="contact__form" onsubmit="handleForm(event)">
       <div class="form-row">
         <div class="form-group">
@@ -154,15 +188,22 @@
         <textarea id="message" placeholder="Votre message" rows="4" required></textarea>
         <label for="message">Votre message</label>
       </div>
-      <button type="submit" class="btn btn--dark btn--full">Envoyer</button>
+      <button type="submit" class="btn btn--red btn--full">Envoyer</button>
     </form>
   </section>
 
   <!-- FOOTER -->
   <footer class="footer">
-    <div class="footer__logo">MAISON SOLE</div>
-    <p class="footer__tagline">Florence · Paris · Tokyo</p>
-    <p class="footer__copy">© 2026 Maison Sole. Tous droits réservés.</p>
+    <div class="footer__brand">
+      <svg class="nav__crown nav__crown--light" viewBox="0 0 64 40" aria-hidden="true">
+        <path d="M4 36 L8 12 L20 24 L32 6 L44 24 L56 12 L60 36 Z" />
+        <circle cx="8" cy="10" r="3" /><circle cx="32" cy="4" r="3.5" /><circle cx="56" cy="10" r="3" />
+        <rect x="4" y="36" width="56" height="3" rx="1.5" />
+      </svg>
+      <span class="footer__wordmark">ROYAL CANIN</span>
+    </div>
+    <p class="footer__tagline">Nouveauté · Bac à croquettes connecté</p>
+    <p class="footer__copy">© 2026 — Site vitrine de démonstration. Royal Canin® est une marque déposée de ses propriétaires respectifs.</p>
   </footer>
 
   <!-- CART SIDEBAR -->
@@ -180,7 +221,7 @@
         <span>Total</span>
         <span id="cartTotal">0 €</span>
       </div>
-      <button class="btn btn--dark btn--full">Commander</button>
+      <button class="btn btn--red btn--full">Commander</button>
     </div>
   </aside>
 

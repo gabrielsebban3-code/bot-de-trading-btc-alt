@@ -1,6 +1,10 @@
 /* ===== CART STATE ===== */
 let cart = [];
 
+function fmt(n) {
+  return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
 function addToCart(name, price) {
   const existing = cart.find(i => i.name === name);
   if (existing) {
@@ -32,15 +36,15 @@ function renderCart() {
 
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   countEl.textContent = cart.reduce((sum, i) => sum + i.qty, 0);
-  totalEl.textContent = total.toLocaleString('fr-FR') + ' €';
+  totalEl.textContent = fmt(total);
 
   container.innerHTML = cart.map(item => `
     <div class="cart-item">
       <div>
         <div class="cart-item__name">${item.name} ${item.qty > 1 ? `×${item.qty}` : ''}</div>
-        <div class="cart-item__price">${(item.price * item.qty).toLocaleString('fr-FR')} €</div>
+        <div class="cart-item__price">${fmt(item.price * item.qty)}</div>
       </div>
-      <button class="cart-item__remove" onclick="removeFromCart('${item.name}')">✕</button>
+      <button class="cart-item__remove" onclick="removeFromCart('${item.name.replace(/'/g, "\\'")}')">✕</button>
     </div>
   `).join('');
 }
@@ -80,11 +84,11 @@ const observer = new IntersectionObserver((entries) => {
       entry.target.style.transform = 'translateY(0)';
     }
   });
-}, { threshold: 0.1 });
+}, { threshold: 0.12 });
 
-document.querySelectorAll('.product, .about__stat, .about__text').forEach(el => {
+document.querySelectorAll('.feature, .step, .specs__row, .buy__info').forEach(el => {
   el.style.opacity = '0';
-  el.style.transform = 'translateY(30px)';
+  el.style.transform = 'translateY(28px)';
   el.style.transition = 'opacity 0.7s ease, transform 0.7s ease';
   observer.observe(el);
 });
