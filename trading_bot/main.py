@@ -34,10 +34,11 @@ last_signal_time: dict[str, float] = {}
 
 
 def create_exchange() -> ccxt.binance:
-    """Initialise la connexion à Binance Futures via ccxt."""
+    """
+    Initialise la connexion à Binance Futures via ccxt en mode public.
+    Pas de clés API requises — données de marché uniquement, aucune restriction géographique.
+    """
     exchange = ccxt.binance({
-        "apiKey": os.getenv("BINANCE_API_KEY", ""),
-        "secret": os.getenv("BINANCE_API_SECRET", ""),
         "options": {
             "defaultType": "future",  # Binance Futures USDT perpetual
         },
@@ -156,12 +157,12 @@ def main() -> None:
     logger.info(f"💹 Paires : {', '.join(PAIRS)}")
     logger.info("=" * 60)
 
-    # Initialiser la connexion Binance
+    # Initialiser la connexion Binance en mode public (sans clés API)
     try:
         exchange = create_exchange()
-        # Test de connexion
-        exchange.load_markets()
-        logger.info("✅ Connexion Binance Futures établie")
+        # Test de connexion via endpoint public uniquement
+        exchange.fetch_ticker("BTC/USDT")
+        logger.info("✅ Connexion Binance Futures établie (mode public)")
     except Exception as e:
         logger.error(f"❌ Impossible de se connecter à Binance : {e}")
         sys.exit(1)
