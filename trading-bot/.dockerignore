@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Secrets / env locaux — ne jamais inclure dans l'image
+.env
+
+# Logs
+alerts.log
+*.log
+
+# Outils / divers
+.git
+.gitignore
+.DS_Store
+.pytest_cache/
+.mypy_cache/
+README.md

@@ -1,0 +1,21 @@
+# fly.toml — Worker always-on (pas de service HTTP).
+# Remplace "trading-bot-smc" par le nom que tu veux (doit être unique sur Fly).
+
+app = "trading-bot-smc"
+primary_region = "cdg"  # Paris ; change selon ta préférence (ex: "iad", "fra")
+
+[build]
+
+# Le bot tourne en tant que processus de fond unique (worker continu).
+[processes]
+  app = "python main.py"
+
+# Pas de section [http_service] : ce n'est pas un serveur web.
+# Sans http_service, Fly ne fait PAS de spin-down sur l'inactivité réseau :
+# la machine reste allumée 24/7 tant qu'au moins une machine est provisionnée.
+# On garde donc une seule machine toujours en marche (voir README pour
+# `fly scale count 1` qui garantit min_machines_running = 1).
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  processes = ["app"]
