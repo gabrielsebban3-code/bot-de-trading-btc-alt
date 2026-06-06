@@ -95,9 +95,10 @@ def analyze_pair(pair: str, candles: dict) -> dict | None:
         dfs[tf] = df
 
     # ── Biais directionnels par TF ───────────────────────────────────────────
+    # df_has_emas=True : les EMAs sont déjà calculées ci-dessus, évite le double calcul
     biases = {}
     for tf in required_tfs:
-        biases[tf] = get_tf_bias(dfs[tf])
+        biases[tf] = get_tf_bias(dfs[tf], df_has_emas=True)
 
     tf_bullish_count = _count_tf_alignment(biases, "bullish")
     tf_bearish_count = _count_tf_alignment(biases, "bearish")

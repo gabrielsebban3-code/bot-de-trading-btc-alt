@@ -71,25 +71,27 @@ def rsi_divergence(df: pd.DataFrame) -> str:
     """
     Détecte une divergence RSI vs price sur les 20 dernières bougies.
     Retourne 'bullish_div', 'bearish_div' ou 'none'.
+
+    Correction : utilise dropna() pour éviter les NaN silencieux sur le RSI.
     """
-    window = df.tail(20)
+    window = df.tail(20).dropna(subset=["rsi"])
     if len(window) < 5:
         return "none"
 
-    price_last = window["close"].iloc[-1]
-    price_prev_low = window["close"].iloc[:-1].min()
-    rsi_last = window["rsi"].iloc[-1]
-    rsi_at_price_low = window.loc[window["close"].idxmin(), "rsi"]
+    closes = window["close"].values
+    rsis = window["rsi"].values
 
-    # Divergence bullish : price fait new low mais RSI remonte
-    if price_last < price_prev_low and rsi_last > rsi_at_price_low:
+    price_last = closes[-1]
+    rsi_last = rsis[-1]
+
+    # Divergence bullish : price fait new low mais RSI est plus haut qu'au précédent low
+    low_idx = int(np.argmin(closes[:-1]))
+    if price_last < closes[low_idx] and rsi_last > rsis[low_idx]:
         return "bullish_div"
 
-    price_prev_high = window["close"].iloc[:-1].max()
-    rsi_at_price_high = window.loc[window["close"].idxmax(), "rsi"]
-
-    # Divergence bearish : price fait new high mais RSI baisse
-    if price_last > price_prev_high and rsi_last < rsi_at_price_high:
+    # Divergence bearish : price fait new high mais RSI est plus bas qu'au précédent high
+    high_idx = int(np.argmax(closes[:-1]))
+    if price_last > closes[high_idx] and rsi_last < rsis[high_idx]:
         return "bearish_div"
 
     return "none"
@@ -142,12 +144,39 @@ def atr_volatility_label(df: pd.DataFrame) -> str:
 # SMC — Order Blocks
 # ─────────────────────────────────────────────
 
+def _is_rejection_candle(open_: float, high: float, low: float, close: float) -> tuple[bool, bool]:
+    """
+    Détecte si une bougie est un OB valide, corps classique OU wick de rejet.
+
+    Retourne (is_bearish_ob, is_bullish_ob).
+
+    Bearish OB : corps bearish classique OU long wick haut (rejet du haut).
+    Bullish OB : corps bullish classique OU long wick bas (rejet du bas).
+    Le wick de rejet doit représenter > 60% de la taille totale de la bougie.
+    """
+    body = abs(close - open_)
+    total = high - low
+    if total == 0:
+        return False, False
+
+    upper_wick = high - max(open_, close)
+    lower_wick = min(open_, close) - low
+
+    # Corps bearish classique OU wick haut dominant (rejet haussier → zone de vente)
+    is_bearish_ob = (close < open_) or (upper_wick / total > 0.60)
+
+    # Corps bullish classique OU wick bas dominant (rejet baissier → zone d'achat)
+    is_bullish_ob = (close > open_) or (lower_wick / total > 0.60)
+
+    return is_bearish_ob, is_bullish_ob
+
+
 def detect_order_blocks(df: pd.DataFrame) -> dict:
     """
     Détecte les Order Blocks bullish et bearish.
 
-    Bullish OB = dernière bougie bearish avant une impulsion bullish.
-    Bearish OB = dernière bougie bullish avant une impulsion bearish.
+    Bullish OB = dernière bougie bearish (ou wick bas) avant impulsion bullish.
+    Bearish OB = dernière bougie bullish (ou wick haut) avant impulsion bearish.
 
     Retourne un dict avec :
       - 'bullish_ob' : dict {high, low, index} ou None
@@ -158,39 +187,31 @@ def detect_order_blocks(df: pd.DataFrame) -> dict:
     if len(df) < 5:
         return result
 
+    # Extraction une seule fois pour éviter les accès répétés
     closes = df["close"].values
     opens = df["open"].values
     highs = df["high"].values
     lows = df["low"].values
 
-    # Cherche dans les 50 dernières bougies (hors la dernière)
     lookback = min(50, len(df) - 2)
 
     for i in range(len(df) - 2, len(df) - 2 - lookback, -1):
         if i < 1:
             break
 
-        # Bougie bearish suivie d'une forte impulsion bullish → Bullish OB
-        is_bearish_candle = closes[i] < opens[i]
-        next_is_bullish_impulse = closes[i + 1] > highs[i]  # close dépasse le high du OB
+        is_bearish_candle, is_bullish_candle = _is_rejection_candle(
+            opens[i], highs[i], lows[i], closes[i]
+        )
 
+        # Bougie bearish/rejet haut + impulsion bullish → Bullish OB
+        next_is_bullish_impulse = closes[i + 1] > highs[i]
         if is_bearish_candle and next_is_bullish_impulse and result["bullish_ob"] is None:
-            result["bullish_ob"] = {
-                "high": highs[i],
-                "low": lows[i],
-                "index": i,
-            }
+            result["bullish_ob"] = {"high": highs[i], "low": lows[i], "index": i}
 
-        # Bougie bullish suivie d'une forte impulsion bearish → Bearish OB
-        is_bullish_candle = closes[i] > opens[i]
-        next_is_bearish_impulse = closes[i + 1] < lows[i]  # close passe sous le low du OB
-
+        # Bougie bullish/rejet bas + impulsion bearish → Bearish OB
+        next_is_bearish_impulse = closes[i + 1] < lows[i]
         if is_bullish_candle and next_is_bearish_impulse and result["bearish_ob"] is None:
-            result["bearish_ob"] = {
-                "high": highs[i],
-                "low": lows[i],
-                "index": i,
-            }
+            result["bearish_ob"] = {"high": highs[i], "low": lows[i], "index": i}
 
         if result["bullish_ob"] and result["bearish_ob"]:
             break
@@ -233,19 +254,17 @@ def detect_fvg(df: pd.DataFrame) -> dict:
         if i < 2:
             break
 
-        # Bullish FVG : low de la bougie actuelle > high de la bougie i-2
         if lows[i] > highs[i - 2] and result["bullish_fvg"] is None:
             result["bullish_fvg"] = {
-                "high": lows[i],       # borne haute du gap
-                "low": highs[i - 2],   # borne basse du gap
+                "high": lows[i],
+                "low": highs[i - 2],
                 "index": i,
             }
 
-        # Bearish FVG : high de la bougie actuelle < low de la bougie i-2
         if highs[i] < lows[i - 2] and result["bearish_fvg"] is None:
             result["bearish_fvg"] = {
-                "high": lows[i - 2],   # borne haute du gap
-                "low": highs[i],       # borne basse du gap
+                "high": lows[i - 2],
+                "low": highs[i],
                 "index": i,
             }
 
@@ -296,41 +315,28 @@ def detect_bos_choch(df: pd.DataFrame) -> dict:
     lows = df["low"].values
     closes = df["close"].values
 
-    # Identifier les swing highs/lows sur les 30 dernières bougies
     lookback = min(30, len(df) - 1)
-    recent_highs = highs[-(lookback):]
-    recent_lows = lows[-(lookback):]
+    recent_highs = highs[-lookback:]
+    recent_lows = lows[-lookback:]
 
     prev_swing_high = np.max(recent_highs[:-3])
     prev_swing_low = np.min(recent_lows[:-3])
     current_close = closes[-1]
 
-    # BOS bullish : close dépasse le précédent swing high
     if current_close > prev_swing_high:
         result["bos_bullish"] = True
         result["trend"] = "bullish"
-
-    # BOS bearish : close passe sous le précédent swing low
     elif current_close < prev_swing_low:
         result["bos_bearish"] = True
         result["trend"] = "bearish"
 
-    # CHOCH : détecter un renversement de structure
-    # Analyse la tendance sur les 15 dernières bougies pour détecter le renversement
     if lookback >= 15:
-        mid_highs = highs[-(lookback):-lookback // 2]
-        mid_lows = lows[-(lookback):-lookback // 2]
-        recent_h = highs[-lookback // 2:]
-        recent_l = lows[-lookback // 2:]
+        mid = lookback // 2
+        was_bullish = np.max(highs[-mid:]) > np.max(highs[-lookback:-mid])
+        was_bearish = np.min(lows[-mid:]) < np.min(lows[-lookback:-mid])
 
-        was_bullish = np.max(recent_h) > np.max(mid_highs)
-        was_bearish = np.min(recent_l) < np.min(mid_lows)
-
-        # Structure était bearish et on a un BOS bullish → CHOCH bullish
         if was_bearish and result["bos_bullish"]:
             result["choch_bullish"] = True
-
-        # Structure était bullish et on a un BOS bearish → CHOCH bearish
         if was_bullish and result["bos_bearish"]:
             result["choch_bearish"] = True
 
@@ -346,17 +352,14 @@ def detect_liquidity_sweep(df: pd.DataFrame) -> dict:
     Détecte les liquidity sweeps.
 
     Equal highs/lows dans une tolérance de 0.15%, suivis d'une réaction inverse.
+    Optimisation : comparaison vectorielle numpy au lieu de double boucle O(n²).
 
     Retourne :
       - 'bullish_sweep' : bool (sweep de lows → réaction haussière)
       - 'bearish_sweep' : bool (sweep de highs → réaction baissière)
       - 'sweep_level'   : float ou None
     """
-    result = {
-        "bullish_sweep": False,
-        "bearish_sweep": False,
-        "sweep_level": None,
-    }
+    result = {"bullish_sweep": False, "bearish_sweep": False, "sweep_level": None}
 
     if len(df) < 5:
         return result
@@ -370,29 +373,35 @@ def detect_liquidity_sweep(df: pd.DataFrame) -> dict:
     current_high = highs[-1]
     current_low = lows[-1]
 
-    for i in range(len(df) - 3, len(df) - 3 - lookback, -1):
-        if i < 0:
-            break
+    # Fenêtre de recherche (exclut la dernière bougie)
+    search_lows = lows[-(lookback + 1):-1]
+    search_highs = highs[-(lookback + 1):-1]
 
-        # Cherche equal lows (liquidité sous le marché)
-        for j in range(i - 1, max(0, i - 10), -1):
-            low_diff = abs(lows[i] - lows[j]) / lows[i]
-            if low_diff <= LIQUIDITY_TOLERANCE:
-                # Equal lows détectés — vérifier si la bougie actuelle a sweepé puis réagi
-                if current_low < lows[i] and current_close > lows[i]:
-                    result["bullish_sweep"] = True
-                    result["sweep_level"] = lows[i]
-                    return result
+    # ── Equal lows : comparaison vectorielle ─────────────────────────────────
+    # Pour chaque bougie i, cherche si un autre low dans les 10 bougies avant
+    # est à moins de LIQUIDITY_TOLERANCE de distance
+    for i in range(len(search_lows) - 1, 0, -1):
+        window = search_lows[max(0, i - 10):i]
+        if len(window) == 0:
+            continue
+        diffs = np.abs(search_lows[i] - window) / search_lows[i]
+        if np.any(diffs <= LIQUIDITY_TOLERANCE):
+            if current_low < search_lows[i] and current_close > search_lows[i]:
+                result["bullish_sweep"] = True
+                result["sweep_level"] = float(search_lows[i])
+                return result
 
-        # Cherche equal highs (liquidité au-dessus du marché)
-        for j in range(i - 1, max(0, i - 10), -1):
-            high_diff = abs(highs[i] - highs[j]) / highs[i]
-            if high_diff <= LIQUIDITY_TOLERANCE:
-                # Equal highs détectés — vérifier si la bougie actuelle a sweepé puis réagi
-                if current_high > highs[i] and current_close < highs[i]:
-                    result["bearish_sweep"] = True
-                    result["sweep_level"] = highs[i]
-                    return result
+    # ── Equal highs : comparaison vectorielle ────────────────────────────────
+    for i in range(len(search_highs) - 1, 0, -1):
+        window = search_highs[max(0, i - 10):i]
+        if len(window) == 0:
+            continue
+        diffs = np.abs(search_highs[i] - window) / search_highs[i]
+        if np.any(diffs <= LIQUIDITY_TOLERANCE):
+            if current_high > search_highs[i] and current_close < search_highs[i]:
+                result["bearish_sweep"] = True
+                result["sweep_level"] = float(search_highs[i])
+                return result
 
     return result
 
@@ -401,12 +410,15 @@ def detect_liquidity_sweep(df: pd.DataFrame) -> dict:
 # Biais directionnel par timeframe
 # ─────────────────────────────────────────────
 
-def get_tf_bias(df: pd.DataFrame) -> str:
+def get_tf_bias(df: pd.DataFrame, df_has_emas: bool = False) -> str:
     """
     Détermine le biais directionnel d'un timeframe : 'bullish', 'bearish' ou 'neutral'.
     Basé sur l'alignement EMA + BOS.
+
+    df_has_emas : True si les EMAs sont déjà calculées dans df (évite le double calcul).
     """
-    df = calculate_emas(df)
+    if not df_has_emas:
+        df = calculate_emas(df)
     ema_dir = ema_trend_direction(df)
     bos = detect_bos_choch(df)
 
