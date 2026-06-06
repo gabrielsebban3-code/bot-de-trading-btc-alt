@@ -1,0 +1,574 @@
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  SWING CONFLUENCE STRATEGY — Pine Script v5                                ║
+// ║  Détection de swing highs/lows + confluence multi-indicateurs             ║
+// ║  (Order Blocks, EMA, RSI, Break of Structure) avec gestion auto SL/TP.    ║
+// ║                                                                            ║
+// ║  Auteur : généré pour backtest TradingView                                ║
+// ║  Usage  : coller dans l'éditeur Pine, ajouter au graphique, ouvrir        ║
+// ║           l'onglet "Strategy Tester" pour les statistiques de perf.       ║
+// ║                                                                            ║
+// ║  ⚠ AVERTISSEMENT REPAINT :                                                ║
+// ║    - Les pivots (ta.pivothigh/low) ne sont CONFIRMÉS qu'après             ║
+// ║      `pivotRight` bougies. On NE trade donc QUE des pivots confirmés      ║
+// ║      => pas de repaint sur la logique d'entrée.                           ║
+// ║    - Toutes les conditions d'entrée sont évaluées sur barres clôturées.   ║
+// ║    - Le seul "retard" assumé est celui des pivots (inhérent à la méthode).║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+
+//@version=5
+strategy(
+     title              = "Swing Confluence Strategy",
+     shorttitle         = "SwingConf",
+     overlay            = true,
+     pyramiding         = 0,
+     initial_capital    = 10000,
+     default_qty_type   = strategy.percent_of_equity,
+     default_qty_value  = 100,
+     commission_type    = strategy.commission.percent,
+     commission_value   = 0.04,          // ~ frais futures crypto par défaut
+     slippage           = 2,
+     calc_on_every_tick = false,
+     process_orders_on_close = true)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 1) INPUTS — PÉRIODE DE BACKTEST
+// ═══════════════════════════════════════════════════════════════════════════
+grpDate   = "① Période de backtest"
+useDateFilter = input.bool(true, "Activer le filtre de dates", group = grpDate,
+     tooltip = "Si activé, la stratégie ne prend des trades qu'entre les deux dates ci-dessous.")
+startDate = input.time(timestamp("01 Jan 2020 00:00 +0000"), "Date de début", group = grpDate)
+endDate   = input.time(timestamp("01 Jan 2030 00:00 +0000"), "Date de fin",   group = grpDate)
+
+// Fenêtre temporelle autorisée
+inDateWindow = not useDateFilter or (time >= startDate and time <= endDate)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2) INPUTS — SWINGS / PIVOTS
+// ═══════════════════════════════════════════════════════════════════════════
+grpSwing    = "② Swings (pivots)"
+pivotLeft   = input.int(8, "Pivot lookback gauche", minval = 1, group = grpSwing,
+     tooltip = "Nombre de bougies à GAUCHE requises pour valider un pivot.")
+pivotRight  = input.int(8, "Pivot lookback droite", minval = 1, group = grpSwing,
+     tooltip = "Nombre de bougies à DROITE pour CONFIRMER un pivot. " +
+               "⚠ Le pivot n'apparaît qu'après ce nombre de bougies (pas de repaint).")
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 3) INPUTS — ORDER BLOCKS
+// ═══════════════════════════════════════════════════════════════════════════
+grpOB       = "③ Order Blocks"
+useOB       = input.bool(true,  "Utiliser les Order Blocks comme confluence", group = grpOB)
+obImpulse   = input.float(1.5, "Force du mouvement impulsif (× ATR)", minval = 0.1, step = 0.1, group = grpOB,
+     tooltip = "Un Order Block est validé si la bougie suivante crée un mouvement " +
+               "supérieur à ce multiple de l'ATR (mouvement impulsif).")
+obLookback  = input.int(20, "Fenêtre de validité d'un OB (bougies)", minval = 1, group = grpOB,
+     tooltip = "Durée pendant laquelle un Order Block reste actif/valide pour une réaction.")
+obMaxBoxes  = input.int(8, "Nb max de rectangles OB affichés", minval = 1, maxval = 50, group = grpOB)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 4) INPUTS — EMA (TENDANCE)
+// ═══════════════════════════════════════════════════════════════════════════
+grpEMA      = "④ EMA (tendance)"
+useEMA      = input.bool(true, "Utiliser le filtre EMA comme confluence", group = grpEMA)
+emaFastLen  = input.int(50,  "EMA rapide",  minval = 1, group = grpEMA)
+emaSlowLen  = input.int(200, "EMA lente",   minval = 1, group = grpEMA)
+emaNeutral  = input.bool(true, "Autoriser tendance NEUTRE (entre les 2 EMA)", group = grpEMA,
+     tooltip = "Si activé, un long est aussi permis quand le prix est au-dessus de l'EMA rapide " +
+               "mais sous l'EMA lente (tendance neutre/transition).")
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 5) INPUTS — RSI
+// ═══════════════════════════════════════════════════════════════════════════
+grpRSI      = "⑤ RSI"
+useRSI      = input.bool(true, "Utiliser le filtre RSI comme confluence", group = grpRSI)
+rsiLen      = input.int(14, "Période RSI", minval = 1, group = grpRSI)
+rsiOS       = input.int(35, "Niveau survente (oversold)",  minval = 1, maxval = 99, group = grpRSI)
+rsiOB       = input.int(65, "Niveau surachat (overbought)", minval = 1, maxval = 99, group = grpRSI)
+useRsiDiv   = input.bool(false, "Détection de divergences RSI (bonus confluence)", group = grpRSI,
+     tooltip = "Si activé, une divergence haussière/baissière compte comme confluence supplémentaire.")
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 6) INPUTS — BREAK OF STRUCTURE (BOS)
+// ═══════════════════════════════════════════════════════════════════════════
+grpBOS      = "⑥ Break of Structure"
+useBOS      = input.bool(true, "Utiliser le BOS comme confluence", group = grpBOS,
+     tooltip = "BOS haussier = clôture au-dessus du dernier swing high confirmé. " +
+               "BOS baissier = clôture sous le dernier swing low confirmé.")
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 7) INPUTS — CONFLUENCE
+// ═══════════════════════════════════════════════════════════════════════════
+grpConf     = "⑦ Confluence"
+minConfluence = input.int(3, "Confluences minimales requises (sur 5)", minval = 1, maxval = 5, group = grpConf,
+     tooltip = "Nombre minimum de conditions qui doivent s'aligner pour valider une entrée. " +
+               "Plus élevé = plus conservateur (moins de trades, winrate visé plus haut). " +
+               "Plus bas = plus agressif (plus d'opportunités).")
+allowLongs  = input.bool(true, "Autoriser les positions LONG",  group = grpConf)
+allowShorts = input.bool(true, "Autoriser les positions SHORT", group = grpConf)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 8) INPUTS — GESTION DU RISQUE / SORTIES
+// ═══════════════════════════════════════════════════════════════════════════
+grpRisk     = "⑧ Risque & Sorties"
+slMode      = input.string("ATR", "Mode buffer Stop Loss", options = ["Pourcentage", "ATR"], group = grpRisk,
+     tooltip = "Détermine comment le petit 'buffer' sous/au-dessus du swing est calculé.")
+slBufferPct = input.float(0.2, "Buffer SL (%)",  minval = 0.0, step = 0.05, group = grpRisk,
+     tooltip = "Utilisé si Mode = Pourcentage. Buffer ajouté sous le swing low / au-dessus du swing high.")
+slBufferATR = input.float(0.5, "Buffer SL (× ATR)", minval = 0.0, step = 0.1, group = grpRisk,
+     tooltip = "Utilisé si Mode = ATR. Buffer = ce multiple de l'ATR.")
+atrLen      = input.int(14, "Période ATR", minval = 1, group = grpRisk)
+
+rrRatio     = input.float(2.0, "Risk/Reward ratio (TP principal)", minval = 0.1, step = 0.1, group = grpRisk,
+     tooltip = "Ex : 2 => le TP vise 2× la distance du Stop Loss (1:2).")
+
+riskPerTrade = input.float(1.0, "Risque par trade (% du capital)", minval = 0.01, step = 0.1, group = grpRisk,
+     tooltip = "La taille de position est calculée automatiquement pour ne risquer que ce % " +
+               "du capital entre l'entrée et le Stop Loss.")
+
+// — Take Profit par Fibonacci (optionnel) —
+useFibTP    = input.bool(false, "TP par niveaux de Fibonacci (extensions)", group = grpRisk,
+     tooltip = "Si activé, sort la position en 3 paliers sur des extensions de Fibonacci " +
+               "au lieu d'un TP unique basé sur le R/R.")
+fib1        = input.float(1.0,   "Fib extension 1", step = 0.1, group = grpRisk)
+fib2        = input.float(1.618, "Fib extension 2", step = 0.1, group = grpRisk)
+fib3        = input.float(2.618, "Fib extension 3", step = 0.1, group = grpRisk)
+fibQty1     = input.int(40, "Quantité sortie au Fib 1 (%)", minval = 1, maxval = 100, group = grpRisk)
+fibQty2     = input.int(30, "Quantité sortie au Fib 2 (%)", minval = 1, maxval = 100, group = grpRisk)
+// (le reste est sorti au Fib 3)
+
+// — Trailing stop (optionnel) —
+useTrailing = input.bool(false, "Activer le Trailing Stop", group = grpRisk)
+trailATR    = input.float(2.0, "Distance trailing (× ATR)", minval = 0.1, step = 0.1, group = grpRisk,
+     tooltip = "Le stop suiveur reste à cette distance (en ATR) du plus haut/bas atteint.")
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 9) INPUTS — VISUEL
+// ═══════════════════════════════════════════════════════════════════════════
+grpView     = "⑨ Affichage"
+showEMA     = input.bool(true,  "Afficher les EMA",            group = grpView)
+showOB      = input.bool(true,  "Afficher les Order Blocks",   group = grpView)
+showSwings  = input.bool(true,  "Afficher les swings (pivots)", group = grpView)
+showSLTP    = input.bool(true,  "Afficher les lignes SL / TP", group = grpView)
+showSignals = input.bool(true,  "Afficher les triangles d'entrée", group = grpView)
+showBOS     = input.bool(false, "Afficher les labels BOS",     group = grpView)
+
+// Thème sobre / couleurs cohérentes
+colLong     = color.new(#26a69a, 0)     // vert sobre
+colShort    = color.new(#ef5350, 0)     // rouge sobre
+colSL       = color.new(#ef5350, 0)     // rouge SL
+colTP       = color.new(#26a69a, 0)     // vert TP
+colOBbull   = color.new(#26a69a, 82)    // vert doux transparent
+colOBbear   = color.new(#ef5350, 82)    // rouge doux transparent
+colEMAfast  = color.new(#42a5f5, 0)     // bleu clair
+colEMAslow  = color.new(#ab47bc, 0)     // violet
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 10) CALCULS DES INDICATEURS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// --- ATR (sert au SL, OB impulse, trailing) ---
+atr = ta.atr(atrLen)
+
+// --- EMA ---
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+
+// --- RSI ---
+rsi = ta.rsi(close, rsiLen)
+
+// --- PIVOTS (swings) ---
+// ⚠ ta.pivothigh/low renvoie une valeur décalée de `pivotRight` barres :
+//   un pivot détecté MAINTENANT correspond en réalité à la barre [pivotRight].
+//   => Confirmé, donc non-repaint. On le mémorise dans des variables persistantes.
+ph = ta.pivothigh(high, pivotLeft, pivotRight)
+pl = ta.pivotlow(low,  pivotLeft, pivotRight)
+
+var float lastSwingHigh    = na      // niveau du dernier swing high confirmé
+var float prevSwingHigh    = na      // swing high précédent (pour BOS / structure)
+var float lastSwingLow     = na
+var float prevSwingLow     = na
+var int   lastSwingHighBar = na      // index barre du dernier swing high
+var int   lastSwingLowBar  = na
+
+if not na(ph)
+    prevSwingHigh    := lastSwingHigh
+    lastSwingHigh    := ph
+    lastSwingHighBar := bar_index - pivotRight
+if not na(pl)
+    prevSwingLow     := lastSwingLow
+    lastSwingLow     := pl
+    lastSwingLowBar  := bar_index - pivotRight
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 11) ORDER BLOCKS
+// ═══════════════════════════════════════════════════════════════════════════
+// Définition retenue (simple & robuste, non-repaint car évaluée sur barres closes) :
+//  - Bullish OB : dernière bougie BAISSIÈRE avant un mouvement impulsif HAUSSIER.
+//    On détecte une bougie [1] rouge, suivie d'une bougie [0] verte dont
+//    l'amplitude (close-open) dépasse obImpulse × ATR.
+//    La zone OB = [low[1], high[1]] (corps/mèche de la bougie d'origine).
+//  - Bearish OB : symétrique.
+
+bullImpulse = (close - open) > obImpulse * atr            // bougie courante impulsive haussière
+bearImpulse = (open - close) > obImpulse * atr            // bougie courante impulsive baissière
+
+isBullOB = useOB and close[1] < open[1] and bullImpulse    // bougie précédente baissière + impulsion up
+isBearOB = useOB and close[1] > open[1] and bearImpulse    // bougie précédente haussière + impulsion down
+
+// Mémorise la dernière zone OB de chaque type + la barre de création
+var float bullOBtop = na
+var float bullOBbot = na
+var int   bullOBbar = na
+var float bearOBtop = na
+var float bearOBbot = na
+var int   bearOBbar = na
+
+if isBullOB
+    bullOBtop := high[1]
+    bullOBbot := low[1]
+    bullOBbar := bar_index - 1
+if isBearOB
+    bearOBtop := high[1]
+    bearOBbot := low[1]
+    bearOBbar := bar_index - 1
+
+// Un OB est "actif" si créé dans la fenêtre obLookback
+bullOBactive = useOB and not na(bullOBbar) and (bar_index - bullOBbar) <= obLookback
+bearOBactive = useOB and not na(bearOBbar) and (bar_index - bearOBbar) <= obLookback
+
+// "Réaction" sur l'OB : le prix revient toucher la zone (mèche dans la zone)
+bullOBreaction = bullOBactive and low <= bullOBtop and low >= bullOBbot
+bearOBreaction = bearOBactive and high >= bearOBbot and high <= bearOBtop
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 12) BREAK OF STRUCTURE (BOS)
+// ═══════════════════════════════════════════════════════════════════════════
+// BOS haussier : clôture actuelle au-dessus du dernier swing high confirmé.
+// BOS baissier : clôture actuelle sous le dernier swing low confirmé.
+// (Basé sur des swings confirmés => non-repaint.)
+bosBull = useBOS and not na(lastSwingHigh) and close > lastSwingHigh
+bosBear = useBOS and not na(lastSwingLow)  and close < lastSwingLow
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 13) DIVERGENCES RSI (optionnel)
+// ═══════════════════════════════════════════════════════════════════════════
+// Divergence haussière : prix fait un plus bas plus bas, RSI fait un plus bas plus haut.
+// Divergence baissière : prix fait un plus haut plus haut, RSI fait un plus haut plus bas.
+// On compare les valeurs RSI aux barres de pivots confirmés.
+var float lastPivotLowRSI  = na
+var float prevPivotLowRSI  = na
+var float lastPivotHighRSI = na
+var float prevPivotHighRSI = na
+
+if not na(pl)
+    prevPivotLowRSI := lastPivotLowRSI
+    lastPivotLowRSI := rsi[pivotRight]
+if not na(ph)
+    prevPivotHighRSI := lastPivotHighRSI
+    lastPivotHighRSI := rsi[pivotRight]
+
+bullDiv = useRsiDiv and not na(prevSwingLow) and not na(lastSwingLow) and
+     not na(prevPivotLowRSI) and not na(lastPivotLowRSI) and
+     lastSwingLow < prevSwingLow and lastPivotLowRSI > prevPivotLowRSI
+
+bearDiv = useRsiDiv and not na(prevSwingHigh) and not na(lastSwingHigh) and
+     not na(prevPivotHighRSI) and not na(lastPivotHighRSI) and
+     lastSwingHigh > prevSwingHigh and lastPivotHighRSI < prevPivotHighRSI
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 14) SYSTÈME DE CONFLUENCE
+// ═══════════════════════════════════════════════════════════════════════════
+// Chaque condition vraie ajoute 1 point. Une condition désactivée n'est pas
+// comptée comme requise (elle n'ajoute simplement aucun point).
+
+// --- Récence d'un swing low/high (réaction proche d'un pivot) ---
+swingLowRecent  = not na(lastSwingLowBar)  and (bar_index - lastSwingLowBar)  <= obLookback
+swingHighRecent = not na(lastSwingHighBar) and (bar_index - lastSwingHighBar) <= obLookback
+
+// --- Tendance EMA ---
+trendUp   = close > emaSlow
+trendDown = close < emaSlow
+trendNeutralUp   = emaNeutral and close > emaFast and close <= emaSlow
+trendNeutralDown = emaNeutral and close < emaFast and close >= emaSlow
+
+emaLongOK  = not useEMA or trendUp   or trendNeutralUp
+emaShortOK = not useEMA or trendDown or trendNeutralDown
+
+// --- RSI sort de zone ---
+rsiLongOK  = not useRSI or (rsi[1] < rsiOS and rsi > rsiOS) or rsi < rsiOS   // sort de survente OU encore en survente
+rsiShortOK = not useRSI or (rsi[1] > rsiOB and rsi < rsiOB) or rsi > rsiOB
+
+// --- Comptage des confluences LONG ---
+int confLong = 0
+confLong += swingLowRecent                      ? 1 : 0   // 1. swing low récent
+confLong += (useOB and bullOBreaction)          ? 1 : 0   // 2. réaction bullish OB
+confLong += (useRSI and rsiLongOK)              ? 1 : 0   // 3. RSI survente / sortie
+confLong += (useEMA and emaLongOK)              ? 1 : 0   // 4. tendance EMA ok
+confLong += (useBOS and bosBull)                ? 1 : 0   // 5. BOS haussier
+confLong += (useRsiDiv and bullDiv)             ? 1 : 0   // bonus divergence
+
+// --- Comptage des confluences SHORT ---
+int confShort = 0
+confShort += swingHighRecent                    ? 1 : 0
+confShort += (useOB and bearOBreaction)         ? 1 : 0
+confShort += (useRSI and rsiShortOK)            ? 1 : 0
+confShort += (useEMA and emaShortOK)            ? 1 : 0
+confShort += (useBOS and bosBear)               ? 1 : 0
+confShort += (useRsiDiv and bearDiv)            ? 1 : 0
+
+// --- Filtres "hard" (non négociables même en mode agressif) ---
+// On exige toujours que la tendance EMA ne contredise pas franchement l'entrée.
+hardLongOK  = emaLongOK
+hardShortOK = emaShortOK
+
+// --- Signaux d'entrée bruts ---
+longSignal  = allowLongs  and inDateWindow and hardLongOK  and confLong  >= minConfluence
+shortSignal = allowShorts and inDateWindow and hardShortOK and confShort >= minConfluence
+
+// On évite d'empiler des signaux : un seul nouveau trade quand on est flat.
+canEnter   = strategy.position_size == 0
+enterLong  = longSignal  and canEnter
+enterShort = shortSignal and canEnter and not enterLong   // priorité long si conflit
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 15) CALCUL SL / TP / TAILLE DE POSITION
+// ═══════════════════════════════════════════════════════════════════════════
+// Buffer SL selon le mode choisi
+slBuffer = slMode == "ATR" ? slBufferATR * atr : close * slBufferPct / 100.0
+
+// Niveaux de référence pour le SL = swing structurel le plus pertinent
+longSLref  = not na(lastSwingLow)  ? lastSwingLow  : low
+shortSLref = not na(lastSwingHigh) ? lastSwingHigh : high
+
+// On fige les niveaux au moment de l'entrée (variables persistantes)
+var float entryPrice = na
+var float stopPrice  = na
+var float tpPrice    = na
+var float tp1Price   = na
+var float tp2Price   = na
+var float tp3Price   = na
+var float riskDist   = na
+
+// Calcul anticipé des niveaux pour la barre d'entrée
+float pendingEntry = close
+float pendingStopL = longSLref  - slBuffer
+float pendingStopS = shortSLref + slBuffer
+float pendingRiskL = pendingEntry - pendingStopL
+float pendingRiskS = pendingStopS - pendingEntry
+
+// Taille de position basée sur le risque (% capital / distance au SL)
+// qty = (capital × risque%) / distanceSL  → en unités de l'actif
+f_qtyFromRisk(_riskDist) =>
+    riskCapital = strategy.equity * riskPerTrade / 100.0
+    _riskDist > 0 ? riskCapital / _riskDist : na
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 16) EXÉCUTION DES ENTRÉES
+// ═══════════════════════════════════════════════════════════════════════════
+if enterLong and pendingRiskL > 0
+    qty = f_qtyFromRisk(pendingRiskL)
+    entryPrice := pendingEntry
+    stopPrice  := pendingStopL
+    riskDist   := pendingRiskL
+    tpPrice    := entryPrice + rrRatio * riskDist
+    // Niveaux Fibonacci (extensions au-dessus de l'entrée, basés sur le risque)
+    tp1Price   := entryPrice + fib1 * riskDist
+    tp2Price   := entryPrice + fib2 * riskDist
+    tp3Price   := entryPrice + fib3 * riskDist
+    strategy.entry("Long", strategy.long, qty = qty, alert_message = "LONG entry")
+
+if enterShort and pendingRiskS > 0
+    qty = f_qtyFromRisk(pendingRiskS)
+    entryPrice := pendingEntry
+    stopPrice  := pendingStopS
+    riskDist   := pendingRiskS
+    tpPrice    := entryPrice - rrRatio * riskDist
+    tp1Price   := entryPrice - fib1 * riskDist
+    tp2Price   := entryPrice - fib2 * riskDist
+    tp3Price   := entryPrice - fib3 * riskDist
+    strategy.entry("Short", strategy.short, qty = qty, alert_message = "SHORT entry")
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 17) EXÉCUTION DES SORTIES (SL / TP / Fib / Trailing)
+// ═══════════════════════════════════════════════════════════════════════════
+// Quantités Fib en fraction
+qFrac1 = fibQty1 / 100.0
+qFrac2 = fibQty2 / 100.0
+
+// Distance de trailing en prix
+trailOffset = trailATR * atr
+
+if strategy.position_size > 0   // ── EN POSITION LONGUE ──
+    if useTrailing
+        // Trailing stop : suit le prix, conserve le TP final comme objectif
+        strategy.exit("Exit L", from_entry = "Long",
+             stop = stopPrice,
+             trail_points = trailOffset / syminfo.mintick,
+             trail_offset = trailOffset / syminfo.mintick,
+             alert_message = "LONG exit (trailing)")
+    else if useFibTP
+        // Sorties échelonnées sur extensions de Fibonacci
+        strategy.exit("TP1 L", from_entry = "Long", qty_percent = fibQty1, stop = stopPrice, limit = tp1Price)
+        strategy.exit("TP2 L", from_entry = "Long", qty_percent = fibQty2, stop = stopPrice, limit = tp2Price)
+        strategy.exit("TP3 L", from_entry = "Long", stop = stopPrice, limit = tp3Price,
+             alert_message = "LONG exit (fib)")
+    else
+        // SL + TP unique sur Risk/Reward
+        strategy.exit("Exit L", from_entry = "Long", stop = stopPrice, limit = tpPrice,
+             alert_message = "LONG exit")
+
+if strategy.position_size < 0   // ── EN POSITION COURTE ──
+    if useTrailing
+        strategy.exit("Exit S", from_entry = "Short",
+             stop = stopPrice,
+             trail_points = trailOffset / syminfo.mintick,
+             trail_offset = trailOffset / syminfo.mintick,
+             alert_message = "SHORT exit (trailing)")
+    else if useFibTP
+        strategy.exit("TP1 S", from_entry = "Short", qty_percent = fibQty1, stop = stopPrice, limit = tp1Price)
+        strategy.exit("TP2 S", from_entry = "Short", qty_percent = fibQty2, stop = stopPrice, limit = tp2Price)
+        strategy.exit("TP3 S", from_entry = "Short", stop = stopPrice, limit = tp3Price,
+             alert_message = "SHORT exit (fib)")
+    else
+        strategy.exit("Exit S", from_entry = "Short", stop = stopPrice, limit = tpPrice,
+             alert_message = "SHORT exit")
+
+// Reset des niveaux quand on repasse flat
+if strategy.position_size == 0 and strategy.position_size[1] != 0
+    entryPrice := na
+    stopPrice  := na
+    tpPrice    := na
+    tp1Price   := na
+    tp2Price   := na
+    tp3Price   := na
+    riskDist   := na
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 18) VISUEL — EMA
+// ═══════════════════════════════════════════════════════════════════════════
+plot(showEMA ? emaFast : na, "EMA rapide", color = colEMAfast, linewidth = 1)
+plot(showEMA ? emaSlow : na, "EMA lente",  color = colEMAslow, linewidth = 1)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 19) VISUEL — SWINGS (petits marqueurs discrets, sur barre confirmée)
+// ═══════════════════════════════════════════════════════════════════════════
+// On dessine le marqueur à la position réelle du pivot ([pivotRight] barres en arrière).
+plotshape(showSwings and not na(ph), title = "Swing High",
+     style = shape.triangledown, location = location.abovebar,
+     color = color.new(colShort, 40), size = size.tiny, offset = -pivotRight)
+plotshape(showSwings and not na(pl), title = "Swing Low",
+     style = shape.triangleup, location = location.belowbar,
+     color = color.new(colLong, 40), size = size.tiny, offset = -pivotRight)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 20) VISUEL — ORDER BLOCKS (rectangles fins, couleurs douces)
+// ═══════════════════════════════════════════════════════════════════════════
+var array<box> bullBoxes = array.new<box>()
+var array<box> bearBoxes = array.new<box>()
+
+f_pushBox(arr, b) =>
+    array.push(arr, b)
+    if array.size(arr) > obMaxBoxes
+        old = array.shift(arr)
+        box.delete(old)
+
+if showOB and isBullOB
+    b = box.new(left = bar_index - 1, top = high[1], right = bar_index + obLookback, bottom = low[1],
+         border_color = color.new(colLong, 60), border_width = 1,
+         bgcolor = colOBbull)
+    f_pushBox(bullBoxes, b)
+
+if showOB and isBearOB
+    b = box.new(left = bar_index - 1, top = high[1], right = bar_index + obLookback, bottom = low[1],
+         border_color = color.new(colShort, 60), border_width = 1,
+         bgcolor = colOBbear)
+    f_pushBox(bearBoxes, b)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 21) VISUEL — TRIANGLES / LABELS D'ENTRÉE (discrets)
+// ═══════════════════════════════════════════════════════════════════════════
+plotshape(showSignals and enterLong, title = "Signal Long",
+     style = shape.triangleup, location = location.belowbar,
+     color = colLong, size = size.small, text = "L")
+plotshape(showSignals and enterShort, title = "Signal Short",
+     style = shape.triangledown, location = location.abovebar,
+     color = colShort, size = size.small, text = "S")
+
+// Labels BOS optionnels
+plotshape(showBOS and bosBull and canEnter, title = "BOS↑",
+     style = shape.label_up, location = location.belowbar,
+     color = color.new(colLong, 70), textcolor = color.white, text = "BOS", size = size.tiny)
+plotshape(showBOS and bosBear and canEnter, title = "BOS↓",
+     style = shape.label_down, location = location.abovebar,
+     color = color.new(colShort, 70), textcolor = color.white, text = "BOS", size = size.tiny)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 22) VISUEL — LIGNES SL / TP DU TRADE EN COURS
+// ═══════════════════════════════════════════════════════════════════════════
+inPosition = strategy.position_size != 0
+plot(showSLTP and inPosition ? stopPrice : na, "Stop Loss",
+     color = colSL, style = plot.style_linebr, linewidth = 1)
+plot(showSLTP and inPosition and not useFibTP ? tpPrice : na, "Take Profit",
+     color = colTP, style = plot.style_linebr, linewidth = 1)
+// Paliers Fib si activés
+plot(showSLTP and inPosition and useFibTP ? tp1Price : na, "TP Fib 1",
+     color = color.new(colTP, 30), style = plot.style_linebr, linewidth = 1)
+plot(showSLTP and inPosition and useFibTP ? tp2Price : na, "TP Fib 2",
+     color = color.new(colTP, 50), style = plot.style_linebr, linewidth = 1)
+plot(showSLTP and inPosition and useFibTP ? tp3Price : na, "TP Fib 3",
+     color = color.new(colTP, 70), style = plot.style_linebr, linewidth = 1)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 23) ALERTES
+// ═══════════════════════════════════════════════════════════════════════════
+alertcondition(enterLong,  title = "Entrée LONG",  message = "Swing Confluence : signal LONG sur {{ticker}} @ {{close}}")
+alertcondition(enterShort, title = "Entrée SHORT", message = "Swing Confluence : signal SHORT sur {{ticker}} @ {{close}}")
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 24) TABLEAU DE BORD (info confluence en direct, coin haut-droit)
+// ═══════════════════════════════════════════════════════════════════════════
+showTable = input.bool(true, "Afficher le tableau de bord", group = grpView)
+var table dash = table.new(position.top_right, 2, 7, border_width = 1)
+if showTable and barstate.islast
+    table.cell(dash, 0, 0, "Confluence", text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = size.small)
+    table.cell(dash, 1, 0, "L:" + str.tostring(confLong) + " / S:" + str.tostring(confShort),
+         text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = size.small)
+    table.cell(dash, 0, 1, "Min requis", text_size = size.small)
+    table.cell(dash, 1, 1, str.tostring(minConfluence), text_size = size.small)
+    table.cell(dash, 0, 2, "Tendance", text_size = size.small)
+    table.cell(dash, 1, 2, trendUp ? "Haussière" : trendDown ? "Baissière" : "Neutre",
+         text_color = trendUp ? colLong : trendDown ? colShort : color.gray, text_size = size.small)
+    table.cell(dash, 0, 3, "RSI", text_size = size.small)
+    table.cell(dash, 1, 3, str.tostring(math.round(rsi, 1)), text_size = size.small)
+    table.cell(dash, 0, 4, "Bull OB actif", text_size = size.small)
+    table.cell(dash, 1, 4, bullOBactive ? "Oui" : "Non", text_size = size.small)
+    table.cell(dash, 0, 5, "Bear OB actif", text_size = size.small)
+    table.cell(dash, 1, 5, bearOBactive ? "Oui" : "Non", text_size = size.small)
+    table.cell(dash, 0, 6, "Position", text_size = size.small)
+    table.cell(dash, 1, 6, inPosition ? (strategy.position_size > 0 ? "LONG" : "SHORT") : "Flat",
+         text_color = inPosition ? (strategy.position_size > 0 ? colLong : colShort) : color.gray, text_size = size.small)
+
+// ── FIN DU SCRIPT ───────────────────────────────────────────────────────────
