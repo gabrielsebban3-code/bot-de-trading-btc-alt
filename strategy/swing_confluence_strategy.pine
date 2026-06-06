@@ -279,13 +279,9 @@ if not na(ph)
     prevPivotHighRSI := lastPivotHighRSI
     lastPivotHighRSI := rsi[pivotRight]
 
-bullDiv = useRsiDiv and not na(prevSwingLow) and not na(lastSwingLow) and
-     not na(prevPivotLowRSI) and not na(lastPivotLowRSI) and
-     lastSwingLow < prevSwingLow and lastPivotLowRSI > prevPivotLowRSI
+bullDiv = useRsiDiv and not na(prevSwingLow) and not na(lastSwingLow) and not na(prevPivotLowRSI) and not na(lastPivotLowRSI) and lastSwingLow < prevSwingLow and lastPivotLowRSI > prevPivotLowRSI
 
-bearDiv = useRsiDiv and not na(prevSwingHigh) and not na(lastSwingHigh) and
-     not na(prevPivotHighRSI) and not na(lastPivotHighRSI) and
-     lastSwingHigh > prevSwingHigh and lastPivotHighRSI < prevPivotHighRSI
+bearDiv = useRsiDiv and not na(prevSwingHigh) and not na(lastSwingHigh) and not na(prevPivotHighRSI) and not na(lastPivotHighRSI) and lastSwingHigh > prevSwingHigh and lastPivotHighRSI < prevPivotHighRSI
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -313,21 +309,21 @@ rsiShortOK = not useRSI or (rsi[1] > rsiOB and rsi < rsiOB) or rsi > rsiOB
 
 // --- Comptage des confluences LONG ---
 int confLong = 0
-confLong += swingLowRecent                      ? 1 : 0   // 1. swing low récent
-confLong += (useOB and bullOBreaction)          ? 1 : 0   // 2. réaction bullish OB
-confLong += (useRSI and rsiLongOK)              ? 1 : 0   // 3. RSI survente / sortie
-confLong += (useEMA and emaLongOK)              ? 1 : 0   // 4. tendance EMA ok
-confLong += (useBOS and bosBull)                ? 1 : 0   // 5. BOS haussier
-confLong += (useRsiDiv and bullDiv)             ? 1 : 0   // bonus divergence
+confLong += (swingLowRecent                 ? 1 : 0)   // 1. swing low récent
+confLong += (useOB  and bullOBreaction      ? 1 : 0)   // 2. réaction bullish OB
+confLong += (useRSI and rsiLongOK           ? 1 : 0)   // 3. RSI survente / sortie
+confLong += (useEMA and emaLongOK           ? 1 : 0)   // 4. tendance EMA ok
+confLong += (useBOS and bosBull             ? 1 : 0)   // 5. BOS haussier
+confLong += (useRsiDiv and bullDiv          ? 1 : 0)   // bonus divergence
 
 // --- Comptage des confluences SHORT ---
 int confShort = 0
-confShort += swingHighRecent                    ? 1 : 0
-confShort += (useOB and bearOBreaction)         ? 1 : 0
-confShort += (useRSI and rsiShortOK)            ? 1 : 0
-confShort += (useEMA and emaShortOK)            ? 1 : 0
-confShort += (useBOS and bosBear)               ? 1 : 0
-confShort += (useRsiDiv and bearDiv)            ? 1 : 0
+confShort += (swingHighRecent               ? 1 : 0)
+confShort += (useOB  and bearOBreaction     ? 1 : 0)
+confShort += (useRSI and rsiShortOK         ? 1 : 0)
+confShort += (useEMA and emaShortOK         ? 1 : 0)
+confShort += (useBOS and bosBear            ? 1 : 0)
+confShort += (useRsiDiv and bearDiv         ? 1 : 0)
 
 // --- Filtres "hard" (non négociables même en mode agressif) ---
 // On exige toujours que la tendance EMA ne contredise pas franchement l'entrée.
