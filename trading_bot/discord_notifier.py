@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 import requests
 from dotenv import load_dotenv
 
+from config import TP1_RR, TP2_RR, TP3_RR
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -94,9 +96,9 @@ def build_embed(signal: dict) -> dict:
     description = (
         f"📍 **Entry zone** : {entry_low} – {entry_high}\n"
         f"🛑 **Stop Loss**  : {sl}  ({sl_sign}{sl_pct})\n"
-        f"🎯 **TP1**        : {tp1}  ({sign}{tp1_pct}) — RR 1:{TP1_RR_LABEL}\n"
-        f"🎯 **TP2**        : {tp2}  ({sign}{tp2_pct}) — RR 1:{TP2_RR_LABEL}\n"
-        f"🎯 **TP3**        : {tp3}  ({sign}{tp3_pct}) — RR 1:{TP3_RR_LABEL}\n"
+        f"🎯 **TP1**        : {tp1}  ({sign}{tp1_pct}) — RR 1:{TP1_RR}\n"
+        f"🎯 **TP2**        : {tp2}  ({sign}{tp2_pct}) — RR 1:{TP2_RR}\n"
+        f"🎯 **TP3**        : {tp3}  ({sign}{tp3_pct}) — RR 1:{TP3_RR}\n"
         f"\n"
         f"📊 **Confluence score** : {signal['confluence_score']}/6\n"
         f"⏱ **Timeframes OK**    : {tf_line}\n"
@@ -114,13 +116,6 @@ def build_embed(signal: dict) -> dict:
     }
 
     return {"embeds": [embed]}
-
-
-# Labels RR récupérés depuis config pour cohérence
-from config import TP1_RR, TP2_RR, TP3_RR
-TP1_RR_LABEL = TP1_RR
-TP2_RR_LABEL = TP2_RR
-TP3_RR_LABEL = TP3_RR
 
 
 def send_signal(signal: dict) -> bool:

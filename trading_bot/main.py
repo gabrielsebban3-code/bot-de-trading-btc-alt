@@ -4,7 +4,6 @@ Scan 13 paires Binance Futures toutes les 15 minutes et envoie les signaux sur D
 Conçu pour Railway : worker pur, logs vers stdout, pas de serveur web.
 """
 
-import os
 import sys
 import time
 import logging
@@ -137,12 +136,10 @@ def run_scan_cycle(exchange: ccxt.binance) -> None:
     now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     logger.info(f"─── Début du scan [{now_utc}] — {len(PAIRS)} paires ───")
 
-    signals_found = 0
     for pair in PAIRS:
         try:
             logger.info(f"📡 Analyse {pair}...")
             scan_pair(exchange, pair)
-            signals_found += 1
         except Exception as e:
             logger.error(f"Erreur lors du scan de {pair} : {e}")
 
