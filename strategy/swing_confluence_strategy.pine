@@ -515,11 +515,11 @@ plotshape(showSignals and enterShort, title = "Signal Short",
      color = colShort, size = size.small, text = "S")
 
 // Labels BOS optionnels
-plotshape(showBOS and bosBull and canEnter, title = "BOS↑",
-     style = shape.label_up, location = location.belowbar,
+plotshape(showBOS and bosBull and canEnter, title = "BOS Haussier",
+     style = shape.labelup, location = location.belowbar,
      color = color.new(colLong, 70), textcolor = color.white, text = "BOS", size = size.tiny)
-plotshape(showBOS and bosBear and canEnter, title = "BOS↓",
-     style = shape.label_down, location = location.abovebar,
+plotshape(showBOS and bosBear and canEnter, title = "BOS Baissier",
+     style = shape.labeldown, location = location.abovebar,
      color = color.new(colShort, 70), textcolor = color.white, text = "BOS", size = size.tiny)
 
 
