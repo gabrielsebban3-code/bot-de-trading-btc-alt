@@ -1,24 +1,25 @@
 """
-Backtest simple du bot SMC.
-Rejoue la logique de signal_engine sur des données historiques Binance.
+Backtest fidèle au bot SMC.
+Rejoue exactement la logique du bot réel : scan toutes les 15 minutes,
+mêmes données, mêmes conditions. Résultats cohérents avec le bot live.
 Lance : python trading_bot/backtest.py
 """
 
 import sys
 import time
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import ccxt
 import pandas as pd
 
-from config import TIMEFRAMES, API_RETRY_COUNT, API_RETRY_DELAY
+from config import TIMEFRAMES, API_RETRY_COUNT, API_RETRY_DELAY, SIGNAL_COOLDOWN
 from signal_engine import analyze_pair
 
 # ── Paramètres backtest ──────────────────────────────────────────────────────
-PAIR = "BTC/USDT"          # Paire à tester
-MONTHS_BACK = 6            # Période à analyser (en mois)
-MIN_CANDLES_HISTORY = 50   # Bougies min pour démarrer l'analyse
+PAIR = "BTC/USDT"
+MONTHS_BACK = 6
+MIN_CANDLES_HISTORY = 50
 RESULT_FILE = "backtest_results.csv"
 
 logging.basicConfig(
@@ -37,26 +38,30 @@ def create_exchange() -> ccxt.binance:
     })
 
 
-def fetch_full_history(exchange: ccxt.binance, pair: str, timeframe: str, months: int) -> pd.DataFrame:
-    """Télécharge l'historique complet via pagination ccxt."""
-    limit_per_call = 500
-    candles_needed = {
-        "1d": months * 31,
-        "4h": months * 31 * 6,
-        "1h": months * 31 * 24,
-        "15m": months * 31 * 24 * 4,
-    }
-    total_needed = min(candles_needed.get(timeframe, 500), 3000)
+def months_ago_ms(months: int) -> int:
+    """Retourne le timestamp en ms d'il y a N mois."""
+    since_dt = datetime.now(timezone.utc) - timedelta(days=months * 31)
+    return int(since_dt.timestamp() * 1000)
 
-    logger.info(f"  Téléchargement {pair} {timeframe} — ~{total_needed} bougies...")
 
+def fetch_full_history(exchange: ccxt.binance, pair: str, timeframe: str, since_ms: int) -> pd.DataFrame:
+    """
+    Télécharge tout l'historique depuis since_ms jusqu'à maintenant.
+    Pagination correcte : avance candle par candle jusqu'à la fin.
+    """
+    limit_per_call = 1000
     all_ohlcv = []
-    since = None
+    current_since = since_ms
 
-    while len(all_ohlcv) < total_needed:
+    logger.info(f"  Téléchargement {pair} {timeframe}...")
+
+    while True:
         for attempt in range(1, API_RETRY_COUNT + 1):
             try:
-                ohlcv = exchange.fetch_ohlcv(pair, timeframe=timeframe, since=since, limit=limit_per_call)
+                ohlcv = exchange.fetch_ohlcv(
+                    pair, timeframe=timeframe,
+                    since=current_since, limit=limit_per_call
+                )
                 break
             except ccxt.NetworkError as e:
                 if attempt == API_RETRY_COUNT:
@@ -66,29 +71,31 @@ def fetch_full_history(exchange: ccxt.binance, pair: str, timeframe: str, months
         if not ohlcv:
             break
 
-        all_ohlcv = ohlcv + all_ohlcv if since is None else all_ohlcv
+        all_ohlcv.extend(ohlcv)
+
         if len(ohlcv) < limit_per_call:
             break
 
-        # Pagination vers le passé
-        since = ohlcv[0][0] - (ohlcv[1][0] - ohlcv[0][0]) * limit_per_call
-        all_ohlcv = ohlcv + all_ohlcv
-        time.sleep(0.3)
+        # Avancer au-delà de la dernière bougie reçue
+        current_since = ohlcv[-1][0] + 1
+        time.sleep(0.25)
 
-        if len(all_ohlcv) >= total_needed:
-            break
+    if not all_ohlcv:
+        return pd.DataFrame()
 
-    df = pd.DataFrame(all_ohlcv[-total_needed:], columns=["timestamp", "open", "high", "low", "close", "volume"])
+    df = pd.DataFrame(all_ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
     df = df.set_index("timestamp").astype(float)
     df = df[~df.index.duplicated(keep="last")].sort_index()
+
+    logger.info(f"    → {len(df)} bougies téléchargées")
     return df
 
 
 def check_outcome(signal: dict, future_df_15m: pd.DataFrame) -> dict:
     """
-    Regarde les bougies 15m suivantes pour savoir si SL, TP1, TP2 ou TP3 a été touché en premier.
-    Retourne outcome (str), candles_to_outcome (int), et max_adverse_excursion (%).
+    Parcourt les bougies 15m suivant le signal pour trouver le premier
+    niveau touché : SL, TP1, TP2 ou TP3.
     """
     direction = signal["direction"]
     entry = signal["entry_price"]
@@ -99,49 +106,39 @@ def check_outcome(signal: dict, future_df_15m: pd.DataFrame) -> dict:
 
     outcome = "OPEN"
     candles_to_outcome = len(future_df_15m)
-    mae = 0.0  # max adverse excursion
+    mae = 0.0
 
     for i, (_, candle) in enumerate(future_df_15m.iterrows()):
         high = candle["high"]
         low = candle["low"]
 
         if direction == "long":
-            adverse = (entry - low) / entry * 100
-            mae = max(mae, adverse)
+            mae = max(mae, (entry - low) / entry * 100)
             if low <= sl:
-                outcome = "SL"
-                candles_to_outcome = i + 1
+                outcome, candles_to_outcome = "SL", i + 1
                 break
             if high >= tp3:
-                outcome = "TP3"
-                candles_to_outcome = i + 1
+                outcome, candles_to_outcome = "TP3", i + 1
                 break
             if high >= tp2:
-                outcome = "TP2"
-                candles_to_outcome = i + 1
+                outcome, candles_to_outcome = "TP2", i + 1
                 break
             if high >= tp1:
-                outcome = "TP1"
-                candles_to_outcome = i + 1
+                outcome, candles_to_outcome = "TP1", i + 1
                 break
-        else:  # short
-            adverse = (high - entry) / entry * 100
-            mae = max(mae, adverse)
+        else:
+            mae = max(mae, (high - entry) / entry * 100)
             if high >= sl:
-                outcome = "SL"
-                candles_to_outcome = i + 1
+                outcome, candles_to_outcome = "SL", i + 1
                 break
             if low <= tp3:
-                outcome = "TP3"
-                candles_to_outcome = i + 1
+                outcome, candles_to_outcome = "TP3", i + 1
                 break
             if low <= tp2:
-                outcome = "TP2"
-                candles_to_outcome = i + 1
+                outcome, candles_to_outcome = "TP2", i + 1
                 break
             if low <= tp1:
-                outcome = "TP1"
-                candles_to_outcome = i + 1
+                outcome, candles_to_outcome = "TP1", i + 1
                 break
 
     return {
@@ -153,44 +150,87 @@ def check_outcome(signal: dict, future_df_15m: pd.DataFrame) -> dict:
 
 def run_backtest(pair: str, months: int) -> None:
     logger.info("=" * 60)
-    logger.info(f"BACKTEST — {pair} — {months} derniers mois")
+    logger.info(f"BACKTEST FIDÈLE — {pair} — {months} derniers mois")
+    logger.info(f"Simulation scan toutes les 15 minutes (comme le bot réel)")
     logger.info("=" * 60)
 
     exchange = create_exchange()
+    since_ms = months_ago_ms(months)
+
+    # Télécharger suffisamment de données : période demandée + 200 bougies
+    # d'historique supplémentaire pour que les indicateurs soient précis dès le début
+    extra_days = {
+        "1d": 200,
+        "4h": 200 * 4 // 24 + 1,
+        "1h": 200,
+        "15m": 200 // 4 + 1,
+    }
+    tf_interval_ms = {
+        "1d": 86400 * 1000,
+        "4h": 4 * 3600 * 1000,
+        "1h": 3600 * 1000,
+        "15m": 15 * 60 * 1000,
+    }
 
     logger.info("Téléchargement des données historiques...")
     full_data = {}
     for tf_key in TIMEFRAMES:
-        full_data[tf_key] = fetch_full_history(exchange, pair, tf_key, months)
+        warmup_ms = extra_days[tf_key] * tf_interval_ms[tf_key]
+        full_data[tf_key] = fetch_full_history(exchange, pair, tf_key, since_ms - warmup_ms)
         time.sleep(0.5)
 
-    df_1h = full_data["1h"]
     df_15m = full_data["15m"]
-    total_candles = len(df_1h)
-    logger.info(f"Données prêtes — {total_candles} bougies 1H disponibles")
-    logger.info("Début de la simulation...")
+    if df_15m.empty:
+        logger.error("Impossible de télécharger les données 15m.")
+        return
+
+    # Index des autres TF pour le searchsorted rapide
+    idx_1d = full_data["1d"].index
+    idx_4h = full_data["4h"].index
+    idx_1h = full_data["1h"].index
+    idx_15m = df_15m.index
+
+    # On ne simule que depuis la date demandée (les données avant servent au warmup)
+    start_ts = pd.Timestamp(since_ms, unit="ms", tz="UTC")
+    sim_positions = [i for i, ts in enumerate(idx_15m) if ts >= start_ts]
+
+    if not sim_positions:
+        logger.error("Aucune donnée dans la période demandée.")
+        return
+
+    logger.info(f"Données prêtes — simulation sur {len(sim_positions)} scans de 15 minutes")
+    logger.info("Début de la simulation (peut prendre quelques minutes)...")
 
     results = []
-    last_signal_ts = None  # anti-doublon 4h
+    last_signal_ts = None
+    progress_step = max(1, len(sim_positions) // 20)  # log tous les 5%
 
-    for i in range(MIN_CANDLES_HISTORY, total_candles):
-        current_ts = df_1h.index[i]
+    for count, i in enumerate(sim_positions):
+        current_ts = idx_15m[i]
 
-        # Anti-doublon : skip si signal < 4h avant
+        # Log de progression toutes les 5%
+        if count % progress_step == 0:
+            pct = count / len(sim_positions) * 100
+            logger.info(f"  Progression : {pct:.0f}% — {current_ts.strftime('%Y-%m-%d %H:%M')}")
+
+        # Anti-doublon : même cooldown 4h que le bot réel
         if last_signal_ts is not None:
-            elapsed_h = (current_ts - last_signal_ts).total_seconds() / 3600
-            if elapsed_h < 4:
+            elapsed = (current_ts - last_signal_ts).total_seconds()
+            if elapsed < SIGNAL_COOLDOWN:
                 continue
 
-        # Construire les slices de données comme le bot le ferait en live
+        # Découper les données exactement comme le bot le ferait à cet instant
+        i_1d = idx_1d.searchsorted(current_ts, side="right")
+        i_4h = idx_4h.searchsorted(current_ts, side="right")
+        i_1h = idx_1h.searchsorted(current_ts, side="right")
+
         candles = {
-            "1d": full_data["1d"][full_data["1d"].index <= current_ts].tail(200),
-            "4h": full_data["4h"][full_data["4h"].index <= current_ts].tail(200),
-            "1h": df_1h.iloc[:i + 1].tail(200),
-            "15m": df_15m[df_15m.index <= current_ts].tail(200),
+            "1d": full_data["1d"].iloc[max(0, i_1d - 200):i_1d],
+            "4h": full_data["4h"].iloc[max(0, i_4h - 200):i_4h],
+            "1h": full_data["1h"].iloc[max(0, i_1h - 200):i_1h],
+            "15m": df_15m.iloc[max(0, i - 199):i + 1],
         }
 
-        # Vérifier que chaque TF a assez de données
         if any(len(v) < MIN_CANDLES_HISTORY for v in candles.values()):
             continue
 
@@ -201,8 +241,8 @@ def run_backtest(pair: str, months: int) -> None:
 
         last_signal_ts = current_ts
 
-        # Bougies 15m futures pour évaluer le résultat
-        future_15m = df_15m[df_15m.index > current_ts].head(200)
+        # Bougies 15m futures pour évaluer le résultat (200 bougies = ~50h)
+        future_15m = df_15m.iloc[i + 1:i + 201]
 
         if len(future_15m) == 0:
             continue
@@ -228,7 +268,7 @@ def run_backtest(pair: str, months: int) -> None:
         }
         results.append(result)
         logger.info(
-            f"  Signal #{len(results)} — {result['date']} — {result['direction']} "
+            f"  ✦ Signal #{len(results)} — {result['date']} — {result['direction']} "
             f"— Score {result['confluence_score']}/6 → {result['outcome']}"
         )
 
@@ -240,36 +280,40 @@ def run_backtest(pair: str, months: int) -> None:
     df_results.to_csv(RESULT_FILE, index=False)
     logger.info(f"\nRésultats sauvegardés dans : {RESULT_FILE}")
 
-    # ── Statistiques ────────────────────────────────────────────────────────
-    total = len(df_results)
+    # ── Statistiques finales ─────────────────────────────────────────────────
     wins = df_results[df_results["outcome"].isin(["TP1", "TP2", "TP3"])]
     losses = df_results[df_results["outcome"] == "SL"]
     open_trades = df_results[df_results["outcome"] == "OPEN"]
-
-    win_rate = len(wins) / (len(wins) + len(losses)) * 100 if (len(wins) + len(losses)) > 0 else 0
+    decided = len(wins) + len(losses)
+    win_rate = len(wins) / decided * 100 if decided > 0 else 0
 
     logger.info("\n" + "=" * 60)
-    logger.info(f"RÉSULTATS BACKTEST — {pair} — {months} mois")
+    logger.info(f"RÉSULTATS — {pair} — {months} mois")
     logger.info("=" * 60)
-    logger.info(f"  Total signaux      : {total}")
+    logger.info(f"  Total signaux      : {len(df_results)}")
     logger.info(f"  Gagnants (TP1+)    : {len(wins)}  ({win_rate:.1f}%)")
     logger.info(f"  Perdants (SL)      : {len(losses)}")
     logger.info(f"  En cours (OPEN)    : {len(open_trades)}")
 
     if len(wins) > 0:
         tp_counts = wins["outcome"].value_counts()
-        logger.info(f"  Détail gains       : TP1={tp_counts.get('TP1', 0)}  TP2={tp_counts.get('TP2', 0)}  TP3={tp_counts.get('TP3', 0)}")
+        logger.info(
+            f"  Détail gains       : "
+            f"TP1={tp_counts.get('TP1', 0)}  "
+            f"TP2={tp_counts.get('TP2', 0)}  "
+            f"TP3={tp_counts.get('TP3', 0)}"
+        )
 
     logger.info(f"  MAE moy (adverse)  : {df_results['mae_pct'].mean():.3f}%")
 
     long_df = df_results[df_results["direction"] == "LONG"]
     short_df = df_results[df_results["direction"] == "SHORT"]
     if len(long_df) > 0:
-        long_wins = long_df[long_df["outcome"].isin(["TP1", "TP2", "TP3"])]
-        logger.info(f"  LONG  : {len(long_df)} signaux — {len(long_wins)} gagnants ({len(long_wins)/len(long_df)*100:.1f}%)")
+        lw = long_df[long_df["outcome"].isin(["TP1", "TP2", "TP3"])]
+        logger.info(f"  LONG  : {len(long_df)} signaux — {len(lw)} gagnants ({len(lw)/len(long_df)*100:.1f}%)")
     if len(short_df) > 0:
-        short_wins = short_df[short_df["outcome"].isin(["TP1", "TP2", "TP3"])]
-        logger.info(f"  SHORT : {len(short_df)} signaux — {len(short_wins)} gagnants ({len(short_wins)/len(short_df)*100:.1f}%)")
+        sw = short_df[short_df["outcome"].isin(["TP1", "TP2", "TP3"])]
+        logger.info(f"  SHORT : {len(short_df)} signaux — {len(sw)} gagnants ({len(sw)/len(short_df)*100:.1f}%)")
 
     logger.info("=" * 60)
 
