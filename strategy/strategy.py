@@ -1,7 +1,6 @@
 """
-Trend-Pullback Scalper — logique de signal PARTAGÉE entre live et backtest.
-Une seule fonction publique : evaluate(df_5m, df_1m, symbol) → Signal | None.
-NE PAS dupliquer cette logique ailleurs.
+Liquidity Sweep + Market Structure Shift (MSS) — source de vérité unique.
+Partagée entre live et backtest. Aucune duplication de logique ailleurs.
 """
 from __future__ import annotations
 
@@ -13,276 +12,349 @@ from typing import Optional
 import pandas as pd
 
 from strategy.config import (
-    ATR_MULTIPLIER,
+    FIB_OTE_LOWER,
+    FIB_OTE_UPPER,
     MIN_ATR_PERCENT,
-    MIN_BODY_RATIO,
-    PULLBACK_PROXIMITY_PCT,
+    MIN_SCORE,
+    MSS_MAX_BARS,
+    MSS_MIN_BARS,
+    MSS_VOLUME_MULTIPLIER,
     RISK_REWARD_MIN,
-    RSI_CROSS_LEVEL,
-    RSI_LOOKBACK,
-    RSI_OVERBOUGHT,
-    RSI_OVERSOLD,
-    VOLUME_MULTIPLIER,
+    SL_BUFFER_PCT,
+    SWEEP_LOOKBACK_BARS,
+    SWEEP_VOLUME_MULTIPLIER,
+    SWING_LOOKBACK,
+    TP1_RR,
+    TP2_RR,
 )
-from strategy.indicators import compute_all
+from strategy.indicators import compute_all, find_swing_highs, find_swing_lows
 
 logger = logging.getLogger(__name__)
 
 
-# ─── Types de données ─────────────────────────────────────────────────────────
+# ─── Dataclasses ──────────────────────────────────────────────────────────────
 
 @dataclass
-class IndicatorsSnapshot:
-    """Capture des valeurs d'indicateurs au moment du signal (pour les logs/Discord)."""
-    ema9_5m: float
-    ema21_5m: float
-    ema50_5m: float
-    vwap_5m: float
-    atr_5m: float
-    rsi_1m: float
-    macd_hist_1m: float
-    volume_ratio: float  # volume_bougie / volume_moyen
+class MSSSnapshot:
+    """Niveaux clés du setup pour affichage Discord."""
+    sweep_level: float    # swing balayé
+    sweep_wick: float     # extrême de la mèche
+    mss_level: float      # niveau de la cassure MSS
+    fib_high: float       # ancre haute Fibonacci
+    fib_low: float        # ancre basse Fibonacci
+    fib_618: float        # 61.8% — limite haute OTE (long)
+    fib_786: float        # 78.6% — limite basse OTE (long)
+    atr: float
+    sweep_vol_ratio: float
+    mss_vol_ratio: float
 
 
 @dataclass
 class Signal:
-    """Objet signal renvoyé par evaluate(). Immuable côté stratégie."""
     symbol: str
-    side: str          # "LONG" ou "SHORT"
-    entry: float       # prix d'entrée suggéré (close de la bougie déclencheur)
-    sl: float          # stop-loss
-    tp1: float         # take-profit 1 (1R)
-    tp2: float         # take-profit 2 (2R)
-    rr: float          # risk-reward effectif (tp2 / risque)
-    score: int         # 0-100 : confiance du signal
-    indicators: IndicatorsSnapshot
+    side: str           # "LONG" ou "SHORT"
+    entry: float        # milieu de la zone OTE
+    ote_upper: float    # limite haute OTE (61.8% pour long, 78.6% pour short)
+    ote_lower: float    # limite basse OTE  (78.6% pour long, 61.8% pour short)
+    sl: float
+    tp1: float          # 2R
+    tp2: float          # 3R
+    rr: float
+    score: int
+    indicators: MSSSnapshot
     timestamp: datetime
-    timeframe_bias: str = "5m"
-    timeframe_entry: str = "1m"
-    # Champs calculés automatiquement
+    timeframe_sweep: str = "1m"
     risk: float = field(init=False)
 
     def __post_init__(self) -> None:
         self.risk = abs(self.entry - self.sl)
 
 
-# ─── Helpers internes ─────────────────────────────────────────────────────────
+# ─── Fibonacci ────────────────────────────────────────────────────────────────
 
-def _near(price: float, level: float, pct: float) -> bool:
-    """Vrai si price est dans ±pct % de level."""
-    return abs(price - level) / level * 100 <= pct
-
-
-def _rsi_crossed(rsi_series: pd.Series, oversold: float, cross_level: float) -> bool:
+def _fib_long(fib_low: float, fib_high: float) -> tuple[float, float]:
     """
-    Long : RSI est passé sous oversold dans les N dernières bougies,
-    puis la bougie actuelle est au-dessus de cross_level.
+    Retracement haussier (sweep bas → MSS haut).
+    Retourne (ote_upper, ote_lower) où ote_upper > ote_lower.
     """
-    lookback = rsi_series.iloc[-RSI_LOOKBACK - 1 : -1]  # bougies précédentes
-    current = rsi_series.iloc[-1]
-    return bool((lookback < oversold).any() and current > cross_level)
+    rng = fib_high - fib_low
+    ote_upper = fib_high - rng * FIB_OTE_UPPER   # 61.8% depuis le haut
+    ote_lower = fib_high - rng * FIB_OTE_LOWER   # 78.6% depuis le haut
+    return ote_upper, ote_lower
 
 
-def _rsi_crossed_down(rsi_series: pd.Series, overbought: float, cross_level: float) -> bool:
-    """Short : RSI est passé au-dessus de overbought puis recroise sous cross_level."""
-    lookback = rsi_series.iloc[-RSI_LOOKBACK - 1 : -1]
-    current = rsi_series.iloc[-1]
-    return bool((lookback > overbought).any() and current < cross_level)
-
-
-def _score_signal(conditions_met: int, total_conditions: int, volume_ratio: float) -> int:
+def _fib_short(fib_low: float, fib_high: float) -> tuple[float, float]:
     """
-    Score de confiance 0-100 :
-    - 70 points pour le ratio conditions remplies / total
-    - 30 points pour la force du volume (plafonné à 3× le volume moyen)
+    Retracement baissier (sweep haut → MSS bas).
+    Retourne (ote_upper, ote_lower) où ote_upper > ote_lower.
     """
-    base = int((conditions_met / total_conditions) * 70)
-    vol_bonus = int(min((volume_ratio - 1.0) / 2.0, 1.0) * 30)
-    return max(0, min(100, base + vol_bonus))
+    rng = fib_high - fib_low
+    ote_lower = fib_low + rng * FIB_OTE_UPPER    # 61.8% depuis le bas
+    ote_upper = fib_low + rng * FIB_OTE_LOWER    # 78.6% depuis le bas
+    return ote_upper, ote_lower
 
 
-# ─── Filtre de biais 5m ───────────────────────────────────────────────────────
+# ─── Score ────────────────────────────────────────────────────────────────────
 
-def _get_bias_5m(df5: pd.DataFrame) -> Optional[str]:
-    """
-    Retourne 'LONG', 'SHORT' ou None (range/ATR trop faible).
-    Utilise la dernière bougie clôturée (iloc[-2] pour éviter la bougie en cours).
-    """
-    row = df5.iloc[-2]  # dernière bougie fermée
-
-    # Filtre volatilité : marché trop mort → skip
-    atr_pct = row["atr"] / row["close"] * 100
-    if atr_pct < MIN_ATR_PERCENT:
-        return None
-
-    ema9, ema21, ema50 = row["ema9"], row["ema21"], row["ema50"]
-    close, vwap = row["close"], row["vwap"]
-
-    if ema9 > ema21 > ema50 and close > vwap:
-        return "LONG"
-    if ema9 < ema21 < ema50 and close < vwap:
-        return "SHORT"
-    return None  # range
+def _score(
+    sweep_vol: float,
+    mss_vol: float,
+    ote_depth: float,  # 0.0 = à 61.8%, 1.0 = à 78.6%
+    atr_pct: float,
+) -> int:
+    s_vol = min(30, int(min(sweep_vol / 3.0, 1.0) * 30))
+    m_vol = min(30, int(min(mss_vol / 3.0, 1.0) * 30))
+    ote_s = int(ote_depth * 25)
+    atr_s = int(min(atr_pct / 0.3, 1.0) * 15)
+    return s_vol + m_vol + ote_s + atr_s
 
 
-# ─── Déclencheur d'entrée 1m ─────────────────────────────────────────────────
+# ─── Détection bullish ────────────────────────────────────────────────────────
 
-def _check_long_trigger(df1: pd.DataFrame) -> tuple[bool, int, int]:
-    """
-    Vérifie les 5 conditions du déclencheur long sur la dernière bougie 1m FERMÉE.
-    iloc[-2] = dernière bougie fermée (iloc[-1] est la bougie en cours, pas fiable).
-    """
-    total = 5
-    row = df1.iloc[-2]   # dernière bougie fermée
-    prev = df1.iloc[-3]  # avant-dernière bougie fermée
-
-    met = 0
-
-    # 1. Pullback : le low a touché l'EMA21 ou la VWAP
-    pullback = _near(row["low"], row["ema21"], PULLBACK_PROXIMITY_PCT) or \
-               _near(row["low"], row["vwap"], PULLBACK_PROXIMITY_PCT)
-    if pullback:
-        met += 1
-
-    # 2. RSI : passé sous oversold dans le lookback, puis > 50 maintenant
-    rsi_ok = _rsi_crossed(df1["rsi"], RSI_OVERSOLD, RSI_CROSS_LEVEL)
-    if rsi_ok:
-        met += 1
-
-    # 3. Bougie haussière avec vrai corps (pas un doji) et clôture au-dessus EMA9
-    candle_range = row["high"] - row["low"]
-    body = abs(row["close"] - row["open"])
-    body_ratio = body / candle_range if candle_range > 0 else 0
-    bullish_candle = (
-        row["close"] > row["open"]
-        and row["close"] > row["ema9"]
-        and body_ratio >= MIN_BODY_RATIO  # corps solide, pas un doji
-    )
-    if bullish_candle:
-        met += 1
-
-    # 4. Volume > VOLUME_MULTIPLIER × volume moyen
-    volume_ratio = row["volume"] / row["volume_avg"] if row["volume_avg"] > 0 else 0
-    if volume_ratio >= VOLUME_MULTIPLIER:
-        met += 1
-
-    # 5. Histogramme MACD en hausse (momentum positif croissant)
-    macd_rising = row["macd_hist"] > prev["macd_hist"] and row["macd_hist"] > 0
-    if macd_rising:
-        met += 1
-
-    # Toutes les conditions doivent être remplies pour un signal valide
-    return met == total, met, total
-
-
-def _check_short_trigger(df1: pd.DataFrame) -> tuple[bool, int, int]:
-    """Miroir exact du long — utilise aussi la dernière bougie fermée."""
-    total = 5
-    row = df1.iloc[-2]   # dernière bougie fermée
-    prev = df1.iloc[-3]
-
-    met = 0
-
-    # 1. Pullback haussier (retracement vers résistance) : high proche EMA21 ou VWAP
-    pullback = _near(row["high"], row["ema21"], PULLBACK_PROXIMITY_PCT) or \
-               _near(row["high"], row["vwap"], PULLBACK_PROXIMITY_PCT)
-    if pullback:
-        met += 1
-
-    # 2. RSI : passé au-dessus de overbought, puis < 50 maintenant
-    rsi_ok = _rsi_crossed_down(df1["rsi"], RSI_OVERBOUGHT, RSI_CROSS_LEVEL)
-    if rsi_ok:
-        met += 1
-
-    # 3. Bougie baissière avec vrai corps et clôture sous l'EMA9
-    candle_range = row["high"] - row["low"]
-    body = abs(row["close"] - row["open"])
-    body_ratio = body / candle_range if candle_range > 0 else 0
-    bearish_candle = (
-        row["close"] < row["open"]
-        and row["close"] < row["ema9"]
-        and body_ratio >= MIN_BODY_RATIO
-    )
-    if bearish_candle:
-        met += 1
-
-    # 4. Volume > VOLUME_MULTIPLIER × volume moyen
-    volume_ratio = row["volume"] / row["volume_avg"] if row["volume_avg"] > 0 else 0
-    if volume_ratio >= VOLUME_MULTIPLIER:
-        met += 1
-
-    # 5. Histogramme MACD en baisse (momentum négatif croissant)
-    macd_falling = row["macd_hist"] < prev["macd_hist"] and row["macd_hist"] < 0
-    if macd_falling:
-        met += 1
-
-    return met == total, met, total
-
-
-# ─── Calcul des niveaux de risque ────────────────────────────────────────────
-
-def _build_signal(
+def _find_bullish(
+    df: pd.DataFrame,
+    is_sh: pd.Series,
+    is_sl: pd.Series,
     symbol: str,
-    side: str,
-    df1: pd.DataFrame,
-    df5: pd.DataFrame,
-    met: int,
-    total: int,
 ) -> Optional[Signal]:
     """
-    Calcule SL, TP1, TP2, R:R et construit l'objet Signal.
-    Retourne None si R:R < RISK_REWARD_MIN.
+    Cherche : Bullish Sweep → MSS haussier → prix actuellement en zone OTE.
+    Travaille uniquement sur des bougies fermées.
     """
-    row1 = df1.iloc[-2]  # dernière bougie fermée (cohérent avec les triggers)
-    row5 = df5.iloc[-2]
+    n = len(df)
+    search_start = max(SWING_LOOKBACK + 2, n - SWEEP_LOOKBACK_BARS)
+    current_close = float(df.iloc[-1]["close"])
 
-    entry = float(row1["close"])
-    atr = float(row1["atr"])
-    risk_dist = ATR_MULTIPLIER * atr  # distance SL en points
+    # Scan de la barre la plus récente vers la plus ancienne
+    for i in range(n - 2, search_start - 1, -1):
+        bar = df.iloc[i]
 
-    if side == "LONG":
-        sl = entry - risk_dist
-        tp1 = entry + risk_dist       # 1R
-        tp2 = entry + 2 * risk_dist   # 2R
-    else:
-        sl = entry + risk_dist
-        tp1 = entry - risk_dist
-        tp2 = entry - 2 * risk_dist
+        # ── Swing Low récent avant cette barre ────────────────────────────────
+        sl_price = None
+        for k in range(i - 1, max(i - SWEEP_LOOKBACK_BARS // 2, SWING_LOOKBACK) - 1, -1):
+            if is_sl.iloc[k]:
+                sl_price = float(df.iloc[k]["low"])
+                break
+        if sl_price is None:
+            continue
 
-    rr = abs(tp2 - entry) / abs(entry - sl)
+        # ── Bullish Sweep : low < swing_low ET close > swing_low ──────────────
+        if not (bar["low"] < sl_price and bar["close"] > sl_price):
+            continue
 
-    # N'émettre le signal que si R:R ≥ seuil minimum
-    if rr < RISK_REWARD_MIN:
-        logger.debug("%s %s : R:R %.2f < %.2f → skip", symbol, side, rr, RISK_REWARD_MIN)
-        return None
+        vol_avg = float(bar["volume_avg"]) if bar["volume_avg"] > 0 else 1.0
+        sweep_vol_ratio = float(bar["volume"]) / vol_avg
+        if sweep_vol_ratio < SWEEP_VOLUME_MULTIPLIER:
+            continue
 
-    volume_ratio = float(row1["volume"] / row1["volume_avg"]) if row1["volume_avg"] > 0 else 1.0
-    score = _score_signal(met, total, volume_ratio)
+        sweep_wick = float(bar["low"])
 
-    snapshot = IndicatorsSnapshot(
-        ema9_5m=float(row5["ema9"]),
-        ema21_5m=float(row5["ema21"]),
-        ema50_5m=float(row5["ema50"]),
-        vwap_5m=float(row5["vwap"]),
-        atr_5m=float(row5["atr"]),
-        rsi_1m=float(row1["rsi"]),
-        macd_hist_1m=float(row1["macd_hist"]),
-        volume_ratio=volume_ratio,
-    )
+        # ── Swing High récent (cible du MSS) ──────────────────────────────────
+        sh_price = None
+        for k in range(i, max(i - SWEEP_LOOKBACK_BARS // 2, SWING_LOOKBACK) - 1, -1):
+            if is_sh.iloc[k]:
+                sh_price = float(df.iloc[k]["high"])
+                break
+        if sh_price is None:
+            continue
 
-    return Signal(
-        symbol=symbol,
-        side=side,
-        entry=round(entry, 6),
-        sl=round(sl, 6),
-        tp1=round(tp1, 6),
-        tp2=round(tp2, 6),
-        rr=round(rr, 2),
-        score=score,
-        indicators=snapshot,
-        # Timestamp = heure de fermeture de la bougie déclencheur (pas utcnow)
-        timestamp=row1["timestamp"].to_pydatetime(),
-    )
+        # ── MSS : clôture impulsive au-dessus du swing high ───────────────────
+        mss_idx = None
+        mss_vol_ratio = 1.0
+        fib_high = float(bar["high"])
+
+        for j in range(i + MSS_MIN_BARS, min(i + MSS_MAX_BARS + 1, n)):
+            jbar = df.iloc[j]
+            fib_high = max(fib_high, float(jbar["high"]))
+            if jbar["close"] > sh_price:
+                jvol_avg = float(jbar["volume_avg"]) if jbar["volume_avg"] > 0 else 1.0
+                jvol = float(jbar["volume"]) / jvol_avg
+                if jvol >= MSS_VOLUME_MULTIPLIER:
+                    mss_idx = j
+                    mss_vol_ratio = jvol
+                    break
+
+        if mss_idx is None:
+            continue
+
+        # MSS trop vieux pour être encore tradeable
+        if mss_idx < n - MSS_MAX_BARS:
+            continue
+
+        # ── Zone OTE ──────────────────────────────────────────────────────────
+        ote_upper, ote_lower = _fib_long(sweep_wick, fib_high)
+        ote_entry = (ote_upper + ote_lower) / 2
+
+        # Signal envoyé uniquement si le prix est dans la zone OTE (±0.1%)
+        tol = ote_upper * 0.001
+        if not (ote_lower - tol <= current_close <= ote_upper + tol):
+            continue
+
+        # ── SL / TP ───────────────────────────────────────────────────────────
+        sl = sweep_wick * (1 - SL_BUFFER_PCT / 100)
+        risk = ote_entry - sl
+        if risk <= 0:
+            continue
+
+        tp1 = ote_entry + TP1_RR * risk
+        tp2 = ote_entry + TP2_RR * risk
+
+        # ── Score ─────────────────────────────────────────────────────────────
+        fib_range = ote_upper - ote_lower
+        depth = (ote_upper - current_close) / fib_range if fib_range > 0 else 0.5
+        atr_pct = float(df.iloc[-1]["atr"]) / current_close * 100
+        sc = _score(sweep_vol_ratio, mss_vol_ratio, depth, atr_pct)
+        if sc < MIN_SCORE:
+            continue
+
+        snap = MSSSnapshot(
+            sweep_level=round(sl_price, 6),
+            sweep_wick=round(sweep_wick, 6),
+            mss_level=round(sh_price, 6),
+            fib_high=round(fib_high, 6),
+            fib_low=round(sweep_wick, 6),
+            fib_618=round(ote_upper, 6),
+            fib_786=round(ote_lower, 6),
+            atr=round(float(df.iloc[-1]["atr"]), 6),
+            sweep_vol_ratio=round(sweep_vol_ratio, 2),
+            mss_vol_ratio=round(mss_vol_ratio, 2),
+        )
+
+        return Signal(
+            symbol=symbol,
+            side="LONG",
+            entry=round(ote_entry, 6),
+            ote_upper=round(ote_upper, 6),
+            ote_lower=round(ote_lower, 6),
+            sl=round(sl, 6),
+            tp1=round(tp1, 6),
+            tp2=round(tp2, 6),
+            rr=round(TP2_RR, 2),
+            score=sc,
+            indicators=snap,
+            timestamp=df.iloc[-1]["timestamp"].to_pydatetime(),
+        )
+
+    return None
+
+
+# ─── Détection bearish ────────────────────────────────────────────────────────
+
+def _find_bearish(
+    df: pd.DataFrame,
+    is_sh: pd.Series,
+    is_sl: pd.Series,
+    symbol: str,
+) -> Optional[Signal]:
+    """Miroir exact du bullish pour les setups SHORT."""
+    n = len(df)
+    search_start = max(SWING_LOOKBACK + 2, n - SWEEP_LOOKBACK_BARS)
+    current_close = float(df.iloc[-1]["close"])
+
+    for i in range(n - 2, search_start - 1, -1):
+        bar = df.iloc[i]
+
+        # Swing High récent
+        sh_price = None
+        for k in range(i - 1, max(i - SWEEP_LOOKBACK_BARS // 2, SWING_LOOKBACK) - 1, -1):
+            if is_sh.iloc[k]:
+                sh_price = float(df.iloc[k]["high"])
+                break
+        if sh_price is None:
+            continue
+
+        # Bearish Sweep : high > swing_high ET close < swing_high
+        if not (bar["high"] > sh_price and bar["close"] < sh_price):
+            continue
+
+        vol_avg = float(bar["volume_avg"]) if bar["volume_avg"] > 0 else 1.0
+        sweep_vol_ratio = float(bar["volume"]) / vol_avg
+        if sweep_vol_ratio < SWEEP_VOLUME_MULTIPLIER:
+            continue
+
+        sweep_wick = float(bar["high"])
+
+        # Swing Low récent (cible MSS baissier)
+        sl_price = None
+        for k in range(i, max(i - SWEEP_LOOKBACK_BARS // 2, SWING_LOOKBACK) - 1, -1):
+            if is_sl.iloc[k]:
+                sl_price = float(df.iloc[k]["low"])
+                break
+        if sl_price is None:
+            continue
+
+        # MSS baissier : clôture impulsive sous le swing low
+        mss_idx = None
+        mss_vol_ratio = 1.0
+        fib_low = float(bar["low"])
+
+        for j in range(i + MSS_MIN_BARS, min(i + MSS_MAX_BARS + 1, n)):
+            jbar = df.iloc[j]
+            fib_low = min(fib_low, float(jbar["low"]))
+            if jbar["close"] < sl_price:
+                jvol_avg = float(jbar["volume_avg"]) if jbar["volume_avg"] > 0 else 1.0
+                jvol = float(jbar["volume"]) / jvol_avg
+                if jvol >= MSS_VOLUME_MULTIPLIER:
+                    mss_idx = j
+                    mss_vol_ratio = jvol
+                    break
+
+        if mss_idx is None:
+            continue
+        if mss_idx < n - MSS_MAX_BARS:
+            continue
+
+        ote_upper, ote_lower = _fib_short(fib_low, sweep_wick)
+        ote_entry = (ote_upper + ote_lower) / 2
+
+        tol = ote_lower * 0.001
+        if not (ote_lower - tol <= current_close <= ote_upper + tol):
+            continue
+
+        sl = sweep_wick * (1 + SL_BUFFER_PCT / 100)
+        risk = sl - ote_entry
+        if risk <= 0:
+            continue
+
+        tp1 = ote_entry - TP1_RR * risk
+        tp2 = ote_entry - TP2_RR * risk
+
+        fib_range = ote_upper - ote_lower
+        depth = (current_close - ote_lower) / fib_range if fib_range > 0 else 0.5
+        atr_pct = float(df.iloc[-1]["atr"]) / current_close * 100
+        sc = _score(sweep_vol_ratio, mss_vol_ratio, depth, atr_pct)
+        if sc < MIN_SCORE:
+            continue
+
+        snap = MSSSnapshot(
+            sweep_level=round(sh_price, 6),
+            sweep_wick=round(sweep_wick, 6),
+            mss_level=round(sl_price, 6),
+            fib_high=round(sweep_wick, 6),
+            fib_low=round(fib_low, 6),
+            fib_618=round(ote_lower, 6),
+            fib_786=round(ote_upper, 6),
+            atr=round(float(df.iloc[-1]["atr"]), 6),
+            sweep_vol_ratio=round(sweep_vol_ratio, 2),
+            mss_vol_ratio=round(mss_vol_ratio, 2),
+        )
+
+        return Signal(
+            symbol=symbol,
+            side="SHORT",
+            entry=round(ote_entry, 6),
+            ote_upper=round(ote_upper, 6),
+            ote_lower=round(ote_lower, 6),
+            sl=round(sl, 6),
+            tp1=round(tp1, 6),
+            tp2=round(tp2, 6),
+            rr=round(TP2_RR, 2),
+            score=sc,
+            indicators=snap,
+            timestamp=df.iloc[-1]["timestamp"].to_pydatetime(),
+        )
+
+    return None
 
 
 # ─── Point d'entrée public ────────────────────────────────────────────────────
@@ -293,41 +365,30 @@ def evaluate(
     symbol: str,
 ) -> Optional[Signal]:
     """
-    Fonction pure principale — appelée identiquement par le live ET le backtest.
-
-    Paramètres
-    ----------
-    df_5m : DataFrame OHLCV + indicateurs pré-calculés (compute_all appliqué)
-    df_1m : DataFrame OHLCV + indicateurs pré-calculés
-    symbol : ex. "BTC/USDT"
-
-    Retourne
-    --------
-    Signal si toutes les conditions sont réunies, None sinon.
+    Fonction pure — appelée identiquement par live et backtest.
+    Détecte Liquidity Sweep + MSS + prix en zone OTE.
     """
-    # Garde-fous : données insuffisantes
-    if len(df_5m) < 60 or len(df_1m) < 60:
+    if len(df_1m) < 60:
         return None
 
-    # S'assurer que les indicateurs sont calculés
-    if "ema9" not in df_5m.columns:
-        df_5m = compute_all(df_5m)
-    if "ema9" not in df_1m.columns:
-        df_1m = compute_all(df_1m)
+    # Bougies fermées uniquement → pas de repainting
+    closed = df_1m.iloc[:-1]
 
-    # Étape 1 : filtre de biais directionnel sur 5m
-    bias = _get_bias_5m(df_5m)
-    if bias is None:
-        return None  # range ou marché trop calme
-
-    # Étape 2 : déclencheur d'entrée sur 1m
-    if bias == "LONG":
-        valid, met, total = _check_long_trigger(df_1m)
+    if "atr" not in closed.columns:
+        closed = compute_all(closed.copy())
     else:
-        valid, met, total = _check_short_trigger(df_1m)
+        closed = closed.copy()
 
-    if not valid:
+    # Filtre volatilité
+    last = closed.iloc[-1]
+    if float(last["atr"]) / float(last["close"]) * 100 < MIN_ATR_PERCENT:
         return None
 
-    # Étape 3 : construction du signal avec niveaux de risque
-    return _build_signal(symbol, bias, df_1m, df_5m, met, total)
+    # Pivots confirmés (derniers SWING_LOOKBACK bars = False → no lookahead)
+    is_sh = find_swing_highs(closed, SWING_LOOKBACK)
+    is_sl = find_swing_lows(closed, SWING_LOOKBACK)
+
+    signal = _find_bullish(closed, is_sh, is_sl, symbol)
+    if signal:
+        return signal
+    return _find_bearish(closed, is_sh, is_sl, symbol)

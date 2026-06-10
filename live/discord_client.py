@@ -1,6 +1,5 @@
 """
-Envoi des signaux vers Discord via webhook.
-Format embed propre et lisible, couleurs LONG/SHORT, tous les champs utiles.
+Embeds Discord pour la stratégie Liquidity Sweep + MSS.
 """
 from __future__ import annotations
 
@@ -13,14 +12,11 @@ from strategy.strategy import Signal
 
 logger = logging.getLogger(__name__)
 
-# Couleurs Discord (format décimal)
-COLOR_LONG = 0x4CAF50   # vert
-COLOR_SHORT = 0xF44336  # rouge
-COLOR_ERROR = 0xFF9800  # orange
+COLOR_LONG  = 0x4CAF50
+COLOR_SHORT = 0xF44336
 
 
-def _format_price(price: float) -> str:
-    """Formate le prix selon son amplitude (évite les 0.000001)."""
+def _fp(price: float) -> str:
     if price >= 1000:
         return f"{price:,.2f}"
     if price >= 1:
@@ -29,45 +25,47 @@ def _format_price(price: float) -> str:
 
 
 def _build_embed(signal: Signal) -> dict:
-    """Construit le payload embed Discord pour un signal."""
     is_long = signal.side == "LONG"
     color = COLOR_LONG if is_long else COLOR_SHORT
     emoji = "🟢" if is_long else "🔴"
-    direction = "LONG ▲" if is_long else "SHORT ▼"
+    direction = "LONG — Bullish Sweep + MSS ▲" if is_long else "SHORT — Bearish Sweep + MSS ▼"
 
-    # Barre de score visuelle (10 segments)
     filled = round(signal.score / 10)
     score_bar = "█" * filled + "░" * (10 - filled)
-
     ind = signal.indicators
-    atr_pct = ind.atr_5m / signal.entry * 100
 
     fields = [
-        {"name": "📥 Entrée",  "value": f"`{_format_price(signal.entry)}`",  "inline": True},
-        {"name": "🛑 Stop-Loss", "value": f"`{_format_price(signal.sl)}`",  "inline": True},
-        {"name": "⚖️ R:R",     "value": f"`{signal.rr:.2f}:1`",             "inline": True},
-        {"name": "🎯 TP1 (1R)", "value": f"`{_format_price(signal.tp1)}`",  "inline": True},
-        {"name": "🎯 TP2 (2R)", "value": f"`{_format_price(signal.tp2)}`",  "inline": True},
-        {"name": "📊 Score",    "value": f"`{score_bar}` {signal.score}/100", "inline": True},
-        # Séparateur + indicateurs
         {
-            "name": "📈 Indicateurs 5m",
+            "name": "📍 Zone OTE — ENTRÉE LIMITE",
+            "value": f"Entre `{_fp(signal.ote_lower)}` et `{_fp(signal.ote_upper)}`",
+            "inline": False,
+        },
+        {"name": "✅ Entrée suggérée", "value": f"`{_fp(signal.entry)}`", "inline": True},
+        {"name": "🛑 Stop-Loss",       "value": f"`{_fp(signal.sl)}`",    "inline": True},
+        {"name": "⚖️ R:R",             "value": f"`{signal.rr:.1f}:1`",  "inline": True},
+        {"name": "🎯 TP1 (2R)",        "value": f"`{_fp(signal.tp1)}`",  "inline": True},
+        {"name": "🎯 TP2 (3R)",        "value": f"`{_fp(signal.tp2)}`",  "inline": True},
+        {"name": "📊 Score",           "value": f"`{score_bar}` {signal.score}/100", "inline": True},
+        {
+            "name": "🔍 Structure",
             "value": (
-                f"EMA9 `{_format_price(ind.ema9_5m)}` | "
-                f"EMA21 `{_format_price(ind.ema21_5m)}` | "
-                f"EMA50 `{_format_price(ind.ema50_5m)}`\n"
-                f"VWAP `{_format_price(ind.vwap_5m)}` | "
-                f"ATR `{ind.atr_5m:.4f}` ({atr_pct:.2f}%)"
+                f"Swing balayé : `{_fp(ind.sweep_level)}`\n"
+                f"Mèche extrême : `{_fp(ind.sweep_wick)}`\n"
+                f"Cassure MSS : `{_fp(ind.mss_level)}`"
             ),
             "inline": False,
         },
         {
-            "name": "⚡ Déclencheur 1m",
+            "name": "📐 Fibonacci",
             "value": (
-                f"RSI `{ind.rsi_1m:.1f}` | "
-                f"MACD hist `{ind.macd_hist_1m:+.6f}` | "
-                f"Volume `{ind.volume_ratio:.2f}×`"
+                f"Ancre basse `{_fp(ind.fib_low)}` → Ancre haute `{_fp(ind.fib_high)}`\n"
+                f"61.8% : `{_fp(ind.fib_618)}` | 78.6% : `{_fp(ind.fib_786)}`"
             ),
+            "inline": False,
+        },
+        {
+            "name": "⚡ Volume & ATR",
+            "value": f"Sweep `{ind.sweep_vol_ratio:.2f}×` | MSS `{ind.mss_vol_ratio:.2f}×` | ATR `{ind.atr:.4f}`",
             "inline": False,
         },
     ]
@@ -75,76 +73,54 @@ def _build_embed(signal: Signal) -> dict:
     ts_iso = signal.timestamp.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return {
-        "embeds": [
-            {
-                "title": f"{emoji} {signal.symbol} — {direction}",
-                "color": color,
-                "fields": fields,
-                "footer": {
-                    "text": f"Biais: {signal.timeframe_bias} | Entrée: {signal.timeframe_entry} | "
-                            f"⚠️ Analyse uniquement, pas un conseil financier",
-                },
-                "timestamp": ts_iso,
-            }
-        ]
+        "embeds": [{
+            "title": f"{emoji} {signal.symbol} — {direction}",
+            "color": color,
+            "fields": fields,
+            "footer": {"text": "Sweep+MSS 1m | ⚠️ Analyse uniquement — pas un conseil financier"},
+            "timestamp": ts_iso,
+        }]
     }
 
 
 async def send_signal(webhook_url: str, signal: Signal, session: aiohttp.ClientSession) -> bool:
-    """
-    Envoie un signal Discord via webhook.
-    Retourne True si succès, False sinon.
-    """
     if not webhook_url:
-        logger.warning("DISCORD_WEBHOOK_URL non configuré — signal non envoyé")
+        logger.warning("DISCORD_WEBHOOK_URL non configuré")
         return False
-
-    payload = _build_embed(signal)
-
     try:
         async with session.post(
             webhook_url,
-            json=payload,
+            json=_build_embed(signal),
             timeout=aiohttp.ClientTimeout(total=10),
         ) as resp:
             if resp.status in (200, 204):
-                logger.info("Signal Discord envoyé : %s %s score=%d", signal.symbol, signal.side, signal.score)
+                logger.info("Signal Discord : %s %s score=%d", signal.symbol, signal.side, signal.score)
                 return True
-            text = await resp.text()
-            logger.warning("Discord webhook erreur %d : %s", resp.status, text[:200])
+            logger.warning("Discord erreur %d : %s", resp.status, (await resp.text())[:200])
             return False
     except Exception as e:
-        logger.error("Impossible d'envoyer le signal Discord : %s", e)
+        logger.error("Envoi Discord échoué : %s", e)
         return False
 
 
 async def send_startup_message(webhook_url: str, session: aiohttp.ClientSession, symbols: list[str]) -> None:
-    """Message de démarrage du bot."""
     if not webhook_url:
         return
-
     payload = {
-        "embeds": [
-            {
-                "title": "🚀 Bot Trend-Pullback Scalper démarré",
-                "color": 0x2196F3,
-                "fields": [
-                    {"name": "Paires surveillées", "value": ", ".join(symbols), "inline": False},
-                    {
-                        "name": "Avertissement",
-                        "value": "Ce bot émet des **signaux d'analyse uniquement**. "
-                                 "Ce ne sont pas des conseils financiers.",
-                        "inline": False,
-                    },
-                ],
-                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            }
-        ]
+        "embeds": [{
+            "title": "🚀 Bot Liquidity Sweep + MSS démarré",
+            "color": 0x2196F3,
+            "fields": [
+                {"name": "Paires", "value": ", ".join(symbols), "inline": False},
+                {"name": "Stratégie", "value": "Liquidity Sweep + Market Structure Shift (MSS) | Zone OTE Fibonacci", "inline": False},
+                {"name": "⚠️ Avertissement", "value": "Signaux d'analyse uniquement — pas des conseils financiers.", "inline": False},
+            ],
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }]
     }
-
     try:
         async with session.post(webhook_url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
             if resp.status not in (200, 204):
-                logger.warning("Message de démarrage Discord : erreur %d", resp.status)
+                logger.warning("Startup Discord : erreur %d", resp.status)
     except Exception as e:
-        logger.warning("Impossible d'envoyer le message de démarrage : %s", e)
+        logger.warning("Startup Discord échoué : %s", e)

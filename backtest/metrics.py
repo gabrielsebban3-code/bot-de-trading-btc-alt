@@ -25,12 +25,20 @@ def compute_metrics(trades: list[Trade]) -> dict:
     if not trades:
         return {"nb_trades": 0}
 
-    pnl_r = [t.pnl_r for t in trades]
-    pnl_pct = [t.pnl_pct for t in trades]
+    # Exclure les NO_FILL des statistiques de trading (pas de trade réel)
+    no_fill_reasons = {"NO_FILL_SL", "NO_FILL_TIMEOUT"}
+    real_trades = [t for t in trades if t.exit_reason not in no_fill_reasons]
+    nb_no_fill = len(trades) - len(real_trades)
+
+    if not real_trades:
+        return {"nb_trades": 0, "nb_no_fill": nb_no_fill}
+
+    pnl_r = [t.pnl_r for t in real_trades]
+    pnl_pct = [t.pnl_pct for t in real_trades]
     wins = [r for r in pnl_r if r > 0]
     losses = [r for r in pnl_r if r <= 0]
 
-    win_rate = len(wins) / len(trades) * 100
+    win_rate = len(wins) / len(real_trades) * 100
     avg_win = np.mean(wins) if wins else 0.0
     avg_loss = abs(np.mean(losses)) if losses else 0.0
 
@@ -46,7 +54,7 @@ def compute_metrics(trades: list[Trade]) -> dict:
     total_return = float(equity[-1] - 100)
 
     # Sharpe annualisé (simplifié, basé sur les R journaliers)
-    df = pd.DataFrame({"pnl_r": pnl_r, "entry_time": [t.entry_time for t in trades]})
+    df = pd.DataFrame({"pnl_r": pnl_r, "entry_time": [t.entry_time for t in real_trades]})
     df["date"] = pd.to_datetime(df["entry_time"]).dt.date
     daily = df.groupby("date")["pnl_r"].sum()
     sharpe = float(daily.mean() / daily.std() * np.sqrt(252)) if daily.std() > 0 else 0.0
@@ -56,7 +64,8 @@ def compute_metrics(trades: list[Trade]) -> dict:
         exit_reasons[t.exit_reason] = exit_reasons.get(t.exit_reason, 0) + 1
 
     return {
-        "nb_trades": len(trades),
+        "nb_trades": len(real_trades),
+        "nb_no_fill": nb_no_fill,
         "win_rate_pct": round(win_rate, 1),
         "avg_win_r": round(avg_win, 2),
         "avg_loss_r": round(avg_loss, 2),

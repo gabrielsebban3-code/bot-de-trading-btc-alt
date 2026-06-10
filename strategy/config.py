@@ -1,72 +1,52 @@
 """
-Paramètres centralisés de la stratégie.
-Toutes les constantes viennent d'ici — jamais en dur dans la logique.
-Les variables d'env surchargent les valeurs par défaut.
+Paramètres centralisés — Liquidity Sweep + MSS Strategy.
 """
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# ─── Paires à surveiller ───────────────────────────────────────────────────────
-# 5 paires par défaut : les plus liquides = meilleure qualité de signal
+# ─── Paires ───────────────────────────────────────────────────────────────────
 SYMBOLS: list[str] = [
-    s.strip()
-    for s in os.getenv(
-        "SYMBOLS",
-        "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT",
-    ).split(",")
+    s.strip() for s in os.getenv("SYMBOLS", "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT").split(",")
 ]
 
-# ─── Indicateurs ──────────────────────────────────────────────────────────────
-EMA_FAST: int = 9
-EMA_MID: int = 21
-EMA_SLOW: int = 50
-RSI_PERIOD: int = 14
-MACD_FAST: int = 12
-MACD_SLOW: int = 26
-MACD_SIGNAL: int = 9
-ATR_PERIOD: int = 14
-VOLUME_AVG_PERIOD: int = 20
+# ─── Pivots (Swing Highs / Lows) ──────────────────────────────────────────────
+# Nombre de bougies de chaque côté pour confirmer un pivot
+SWING_LOOKBACK: int = int(os.getenv("SWING_LOOKBACK", "5"))
 
-# ─── Filtres de biais (5m) ────────────────────────────────────────────────────
-# ATR en % du close : marché trop calme → skip (augmenté pour plus de sélectivité)
-MIN_ATR_PERCENT: float = float(os.getenv("MIN_ATR_PERCENT", "0.08"))
+# ─── Sweep ────────────────────────────────────────────────────────────────────
+# Fenêtre en arrière pour chercher un sweep récent (nb de bougies 1m)
+SWEEP_LOOKBACK_BARS: int = int(os.getenv("SWEEP_LOOKBACK_BARS", "50"))
+# Bornes de la fenêtre MSS après le sweep
+MSS_MIN_BARS: int = int(os.getenv("MSS_MIN_BARS", "2"))
+MSS_MAX_BARS: int = int(os.getenv("MSS_MAX_BARS", "25"))
 
-# ─── Déclencheur 1m ───────────────────────────────────────────────────────────
-# Pullback : le low/high doit être dans cette zone % autour de l'EMA21 ou VWAP
-# Plus petit = plus précis = moins de signaux
-PULLBACK_PROXIMITY_PCT: float = float(os.getenv("PULLBACK_PROXIMITY_PCT", "0.10"))
+# ─── Fibonacci / OTE ──────────────────────────────────────────────────────────
+# Retracement 61.8% : limite la moins profonde de la zone OTE
+FIB_OTE_UPPER: float = float(os.getenv("FIB_OTE_UPPER", "0.618"))
+# Retracement 78.6% : limite la plus profonde de la zone OTE
+FIB_OTE_LOWER: float = float(os.getenv("FIB_OTE_LOWER", "0.786"))
 
-# Fenêtre RSI lookback (en bougies 1m)
-RSI_LOOKBACK: int = int(os.getenv("RSI_LOOKBACK", "5"))
+# ─── Risk management ──────────────────────────────────────────────────────────
+# Buffer SL en % du prix (au-delà de la mèche du sweep)
+SL_BUFFER_PCT: float = float(os.getenv("SL_BUFFER_PCT", "0.05"))
+TP1_RR: float = float(os.getenv("TP1_RR", "2.0"))   # 1:2
+TP2_RR: float = float(os.getenv("TP2_RR", "3.0"))   # 1:3
+RISK_REWARD_MIN: float = float(os.getenv("RISK_REWARD_MIN", "2.0"))
 
-# RSI plus strict : doit avoir touché 40 (long) ou 60 (short) pour être valide
-RSI_OVERSOLD: float = float(os.getenv("RSI_OVERSOLD", "40"))
-RSI_OVERBOUGHT: float = float(os.getenv("RSI_OVERBOUGHT", "60"))
-RSI_CROSS_LEVEL: float = 50.0
-
-# Volume : 1.5× minimum pour confirmer l'impulsion (plus strict que 1.2×)
-VOLUME_MULTIPLIER: float = float(os.getenv("VOLUME_MULTIPLIER", "1.5"))
-
-# Corps de bougie minimum : le corps doit représenter au moins N% de la range totale
-# Filtre les dojis et les bougies indécises
-MIN_BODY_RATIO: float = float(os.getenv("MIN_BODY_RATIO", "0.40"))
-
-# ─── Gestion du risque ────────────────────────────────────────────────────────
-ATR_MULTIPLIER: float = float(os.getenv("ATR_MULTIPLIER", "1.5"))
-RISK_REWARD_MIN: float = float(os.getenv("RISK_REWARD_MIN", "1.5"))
+# ─── Filtres qualité ──────────────────────────────────────────────────────────
+SWEEP_VOLUME_MULTIPLIER: float = float(os.getenv("SWEEP_VOLUME_MULTIPLIER", "1.2"))
+MSS_VOLUME_MULTIPLIER: float = float(os.getenv("MSS_VOLUME_MULTIPLIER", "1.2"))
+MIN_ATR_PERCENT: float = float(os.getenv("MIN_ATR_PERCENT", "0.05"))
 
 # ─── Bot live ─────────────────────────────────────────────────────────────────
 SCAN_INTERVAL_SECONDS: int = int(os.getenv("SCAN_INTERVAL_SECONDS", "15"))
-# 4h de cooldown par paire → max ~6 signaux/paire/jour, en pratique 1-2
 COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "240"))
-# Score minimum 75/100 — seuls les setups vraiment propres passent
-MIN_SCORE: int = int(os.getenv("MIN_SCORE", "75"))
-
+MIN_SCORE: int = int(os.getenv("MIN_SCORE", "55"))
 KLINES_LIMIT: int = 200
 
-# ─── Frais & slippage (backtest) ──────────────────────────────────────────────
+# ─── Backtest ─────────────────────────────────────────────────────────────────
 FEE_PERCENT: float = float(os.getenv("FEE_PERCENT", "0.04"))
 SLIPPAGE_PERCENT: float = float(os.getenv("SLIPPAGE_PERCENT", "0.02"))
 
