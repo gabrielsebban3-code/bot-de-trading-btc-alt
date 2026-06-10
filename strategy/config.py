@@ -55,7 +55,9 @@ RISK_REWARD_MIN: float = float(os.getenv("RISK_REWARD_MIN", "1.5"))  # R:R minim
 
 # ─── Bot live ─────────────────────────────────────────────────────────────────
 SCAN_INTERVAL_SECONDS: int = int(os.getenv("SCAN_INTERVAL_SECONDS", "15"))
-COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "15"))
+COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "30"))
+# Score minimum pour envoyer un signal (0-100) — filtre les setups faibles
+MIN_SCORE: int = int(os.getenv("MIN_SCORE", "65"))
 
 # Nombre de bougies à récupérer pour les calculs (laisser de la marge pour les lookback)
 KLINES_LIMIT: int = 200

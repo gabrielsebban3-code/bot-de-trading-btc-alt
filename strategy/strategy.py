@@ -128,12 +128,12 @@ def _get_bias_5m(df5: pd.DataFrame) -> Optional[str]:
 
 def _check_long_trigger(df1: pd.DataFrame) -> tuple[bool, int, int]:
     """
-    Vérifie les 5 conditions du déclencheur long sur la dernière bougie 1m.
-    Retourne (signal_valide, nb_conditions_remplies, nb_total_conditions).
+    Vérifie les 5 conditions du déclencheur long sur la dernière bougie 1m FERMÉE.
+    iloc[-2] = dernière bougie fermée (iloc[-1] est la bougie en cours, pas fiable).
     """
     total = 5
-    row = df1.iloc[-1]   # bougie déclencheur (dernière fermée)
-    prev = df1.iloc[-2]
+    row = df1.iloc[-2]   # dernière bougie fermée
+    prev = df1.iloc[-3]  # avant-dernière bougie fermée
 
     met = 0
 
@@ -168,10 +168,10 @@ def _check_long_trigger(df1: pd.DataFrame) -> tuple[bool, int, int]:
 
 
 def _check_short_trigger(df1: pd.DataFrame) -> tuple[bool, int, int]:
-    """Miroir exact du long pour les shorts."""
+    """Miroir exact du long — utilise aussi la dernière bougie fermée."""
     total = 5
-    row = df1.iloc[-1]
-    prev = df1.iloc[-2]
+    row = df1.iloc[-2]   # dernière bougie fermée
+    prev = df1.iloc[-3]
 
     met = 0
 
@@ -218,7 +218,7 @@ def _build_signal(
     Calcule SL, TP1, TP2, R:R et construit l'objet Signal.
     Retourne None si R:R < RISK_REWARD_MIN.
     """
-    row1 = df1.iloc[-1]
+    row1 = df1.iloc[-2]  # dernière bougie fermée (cohérent avec les triggers)
     row5 = df5.iloc[-2]
 
     entry = float(row1["close"])
@@ -265,7 +265,8 @@ def _build_signal(
         rr=round(rr, 2),
         score=score,
         indicators=snapshot,
-        timestamp=pd.Timestamp.utcnow().to_pydatetime(),
+        # Timestamp = heure de fermeture de la bougie déclencheur (pas utcnow)
+        timestamp=row1["timestamp"].to_pydatetime(),
     )
 
 
