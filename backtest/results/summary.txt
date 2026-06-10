@@ -4,18 +4,18 @@
   Paires     : BTC/USDT, ETH/USDT, SOL/USDT
   Période    : 2024-05-01 → 2024-05-30
 
-  Nb trades       : 208
-  Win rate        : 54.8%
-  Avg win (R)     : 1.61R
-  Avg loss (R)    : 1.28R
-  Profit factor   : 1.52
-  Expectancy      : 0.30R
-  Max drawdown    : -6.16%
-  Return total    : 33.21%
-  Sharpe annuel   : 6.42
+  Nb trades       : 15
+  Win rate        : 6.7%
+  Avg win (R)     : 2.35R
+  Avg loss (R)    : 1.37R
+  Profit factor   : 0.12
+  Expectancy      : -1.12R
+  Max drawdown    : -6.54%
+  Return total    : -6.54%
+  Sharpe annuel   : -16.13
 
   Raisons de sortie :
-    TP2    : 114
-    SL     : 94
+    SL     : 14
+    TP2    : 1
 
 ============================================================
