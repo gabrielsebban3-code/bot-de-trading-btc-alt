@@ -15,6 +15,7 @@ import pandas as pd
 from strategy.config import (
     ATR_MULTIPLIER,
     MIN_ATR_PERCENT,
+    MIN_BODY_RATIO,
     PULLBACK_PROXIMITY_PCT,
     RISK_REWARD_MIN,
     RSI_CROSS_LEVEL,
@@ -148,8 +149,15 @@ def _check_long_trigger(df1: pd.DataFrame) -> tuple[bool, int, int]:
     if rsi_ok:
         met += 1
 
-    # 3. Bougie haussière et clôture au-dessus de l'EMA9
-    bullish_candle = row["close"] > row["open"] and row["close"] > row["ema9"]
+    # 3. Bougie haussière avec vrai corps (pas un doji) et clôture au-dessus EMA9
+    candle_range = row["high"] - row["low"]
+    body = abs(row["close"] - row["open"])
+    body_ratio = body / candle_range if candle_range > 0 else 0
+    bullish_candle = (
+        row["close"] > row["open"]
+        and row["close"] > row["ema9"]
+        and body_ratio >= MIN_BODY_RATIO  # corps solide, pas un doji
+    )
     if bullish_candle:
         met += 1
 
@@ -186,8 +194,15 @@ def _check_short_trigger(df1: pd.DataFrame) -> tuple[bool, int, int]:
     if rsi_ok:
         met += 1
 
-    # 3. Bougie baissière et clôture sous l'EMA9
-    bearish_candle = row["close"] < row["open"] and row["close"] < row["ema9"]
+    # 3. Bougie baissière avec vrai corps et clôture sous l'EMA9
+    candle_range = row["high"] - row["low"]
+    body = abs(row["close"] - row["open"])
+    body_ratio = body / candle_range if candle_range > 0 else 0
+    bearish_candle = (
+        row["close"] < row["open"]
+        and row["close"] < row["ema9"]
+        and body_ratio >= MIN_BODY_RATIO
+    )
     if bearish_candle:
         met += 1
 

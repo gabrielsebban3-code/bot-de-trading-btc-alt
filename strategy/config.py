@@ -9,13 +9,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ─── Paires à surveiller ───────────────────────────────────────────────────────
+# 5 paires par défaut : les plus liquides = meilleure qualité de signal
 SYMBOLS: list[str] = [
     s.strip()
     for s in os.getenv(
         "SYMBOLS",
-        "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT,"
-        "ADA/USDT,DOGE/USDT,AVAX/USDT,LINK/USDT,DOT/USDT,"
-        "MATIC/USDT,LTC/USDT,UNI/USDT,ATOM/USDT,FIL/USDT",
+        "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT",
     ).split(",")
 ]
 
@@ -31,40 +30,45 @@ ATR_PERIOD: int = 14
 VOLUME_AVG_PERIOD: int = 20
 
 # ─── Filtres de biais (5m) ────────────────────────────────────────────────────
-# ATR en % du close : en-dessous de ce seuil, marché trop calme → skip
-MIN_ATR_PERCENT: float = float(os.getenv("MIN_ATR_PERCENT", "0.05"))
+# ATR en % du close : marché trop calme → skip (augmenté pour plus de sélectivité)
+MIN_ATR_PERCENT: float = float(os.getenv("MIN_ATR_PERCENT", "0.08"))
 
 # ─── Déclencheur 1m ───────────────────────────────────────────────────────────
-# Zone de "proximité" de l'EMA21 ou VWAP exprimée en % du close
-PULLBACK_PROXIMITY_PCT: float = float(os.getenv("PULLBACK_PROXIMITY_PCT", "0.15"))
+# Pullback : le low/high doit être dans cette zone % autour de l'EMA21 ou VWAP
+# Plus petit = plus précis = moins de signaux
+PULLBACK_PROXIMITY_PCT: float = float(os.getenv("PULLBACK_PROXIMITY_PCT", "0.10"))
 
-# Fenêtre (en bougies 1m) dans laquelle chercher le RSI retourné
+# Fenêtre RSI lookback (en bougies 1m)
 RSI_LOOKBACK: int = int(os.getenv("RSI_LOOKBACK", "5"))
 
-# Seuils RSI pour le rebond
-RSI_OVERSOLD: float = float(os.getenv("RSI_OVERSOLD", "45"))   # long : croise sous puis au-dessus de 50
-RSI_OVERBOUGHT: float = float(os.getenv("RSI_OVERBOUGHT", "55"))  # short : croise au-dessus puis sous 50
+# RSI plus strict : doit avoir touché 40 (long) ou 60 (short) pour être valide
+RSI_OVERSOLD: float = float(os.getenv("RSI_OVERSOLD", "40"))
+RSI_OVERBOUGHT: float = float(os.getenv("RSI_OVERBOUGHT", "60"))
 RSI_CROSS_LEVEL: float = 50.0
 
-# Volume minimum : N × volume moyen pour confirmer l'impulsion
-VOLUME_MULTIPLIER: float = float(os.getenv("VOLUME_MULTIPLIER", "1.2"))
+# Volume : 1.5× minimum pour confirmer l'impulsion (plus strict que 1.2×)
+VOLUME_MULTIPLIER: float = float(os.getenv("VOLUME_MULTIPLIER", "1.5"))
+
+# Corps de bougie minimum : le corps doit représenter au moins N% de la range totale
+# Filtre les dojis et les bougies indécises
+MIN_BODY_RATIO: float = float(os.getenv("MIN_BODY_RATIO", "0.40"))
 
 # ─── Gestion du risque ────────────────────────────────────────────────────────
-ATR_MULTIPLIER: float = float(os.getenv("ATR_MULTIPLIER", "1.5"))   # SL = entry ± ATR * multiplicateur
-RISK_REWARD_MIN: float = float(os.getenv("RISK_REWARD_MIN", "1.5"))  # R:R minimum pour émettre le signal
+ATR_MULTIPLIER: float = float(os.getenv("ATR_MULTIPLIER", "1.5"))
+RISK_REWARD_MIN: float = float(os.getenv("RISK_REWARD_MIN", "1.5"))
 
 # ─── Bot live ─────────────────────────────────────────────────────────────────
 SCAN_INTERVAL_SECONDS: int = int(os.getenv("SCAN_INTERVAL_SECONDS", "15"))
-COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "30"))
-# Score minimum pour envoyer un signal (0-100) — filtre les setups faibles
-MIN_SCORE: int = int(os.getenv("MIN_SCORE", "65"))
+# 4h de cooldown par paire → max ~6 signaux/paire/jour, en pratique 1-2
+COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "240"))
+# Score minimum 75/100 — seuls les setups vraiment propres passent
+MIN_SCORE: int = int(os.getenv("MIN_SCORE", "75"))
 
-# Nombre de bougies à récupérer pour les calculs (laisser de la marge pour les lookback)
 KLINES_LIMIT: int = 200
 
 # ─── Frais & slippage (backtest) ──────────────────────────────────────────────
-FEE_PERCENT: float = float(os.getenv("FEE_PERCENT", "0.04"))        # taker, par côté
-SLIPPAGE_PERCENT: float = float(os.getenv("SLIPPAGE_PERCENT", "0.02"))  # par côté
+FEE_PERCENT: float = float(os.getenv("FEE_PERCENT", "0.04"))
+SLIPPAGE_PERCENT: float = float(os.getenv("SLIPPAGE_PERCENT", "0.02"))
 
 # ─── Discord ──────────────────────────────────────────────────────────────────
 DISCORD_WEBHOOK_URL: str = os.getenv("DISCORD_WEBHOOK_URL", "")
