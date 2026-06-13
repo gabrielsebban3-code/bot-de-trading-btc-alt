@@ -43,7 +43,7 @@ MIN_ATR_PERCENT: float = float(os.getenv("MIN_ATR_PERCENT", "0.05"))
 # ─── Bot live ─────────────────────────────────────────────────────────────────
 SCAN_INTERVAL_SECONDS: int = int(os.getenv("SCAN_INTERVAL_SECONDS", "15"))
 COOLDOWN_MINUTES: int = int(os.getenv("COOLDOWN_MINUTES", "240"))
-MIN_SCORE: int = int(os.getenv("MIN_SCORE", "55"))
+MIN_SCORE: int = int(os.getenv("MIN_SCORE", "100"))
 KLINES_LIMIT: int = 200
 
 # ─── Backtest ─────────────────────────────────────────────────────────────────
