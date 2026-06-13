@@ -117,3 +117,11 @@ REQUEST_SPACING_SEC = 0.25
 # Mode test : si true, lance une analyse immédiate au démarrage sans attendre
 # la prochaine clôture 15m (pratique pour vérifier que tout marche).
 RUN_ON_START = os.getenv("RUN_ON_START", "false").lower() == "true"
+
+# ---------------------------------------------------------------------------
+# FILTRE QUALITÉ
+# ---------------------------------------------------------------------------
+# Score de fiabilité minimum pour qu'une alerte soit envoyée sur Discord.
+# Le score max possible est ~92 (TREND) et ~90 (CRASH).
+# Recommandé : 80 (top signaux uniquement). Modifiable via MIN_RELIABILITY_SCORE=XX
+MIN_RELIABILITY_SCORE = int(os.getenv("MIN_RELIABILITY_SCORE", "80"))

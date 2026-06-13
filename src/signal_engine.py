@@ -61,12 +61,20 @@ def scan_all() -> list[dict]:
         try:
             sig = analyze_symbol(symbol)
             if sig is not None:
-                logger.info(
-                    "SIGNAL %s %s [%s] entrée=%s fiab=%s%%",
-                    sig["symbol"], sig["direction"], sig["mode"],
-                    sig["entry"], sig["reliability"],
-                )
-                signals.append(sig)
+                score = sig["reliability"]
+                if score < config.MIN_RELIABILITY_SCORE:
+                    logger.info(
+                        "Signal %s %s [%s] ignoré — fiabilité %d%% < minimum %d%%",
+                        sig["symbol"], sig["direction"], sig["mode"],
+                        score, config.MIN_RELIABILITY_SCORE,
+                    )
+                else:
+                    logger.info(
+                        "SIGNAL %s %s [%s] entrée=%s fiab=%d%%",
+                        sig["symbol"], sig["direction"], sig["mode"],
+                        sig["entry"], score,
+                    )
+                    signals.append(sig)
         except Exception as exc:  # robustesse : un symbole en erreur ne stoppe pas le scan
             logger.exception("Erreur analyse %s : %s", symbol, exc)
         time.sleep(config.REQUEST_SPACING_SEC)
