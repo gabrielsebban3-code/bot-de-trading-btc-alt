@@ -7,41 +7,53 @@
 ## 🧠 Le principe
 Un appel de **prise de RDV** enchaîne 2 outils : `verifier_disponibilite` PUIS
 `creer_rendezvous`. On les met donc dans **le même scénario** (1 webhook + un
-routeur sur le champ `action`). L'annulation, qui est un appel à part, reste dans
-son propre scénario.
+routeur). L'annulation, qui est un appel à part, reste dans son propre scénario.
+
+> ⚠️ **Leçon apprise (important) :** on a d'abord voulu router sur un champ
+> `action` (envoyé en *Static Body Field* depuis Vapi). **Ça n'a pas marché** :
+> ce champ statique n'arrive pas de façon fiable jusqu'au webhook Make (et le
+> bouton « Test Tool » de Vapi ne l'envoie jamais). La solution **qui fonctionne**
+> route sur la **présence du champ `nom_client`** : il n'est envoyé QUE par
+> `creer_rendezvous`. `verifier_disponibilite`, lui, n'envoie que la date, la
+> durée et le coiffeur — donc pas de `nom_client`.
+>
+> - `nom_client` **présent** → on **crée** le RDV
+> - `nom_client` **absent**  → on **vérifie** la dispo
 
 ```
-SCÉNARIO 1 « Camille - RDV »  (ACTIF)
-   1 Webhook (camille-rdv) → ROUTEUR (lit "action")
-        ├─ action = verifier → Search Events → Réponse {rdv_id}
-        └─ action = creer    → Create Event  → Réponse {result}
+SCÉNARIO 1 « camille-rdv »  (ACTIF)
+   1 Webhook (camille-rdv) → ROUTEUR (teste la présence de "nom_client")
+        ├─ nom_client absent   → Search Events → Réponse {rdv_id}   (vérifier)
+        └─ nom_client présent  → Create Event  → Réponse {result}   (créer)
 
-SCÉNARIO 2 « Camille - Annulation »  (ACTIF, inchangé)
+SCÉNARIO 2 « camille anulation »  (ACTIF, inchangé)
    1 Webhook (camille-annulation) → Search → Delete → Réponse {result}
 ```
 
 ---
 
-## PHASE 1 — Côté Vapi (2 outils à modifier ; annuler ne change pas)
+## PHASE 1 — Côté Vapi (1 seul outil à modifier ; les autres ne changent pas)
 
 **`verifier_disponibilite`** :
 1. Request URL → mets l'URL du webhook **`camille-rdv`** (la même que creer).
-2. Static Body Fields → Add Field : Key `action`, Value `verifier`.
-3. Save.
+2. Save.
 
-**`creer_rendezvous`** :
-1. URL déjà `camille-rdv` (ne change pas).
-2. Static Body Fields → Add Field : Key `action`, Value `creer`.
-3. Save.
+**`creer_rendezvous`** : URL déjà `camille-rdv`, **rien à changer** (le champ
+`nom_client` qu'il envoie déjà sert de signal au routeur).
 
 **`annuler_rendezvous`** : **on ne touche à rien** (reste sur `camille-annulation`).
 
+> Pas besoin de champ `action` : on n'ajoute aucun Static Body Field. Le routeur
+> se base sur `nom_client`, déjà présent dans `creer_rendezvous` et absent de
+> `verifier_disponibilite`.
+
 ---
 
-## PHASE 2 — Apprendre le champ `action` au webhook
-1. Ouvre le scénario **Création** → clique **Detect new values** sur le webhook.
-2. Envoie un test depuis `creer_rendezvous` (Test Tool), puis un depuis
-   `verifier_disponibilite`. Le webhook apprend `action` + tous les champs.
+## PHASE 2 — Apprendre les champs au webhook
+1. Ouvre le scénario **camille-rdv** → clique **Re-determine data structure** sur
+   le webhook (laisse la fenêtre ouverte).
+2. Déclenche un vrai appel (ou un Test Tool) pour que le webhook apprenne les
+   champs, dont **`nom_client`** — c'est lui qui pilote le routeur.
 
 ---
 
@@ -55,11 +67,16 @@ Actuel : `Webhook → Create an Event → Webhook Response`.
 3. Relie le routeur à l'ancien **Create an Event** (= 1re route, déjà prête).
 
 ### 3.2 Branche CREER (existante)
-- Filtre sur la route → Create an Event : `action` **Equal to** `creer`.
-- Modules inchangés. Réponse : `{"result": "Le rendez-vous a bien été enregistré dans l'agenda."}`
+- Filtre sur la route → Create an Event : `nom_client` **Exists** (catégorie
+  *Basic operators*, pas de valeur à saisir).
+- Modules inchangés. Réponse (Webhook Response) :
+  `{"result": "Le rendez-vous a bien été enregistré dans l'agenda."}`
+  avec le header `Content-Type: application/json` — **sinon Vapi affiche
+  « invalid json response body »** même si le RDV est bien créé.
 
 ### 3.3 Branche VERIFIER (nouvelle)
-- Nouvelle route du routeur, filtre : `action` **Equal to** `verifier`.
+- Nouvelle route du routeur, filtre : `nom_client` **Does not exist** (catégorie
+  *Basic operators*).
 - Module 1 : **Google Calendar → Search Events**
   - Calendar ID : `gabrielagent3@gmail.com`
   - Query : **(vide)**
@@ -77,11 +94,23 @@ Actuel : `Webhook → Create an Event → Webhook Response`.
 ---
 
 ## PHASE 4 — Activer et tester
-1. Active **« Camille - RDV »** et **« Camille - Annulation »** (les 2 ON).
-2. Désactive / supprime l'ancien scénario **« Disponibilité »** (son rôle est
-   maintenant dans « Camille - RDV »).
-3. Teste les 3 actions (Run once + Test Tool de chaque outil).
+1. Active **`camille-rdv`** et **`camille anulation`** (les 2 ON).
+2. Désactive l'ancien scénario **`dispo camille`** (son rôle est maintenant dans
+   `camille-rdv`). On le garde en OFF par sécurité avant de le supprimer.
+3. **Teste avec de VRAIS appels**, pas le bouton « Test Tool » de Vapi (il
+   n'envoie pas tout, donc il fausse le test) :
+   - Prendre un RDV → doit apparaître dans Google Calendar, sans erreur rouge.
+   - Redemander le **même créneau** → Camille doit dire que c'est pris (route
+     VERIFIER).
+   - Annuler → le RDV disparaît de l'agenda.
+
+## 🩺 Pannes rencontrées et corrigées
+| Symptôme | Cause | Correctif |
+|---|---|---|
+| Filtres « ⊘ 0 », rien ne passe | champ `action` jamais reçu par Make | router sur `nom_client` (Exists / Does not exist) |
+| `invalid json response body` côté Vapi | Make répond en texte brut | Webhook Response avec body JSON + header `Content-Type: application/json` |
+| RDV créé mais erreur rouge quand même | header JSON manquant sur la réponse | ajouter le header `Content-Type: application/json` |
 
 ## ✅ Résultat
 2 scénarios actifs gèrent tout. Un appel complet (vérifier la dispo PUIS réserver)
-passe par le seul scénario « Camille - RDV ». Prêt pour la démo de vente.
+passe par le seul scénario `camille-rdv`. Prêt pour la démo de vente.
