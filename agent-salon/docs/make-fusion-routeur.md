@@ -23,8 +23,8 @@ routeur). L'annulation, qui est un appel à part, reste dans son propre scénari
 ```
 SCÉNARIO 1 « camille-rdv »  (ACTIF)
    1 Webhook (camille-rdv) → ROUTEUR (teste la présence de "nom_client")
-        ├─ nom_client absent   → Search Events → Réponse {rdv_id}   (vérifier)
-        └─ nom_client présent  → Create Event  → Réponse {result}   (créer)
+        ├─ nom_client absent   → Search Events → Text aggregator → Réponse {rdv_id}   (vérifier)
+        └─ nom_client présent  → Create Event  → Réponse {result}                     (créer)
 
 SCÉNARIO 2 « camille anulation »  (ACTIF, inchangé)
    1 Webhook (camille-annulation) → Search → Delete → Réponse {result}
@@ -83,13 +83,28 @@ Actuel : `Webhook → Create an Event → Webhook Response`.
   - Start Date : `{{parseDate(1.date_heure_debut; "YYYY-MM-DDTHH:mm")}}`
   - End Date : `{{addMinutes(parseDate(1.date_heure_debut; "YYYY-MM-DDTHH:mm"); 1.duree_minutes)}}`
   - Single Events : `Yes` · Limit : `10`
-- Module 2 : **Webhook Response**
-  - Body : `{"rdv_id": "{{<Event ID de Search Events>}}"}`
+- Module 2 : **Tools → Text aggregator** ⚠️ **indispensable** (voir encadré)
+  - Source Module : `Search Events [14]`
+  - Row separator : `Other` · Separator : `,`
+  - **Text** : la bulle `Event ID` de Search Events
+- Module 3 : **Webhook Response**
+  - Body : `{"rdv_id": "{{<Text aggregator>.text}}"}`
   - Header : `Content-Type: application/json`
 
-> 💡 Astuce gain de temps : ces 2 modules existent déjà dans le scénario
-> « Disponibilité ». Tu peux les **copier-coller** (clic droit → Copy) dans la
-> nouvelle branche, puis re-vérifier les mappings de dates.
+> ⚠️ **Pourquoi le Text aggregator est obligatoire (gros piège) :**
+> Sans lui, on branche Search Events directement sur Webhook Response. Or :
+> - quand le créneau est **libre** (0 événement), Search Events ne sort **aucun
+>   bundle** → le Webhook Response **ne s'exécute pas** → Vapi reçoit l'erreur
+>   « invalid json response body » au lieu de « c'est libre » ;
+> - quand le créneau est **pris** avec plusieurs événements, Webhook Response
+>   tourne **plusieurs fois** → réponse cassée.
+>
+> L'agrégateur sort **toujours exactement une ligne** :
+> - libre → `text` = `""` (vide) → `rdv_id` vide → Camille dit « c'est libre » ;
+> - pris  → `text` = `"id1,id2"` → `rdv_id` rempli → Camille dit « c'est pris ».
+>
+> ⚠️ Bien mapper le champ **`text`** de l'agrégateur dans la réponse (PAS le
+> bundle entier, sinon `rdv_id` est toujours rempli → tout paraît « pris »).
 
 ---
 
@@ -110,6 +125,10 @@ Actuel : `Webhook → Create an Event → Webhook Response`.
 | Filtres « ⊘ 0 », rien ne passe | champ `action` jamais reçu par Make | router sur `nom_client` (Exists / Does not exist) |
 | `invalid json response body` côté Vapi | Make répond en texte brut | Webhook Response avec body JSON + header `Content-Type: application/json` |
 | RDV créé mais erreur rouge quand même | header JSON manquant sur la réponse | ajouter le header `Content-Type: application/json` |
+| La vérif renvoie une erreur (créneau libre) | `verifier_disponibilite` pointait vers l'ancien webhook éteint | mettre la **même URL** `camille-rdv` que `creer_rendezvous` |
+| Créneau libre → erreur ; pris → réponse cassée | Search Events sans agrégateur (0 ou N bundles) | insérer un **Text aggregator** entre Search Events et la réponse |
+| Camille dit toujours « c'est pris » | la réponse mappe le *bundle* au lieu du champ `text` | mapper le champ **`text`** de l'agrégateur dans `rdv_id` |
+| Camille dit « pris » sur des créneaux libres | doublons de test qui encombrent l'agenda | vider l'agenda des RDV de test avant de tester |
 
 ## ✅ Résultat
 2 scénarios actifs gèrent tout. Un appel complet (vérifier la dispo PUIS réserver)
