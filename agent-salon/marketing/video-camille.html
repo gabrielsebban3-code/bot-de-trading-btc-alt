@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<!--
+  🎬 VIDÉO DE PRÉSENTATION ANIMÉE — CAMILLE  (premium, vertical 9:16)
+
+  COMMENT S'EN SERVIR :
+  1. Ouvre ce fichier dans Chrome (double-clic).
+  2. Mets en plein écran : touche F11.
+  3. Lance ton enregistreur d'écran (Windows + G, ou Loom/OBS).
+  4. Clique sur « ▶ Lancer la vidéo » — elle se déroule toute seule (~70 s).
+  5. Coupe l'enregistrement à la fin. Ajoute la voix-off après (CapCut).
+
+  ✏️ À PERSONNALISER : cherche « À REMPLACER » plus bas (ton nom, tél, email).
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camille — Présentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold1:#f6dd9a; --gold2:#cda24e; --gold3:#a8842f;
+    --bg1:#0b0b10; --bg2:#15151f; --ink:#f4f1ea;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden;font-family:'Montserrat',sans-serif}
+
+  /* Cadre vertical 9:16 centré */
+  .stage{
+    position:relative;height:100vh;width:calc(100vh * 9 / 16);max-width:100vw;
+    margin:0 auto;overflow:hidden;
+    background:radial-gradient(120% 80% at 50% 0%, var(--bg2) 0%, var(--bg1) 60%, #060609 100%);
+    color:var(--ink);
+  }
+  /* Grain doré flottant */
+  .spark{position:absolute;border-radius:50%;background:radial-gradient(circle,var(--gold1),rgba(205,162,78,0));opacity:.0;animation:float linear infinite}
+  @keyframes float{0%{transform:translateY(20px);opacity:0}10%{opacity:.7}90%{opacity:.5}100%{transform:translateY(-120px);opacity:0}}
+
+  /* Vignette */
+  .stage::after{content:"";position:absolute;inset:0;pointer-events:none;
+    box-shadow:inset 0 0 180px 40px rgba(0,0,0,.6)}
+
+  /* Liseré doré */
+  .frame{position:absolute;inset:18px;border:1px solid rgba(205,162,78,.25);border-radius:14px;pointer-events:none;z-index:5}
+
+  .scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:0 9%;opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease;z-index:3}
+  .scene.active{opacity:1;transform:translateY(0)}
+
+  .kicker{font-size:2.6vh;letter-spacing:.42em;text-transform:uppercase;color:var(--gold2);font-weight:500;margin-bottom:3vh}
+  h1{font-family:'Playfair Display',serif;font-weight:700;line-height:1.12}
+  .big{font-size:7.4vh}
+  .mid{font-size:5.4vh;font-family:'Playfair Display',serif;font-weight:500;line-height:1.2}
+  .sub{font-size:3.1vh;font-weight:300;color:#cfc9bd;margin-top:3vh;line-height:1.5}
+  .gold{background:linear-gradient(135deg,var(--gold1),var(--gold2) 55%,var(--gold3));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* Apparition en cascade des lignes */
+  .scene .line{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease}
+  .scene.active .line{opacity:1;transform:translateY(0)}
+  .scene.active .line:nth-child(1){transition-delay:.15s}
+  .scene.active .line:nth-child(2){transition-delay:.5s}
+  .scene.active .line:nth-child(3){transition-delay:.85s}
+  .scene.active .line:nth-child(4){transition-delay:1.2s}
+  .scene.active .line:nth-child(5){transition-delay:1.55s}
+
+  /* Téléphone qui sonne */
+  .phone{font-size:11vh;display:inline-block;animation:ring 1s ease-in-out infinite;filter:drop-shadow(0 0 18px rgba(205,162,78,.35))}
+  @keyframes ring{0%,100%{transform:rotate(0)}10%,30%{transform:rotate(-14deg)}20%,40%{transform:rotate(14deg)}50%{transform:rotate(0)}}
+
+  /* Liste de capacités */
+  .feat{display:flex;flex-direction:column;gap:2.4vh;margin-top:1vh}
+  .feat .row{display:flex;align-items:center;gap:2.4vh;font-size:3.4vh;font-weight:400}
+  .feat .tick{flex:0 0 auto;width:5.2vh;height:5.2vh;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--gold1),var(--gold3));color:#1b1304;font-weight:700;font-size:3vh}
+
+  /* Schéma flux */
+  .flow{display:flex;align-items:center;justify-content:center;gap:2.2vh;margin-top:2vh;flex-wrap:wrap}
+  .pill{display:flex;flex-direction:column;align-items:center;gap:1vh;padding:2.4vh 2vh;border:1px solid rgba(205,162,78,.35);
+    border-radius:16px;background:rgba(255,255,255,.02);min-width:20vh}
+  .pill .ico{font-size:5vh}
+  .pill .lab{font-size:2.2vh;letter-spacing:.04em;color:#d8d2c6}
+  .arrow{font-size:4vh;color:var(--gold2)}
+
+  /* CTA */
+  .badge{display:inline-block;margin-top:1vh;padding:1.6vh 3.2vh;border-radius:999px;
+    background:linear-gradient(135deg,var(--gold1),var(--gold3));color:#1b1304;font-weight:600;font-size:3.4vh;letter-spacing:.02em}
+  .contact{margin-top:4vh;font-size:2.8vh;line-height:1.7;color:#e7e1d4}
+  .contact b{color:var(--gold1);font-weight:600}
+
+  /* Marque */
+  .brand{font-family:'Playfair Display',serif;font-size:9vh;font-weight:700;letter-spacing:.02em}
+  .brand-sub{font-size:2.8vh;letter-spacing:.32em;text-transform:uppercase;color:#cfc9bd;margin-top:2vh;font-weight:300}
+
+  /* Barre de progression */
+  .bar{position:absolute;left:0;bottom:0;height:5px;width:0;background:linear-gradient(90deg,var(--gold3),var(--gold1));z-index:6;box-shadow:0 0 12px rgba(246,221,154,.5)}
+
+  /* Overlay départ */
+  .overlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(6,6,9,.92);backdrop-filter:blur(2px);cursor:pointer}
+  .overlay .brand{margin-bottom:2vh}
+  .play{margin-top:4vh;padding:2vh 4vh;border:1px solid var(--gold2);border-radius:999px;color:var(--gold1);
+    font-size:3vh;letter-spacing:.04em;background:rgba(205,162,78,.06);transition:all .3s}
+  .play:hover{background:rgba(205,162,78,.16)}
+  .hint{margin-top:3vh;font-size:2vh;color:#8d877b;font-weight:300}
+  .replay{position:absolute;bottom:5vh;left:50%;transform:translateX(-50%);z-index:21;display:none;
+    padding:1.4vh 3vh;border:1px solid var(--gold2);border-radius:999px;color:var(--gold1);background:rgba(6,6,9,.7);
+    font-size:2.2vh;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="frame"></div>
+
+  <!-- SCÈNES -->
+  <div class="scene" data-dur="3500">
+    <div class="line brand gold">Camille</div>
+    <div class="line brand-sub">Votre réceptionniste intelligente</div>
+  </div>
+
+  <div class="scene" data-dur="7500">
+    <div class="line phone">📞</div>
+    <h1 class="mid line" style="margin-top:4vh">Combien d'appels votre salon<br>rate-t-il <span class="gold">chaque jour</span> ?</h1>
+  </div>
+
+  <div class="scene" data-dur="8000">
+    <h1 class="mid line">Un appel manqué,<br>c'est un client <span class="gold">perdu</span>.</h1>
+    <div class="sub line">Et du chiffre d'affaires<br>qui part chez le concurrent.</div>
+  </div>
+
+  <div class="scene" data-dur="8000">
+    <div class="kicker line">La solution</div>
+    <h1 class="big gold line">Camille</h1>
+    <div class="sub line">Elle répond au téléphone à votre place.<br>Jour et nuit.</div>
+  </div>
+
+  <div class="scene" data-dur="12000">
+    <div class="kicker line">Ce qu'elle fait</div>
+    <div class="feat">
+      <div class="row line"><span class="tick">✓</span> Prend les rendez-vous</div>
+      <div class="row line"><span class="tick">✓</span> Annule &amp; déplace</div>
+      <div class="row line"><span class="tick">✓</span> Répond aux questions</div>
+      <div class="row line"><span class="tick">✓</span> Directement dans votre agenda</div>
+    </div>
+  </div>
+
+  <div class="scene" data-dur="11000">
+    <h1 class="mid line">Vous gardez<br>votre <span class="gold">numéro habituel</span>.</h1>
+    <div class="flow line" style="margin-top:5vh">
+      <div class="pill"><span class="ico">📞</span><span class="lab">Votre salon</span></div>
+      <span class="arrow">→</span>
+      <div class="pill"><span class="ico">🤖</span><span class="lab">Camille</span></div>
+      <span class="arrow">→</span>
+      <div class="pill"><span class="ico">📅</span><span class="lab">Votre agenda</span></div>
+    </div>
+  </div>
+
+  <div class="scene" data-dur="10000">
+    <h1 class="mid line">Et vous ?</h1>
+    <h1 class="big gold line" style="margin-top:2vh">Rien à faire.</h1>
+    <div class="sub line">Je m'occupe de tout, de A à Z.<br>Vous continuez simplement à coiffer.</div>
+  </div>
+
+  <div class="scene" data-dur="12000">
+    <div class="badge line">14 jours gratuits</div>
+    <h1 class="mid line" style="margin-top:4vh">Ne ratez plus jamais<br>un seul <span class="gold">appel</span>.</h1>
+    <!-- À REMPLACER : tes coordonnées -->
+    <div class="contact line">
+      <b>Gabriel Sebban</b><br>
+      06 00 00 00 00<br>
+      gabrielsebban3@gmail.com
+    </div>
+  </div>
+
+  <div class="bar" id="bar"></div>
+
+  <!-- Overlay de départ -->
+  <div class="overlay" id="overlay">
+    <div class="brand gold">Camille</div>
+    <div class="brand-sub">Présentation</div>
+    <div class="play" id="play">▶ Lancer la vidéo</div>
+    <div class="hint">Plein écran : F11 · puis lance ton enregistreur d'écran</div>
+  </div>
+  <div class="replay" id="replay">↻ Rejouer</div>
+</div>
+
+<script>
+  // Grain doré
+  const stage=document.getElementById('stage');
+  for(let i=0;i<22;i++){
+    const s=document.createElement('div');s.className='spark';
+    const sz=(Math.random()*5+2);
+    s.style.width=sz+'px';s.style.height=sz+'px';
+    s.style.left=(Math.random()*100)+'%';
+    s.style.bottom=(-10)+'%';
+    s.style.animationDuration=(Math.random()*8+7)+'s';
+    s.style.animationDelay=(Math.random()*8)+'s';
+    stage.appendChild(s);
+  }
+
+  const scenes=[...document.querySelectorAll('.scene')];
+  const bar=document.getElementById('bar');
+  const overlay=document.getElementById('overlay');
+  const replay=document.getElementById('replay');
+  const durations=scenes.map(s=>+s.dataset.dur);
+  const total=durations.reduce((a,b)=>a+b,0);
+  let timers=[];
+
+  function clearTimers(){timers.forEach(t=>clearTimeout(t));timers=[];}
+
+  function play(){
+    clearTimers();
+    scenes.forEach(s=>s.classList.remove('active'));
+    replay.style.display='none';
+    bar.style.transition='none';bar.style.width='0';
+    void bar.offsetWidth;
+    bar.style.transition='width '+total+'ms linear';bar.style.width='100%';
+
+    let acc=0;
+    scenes.forEach((sc,i)=>{
+      timers.push(setTimeout(()=>{
+        scenes.forEach(s=>s.classList.remove('active'));
+        sc.classList.add('active');
+      },acc));
+      acc+=durations[i];
+    });
+    // Fin
+    timers.push(setTimeout(()=>{
+      scenes.forEach(s=>s.classList.remove('active'));
+      replay.style.display='block';
+    },total));
+  }
+
+  function start(){overlay.style.display='none';play();}
+  document.getElementById('play').addEventListener('click',e=>{e.stopPropagation();start();});
+  overlay.addEventListener('click',start);
+  replay.addEventListener('click',()=>{play();});
+  document.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r')play();});
+</script>
+</body>
+</html>
