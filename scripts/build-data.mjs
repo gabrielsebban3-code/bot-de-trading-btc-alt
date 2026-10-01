@@ -90,7 +90,7 @@ async function main() {
   });
   if (!track('coingecko', cg, 'Market caps CoinGecko indisponibles : valeurs DefiLlama utilisées, flottant non calculé.')) markets.clear();
   const trending = await attempt('CoinGecko tendances', () => fetchJson(`${CG}/search/trending`, { headers: cgHeaders }));
-  listings.trending = track('tendances', trending, null) ? new Set(trending.value.coins.map(c => c.item.id)) : null;
+  listings.trending = track('tendances', trending, null) ? new Set((trending.value.coins || []).map(c => c.item?.id)) : null;
 
   // 4. Pré-sélection puis analyse détaillée (série de revenus, TVL, levées de fonds).
   const { kept, counts } = preselect(groups, { tokens, markets, binance: binanceSet });

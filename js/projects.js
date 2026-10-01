@@ -1,5 +1,5 @@
 // Onglet Projets : filtres, tableau, fiche détaillée et blocs de l'accueil.
-import { esc, fmt, money, pct, price } from './format.js';
+import { esc, fmt, money, pct, price, safeUrl } from './format.js';
 import { revenueChart, sparkline } from './charts.js';
 
 const TOP = 25;
@@ -160,9 +160,8 @@ export function renderProject(id) {
   }
   const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
   const parts = p.scoreParts;
-  const buy = p.links.okx
-    ? `<a class="buy" href="${esc(p.links.okx)}" target="_blank" rel="noopener">Acheter sur OKX</a>`
-    : `<a class="buy" href="${esc(p.links.coingecko)}#markets" target="_blank" rel="noopener">Voir où l'acheter (DEX)</a>`;
+  const link = (url, label, cls = '') => (safeUrl(url) ? `<a class="${cls}" href="${safeUrl(url)}" target="_blank" rel="noopener">${label}</a>` : '');
+  const buy = p.links.okx ? link(p.links.okx, 'Acheter sur OKX', 'buy') : link(`${p.links.coingecko}#markets`, "Voir où l'acheter (DEX)", 'buy');
   el.innerHTML = `
     <div class="ph"><h1>${esc(p.name)}</h1><span class="mono muted">${esc(p.symbol || '')}</span>
       <span class="tag">${esc(p.category || '')}</span><span class="tags">${badges(p)}</span></div>
@@ -201,10 +200,10 @@ export function renderProject(id) {
         </dl></div>
         <div class="box"><h2>Liens</h2><div class="links">
           ${buy}
-          ${p.links.site ? `<a href="${esc(p.links.site)}" target="_blank" rel="noopener">Site</a>` : ''}
-          ${p.links.twitter ? `<a href="${esc(p.links.twitter)}" target="_blank" rel="noopener">X</a>` : ''}
-          <a href="${esc(p.links.defillama)}" target="_blank" rel="noopener">DefiLlama</a>
-          <a href="${esc(p.links.coingecko)}" target="_blank" rel="noopener">CoinGecko</a>
+          ${link(p.links.site, 'Site')}
+          ${link(p.links.twitter, 'X')}
+          ${link(p.links.defillama, 'DefiLlama')}
+          ${link(p.links.coingecko, 'CoinGecko')}
         </div></div>
       </div>
     </div>`;

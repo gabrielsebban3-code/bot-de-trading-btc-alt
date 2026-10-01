@@ -2,6 +2,9 @@
 
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+// N'accepte que les liens http(s) venant des API (évite les liens « javascript: »).
+export const safeUrl = u => (/^https?:\/\//i.test(String(u ?? '')) ? esc(u) : null);
+
 export const fmt = (n, d = 0) => n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 export function money(n) {
