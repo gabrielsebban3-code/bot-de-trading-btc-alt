@@ -122,6 +122,9 @@ async function main() {
   for (const p of projects.slice(0, 10)) {
     console.log(`#${p.rank} ${p.name} (${p.symbol}) score ${p.score} · MC ${(p.mcap / 1e6).toFixed(0)} M$ · rev 30j ${(p.revenue30d / 1e3).toFixed(0)} k$ · ${Object.entries(p.badges).filter(([, v]) => v).map(([k]) => k).join(' ')}`);
   }
+  const missing = k => projects.filter(p => p[k] === null || (Array.isArray(p[k]) && !p[k].length)).length;
+  console.log(`Données manquantes sur ${projects.length} projets : série de revenus ${missing('series')}, croissance des revenus ${missing('revenueGrowth')}, `
+    + `TVL ${missing('tvlGrowth')}, flottant ${missing('float')}, investisseurs ${missing('investors')}, site ${projects.filter(p => !p.links.site).length}`);
   if (warnings.length) console.log('Avertissements :', warnings);
 }
 
