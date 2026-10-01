@@ -2,91 +2,135 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Market Radar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Monexo</title>
+  <meta name="description" content="Petits projets crypto rentables, setups de trading 4h et actualité des marchés.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div class="sample" id="sample" hidden>Données d'exemple : la première mise à jour automatique n'a pas encore tourné.</div>
   <header>
-    <h1>📡 Market Radar</h1>
-    <nav>
-      <button class="tab active" data-tab="projects">💎 Projets</button>
-      <button class="tab" data-tab="setups">📈 Setups 4h</button>
-      <button class="tab" data-tab="news">🌍 Actu</button>
-    </nav>
+    <div class="bar">
+      <a class="logo" href="#resume">Monexo</a>
+      <nav id="nav" aria-label="Pages">
+        <a href="#resume" data-tab="resume">Résumé</a>
+        <a href="#projets" data-tab="projets">Projets</a>
+        <a href="#setups" data-tab="setups">Setups</a>
+        <a href="#actu" data-tab="actu">Actu</a>
+        <span class="more">
+          <button id="more" aria-expanded="false" aria-controls="menu">Plus ▾</button>
+          <span class="menu" id="menu" hidden>
+            <a href="#historique" data-tab="historique">Historique</a>
+            <a href="#compte" data-tab="compte">Mon compte</a>
+          </span>
+        </span>
+      </nav>
+      <span class="updated" id="updated"></span>
+    </div>
+    <div class="ticker" id="ticker" hidden><div id="ticker-track"></div></div>
   </header>
 
   <main>
+    <!-- Résumé -->
+    <section class="page" id="page-resume">
+      <div class="intro" data-intro="resume"><span class="i">i</span>
+        <p>Monexo surveille trois choses : <b>des petits projets crypto qui gagnent de l'argent</b>, <b>des setups de trading en 4h</b> sur OKX, et <b>l'actu qui fait bouger les marchés</b>. <span>Le bloc orange te dit quoi regarder en priorité. Tout ce qui est cliquable ouvre une fiche détaillée.</span></p>
+        <button type="button">Compris</button></div>
+      <div class="macro" id="macro"></div>
+      <h2>À regarder maintenant</h2>
+      <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
+      <div class="focus" id="focus"></div>
+      <div class="cols">
+        <div class="box"><h2>Projets <a href="#projets">Top 25 →</a></h2><div id="resume-projects"></div></div>
+        <div class="box"><h2>Setups 4h <a href="#setups">Tous →</a></h2><div class="soon">Les setups arrivent dans la prochaine version.</div></div>
+        <div class="box"><h2>Actu <a href="#actu">Fil complet →</a></h2><div class="soon">Le fil d'actualité arrive après les setups.</div></div>
+      </div>
+    </section>
+
     <!-- Projets -->
-    <section id="projects" class="panel active">
-      <div class="toolbar">
-        <label>Market cap max
-          <select id="p-mcap">
-            <option value="1000000000" selected>1 Md$</option>
-            <option value="500000000">500 M$</option>
-            <option value="100000000">100 M$</option>
-            <option value="50000000">50 M$</option>
-          </select>
-        </label>
-        <label>Revenu 30j min
-          <select id="p-rev">
-            <option value="0">Tout</option>
-            <option value="100000" selected>100 k$</option>
-            <option value="1000000">1 M$</option>
-          </select>
-        </label>
-        <label>Trier par
-          <select id="p-sort">
-            <option value="score" selected>Score global</option>
-            <option value="ps">Ratio MC / revenu annualisé</option>
-            <option value="revGrowth">Croissance revenu 30j</option>
-            <option value="tvlGrowth">Croissance TVL 30j</option>
-          </select>
-        </label>
-        <button id="p-refresh">↻</button>
+    <section class="page" id="page-projets">
+      <div class="intro" data-intro="projets"><span class="i">i</span>
+        <p>Petits projets (moins de 1 Md$ de valorisation, pas encore sur Binance) classés par une note sur 100. <span>Elle compte surtout leurs revenus réels (50 %), puis leur croissance (30 %), puis s'ils sont bon marché par rapport à ce qu'ils gagnent (20 %).</span>
+          <span class="legend">
+            <span><b class="tag acc">Buyback</b> le protocole reverse des revenus aux détenteurs du token</span>
+            <span><b class="tag up">Accélère</b> revenus en forte hausse cette semaine</span>
+            <span><b class="tag down">Faible flottant</b> moins de 30 % des tokens en circulation</span>
+            <span>MC / Rev. bas = moins cher</span>
+          </span></p>
+        <button type="button">Compris</button></div>
+      <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
+      <h1>Projets &lt; 1 Md$ pas encore sur Binance</h1>
+      <div id="warnings"></div>
+      <div class="tools" id="chains" role="group" aria-label="Blockchains"></div>
+      <div class="tools" id="badges" role="group" aria-label="Badges"></div>
+      <div class="tools">
+        <label for="f-mcap">Market cap max</label>
+        <select id="f-mcap">
+          <option value="1000000000">1 Md$</option>
+          <option value="500000000">500 M$</option>
+          <option value="100000000">100 M$</option>
+          <option value="50000000">50 M$</option>
+        </select>
+        <label for="f-rev">Revenu 30j min</label>
+        <select id="f-rev">
+          <option value="0">Tout</option>
+          <option value="100000">100 k$</option>
+          <option value="1000000">1 M$</option>
+        </select>
+        <label for="f-sort">Trier par</label>
+        <select id="f-sort">
+          <option value="score">Score</option>
+          <option value="revenue30d">Revenu 30j</option>
+          <option value="revenueGrowth">Croissance des revenus</option>
+          <option value="tvlGrowth">Croissance du TVL</option>
+          <option value="psRatio">MC / revenu (le moins cher)</option>
+        </select>
       </div>
-      <p class="hint">Source : DefiLlama. MC/Rev = market cap ÷ revenu annualisé (plus c'est bas, moins c'est cher).</p>
-      <div class="status" id="p-status"></div>
-      <div class="table-wrap"><table id="p-table"></table></div>
+      <p class="count" id="count"></p>
+      <div class="wrap">
+        <table>
+          <thead><tr>
+            <th class="l">#</th><th class="l">Projet</th><th class="l">Revenus 90j</th><th>Score</th><th>Market cap</th>
+            <th>Revenu 30j</th><th>Rev. Δ30j</th><th>TVL Δ30j</th><th>MC / Rev.</th><th>Flottant</th><th class="l">Badges</th>
+          </tr></thead>
+          <tbody id="projects-body"></tbody>
+        </table>
+      </div>
     </section>
 
-    <!-- Setups -->
-    <section id="setups" class="panel">
-      <div class="toolbar">
-        <div class="chips" id="s-filters">
-          <label><input type="checkbox" value="breakout" checked> Breakout + volume</label>
-          <label><input type="checkbox" value="rsi" checked> RSI extrême</label>
-          <label><input type="checkbox" value="divergence" checked> Divergence RSI</label>
-          <label><input type="checkbox" value="ema" checked> Pullback EMA</label>
-          <label><input type="checkbox" value="funding" checked> Funding extrême</label>
-        </div>
-        <label>Direction
-          <select id="s-dir"><option value="all">Toutes</option><option value="long">Long</option><option value="short">Short</option></select>
-        </label>
-        <button id="s-refresh">↻</button>
-      </div>
-      <p class="hint">Binance, 60 paires USDT les plus liquides + PAXG (or), bougies 4h clôturées. Chaque détecteur est indépendant.</p>
-      <div class="status" id="s-status"></div>
-      <div id="s-list" class="cards"></div>
+    <!-- Fiche projet -->
+    <section class="page" id="page-projet">
+      <a class="back" href="#projets">← Projets</a>
+      <div id="project-detail"></div>
     </section>
 
-    <!-- News -->
-    <section id="news" class="panel">
-      <div class="toolbar">
-        <div class="chips" id="n-filters"></div>
-        <label><input type="checkbox" id="n-important"> Haute importance seulement</label>
-        <button id="n-refresh">↻</button>
-      </div>
-      <p class="hint">Source : GDELT (presse mondiale, mise à jour toutes les 15 min). Rafraîchi automatiquement toutes les 10 min.</p>
-      <div class="status" id="n-status"></div>
-      <div id="n-list" class="news"></div>
+    <!-- À venir -->
+    <section class="page" id="page-setups">
+      <div class="intro" data-intro="setups"><span class="i">i</span>
+        <p>Opportunités de trade détectées sur les bougies 4h d'OKX. Chaque détecteur cherche <b>une seule chose</b>, par exemple une cassure de résistance. <span>Chaque signal dira pourquoi il apparaît, avec entrée, stop et objectifs.</span></p>
+        <button type="button">Compris</button></div>
+      <h1>Setups 4h</h1>
+      <div class="box"><div class="empty">En construction. Cinq détecteurs arrivent : Breakout + volume, Liquidity sweep, FVG, Funding/OI extrême, Niveaux clés.</div></div>
+    </section>
+    <section class="page" id="page-actu">
+      <h1>Actu</h1>
+      <div class="box"><div class="empty">En construction. Géopolitique, banques centrales, OPEP, régulation, hacks, ETF et baleines, traduits en français et classés par importance.</div></div>
+    </section>
+    <section class="page" id="page-historique">
+      <h1>Historique</h1>
+      <div class="box"><div class="empty">Le taux de réussite de chaque détecteur s'affichera ici une fois les setups en ligne.</div></div>
+    </section>
+    <section class="page" id="page-compte">
+      <h1>Mon compte</h1>
+      <div class="box"><div class="empty">La connexion (Google ou e-mail) arrive bientôt. Elle servira à garder ta watchlist sur tous tes appareils.</div></div>
     </section>
   </main>
 
-  <script src="js/indicators.js"></script>
-  <script src="js/projects.js"></script>
-  <script src="js/setups.js"></script>
-  <script src="js/news.js"></script>
-  <script src="js/main.js"></script>
+  <footer><p><b>Ceci n'est pas un conseil financier.</b> Monexo est un outil d'information. Le trading de cryptomonnaies et de matières premières comporte un risque élevé de perte en capital. Données : DefiLlama, CoinGecko, Binance, OKX.</p></footer>
+
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>

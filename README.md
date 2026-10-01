@@ -1,9 +1,40 @@
-# Market Radar
+# Monexo
 
-Dashboard de trading (en construction) :
+Dashboard de trading public :
 
-- 💎 **Projets** : petits projets crypto (< 1 Md$) qui génèrent du revenu et grandissent
-- 📈 **Setups 4h** : détecteurs indépendants sur OKX (top 50 crypto + pétrole/gaz)
-- 🌍 **Actu** : géopolitique, banques centrales, OPEP, régulation, hacks, ETF, baleines
+- **Projets** : petits projets crypto (< 1 Md$, pas encore sur Binance) qui génèrent de vrais revenus et grandissent. ✅
+- **Setups 4h** : détecteurs indépendants sur OKX (top 50 crypto + pétrole/gaz). À venir.
+- **Actu** : géopolitique, banques centrales, OPEP, régulation, hacks, ETF, baleines. À venir.
 
-Alertes envoyées sur Discord via GitHub Actions.
+Le cahier des charges complet est dans [`SPEC.md`](SPEC.md), la maquette dans [`mockup/index.html`](mockup/index.html).
+
+> **Ceci n'est pas un conseil financier.**
+
+## Fonctionnement
+
+```
+GitHub Actions (toutes les heures) ── scripts/build-data.mjs ──▶ data/projects.json, data/market.json
+GitHub Pages ── index.html + css/ + js/ ──▶ lit les fichiers JSON
+```
+
+Les données sont récupérées une seule fois pour tous les visiteurs (DefiLlama, CoinGecko, Binance, OKX).
+Si une source essentielle ne répond pas, la publication est annulée et la version déjà en ligne reste.
+
+## Mise en ligne (une seule fois)
+
+1. Sur GitHub : **Settings → Pages → Build and deployment → Source : GitHub Actions**.
+2. Fusionner le travail dans la branche par défaut du dépôt. La publication part automatiquement, puis toutes les heures.
+3. Optionnel : créer une clé gratuite CoinGecko (« Demo API key ») et l'ajouter dans **Settings → Secrets and variables → Actions** sous le nom `COINGECKO_API_KEY`. Ça évite les refus quand CoinGecko est saturé.
+
+Le site sera à l'adresse `https://<compte>.github.io/<dépôt>/`.
+
+## En local
+
+Il faut Node.js 20 ou plus. Aucune dépendance à installer.
+
+```sh
+npm test          # tests
+npm run sample    # données d'exemple dans data/ (aucun accès réseau)
+npm run data      # vraies données dans data/
+npm run serve     # puis ouvrir http://localhost:8080
+```

@@ -1,5 +1,5 @@
-// Indicateurs techniques (fonctions pures, testables sous Node).
-const Ind = {
+// Indicateurs techniques (fonctions pures). Serviront à l'onglet Setups.
+export const Ind = {
   ema(values, period) {
     const k = 2 / (period + 1);
     const out = [];
@@ -48,4 +48,3 @@ const Ind = {
   },
 };
 
-if (typeof module !== 'undefined') module.exports = Ind;

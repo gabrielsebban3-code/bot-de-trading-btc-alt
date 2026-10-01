@@ -1,0 +1,67 @@
+# Récupère les données toutes les heures et publie le site sur GitHub Pages.
+# Sur une autre branche que la branche par défaut : tests + récupération des données seulement (pas de publication).
+name: Données et site
+
+on:
+  push:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PUBLISH: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Tests
+        run: npm test
+
+      - name: Configurer GitHub Pages
+        id: pages
+        if: env.PUBLISH == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Récupérer les données déjà en ligne
+        if: env.PUBLISH == 'true'
+        run: curl -fsSL "${{ steps.pages.outputs.base_url }}/data/projects.json" -o previous-projects.json || echo "Pas encore de données en ligne."
+
+      - name: Récupérer les nouvelles données
+        env:
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: node scripts/build-data.mjs --out _site/data --previous previous-projects.json
+
+      - name: Assembler le site
+        run: cp -r index.html css js mockup _site/
+
+      - uses: actions/upload-pages-artifact@v3
+        if: env.PUBLISH == 'true'
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
