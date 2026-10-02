@@ -1,7 +1,6 @@
 // Logique de l'onglet Setups : suivi de tendance sur BTC, ETH, SOL et le Brent, trades de plusieurs semaines.
-// Retenu après backtest (3,5 ans de bougies journalières OKX) : on entre quand le prix clôture au-dessus du plus haut
-// (ou sous le plus bas) des 20 derniers jours dans le sens de la tendance, on prend la moitié à 2R, puis on laisse
-// courir le reste tant que la tendance tient. Fonctions pures, sans accès réseau, testées dans tests/setups.test.mjs.
+// Choix de Gabriel : long dès que la tendance journalière est haussière, short dès qu'elle est baissière.
+// On prend la moitié à 2R, puis on laisse courir le reste tant que la tendance tient. Fonctions pures, sans accès réseau, testées dans tests/setups.test.mjs.
 
 const DAY = 86_400_000;
 export const BAR = DAY;   // une bougie = un jour
@@ -9,7 +8,6 @@ export const BAR = DAY;   // une bougie = un jour
 export const RULES = {
   backtestBars: 365,      // 1 an de bougies journalières
   atrPeriod: 14,          // ATR journalier
-  breakoutDays: 20,       // entrée : clôture au-delà du plus haut / plus bas des 20 derniers jours
   exitDays: 10,           // sortie : clôture au-delà du plus bas / plus haut des 10 derniers jours
   stopAtr: 2,             // stop de départ = 2 ATR journaliers
   partialR: 2,            // on prend la moitié à 2R et on remonte le stop au prix d'entrée
@@ -55,7 +53,7 @@ function ema(values, period) {
 
 const TRENDS = ['baissière', 'neutre', 'haussière'];
 
-// Indicateurs journaliers calculés une fois : EMA 20/50, ATR, tendance et volume moyen des 20 jours précédents.
+// Indicateurs journaliers calculés une fois : EMA 20/50, ATR et tendance.
 export function dailyContext(daily) {
   const closes = daily.map(d => d.c);
   const e20 = ema(closes, 20), e50 = ema(closes, 50), A = atr(daily);
@@ -74,18 +72,14 @@ export function trend1d(daily, t) {
   return dc.trend.at(-1) ?? 'neutre';
 }
 
-// ---------- Détecteur : clôture au-delà du plus haut / plus bas de 20 jours, dans le sens de la tendance ----------
+// ---------- Détecteur : tendance journalière haussière = long, baissière = short ----------
 
-const highest = (daily, from, to) => { let x = -Infinity; for (let k = Math.max(0, from); k <= to; k++) x = Math.max(x, daily[k].h); return x; };
-const lowest = (daily, from, to) => { let x = Infinity; for (let k = Math.max(0, from); k <= to; k++) x = Math.min(x, daily[k].l); return x; };
-
-// Tendance calculée sur les jours fermés jusqu'à la veille, cassure jugée sur la clôture du jour j.
+// On entre à la clôture du jour j dès que la tendance est là et qu'aucun trade n'est en jeu sur l'actif.
 export function detectTrend(dc, j) {
-  const N = RULES.breakoutDays, d = dc.daily;
-  if (j < N + 1 || !dc.atr[j - 1]) return null;
-  const hi = highest(d, j - N, j - 1), lo = lowest(d, j - N, j - 1), trend = dc.trend[j - 1], c = d[j].c;
-  if (trend === 'haussière' && c > hi) return { dir: 'long', ref: hi, atrD: dc.atr[j - 1], why: `Clôture journalière au-dessus du plus haut des ${N} derniers jours (${fmtPx(hi)}), dans une tendance haussière. On achète la continuation de la hausse et on reste dedans tant qu'elle dure : la moitié est prise à 2R, le reste suit la tendance jusqu'à ce que le prix clôture sous son plus bas des ${RULES.exitDays} derniers jours.` };
-  if (trend === 'baissière' && c < lo) return { dir: 'short', ref: lo, atrD: dc.atr[j - 1], why: `Clôture journalière sous le plus bas des ${N} derniers jours (${fmtPx(lo)}), dans une tendance baissière. On vend la continuation de la baisse et on reste dedans tant qu'elle dure : la moitié est prise à 2R, le reste suit la tendance jusqu'à ce que le prix clôture au-dessus de son plus haut des ${RULES.exitDays} derniers jours.` };
+  if (j < 1 || !dc.atr[j]) return null;
+  const trend = dc.trend[j], c = dc.daily[j].c;
+  if (trend === 'haussière') return { dir: 'long', atrD: dc.atr[j], why: `Tendance journalière haussière : clôture (${fmtPx(c)}) et EMA20 au-dessus de l'EMA50. On suit la hausse tant qu'elle dure : la moitié est prise à 2R, le reste sort quand le prix clôture sous son plus bas des ${RULES.exitDays} derniers jours.` };
+  if (trend === 'baissière') return { dir: 'short', atrD: dc.atr[j], why: `Tendance journalière baissière : clôture (${fmtPx(c)}) et EMA20 sous l'EMA50. On suit la baisse tant qu'elle dure : la moitié est prise à 2R, le reste sort quand le prix clôture au-dessus de son plus haut des ${RULES.exitDays} derniers jours.` };
   return null;
 }
 
@@ -101,6 +95,9 @@ export function plan(dir, entry, atrD) {
     rr: RULES.partialR,
   };
 }
+
+const highest = (daily, from, to) => { let x = -Infinity; for (let k = Math.max(0, from); k <= to; k++) x = Math.max(x, daily[k].h); return x; };
+const lowest = (daily, from, to) => { let x = Infinity; for (let k = Math.max(0, from); k <= to; k++) x = Math.min(x, daily[k].l); return x; };
 
 // Niveau de sortie du reste : plus bas (long) ou plus haut (short) des 10 jours fermés avant le jour k.
 export function exitLevel(daily, k, dir) {
@@ -153,7 +150,7 @@ export function scanAsset(asset, { daily, now = Date.now() }) {
       detector: 'tendance', symbol: asset.symbol, dir: hit.dir,
       status: daily[j].closed ? 'confirmé' : 'en cours',
       time: daily[j].t, confirmedAt: daily[j].t + DAY, entry, sl: p.sl, tp: p.tp, tpLabels: p.tpLabels, rr: p.rr, atr: hit.atrD,
-      why: hit.why, trend: dc.trend[j - 1],
+      why: hit.why, trend: dc.trend[j],
     };
     Object.assign(sig, daily[j].closed ? evaluate(sig, daily, j) : { outcome: 'open', at: null, r: null, tpHit: 0 });
     signals.push(sig);

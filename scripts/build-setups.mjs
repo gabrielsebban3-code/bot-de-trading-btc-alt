@@ -126,7 +126,7 @@ async function main() {
   await mkdir(OUT, { recursive: true });
   await writeFile(join(OUT, 'setups.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), sources, warnings,
-    rules: { minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, breakoutDays: RULES.breakoutDays, exitDays: RULES.exitDays, showHours: RULES.showHours, statsDays: RULES.statsDays },
+    rules: { minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: RULES.exitDays, showHours: RULES.showHours, statsDays: RULES.statsDays },
     detectors: DETECTORS, freshStart,
     assets: ok.map(r => r.asset), live: shown, stats, history, charts,
   }));

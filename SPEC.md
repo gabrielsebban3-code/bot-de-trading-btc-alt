@@ -83,13 +83,13 @@ Gabriel veut du **suivi de tendance** : long quand le marché monte, short quand
 | Données | OKX, perpétuels USDT, bougies journalières (clôture à minuit UTC) |
 | Marchés | **BTC, ETH, SOL et pétrole Brent (`BZ`) seulement** |
 | Style | Suivi de tendance, trades de plusieurs semaines (23 jours en moyenne), un seul trade à la fois par actif |
-| Tendance 1D | Haussière si clôture et EMA20 au-dessus de l'EMA50 journalière, baissière si les deux en dessous (jugée sur la veille). Pas de trade contre la tendance |
-| Entrée | Une journée **clôture** au-dessus du plus haut des 20 jours précédents en tendance haussière (long), ou sous le plus bas en tendance baissière (short) |
+| Tendance 1D | Haussière si clôture et EMA20 au-dessus de l'EMA50 journalière, baissière si les deux en dessous. Pas de trade contre la tendance, pas de trade en tendance neutre |
+| Entrée | **Dès que la tendance journalière est haussière : long. Dès qu'elle est baissière : short** (choix de Gabriel, sans condition de cassure). Après une sortie, nouveau trade à la clôture suivante si la tendance est toujours là |
 | Stop de départ | 2 ATR(14) journaliers |
 | Moitié | À 2R, on prend la moitié et le stop remonte au prix d'entrée |
 | Sortie du reste | Quand une journée clôture sous le plus bas des 10 jours précédents (au-dessus du plus haut pour un short). Pas d'objectif fixe ni de durée maximale |
 | Résultats possibles | Stop touché (−1R) · moitié prise puis reste sorti à l'entrée (+1R) · sortie de tendance (R variable : de −1R à +10R et plus) |
-| Fréquence | Environ 2 signaux par mois sur les 4 paires |
+| Fréquence | Environ 4 signaux par mois sur les 4 paires |
 | Statut | « En cours » (journée pas encore clôturée) puis « Confirmé » |
 | Affichage | Tant que le trade est en jeu, puis 24 h après sa sortie. La fiche montre le stop actuel et le niveau de sortie du reste dès qu'il est plus serré que le stop |
 | Historique | Recalculé à chaque mise à jour sur 12 mois de bougies journalières. Gagnant = trade fini en gain |
@@ -100,9 +100,10 @@ Gabriel veut du **suivi de tendance** : long quand le marché monte, short quand
 | Stratégie | Trades | Gagnants | R moyen | R total par année (2023 / 2024 / 2025 / 2026) | Durée moyenne |
 |---|---|---|---|---|---|
 | v2 : cassure 4h, TP 2R, sortie à 5 jours, filtre volume | 189 | 48 % | +0,28R | 8 / 14 / 12 / 19 | 2 à 5 jours |
-| **v3 : suivi de tendance** | 76 | 51 % | **+0,55R** | 13 / 10 / 7 / 13 | 23 jours |
+| v3 avec cassure 20 jours (écartée par Gabriel) | 76 | 51 % | +0,55R | 13 / 10 / 7 / 13 | 23 jours |
+| **v3 retenue : entrée dès que la tendance est là** | 171 | 29 % | **+0,13R** | 15 / −3 / 8 / 3 | 21 jours |
 
-Sur les 12 derniers mois, la v3 donne 20 trades, 70 % de gagnants et +16,8R. Un trade gagnant rapporte en moyenne +19 % sur le prix. Testés et écartés : sortie sur clôture sous l'EMA20 (bon en 2026 mais −5R en 2025), sortie au plus bas de 20 jours (gros gains en 2023, presque rien ensuite), stop suiveur à 3 ou 4 ATR, sortie quand la tendance 1D change, entrées sur pullback (beaucoup de petits stops), filtre volume (n'aide plus avec les entrées journalières).
+Sur les 12 derniers mois, la version retenue donne 56 trades, 36 % de gagnants et +7,9R (la version avec cassure : 20 trades, 70 %, +16,8R). Gabriel préfère entrer dès que la tendance est là, sans attendre de cassure : moins de gagnants, mais aucun départ de tendance raté. Testés et écartés : sortie sur clôture sous l'EMA20 (bon en 2026 mais −5R en 2025), sortie au plus bas de 20 jours (gros gains en 2023, presque rien ensuite), stop suiveur à 3 ou 4 ATR, sortie quand la tendance 1D change, entrées sur pullback (beaucoup de petits stops), filtre volume (n'aide plus avec les entrées journalières).
 
 ## 5. Onglet Actu
 

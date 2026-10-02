@@ -85,7 +85,7 @@ function renderList() {
     ? `${list.length} setup${list.length > 1 ? 's' : ''} affiché${list.length > 1 ? 's' : ''} sur ${total} · ${data.assets.length} marchés surveillés`
     : `${data.assets.length} marchés surveillés`;
   document.getElementById('setups-grid').innerHTML = list.length ? list.map(card).join('')
-    : `<div class="box"><div class="empty">${!total ? 'Aucun trade de tendance en jeu pour le moment. Le signal est rare exprès : environ deux par mois sur les 4 paires, et un trade dure en moyenne trois semaines.'
+    : `<div class="box"><div class="empty">${!total ? 'Aucun trade de tendance en jeu pour le moment. Le signal est rare exprès : environ quatre par mois sur les 4 paires, et un trade dure en moyenne trois semaines.'
       : state.watch ? 'Aucun setup en ce moment sur les actifs de ta watchlist.' : 'Aucun setup ne correspond à ces filtres.'} <a href="#historique">Voir l'historique →</a></div></div>`;
 }
 

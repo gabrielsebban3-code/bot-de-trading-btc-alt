@@ -44,22 +44,16 @@ test('trend1d : haussière, baissière, neutre sans assez de journées', () => {
   assert.equal(trend1d(days(1), T0 + 10 * DAY), 'neutre', 'seulement les journées déjà clôturées');
 });
 
-test('tendance : clôture au-dessus du plus haut de 20 jours en tendance haussière = long', () => {
-  const up = then(days(1), [{ o: 179, h: 183, l: 179, c: 182 }]); // plus haut des 20 jours d'avant : 179 + 2 = 181
+test('tendance : long en tendance haussière, short en baissière, rien en neutre', () => {
+  const up = days(1);
   const hit = detectTrend(dailyContext(up), up.length - 1);
   assert.equal(hit.dir, 'long');
-  assert.equal(hit.ref, 181);
-  assert.match(hit.why, /plus haut des 20 derniers jours \(181,0\)/);
+  assert.match(hit.why, /Tendance journalière haussière : clôture \(179,0\)/);
   assert.match(hit.why, /moitié est prise à 2R/);
-  const inside = then(days(1), [{ o: 179, h: 183, l: 179, c: 180.5 }]);
-  assert.equal(detectTrend(dailyContext(inside), inside.length - 1), null, 'mèche au-dessus mais clôture dedans : pas de signal');
-});
-
-test('tendance : pas de long contre la tendance, short sous le plus bas en tendance baissière', () => {
-  const lowBreak = then(days(-0.5), [{ o: 60.5, h: 60.5, l: 57, c: 58 }]); // plus bas des 20 jours : 58,5
-  assert.equal(detectTrend(dailyContext(lowBreak), lowBreak.length - 1).dir, 'short');
-  const highBreak = then(days(-0.5), [{ o: 60.5, h: 72, l: 60.5, c: 71 }]);
-  assert.equal(detectTrend(dailyContext(highBreak), highBreak.length - 1), null, 'cassure haussière en tendance baissière : ignorée');
+  assert.equal(detectTrend(dailyContext(days(-0.5)), 79).dir, 'short');
+  assert.equal(detectTrend(dailyContext(days(1)), 30), null, 'pas assez de journées pour juger la tendance');
+  const flatDays = flat(80);
+  assert.equal(detectTrend(dailyContext(flatDays), 79), null, 'marché sans tendance : pas de signal');
 });
 
 test('plan : stop à 2 ATR journaliers, moitié à 2R', () => {
@@ -101,19 +95,16 @@ test('evaluate : stop, moitié puis stop à l\'entrée, sortie de tendance, trad
 });
 
 test('scanAsset : un seul trade à la fois par actif, statut en cours sur la journée ouverte', () => {
-  const up = then(days(1), [
-    { o: 179, h: 183, l: 179, c: 182 },     // cassure : long, stop 2 ATR jour (4) → 174
-    { o: 182, h: 185, l: 181, c: 184.5 },   // nouvelle clôture au-dessus : trade déjà en jeu
-    { o: 184.5, h: 186, l: 184, c: 185, closed: false },
-  ]);
+  const up = then(days(1), [{ o: 179, h: 181, l: 178, c: 180, closed: false }]);
   const sigs = scanAsset({ symbol: 'TEST' }, { daily: up });
-  assert.equal(sigs.length, 1);
+  assert.equal(sigs.length, 1, 'la hausse continue : le premier trade est toujours en jeu');
+  assert.equal(sigs[0].time, up[49].t, 'entrée le premier jour où la tendance est haussière');
   assert.equal(sigs[0].status, 'confirmé');
   assert.equal(sigs[0].outcome, 'open');
   assert.equal(sigs[0].trend, 'haussière');
   assert.equal(sigs[0].confirmedAt, sigs[0].time + DAY);
-  assert.ok(Math.abs(sigs[0].entry - sigs[0].sl - RULES.stopAtr * dailyContext(up).atr[79]) < 1e-9);
-  const pending = then(days(1), [{ o: 179, h: 183, l: 179, c: 182, closed: false }]);
+  assert.ok(Math.abs(sigs[0].entry - sigs[0].sl - RULES.stopAtr * dailyContext(up).atr[49]) < 1e-9);
+  const pending = days(1, 50).map((d, k) => (k === 49 ? { ...d, closed: false } : d));
   assert.equal(scanAsset({ symbol: 'TEST' }, { daily: pending })[0].status, 'en cours');
 });
 
@@ -160,5 +151,5 @@ test('build-setups écrit setups.json pour BTC, ETH, SOL et le Brent seulement',
   assert.equal(out.rules.exitDays, 10);
   // Peu de signaux : un trade à la fois par actif, des trades de plusieurs jours.
   const spanDays = (Math.max(...out.history.map(h => h.time)) - Math.min(...out.history.map(h => h.time))) / DAY;
-  assert.ok(out.history.length <= spanDays / 7, `${out.history.length} signaux sur ${Math.round(spanDays)} jours`);
+  assert.ok(out.history.length <= spanDays / 3, `${out.history.length} signaux sur ${Math.round(spanDays)} jours`);
 });
