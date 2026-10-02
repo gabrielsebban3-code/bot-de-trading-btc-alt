@@ -1,6 +1,7 @@
 // Onglets Setups et Historique : cartes de signaux, fiche détaillée avec graphique, bilan des détecteurs.
 import { ago, esc, fmt, pct } from './format.js';
 import { candleChart } from './charts.js';
+import { linkedNews, linkedText } from './news.js';
 
 const BAR = 4 * 3600_000;
 const OUTCOME = {
@@ -15,8 +16,8 @@ let data = null;
 let projectsBySymbol = new Map();
 const state = { detectors: null, kind: 'all', dir: 'all' };
 const store = {
-  get() { try { return JSON.parse(localStorage.getItem('monexo-setups')) || {}; } catch { return {}; } },
-  set(v) { try { localStorage.setItem('monexo-setups', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
+  get() { try { return JSON.parse(localStorage.getItem('dinexo-setups')) || {}; } catch { return {}; } },
+  set(v) { try { localStorage.setItem('dinexo-setups', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
 };
 
 // Prix avec assez de chiffres significatifs, même pour les tokens à 0,00001 $.
@@ -45,6 +46,15 @@ function projectLink(sym) {
   return p ? `<a class="link" href="#projet/${esc(p.id)}"><b>Projet du top</b> · n°${p.rank} dans Projets</a>` : '';
 }
 
+// News importante des dernières 24 h sur l'actif (ou sur tout le marché crypto) : dans le sens du setup ou contre lui.
+const newsOf = s => linkedNews(s.symbol, asset(s.symbol).kind || 'crypto');
+function newsLink(s, tag = 'a') {
+  const n = newsOf(s);
+  if (!n) return '';
+  const href = tag === 'a' ? ` href="#actu/${encodeURIComponent(n.item.id)}"` : '';
+  return `<${tag} class="link"${href}><b>News liée</b> · ${esc(linkedText(n, s.dir))}</${tag}>`;
+}
+
 function card(s) {
   const a = asset(s.symbol);
   return `<a class="card setup" href="#setup/${encodeURIComponent(s.id)}">
@@ -54,6 +64,7 @@ function card(s) {
     <span class="why">${esc(s.why)}</span>
     <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(s.sl)}</span><span><i>TP1</i>${px(s.tp[0])}</span><span><i>R:R</i>1:${fmt(s.rr, 1)}</span></span>
     <span class="wr">${winLine(s.detector)}</span>
+    ${newsLink(s, 'span')}
   </a>`;
 }
 
@@ -167,7 +178,7 @@ export function renderSetup(id) {
           ${row('Réussite (90 j)', st?.winRate === null || !st ? '—' : `${fmt(st.winRate * 100, 0)} %`)}
           ${row('Signaux analysés', st ? String(st.resolved) : '—')}
           ${row('R moyen', st?.avgR === null || !st ? '—' : `${st.avgR > 0 ? '+' : ''}${fmt(st.avgR, 2)}R`, st?.avgR > 0 ? 'up' : st?.avgR < 0 ? 'down' : '')}
-        </dl>${projectLink(s.symbol)}</div>
+        </dl>${projectLink(s.symbol)}${newsLink(s)}</div>
         <div class="box"><h2>Liens</h2><div class="links"><a class="buy" href="${okxUrl(s.symbol)}" target="_blank" rel="noopener">Ouvrir sur OKX</a></div></div>
       </div>
     </div>`;

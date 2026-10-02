@@ -1,13 +1,13 @@
 {
-  "name": "monexo",
+  "name": "dinexo",
   "private": true,
   "type": "module",
   "description": "Dashboard de trading : projets crypto, setups 4h, actualité des marchés.",
   "engines": { "node": ">=20" },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "data": "node scripts/build-data.mjs --out data && node scripts/build-setups.mjs --out data",
-    "sample": "node --import ./tests/mock-fetch.mjs scripts/build-data.mjs --out data --sample && node --import ./tests/mock-fetch.mjs scripts/build-setups.mjs --out data --sample",
+    "data": "node scripts/build-data.mjs --out data && node scripts/build-setups.mjs --out data && node scripts/build-news.mjs --out data --projects data/projects.json",
+    "sample": "node --import ./tests/mock-fetch.mjs scripts/build-data.mjs --out data --sample && node --import ./tests/mock-fetch.mjs scripts/build-setups.mjs --out data --sample && node --import ./tests/mock-fetch.mjs scripts/build-news.mjs --out data --projects data/projects.json --sample",
     "serve": "python3 -m http.server 8080"
   }
 }

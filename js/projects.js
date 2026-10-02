@@ -1,6 +1,7 @@
 // Onglet Projets : filtres, tableau, fiche détaillée et blocs de l'accueil.
 import { esc, fmt, money, pct, price, safeUrl } from './format.js';
 import { revenueChart, sparkline } from './charts.js';
+import { newsForProject, newsRows } from './news.js';
 
 const TOP = 25;
 const ETH_L2 = new Set(['Ethereum', 'Arbitrum', 'Base', 'Optimism', 'zkSync Era', 'Linea', 'Scroll', 'Blast', 'Mantle',
@@ -22,8 +23,8 @@ const BADGES = [
 const FILTER_BADGES = ['buyback', 'accelerating', 'binanceAlpha', 'okx', 'trending'];
 
 const store = {
-  get() { try { return JSON.parse(localStorage.getItem('monexo-filters')) || {}; } catch { return {}; } },
-  set(v) { try { localStorage.setItem('monexo-filters', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
+  get() { try { return JSON.parse(localStorage.getItem('dinexo-filters')) || {}; } catch { return {}; } },
+  set(v) { try { localStorage.setItem('dinexo-filters', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
 };
 const state = { chain: 'all', badges: [], hideLowFloat: false, mcap: 1e9, rev: 0, sort: 'score', ...store.get() };
 let data = null;
@@ -162,6 +163,7 @@ export function renderProject(id) {
   const parts = p.scoreParts;
   const link = (url, label, cls = '') => (safeUrl(url) ? `<a class="${cls}" href="${safeUrl(url)}" target="_blank" rel="noopener">${label}</a>` : '');
   const buy = p.links.okx ? link(p.links.okx, 'Acheter sur OKX', 'buy') : link(`${p.links.coingecko}#markets`, "Voir où l'acheter (DEX)", 'buy');
+  const news = newsForProject(p.id);
   el.innerHTML = `
     <div class="ph"><h1>${esc(p.name)}</h1><span class="mono muted">${esc(p.symbol || '')}</span>
       <span class="tag">${esc(p.category || '')}</span><span class="tags">${badges(p)}</span></div>
@@ -194,6 +196,7 @@ export function renderProject(id) {
           ${row('Flottant', p.float === null ? '—' : `${fmt(p.float * 100, 0)} %${p.badges.lowFloat ? ' · risque de dilution' : ''}`, p.badges.lowFloat ? 'down' : '')}
           ${row('Buyback', p.badges.buyback ? `Oui · ${fmt(p.holdersShare * 100, 0)} % des revenus` : 'Non', p.badges.buyback ? 'up' : '')}
         </dl></div>
+        ${news.length ? `<div class="box"><h2>News récentes <a href="#actu">Actu →</a></h2>${newsRows(news)}</div>` : ''}
         <div class="box"><h2>Investisseurs</h2><dl>
           ${p.investors.length ? row('Fonds', esc(p.investors.join(', ')) + (p.investorsTotal > p.investors.length ? ` et ${p.investorsTotal - p.investors.length} autres` : ''), 'txt') : row('Fonds', 'Aucune levée connue', 'txt')}
           ${row('Total levé', money(p.raisedUsd))}

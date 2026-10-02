@@ -2,12 +2,14 @@
 import { ago, esc, fmt, pct, price } from './format.js';
 import { initProjects, renderProject } from './projects.js';
 import { initSetups, renderSetup, setupsUnavailable } from './setups.js';
+import { focusNews, initNews, newsFocus, newsUnavailable } from './news.js';
 
 const $ = id => document.getElementById(id);
 const PAGES = ['resume', 'projets', 'setups', 'actu', 'historique', 'compte'];
 const WATCHLIST = ['BTC', 'ETH', 'SOL'];
 let ready = false;
 let setupsReady = false;
+let newsReady = false;
 
 // Navigation par ancre : #resume, #projets, #projet/<id>…
 function route() {
@@ -22,6 +24,7 @@ function route() {
   if (target === 'projet' && ready) renderProject(decodeURIComponent(id || ''));
   if (target === 'setup' && setupsReady) renderSetup(decodeURIComponent(id || ''));
   window.scrollTo(0, 0);
+  if (target === 'actu' && id && newsReady) focusNews(decodeURIComponent(id));
 }
 
 $('more').addEventListener('click', () => {
@@ -33,7 +36,7 @@ document.addEventListener('click', e => { if (!e.target.closest('.more')) $('men
 
 // Encadrés « À savoir » : masqués une fois lus, sur cet appareil.
 document.querySelectorAll('.intro').forEach(el => {
-  const key = `monexo-intro-${el.dataset.intro}`;
+  const key = `dinexo-intro-${el.dataset.intro}`;
   try { if (localStorage.getItem(key)) el.hidden = true; } catch { /* stockage indisponible */ }
   el.querySelector('button').addEventListener('click', () => {
     el.hidden = true;
@@ -48,42 +51,48 @@ async function getJson(path) {
 }
 
 async function load() {
-  const projects = await loadProjects();
-  const setups = await getJson('data/setups.json').catch(() => null);
+  const [projects, setups, news, market] = await Promise.all(
+    ['projects', 'setups', 'news', 'market'].map(name => getJson(`data/${name}.json`).catch(() => null)),
+  );
+  showProjects(projects);
+  // L'actu d'abord : les setups affichent la news liée à leur actif.
+  if (news) {
+    initNews(news, projects);
+    newsReady = true;
+  } else newsUnavailable();
   if (setups) {
     initSetups(setups, projects);
     setupsReady = true;
-    route();
   } else setupsUnavailable();
+  if (news) newsFocus(setups);
+  const latest = [projects, setups, news].map(d => d?.generatedAt).filter(Boolean).sort().at(-1);
+  if (latest) $('updated').textContent = `Données mises à jour ${ago(latest)}`;
+  route();
 
-  const market = await getJson('data/market.json').catch(() => null);
+  const wti = setups?.assets.find(a => a.symbol === 'CL');
   const tiles = [
     ['Dominance BTC', market?.btcDominance != null ? `${fmt(market.btcDominance, 1)} %` : '—'],
     ['Fear & Greed', market?.fearGreed ? `${market.fearGreed.value} · ${esc(market.fearGreed.label)}` : '—'],
+    ['Pétrole WTI', wti ? `${price(wti.price)} ${pct(wti.change24h)}` : '—'],
     ['Projets suivis', projects ? String(projects.projects.length) : '—'],
     ['Setups en jeu', setups ? String(setups.live.filter(s => s.outcome === 'open').length) : '—'],
+    ['News critiques 24 h', news ? String(news.items.filter(i => i.importance === 'critical' && Date.now() - i.time < 86_400_000).length) : '—'],
   ];
   $('macro').innerHTML = tiles.map(([k, v]) => `<div>${k}<b>${v}</b></div>`).join('');
 }
 
-async function loadProjects() {
-  let projects;
-  try {
-    projects = await getJson('data/projects.json');
-  } catch {
+function showProjects(projects) {
+  if (!projects) {
     const msg = '<div class="empty">Les données ne sont pas encore disponibles. Elles sont générées automatiquement toutes les heures : reviens dans quelques minutes.</div>';
     $('projects-body').innerHTML = `<tr><td colspan="11">${msg}</td></tr>`;
     $('resume-projects').innerHTML = '<div class="soon">Données pas encore disponibles.</div>';
     $('focus').innerHTML = '';
     $('project-detail').innerHTML = `<div class="box">${msg}</div>`;
-    return null;
+    return;
   }
   $('sample').hidden = !projects.sample;
-  $('updated').textContent = `Données mises à jour ${ago(projects.generatedAt)}`;
   initProjects(projects);
   ready = true;
-  route();
-  return projects;
 }
 
 // Ticker de la watchlist : OKX, sinon Binance. Masqué si aucune source ne répond.

@@ -2,7 +2,16 @@
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-export async function fetchJson(url, { headers = {}, timeout = 30_000, retries = 3, method = 'GET', body } = {}) {
+export function fetchJson(url, options = {}) {
+  return request(url, options, 'application/json', res => res.json());
+}
+
+// Pour les flux RSS, Atom et les pages HTML.
+export function fetchText(url, options = {}) {
+  return request(url, options, '*/*', res => res.text());
+}
+
+async function request(url, { headers = {}, timeout = 30_000, retries = 3, method = 'GET', body } = {}, accept, parse) {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
     const ctrl = new AbortController();
@@ -11,7 +20,7 @@ export async function fetchJson(url, { headers = {}, timeout = 30_000, retries =
       const res = await fetch(url, {
         method,
         body,
-        headers: { 'User-Agent': 'Monexo/1.0 (+github pages dashboard)', Accept: 'application/json', ...headers },
+        headers: { 'User-Agent': 'Dinexo/1.0 (+github pages dashboard)', Accept: accept, ...headers },
         signal: ctrl.signal,
       });
       if (res.status === 429 || res.status >= 500) {
@@ -21,7 +30,7 @@ export async function fetchJson(url, { headers = {}, timeout = 30_000, retries =
         continue;
       }
       if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status} ${url}`), { fatal: true });
-      return await res.json();
+      return await parse(res);
     } catch (err) {
       lastError = err;
       if (err.fatal) throw err;

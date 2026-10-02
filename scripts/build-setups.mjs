@@ -68,7 +68,7 @@ const STABLE = new Set(['USDT', 'USDC', 'DAI', 'USDE', 'FDUSD', 'PYUSD', 'TUSD',
 
 async function main() {
   const now = Date.now();
-  console.log(`Monexo · setups 4h · ${new Date(now).toISOString()}`);
+  console.log(`Dinexo · setups 4h · ${new Date(now).toISOString()}`);
   const sources = {}, warnings = [];
 
   const [instruments, tickers] = await Promise.all([

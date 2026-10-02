@@ -1,4 +1,4 @@
-/* Monexo — style DEX (Hyperliquid / Uniswap / Jupiter) : fond ardoise, panneaux arrondis,
+/* Dinexo — style DEX (Hyperliquid / Uniswap / Jupiter) : fond ardoise, panneaux arrondis,
    onglets en pilules, chiffres en mono. Accent orange. Thème sombre unique. */
 :root {
   color-scheme: dark;
@@ -44,6 +44,16 @@ nav a.on, nav button.on { color: var(--fg); background: var(--panel2); }
 .ticker .num { color: var(--fg); }
 @keyframes run { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .ticker > div { animation: none; } }
+
+/* Bandeau rouge des news critiques */
+.alert { display: flex; align-items: center; gap: 4px; background: var(--down-soft); border-top: 1px solid rgba(239, 68, 68, .3); padding: 0 6px 0 16px; }
+.alert a { flex: 1; min-width: 0; display: flex; gap: 10px; align-items: center; justify-content: center; color: #fca5a5; font-size: 13px; padding: 8px 0; }
+.alert a:hover { text-decoration: none; color: #fecaca; }
+.alert .k { background: var(--down); color: #fff; font-weight: 600; font-size: 11px; padding: 1px 8px; border-radius: 999px; flex: none; }
+.alert .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alert .when { color: var(--muted); font-size: 12px; white-space: nowrap; flex: none; }
+.alert button { background: none; border: 0; color: #fca5a5; font-size: 18px; line-height: 1; padding: 4px 8px; cursor: pointer; border-radius: 6px; flex: none; }
+.alert button:hover { background: rgba(239, 68, 68, .15); }
 
 /* Mise en page */
 main { padding-inline: 16px; padding-block: 24px 48px; max-width: 1280px; margin: 0 auto; min-height: 60vh; }
@@ -163,6 +173,35 @@ dd.txt { font-family: var(--sans); }
 canvas.tall { height: 340px; }
 table.static tbody tr { cursor: default; }
 h2.section { margin: 28px 0 10px; }
+
+/* Actu */
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.dot.c { background: var(--down); box-shadow: 0 0 0 3px var(--down-soft); }
+.dot.m { background: var(--mid); }
+.dot.l { background: var(--low); }
+.chip .dot { margin-right: 2px; vertical-align: 1px; }
+.news { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--panel); }
+.news .day { padding: 8px 16px; font-size: 12px; font-weight: 500; color: var(--muted); background: var(--panel2); border-top: 1px solid var(--line); }
+.news .day:first-child { border-top: 0; }
+.item { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 4px 14px; padding: 14px 16px; border-top: 1px solid var(--line); transition: background .4s; }
+.news > .item:first-child { border-top: 0; }
+.item .dot { margin-top: 7px; }
+.item h3 { font-size: 14px; font-weight: 500; margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.item h3 a { color: var(--fg); }
+.item h3 a:hover { color: var(--accent); text-decoration: none; }
+.item p { margin: 0; color: var(--muted); font-size: 13px; grid-column: 2; }
+.item .meta { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.item .meta time { color: var(--fg2); }
+.item .meta a.tag:hover { text-decoration: none; filter: brightness(1.2); }
+.item.hl { background: var(--accent-soft); }
+.more-btn { display: block; margin: 14px auto 0; font: 500 13px var(--sans); background: var(--panel); border: 1px solid var(--line); color: var(--fg); padding: 8px 16px; border-radius: 999px; cursor: pointer; }
+.more-btn:hover { border-color: var(--line2); }
+.fine { font-size: 12px; color: var(--muted); margin: 14px 0 0; max-width: 90ch; }
+.warn-inline { color: var(--mid); }
+.row .d.fg { color: var(--fg); font-size: 13px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.card .link { font-size: 12px; color: var(--muted); }
+.card .link b { color: var(--accent); font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { .item { transition: none; } }
 
 footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; padding-inline: 16px; padding-block: 20px 28px; text-align: center; }
 footer p { max-width: 70ch; margin: 0 auto; }

@@ -1,4 +1,5 @@
-# Récupère les données toutes les heures et publie le site sur GitHub Pages.
+# Récupère les données et publie le site sur GitHub Pages.
+# Toutes les heures : projets, setups et actu. Toutes les 15 minutes entre les deux : l'actu seulement.
 # Sur une autre branche que la branche par défaut : tests + récupération des données seulement (pas de publication).
 name: Données et site
 
@@ -6,6 +7,7 @@ on:
   push:
   schedule:
     - cron: '17 * * * *'
+    - cron: '2,32,47 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -20,9 +22,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     env:
       PUBLISH: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      NEWS_ONLY: ${{ github.event.schedule == '2,32,47 * * * *' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +34,7 @@ jobs:
           node-version: 22
 
       - name: Tests
+        if: env.NEWS_ONLY != 'true'
         run: npm test
 
       - name: Configurer GitHub Pages
@@ -41,22 +45,48 @@ jobs:
       - name: Récupérer les données déjà en ligne
         if: env.PUBLISH == 'true'
         run: |
-          curl -fsSL "${{ steps.pages.outputs.base_url }}/data/projects.json" -o previous-projects.json || echo "Pas encore de projets en ligne."
-          curl -fsSL "${{ steps.pages.outputs.base_url }}/data/setups.json" -o previous-setups.json || echo "Pas encore de setups en ligne."
+          mkdir -p previous
+          for f in projects market setups news; do
+            curl -fsSL "${{ steps.pages.outputs.base_url }}/data/$f.json" -o "previous/$f.json" || echo "Pas encore de $f.json en ligne."
+          done
 
-      - name: Récupérer les nouvelles données
+      # Chaque étape peut échouer sans bloquer les autres : la version déjà en ligne est alors republiée.
+      - name: Actu
+        id: news
+        continue-on-error: true
+        timeout-minutes: 8
+        run: node scripts/build-news.mjs --out _site/data --previous previous/news.json --projects previous/projects.json
+
+      - name: Projets
+        id: projects
+        if: env.NEWS_ONLY != 'true'
+        continue-on-error: true
+        timeout-minutes: 18
         env:
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
-        run: node scripts/build-data.mjs --out _site/data --previous previous-projects.json
+        run: node scripts/build-data.mjs --out _site/data --previous previous/projects.json
 
-      # Si OKX ne répond pas, on republie les setups déjà en ligne plutôt que de bloquer tout le site.
-      - name: Chercher les setups 4h
+      - name: Setups 4h
+        id: setups
+        if: env.NEWS_ONLY != 'true'
+        continue-on-error: true
+        timeout-minutes: 12
         env:
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: node scripts/build-setups.mjs --out _site/data --previous previous/setups.json
+
+      - name: Compléter avec la version déjà en ligne
         run: |
-          node scripts/build-setups.mjs --out _site/data --previous previous-setups.json \
-            || cp previous-setups.json _site/data/setups.json \
-            || echo "Setups indisponibles à cette mise à jour."
+          mkdir -p _site/data
+          for f in projects market setups news; do
+            if [ ! -s "_site/data/$f.json" ] && [ -s "previous/$f.json" ]; then
+              cp "previous/$f.json" "_site/data/$f.json"
+              echo "$f.json : version déjà en ligne conservée."
+            fi
+          done
+          if [ "${{ steps.news.outcome }}" = failure ]; then echo "::warning::Actu non mise à jour à ce passage."; fi
+          if [ "${{ steps.projects.outcome }}" = failure ]; then echo "::warning::Projets non mis à jour à ce passage."; fi
+          if [ "${{ steps.setups.outcome }}" = failure ]; then echo "::warning::Setups non mis à jour à ce passage."; fi
 
       - name: Assembler le site
         run: cp -r index.html css js mockup _site/
