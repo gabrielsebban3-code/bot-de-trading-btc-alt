@@ -84,11 +84,12 @@ Gabriel trade en **swing sur 2 à 3 jours** et veut **peu de signaux**. Révisio
 | Marchés | **BTC, ETH, SOL et pétrole Brent (`BZ`) seulement** |
 | Style | Swing de 2 à 5 jours, un seul trade à la fois par actif |
 | Détecteur | **Cassure 20 jours** : clôture 4h au-dessus du plus haut des 20 derniers jours quand la tendance 1D est haussière (long), ou sous le plus bas quand elle est baissière (short) |
+| Volume | Volume des 24 dernières heures au moins égal au volume journalier moyen des 20 jours précédents. Sinon la cassure est ignorée (ajouté le 2 octobre au soir : 48 % de gagnants et +0,30R sur 3,5 ans au lieu de 46 % et +0,23R ; sur 12 mois 57 % et +0,54R) |
 | Tendance 1D | Haussière si clôture et EMA20 au-dessus de l'EMA50 journalière, baissière si les deux en dessous. Sert de **filtre** : pas de trade contre la tendance |
 | Stop | 1 ATR(14) journalier |
 | Objectifs | TP1 à 2R, TP2 à 3R, TP3 à 4R |
 | Sortie | Ni stop ni TP1 au bout de 5 jours : on sort au prix du moment |
-| Fréquence | Environ 1 signal par semaine sur les 4 paires |
+| Fréquence | Environ 1 signal par semaine sur les 4 paires (192 en 3,5 ans) |
 | Statut | « En cours » (bougie 4h ouverte) puis « Confirmé » (bougie clôturée) |
 | Affichage | Tant que le trade est en jeu, et au moins 24 h |
 | Contenu d'un signal | Pourquoi ce signal, entrée, stop, TP1/TP2/TP3, R:R, bilan sur 12 mois, news liée |

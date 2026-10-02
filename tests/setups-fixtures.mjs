@@ -51,7 +51,7 @@ export function setupRoutes(now = Date.now()) {
       const t = endDay - (nDays - 1 - d) * DAY;
       const inDay = w.filter((_, i) => { const bt = end4h - (n - 1 - i) * BAR; return bt >= t && bt < t + DAY; });
       if (!inDay.length) continue;
-      days.push([String(t), String(inDay[0][0]), String(Math.max(...inDay.map(b => b[1]))), String(Math.min(...inDay.map(b => b[2]))), String(inDay.at(-1)[3]), '0', '0', '0', t === endDay ? '0' : '1']);
+      days.push([String(t), String(inDay[0][0]), String(Math.max(...inDay.map(b => b[1]))), String(Math.min(...inDay.map(b => b[2]))), String(inDay.at(-1)[3]), '0', '0', String(inDay.reduce((v, b) => v + b[4], 0)), t === endDay ? '0' : '1']);
     }
     data[sym] = { bars, days: days.reverse(), last: Number(bars[0][4]), open24h: Number(bars[6][1]) };
   }
