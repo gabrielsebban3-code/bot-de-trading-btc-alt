@@ -1,4 +1,4 @@
-// Onglet Mon compte : watchlist, connexion sans mot de passe (Google ou lien par e-mail, via Supabase),
+// Onglet Mon compte : watchlist, connexion sans mot de passe (Google, ou code / lien reçu par e-mail, via Supabase),
 // watchlist synchronisée entre appareils, liste des inscrits pour l'admin.
 import { esc, pct, price } from './format.js';
 import { SUPABASE } from './config.js';
@@ -9,6 +9,10 @@ export const accountsOn = Boolean(SUPABASE.url && SUPABASE.key);
 // Compte dont la watchlist a déjà été reprise sur cet appareil : à la première connexion on fusionne les deux listes,
 // ensuite c'est la liste du compte qui fait foi (elle a pu changer sur un autre appareil).
 const SYNCED = 'dinexo-watchlist-account';
+// Adresse à qui un code vient d'être envoyé : gardée une heure, pour que la saisie du code reste affichée
+// si le navigateur recharge la page pendant qu'on va lire l'e-mail (fréquent sur iPhone).
+const PENDING = 'dinexo-login-pending';
+const PENDING_MS = 3_600_000;
 
 let sb = null; // client Supabase, chargé seulement quand les comptes sont branchés
 let user = null;
@@ -21,6 +25,13 @@ const local = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* stockage indisponible */ } },
 };
+function pending() {
+  try {
+    const p = JSON.parse(local.get(PENDING));
+    return p && typeof p.email === 'string' && Date.now() - p.at < PENDING_MS ? p.email : null;
+  } catch { return null; }
+}
+const setPending = email => local.set(PENDING, email ? JSON.stringify({ email, at: Date.now() }) : null);
 const row = (k, v) => `<dt>${k}</dt><dd class="txt">${v}</dd>`;
 const day = iso => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Paris' });
 
@@ -37,7 +48,10 @@ export function initAccount(assetInfo) {
     watchlist.set([...watchlist.get(), s]);
     $('wl-input').value = '';
   });
-  $('account').addEventListener('submit', sendLink);
+  $('account').addEventListener('submit', e => {
+    if (e.target.id === 'login-email') sendLink(e);
+    else if (e.target.id === 'login-code') verifyCode(e);
+  });
   $('account').addEventListener('click', onAction);
   watchlist.subscribe((list, source) => {
     renderWatchlist();
@@ -85,6 +99,7 @@ async function onSession(session) {
   if ((next?.id ?? null) === (user?.id ?? null)) return; // jeton rafraîchi, onglet revenu au premier plan…
   user = next;
   admin = false;
+  if (user) setPending(null);
   if (!user) {
     local.set(SYNCED, null);
     renderAccount();
@@ -124,17 +139,36 @@ async function save() {
 
 const redirect = () => `${location.origin}${location.pathname}`;
 
+// L'e-mail contient un code à taper ici (il marche sur n'importe quel appareil) et un lien (seulement dans ce navigateur).
 async function sendLink(e) {
-  if (e.target.id !== 'login-email' || !sb) return;
   e.preventDefault();
-  const email = e.target.email.value.trim();
+  if (!sb) return;
+  const email = (e.target.email?.value ?? pending() ?? '').trim();
   const button = e.target.querySelector('button');
   button.disabled = true;
   const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect() } });
   button.disabled = false;
-  notice = !error ? `Lien envoyé à ${email}. Ouvre-le sur cet appareil, dans ce navigateur, pour te connecter.`
-    : error.status === 429 ? 'Trop de demandes de lien. Réessaie dans un moment.'
-      : 'L\'e-mail n\'a pas pu être envoyé. Vérifie l\'adresse, ou réessaie plus tard.';
+  if (!error) setPending(email);
+  notice = !error ? '' : error.status === 429 ? 'Trop de demandes. Attends un peu avant de redemander un code.'
+    : 'L\'e-mail n\'a pas pu être envoyé. Vérifie l\'adresse, ou réessaie plus tard.';
+  renderAccount();
+  if (!error) $('login-token')?.focus();
+}
+
+async function verifyCode(e) {
+  e.preventDefault();
+  const email = pending();
+  const token = e.target.token.value.replace(/\D/g, '');
+  if (!sb || !email) return;
+  if (token.length < 6) { notice = 'Le code fait 6 chiffres.'; renderAccount(); return; }
+  const button = e.target.querySelector('button');
+  button.disabled = true;
+  const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+  button.disabled = false;
+  // Réussi : onAuthStateChange ouvre la session et affiche le compte.
+  if (!error) { notice = ''; return; }
+  notice = error.status === 429 ? 'Trop d\'essais. Attends un peu, puis réessaie.'
+    : 'Ce code est faux ou a expiré. Vérifie le dernier e-mail reçu, ou demande un nouveau code.';
   renderAccount();
 }
 
@@ -144,6 +178,10 @@ async function onAction(e) {
   if (act === 'google') {
     const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirect() } });
     if (error) { notice = 'La connexion avec Google est indisponible pour le moment.'; renderAccount(); }
+  } else if (act === 'change') {
+    setPending(null);
+    notice = '';
+    renderAccount();
   } else if (act === 'logout') {
     notice = '';
     await sb.auth.signOut();
@@ -166,12 +204,20 @@ function renderAccount() {
   } else if (user) {
     el.innerHTML = `<h2>Connecté</h2><dl>${row('Adresse', esc(user.email))}${row('Watchlist', 'la même sur tous tes appareils')}</dl>${note}
       <div class="links"><button type="button" class="btn" data-act="logout">Se déconnecter</button><button type="button" class="btn danger" data-act="delete">Supprimer mon compte</button></div>`;
+  } else if (pending()) {
+    el.innerHTML = `<h2>Connexion</h2>
+      <p class="txt">Un e-mail est parti à <b>${esc(pending())}</b>. Tape le code à 6 chiffres qu'il contient.</p>
+      <form class="login" id="login-code"><label for="login-token">Code reçu par e-mail</label>
+        <span class="field"><input id="login-token" name="token" class="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="12" required placeholder="123456"><button class="btn primary">Se connecter</button></span></form>
+      ${note}
+      <p class="txt muted">Rien reçu ? Regarde dans les indésirables. Tu peux aussi ouvrir le lien de l'e-mail, mais seulement dans ce navigateur.</p>
+      <form class="links" id="login-email"><button class="btn">Renvoyer un code</button><button type="button" class="btn" data-act="change">Changer d'adresse</button></form>`;
   } else {
     el.innerHTML = `<h2>Connexion</h2>
       <p class="txt">Connecte-toi pour retrouver ta watchlist sur tous tes appareils. Pas de mot de passe.</p>
       ${SUPABASE.google ? '<div class="links"><button type="button" class="btn primary" data-act="google">Continuer avec Google</button></div>' : ''}
-      <form class="login" id="login-email"><label for="login-mail">${SUPABASE.google ? 'Ou reçois' : 'Reçois'} un lien de connexion par e-mail</label>
-        <span class="field"><input id="login-mail" name="email" type="email" required autocomplete="email" placeholder="ton@email.com"><button class="btn primary">Envoyer le lien</button></span></form>
+      <form class="login" id="login-email"><label for="login-mail">${SUPABASE.google ? 'Ou reçois' : 'Reçois'} un code de connexion par e-mail</label>
+        <span class="field"><input id="login-mail" name="email" type="email" required autocomplete="email" placeholder="ton@email.com"><button class="btn primary">Recevoir un code</button></span></form>
       ${note}`;
   }
   $('admin').hidden = !admin;

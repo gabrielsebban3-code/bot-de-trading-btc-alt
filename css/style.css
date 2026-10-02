@@ -231,6 +231,7 @@ h2.section { margin: 28px 0 10px; }
 .field { display: flex; gap: 8px; }
 /* 16 px : en dessous, Safari sur iPhone zoome sur le champ */
 .field input { flex: 1; min-width: 0; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: 16px var(--sans); }
+.field input.code { font: 500 18px var(--mono); letter-spacing: .3em; }
 .field input:focus { border-color: var(--accent); outline: none; }
 .login .msg { font-size: 12px; color: var(--mid); }
 .login .msg:empty { display: none; }
