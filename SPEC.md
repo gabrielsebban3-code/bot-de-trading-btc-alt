@@ -76,35 +76,39 @@ Maquette de référence : [`mockup/index.html`](mockup/index.html).
 
 ## 4. Onglet Setups
 
-Gabriel trade en **swing sur 2 à 3 jours** et veut **peu de signaux**. Révision du 2 octobre 2026 : la v1 (5 détecteurs 4h sur le top 50 crypto) perdait. Sur les 90 derniers jours, 75 % de stops touchés rien que sur BTC, ETH, SOL et le Brent, et encore plus sur les altcoins.
+Cadre fixé avec Gabriel le 2 octobre 2026 (questionnaire) : suivi de tendance sur BTC, ETH, SOL et le Brent, bougies 4h, **un signal ne compte que s'il va dans le sens de la tendance journalière**, un trade à la fois par paire, environ 2 signaux par mois, résultats en % du capital avec 1 % risqué par trade, **choix au gain total**. Gabriel a ensuite demandé de tester un maximum de combinaisons et de programmer la plus rentable sans lui demander de choisir.
 
 | Sujet | Décision |
 |---|---|
-| Données | OKX, perpétuels USDT |
+| Données | OKX, perpétuels USDT, bougies 4h (signaux) et journalières (tendance, stop, sortie) |
 | Marchés | **BTC, ETH, SOL et pétrole Brent (`BZ`) seulement** |
-| Style | Swing de 2 à 5 jours, un seul trade à la fois par actif |
-| Détecteur | **Cassure 20 jours** : clôture 4h au-dessus du plus haut des 20 derniers jours quand la tendance 1D est haussière (long), ou sous le plus bas quand elle est baissière (short) |
-| Volume | Volume des 24 dernières heures au moins égal au volume journalier moyen des 20 jours précédents. Sinon la cassure est ignorée (ajouté le 2 octobre au soir : 48 % de gagnants et +0,30R sur 3,5 ans au lieu de 46 % et +0,23R ; sur 12 mois 57 % et +0,54R) |
-| Tendance 1D | Haussière si clôture et EMA20 au-dessus de l'EMA50 journalière, baissière si les deux en dessous. Sert de **filtre** : pas de trade contre la tendance |
-| Stop | 1 ATR(14) journalier |
-| Objectifs | TP1 à 2R, TP2 à 3R, TP3 à 4R |
-| Sortie | Ni stop ni TP1 au bout de 5 jours : on sort au prix du moment |
-| Fréquence | Environ 1 signal par semaine sur les 4 paires (192 en 3,5 ans) |
-| Statut | « En cours » (bougie 4h ouverte) puis « Confirmé » (bougie clôturée) |
-| Affichage | Tant que le trade est en jeu, et au moins 24 h |
-| Contenu d'un signal | Pourquoi ce signal, entrée, stop, TP1/TP2/TP3, R:R, bilan sur 12 mois, news liée |
-| Historique | Recalculé à chaque mise à jour sur 12 mois de bougies 4h. Gagnant = TP1 touché avant le stop, ou sortie à 5 jours en gain |
-| Discord | Watchlist seulement, 3 signaux max par jour (plus tard) |
+| Indicateurs | 3, sur bougies 4h : **Cassure 20 jours** (clôture 4h au-delà du plus haut/bas des 20 dernières journées), **Cassure 10 jours** (clôture 4h au-delà du plus haut/bas des 60 bougies 4h précédentes), **MACD** (histogramme 12/26/9 en 4h qui repasse au-dessus/au-dessous de zéro). Il suffit qu'un des trois donne le signal |
+| Tendance 1D | Haussière si clôture et EMA20 au-dessus de l'EMA50 journalière, baissière si les deux en dessous. **Long seulement en tendance haussière, short seulement en tendance baissière**, rien en tendance neutre |
+| Marge | Le premier niveau devant le prix (pivots, veille, semaine dernière, niveau le plus échangé, chiffre rond) doit laisser au moins 2 × 1,5 ATR 4h de marge, sinon le signal est ignoré |
+| Un trade à la fois | Tant qu'un trade est en jeu sur une paire, les autres signaux de cette paire sont ignorés |
+| Stop de départ | 0,75 ATR(14) journalier |
+| Moitié | À 5R, on prend la moitié et le stop remonte au prix d'entrée |
+| Sortie du reste | Quand une journée clôture sous le plus bas des 7 jours précédents (au-dessus du plus haut pour un short). Pas d'objectif fixe ni de durée maximale |
+| Résultats possibles | Stop touché (−1R = −1 % du capital) · moitié prise puis reste sorti à l'entrée (+2,5R) · sortie de tendance (R variable) |
+| Affichage des gains | En % du capital avec 1 % risqué par trade (1R = 1 %) |
+| Statut | « En cours » (bougie 4h ouverte) puis « Confirmé » |
+| Affichage | Tant que le trade est en jeu, puis 24 h après sa sortie. La fiche montre le stop actuel et le niveau de sortie du reste dès qu'il est plus serré que le stop |
+| Historique | Recalculé à chaque mise à jour sur 12 mois de bougies 4h, bilan par indicateur. Gagnant = trade fini en gain |
+| Discord | Une alerte par nouveau signal confirmé, dans les 24 h |
 
-**Backtest qui a servi au choix** (bougies OKX de mars 2023 à octobre 2026, frais de 0,12 % par trade inclus, stop prioritaire si stop et objectif tombent dans la même bougie) :
+**Comment la combinaison a été choisie** (bougies OKX de mars 2023 à octobre 2026, Brent coté depuis mars 2026, frais de 0,12 % inclus, stop prioritaire si stop et objectif tombent dans la même bougie) :
 
-| Stratégie | Trades | Stops touchés | R moyen par trade |
-|---|---|---|---|
-| v1 : 5 détecteurs 4h, sans filtre | 447 | 68 % | −0,03R |
-| v1, 90 derniers jours | 28 | 75 % | −0,33R |
-| **Cassure 20 jours + tendance 1D** | 211 (1,2 par semaine) | 44 % | **+0,21R**, positif chaque année et sur chaque paire |
+- 14 indicateurs candidats : les 4 du début testables (Breakout + volume, Liquidity sweep, FVG, Niveaux ; le funding n'a pas assez d'historique), cassures 10, 20 et 55 jours, cassure de 60 bougies 4h, pullback sur l'EMA20 journalière, RSI 4h, MACD 4h, croisement EMA20/50 4h, Supertrend 4h, sortie de squeeze Bollinger.
+- Toutes les combinaisons de 1 à 3 indicateurs, croisées avec le stop (0,5 à 2 ATR journalier), la moitié (aucune, 2R à 8R), la sortie (plus bas de 5 à 30 jours) et avec ou sans filtre de marge : **environ 192 000 backtests**, plus 24 000 sur toutes les combinaisons des 9 premiers indicateurs, soit plus de 216 000 au total.
+- Gardées : au plus 3 signaux par mois, chaque année en gain. Classées au gain total **sans les 3 meilleurs trades**, pour ne pas retenir une combinaison qui doit tout à un seul coup de chance (la meilleure au gain brut, +204 %, perdait 90 % de son gain sans son meilleur trade).
+- Contrôle hors échantillon : les combinaisons choisies sur 2023-2024 seulement ont fait en médiane +17 % en 2025-2026, contre +6 % pour une combinaison au hasard. La méthode trouve donc quelque chose de réel, mais les résultats futurs seront probablement plus faibles que le backtest.
 
-Testés et écartés : pullback sur l'EMA20 journalière (≈ 0R), sweep journalier (+0,05R, instable), v1 avec filtre de tendance (+0,16R mais 64 % de stops). La v1 avait trois défauts : des altcoins faibles, des signaux pris contre la tendance journalière et un stop à 1,5 ATR 4h, trop serré pour tenir plusieurs jours.
+| Dans le sens de la tendance, un trade à la fois, 1 % risqué par trade | Trades | Gagnants | Gain total | Par année (2023 / 2024 / 2025 / 2026) | 12 derniers mois | Pire baisse |
+|---|---|---|---|---|---|---|
+| Les 5 indicateurs du début, stop 2 ATR journaliers, moitié à 2R, sortie 10 jours | 75 | 41 % | +31 % | +13 / +10 / −5 / +13 % | +13 % | |
+| **Cassure 20 j + Cassure 10 j + MACD, stop 0,75 ATR j, moitié à 5R, sortie 7 jours (retenu)** | 102 (2,4 par mois) | 32 % | **+122 %** | +52 / +34 / +2 / +34 % | **+34 %** | −10 % |
+
+Avec le stop serré, deux trades sur trois touchent leur stop (−1 % chacun) ; les gains viennent d'une trentaine de sorties de tendance qui rapportent en moyenne +5,6 %. Par paire : SOL +54 %, ETH +41 %, BTC +26 %, Brent +1 % (3 trades seulement). Un trade dure 12 jours en moyenne.
 
 ## 5. Onglet Actu
 

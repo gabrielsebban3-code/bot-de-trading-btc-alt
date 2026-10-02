@@ -3,7 +3,7 @@
 Dashboard de trading public :
 
 - **Projets** : petits projets crypto (< 1 Md$, pas encore sur Binance) qui génèrent de vrais revenus et grandissent. ✅
-- **Setups swing** : trades de 2 à 5 jours sur BTC, ETH, SOL et le pétrole Brent (OKX). Un seul signal, rare : cassure du plus haut/bas de 20 jours dans le sens de la tendance journalière, avec stop, objectifs et bilan sur 12 mois. ✅
+- **Setups** : 3 indicateurs sur bougies 4h (Cassure 20 jours, Cassure 10 jours, MACD), retenus parmi plus de 200 000 backtests, sur BTC, ETH, SOL et le pétrole Brent (OKX), gardés seulement dans le sens de la tendance journalière. Un trade à la fois par paire, stop à 0,75 ATR journalier, moitié prise à 5R, le reste suit la tendance. Gains en % du capital (1 % risqué par trade), bilan sur 12 mois. ✅
 - **Actu** : géopolitique, banques centrales, OPEP, régulation, hacks, ETF, baleines, traduits en français, classés par importance avec l'impact probable par actif. Bandeau rouge sur les news critiques. ✅
 - **Mon compte** : watchlist (étoile sur les projets et les setups, filtre « Ma watchlist », prix qui défilent en haut), gardée sur l'appareil, et sur tous les appareils avec un compte (Google ou lien par e-mail, via Supabase). L'admin voit la liste des inscrits. ✅
 
