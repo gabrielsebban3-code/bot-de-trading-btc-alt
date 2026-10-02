@@ -111,7 +111,7 @@
     <!-- Setups -->
     <section class="page" id="page-setups">
       <div class="intro" data-intro="setups"><span class="i">i</span>
-        <p>Les 5 indicateurs de base sur bougies 4h (<b>Breakout + volume, Liquidity sweep, FVG, Funding/OI extrême, Niveaux</b>) sur <b>BTC, ETH, SOL et le pétrole Brent</b> (perpétuels OKX). <b>Un signal ne compte que s'il va dans le sens de la tendance journalière</b> : long quand le marché monte, short quand il baisse. <span>Un seul trade à la fois par paire, et seulement s'il y a au moins 2R de marge avant le prochain niveau. Stop de départ à 2 ATR journaliers. À 2R on prend la moitié et le stop remonte au prix d'entrée. Le reste sort quand une journée clôture sous le plus bas des 10 derniers jours (au-dessus du plus haut pour un short) : un trade dure en moyenne trois semaines. « En cours » : la bougie 4h n'est pas fermée, le signal peut disparaître.</span></p>
+        <p>3 indicateurs sur bougies 4h (<b>Cassure 20 jours, Cassure 10 jours, MACD</b>) sur <b>BTC, ETH, SOL et le pétrole Brent</b> (perpétuels OKX), retenus parmi plus de 200 000 combinaisons testées sur 3 ans et demi. <b>Un signal ne compte que s'il va dans le sens de la tendance journalière</b> : long quand le marché monte, short quand il baisse. <span>Cassure 20 jours : une bougie 4h clôture au-dessus du plus haut des 20 derniers jours (sous le plus bas pour un short). Cassure 10 jours : pareil sur 10 jours. MACD : l'histogramme 4h repasse au-dessus de zéro (en dessous pour un short). Un seul trade à la fois par paire, et seulement s'il y a au moins 2R de marge avant le prochain niveau. Stop serré à 0,75 ATR journalier. À 5R on prend la moitié et le stop remonte au prix d'entrée. Le reste sort quand une journée clôture sous le plus bas des 7 derniers jours (au-dessus du plus haut pour un short). Beaucoup de petits stops, quelques gros gains qui les paient. « En cours » : la bougie 4h n'est pas fermée, le signal peut disparaître.</span></p>
         <button type="button">Compris</button></div>
       <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
       <h1>Setups dans le sens de la tendance · BTC, ETH, SOL, pétrole</h1>
@@ -152,20 +152,20 @@
 
     <section class="page" id="page-historique">
       <div class="intro" data-intro="historique"><span class="i">i</span>
-        <p>Le bilan des setups sur 12 mois, indicateur par indicateur. <span>Il sert à savoir si on peut faire confiance aux signaux. « R moyen » : gain ou perte moyen par trade, en multiples du risque (+1R = on gagne ce qu'on risquait). Les trades gagnants rapportent souvent plus de 2R : c'est ce qui paie les stops.</span></p>
+        <p>Le bilan des setups sur 12 mois, indicateur par indicateur. <span>Il sert à savoir si on peut faire confiance aux signaux. Les gains sont en % du capital, avec 1 % du compte risqué par trade : un stop touché coûte 1 %, un trade qui va à 5 fois le risque rapporte 5 %. Les trades gagnants rapportent souvent plus : c'est ce qui paie les stops.</span></p>
         <button type="button">Compris</button></div>
       <h1>Bilan des setups</h1>
       <p class="sub" id="history-sub"></p>
       <div class="wrap">
         <table>
-          <thead><tr><th class="l">Détecteur</th><th>Signaux</th><th>Gagnants</th><th>Moitié prise / stop</th><th>R moyen</th><th class="l">Meilleur actif</th></tr></thead>
+          <thead><tr><th class="l">Détecteur</th><th>Signaux</th><th>Gagnants</th><th>Moitié prise / stop</th><th>Gain du capital</th><th class="l">Meilleur actif</th></tr></thead>
           <tbody id="history-body"></tbody>
         </table>
       </div>
       <h2 class="section">Derniers signaux terminés</h2>
       <div class="wrap">
         <table class="static">
-          <thead><tr><th class="l">Signal</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>R:R</th><th class="l">Résultat</th><th>R</th></tr></thead>
+          <thead><tr><th class="l">Signal</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>R:R</th><th class="l">Résultat</th><th>Capital</th></tr></thead>
           <tbody id="history-list"></tbody>
         </table>
       </div>

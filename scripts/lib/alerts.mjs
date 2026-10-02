@@ -55,7 +55,7 @@ export function toDiscord(alert, siteUrl = '') {
         { name: 'R:R', value: `1:${String(Math.round(s.rr * 10) / 10).replace('.', ',')}`, inline: true },
         { name: 'Moitié à prendre', value: (s.tp || []).map(num).join(' · ') || '—', inline: false },
       ],
-      footer: { text: `Clôture journalière confirmée · ${NFA}` },
+      footer: { text: `Bougie 4h confirmée · ${NFA}` },
       timestamp: new Date(s.time).toISOString(),
     };
   }

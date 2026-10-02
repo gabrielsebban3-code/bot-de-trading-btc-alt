@@ -1,10 +1,12 @@
-// Onglets Setups et Historique : 5 indicateurs dans le sens de la tendance (BTC, ETH, SOL, Brent), fiche détaillée avec graphique, bilan sur 12 mois.
+// Onglets Setups et Historique : 3 indicateurs dans le sens de la tendance (BTC, ETH, SOL, Brent), fiche détaillée avec graphique, bilan sur 12 mois.
 import { ago, esc, fmt, pct } from './format.js';
 import { candleChart } from './charts.js';
 import { linkedNews, linkedText } from './news.js';
 import { star, watchlist } from './watchlist.js';
 
 const BAR = 4 * 3600_000;
+// 0.75 → « 0,75 », 2 → « 2 »
+const num = n => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
 const OUTCOME = {
   sl: ['Stop touché', 'down'],
   be: ['Moitié prise, reste à l\'entrée', 'up'],
@@ -37,12 +39,14 @@ const okxUrl = sym => `https://www.okx.com/trade-swap/${sym.toLowerCase()}-usdt-
 const parisTime = t => new Date(t).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 const parisDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
+// Résultat en % du capital : chaque trade risque data.rules.riskPct % du compte (1 % par défaut), donc 1R = 1 %.
+const cap = r => `${r > 0 ? '+' : ''}${fmt(r * (data.rules.riskPct ?? 1), r * (data.rules.riskPct ?? 1) >= 10 || r * (data.rules.riskPct ?? 1) <= -10 ? 0 : 1)} %`;
 const outcomeCls = s => (s.outcome === 'exit' ? (s.r > 0 ? 'up' : s.r < 0 ? 'down' : '') : OUTCOME[s.outcome][1]);
 
 function winLine(key) {
   const s = data.stats[key];
   if (!s || s.winRate === null) return `${esc(data.detectors[key])} : pas encore assez de trades pour un bilan`;
-  return `${esc(data.detectors[key])} : ${fmt(s.winRate * 100, 0)} % de trades gagnants sur ${s.resolved}, ${s.avgR > 0 ? '+' : ''}${fmt(s.avgR, 2)}R en moyenne (12 mois)`;
+  return `${esc(data.detectors[key])} : ${fmt(s.winRate * 100, 0)} % de trades gagnants sur ${s.resolved}, ${cap(s.totalR)} du capital sur 12 mois (${fmt(data.rules.riskPct ?? 1, 0)} % risqué par trade)`;
 }
 
 function projectLink(sym) {
@@ -66,7 +70,7 @@ function card(s) {
     <span class="tags"><span class="tag">${esc(data.detectors[s.detector])}</span><span class="tag ${TREND[s.trend]}">Tendance 1D ${esc(s.trend)}</span>
       <span class="when">${s.status === 'en cours' ? 'bougie en cours' : ago(new Date(s.time + BAR).toISOString())}</span></span>
     <span class="why">${esc(s.why)}</span>
-    <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(s.sl)}</span><span><i>Moitié à 2R</i>${px(s.tp[0])}</span>${s.exitAt ? `<span><i>Sortie</i>${px(s.exitAt)}</span>` : `<span><i>R:R</i>1:${fmt(s.rr, 1)}</span>`}</span>
+    <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(s.sl)}</span><span><i>Moitié à ${fmt(data.rules.partialR ?? s.rr, 0)}R</i>${px(s.tp[0])}</span>${s.exitAt ? `<span><i>Sortie</i>${px(s.exitAt)}</span>` : `<span><i>R:R</i>1:${fmt(s.rr, 1)}</span>`}</span>
     <span class="wr">${winLine(s.detector)}</span>
     ${newsLink(s, 'span')}
   </a>`;
@@ -172,22 +176,23 @@ export function renderSetup(id) {
       <div class="stack">
         <div class="box"><h2>Plan</h2><dl>
           ${row('Entrée', px(s.entry))}
-          ${row(`Stop (${fmt(data.rules.stopAtr, 0)} ATR jour)`, `${px(s.sl)} <small class="muted">${pct((s.sl - s.entry) / s.entry)}</small>`, 'down')}
+          ${row(`Stop (${num(data.rules.stopAtr)} ATR jour)`, `${px(s.sl)} <small class="muted">${pct((s.sl - s.entry) / s.entry)}</small>`, 'down')}
           ${row(`Moitié à ${fmt(data.rules.partialR ?? s.rr, 0)}R`, `${px(s.tp[0])} <small class="muted">${pct((s.tp[0] - s.entry) / s.entry)}</small>${s.tpHit ? ' <small class="up">✓ prise</small>' : ''}`, 'up')}
           ${s.outcome === 'open' && s.tpHit ? row('Stop actuel', `${px(s.stop)} <small class="muted">prix d'entrée</small>`) : ''}
-          ${s.exitAt ? row(`Sortie du reste`, `clôture ${short ? 'au-dessus de' : 'sous'} ${px(s.exitAt)} <small class="muted">${short ? 'plus haut' : 'plus bas'} ${data.rules.exitDays ?? 10} j</small>`) : ''}
+          ${s.exitAt ? row(`Sortie du reste`, `clôture ${short ? 'au-dessus de' : 'sous'} ${px(s.exitAt)} <small class="muted">${short ? 'plus haut' : 'plus bas'} ${data.rules.exitDays ?? 7} j</small>`) : ''}
           ${row('Tendance 1D', esc(s.trend), TREND[s.trend])}
-          ${row('Résultat', s.status === 'confirmé' ? OUTCOME[s.outcome][0] + (s.r !== null && s.outcome !== 'open' ? ` (${s.r > 0 ? '+' : ''}${fmt(s.r, 2)}R)` : '') : 'Journée en cours', s.status === 'confirmé' ? outcomeCls(s) : '')}
+          ${row('Résultat', s.status === 'confirmé' ? OUTCOME[s.outcome][0] + (s.r !== null && s.outcome !== 'open' ? ` (${cap(s.r)} du capital)` : '') : 'Bougie en cours', s.status === 'confirmé' ? outcomeCls(s) : '')}
         </dl></div>
         <div class="box"><h2>Gestion du trade</h2><ol class="txt">
-          <li>Stop de départ à ${fmt(data.rules.stopAtr, 0)} ATR journaliers.</li>
+          <li>Stop de départ à ${num(data.rules.stopAtr)} ATR journalier.</li>
           <li>À ${fmt(data.rules.partialR ?? s.rr, 0)}R, prendre la moitié et remonter le stop au prix d'entrée.</li>
-          <li>Garder le reste tant que la tendance tient : sortie quand une journée clôture ${short ? 'au-dessus du plus haut' : 'sous le plus bas'} des ${data.rules.exitDays ?? 10} derniers jours.</li>
+          <li>Garder le reste tant que la tendance tient : sortie quand une journée clôture ${short ? 'au-dessus du plus haut' : 'sous le plus bas'} des ${data.rules.exitDays ?? 7} derniers jours.</li>
         </ol></div>
         <div class="box"><h2>Bilan sur 12 mois</h2><dl>
           ${row('Trades gagnants', st?.winRate === null || !st ? '—' : `${fmt(st.winRate * 100, 0)} %`)}
           ${row('Trades terminés', st ? String(st.resolved) : '—')}
-          ${row('R moyen', st?.avgR === null || !st ? '—' : `${st.avgR > 0 ? '+' : ''}${fmt(st.avgR, 2)}R`, st?.avgR > 0 ? 'up' : st?.avgR < 0 ? 'down' : '')}
+          ${row('Gain du capital', st?.avgR === null || !st ? '—' : cap(st.totalR), st?.totalR > 0 ? 'up' : st?.totalR < 0 ? 'down' : '')}
+          ${row('Gain moyen par trade', st?.avgR === null || !st ? '—' : cap(st.avgR), st?.avgR > 0 ? 'up' : st?.avgR < 0 ? 'down' : '')}
           ${row('Durée moyenne', st?.avgDays ? `${st.avgDays} jours` : '—')}
         </dl>${projectLink(s.symbol)}${newsLink(s)}</div>
         <div class="box"><h2>Liens</h2><div class="links"><a class="buy" href="${okxUrl(s.symbol)}" target="_blank" rel="noopener">Ouvrir sur OKX</a></div></div>
@@ -200,7 +205,7 @@ export function renderSetup(id) {
 function renderHistory() {
   const keys = Object.keys(data.detectors);
   const since = Math.min(...Object.values(data.freshStart || {}).filter(Boolean));
-  document.getElementById('history-sub').textContent = `Un trade est gagnant s'il finit en gain. La moitié est prise à ${data.rules.partialR ?? 2}R, le reste sort quand une journée clôture au-delà du plus bas (ou du plus haut pour un short) des ${data.rules.exitDays ?? 10} derniers jours. `
+  document.getElementById('history-sub').textContent = `Un trade est gagnant s'il finit en gain. La moitié est prise à ${data.rules.partialR ?? 5}R, le reste sort quand une journée clôture au-delà du plus bas (ou du plus haut pour un short) des ${data.rules.exitDays ?? 7} derniers jours. `
     + (Number.isFinite(since) ? `Calculé sur les bougies OKX depuis le ${new Date(since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' })}.` : '');
   document.getElementById('history-body').innerHTML = keys.map(k => {
     const s = data.stats[k];
@@ -210,7 +215,7 @@ function renderHistory() {
       <td class="n">${s.signals}</td>
       <td class="n">${w === null ? '—' : `<span class="score"><i style="--w:${w}%"></i>${w} %</span>`}</td>
       <td class="n"><span class="up">${s.tp1}</span> / <span class="down">${s.losses}</span></td>
-      <td class="n ${s.avgR > 0 ? 'up' : s.avgR < 0 ? 'down' : ''}">${s.avgR === null ? '—' : `${s.avgR > 0 ? '+' : ''}${fmt(s.avgR, 2)}R`}</td>
+      <td class="n ${s.totalR > 0 ? 'up' : s.totalR < 0 ? 'down' : ''}">${s.avgR === null ? '—' : cap(s.totalR)}</td>
       <td class="l">${s.best ? `${esc(s.best.symbol)} <span class="muted">${fmt(s.best.winRate * 100, 0)} % sur ${s.best.n}</span>` : '<span class="muted">—</span>'}</td>
     </tr>`;
   }).join('');
@@ -223,7 +228,7 @@ function renderHistory() {
       <td class="n">${px(s.entry)}</td>
       <td class="n">1:${fmt(s.rr, 1)}</td>
       <td class="l"><span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span></td>
-      <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${s.r > 0 ? '+' : ''}${fmt(s.r, 2)}R</td>
+      <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r)}</td>
     </tr>`).join('') : '<tr><td colspan="8"><div class="empty">Aucun signal terminé pour le moment.</div></td></tr>';
 }
 

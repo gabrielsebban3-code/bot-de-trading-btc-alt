@@ -1,7 +1,8 @@
-// Logique de l'onglet Setups : les 5 indicateurs de base sur bougies 4h (BTC, ETH, SOL, Brent),
-// gardés seulement quand ils vont dans le sens de la tendance journalière, puis gérés en suivi de tendance :
-// stop à 2 ATR journaliers, moitié prise à 2R, reste gardé tant que la tendance tient.
-// Choix de Gabriel (questionnaire du 2 octobre 2026). Fonctions pures, testées dans tests/setups.test.mjs.
+// Logique de l'onglet Setups : 3 indicateurs de cassure et d'élan sur bougies 4h (BTC, ETH, SOL, Brent),
+// gardés seulement dans le sens de la tendance journalière, puis gérés en suivi de tendance :
+// stop à 0,75 ATR journalier, moitié prise à 5R, reste gardé tant que la tendance tient.
+// Combinaison retenue parmi plus de 200 000 backtests (octobre 2026, voir SPEC.md §4).
+// Fonctions pures, testées dans tests/setups.test.mjs.
 
 export const BAR = 4 * 3600_000;
 const DAY = 86_400_000;
@@ -10,27 +11,22 @@ export const RULES = {
   backtestBars: 2190,     // 1 an de bougies 4h
   warmup: 60,             // bougies nécessaires avant le premier signal
   atrPeriod: 14,
-  lookback: 20,           // plus haut / plus bas des 20 dernières bougies 4h
-  breakoutVolume: 1.8,    // volume ≥ 1,8× la moyenne
-  fvgMinAtr: 0.3,         // gap d'au moins 0,3 ATR
-  fvgMaxAge: 30,
-  fundingExtreme: 0.0004, // 0,04 % / 8 h, soit 4× le taux normal
-  oiRise: 0.10,           // open interest +10 % en 24 h
-  stopAtr: 2,             // stop de départ = 2 ATR journaliers
-  partialR: 2,            // on prend la moitié à 2R et on remonte le stop au prix d'entrée
-  exitDays: 10,           // sortie du reste : clôture journalière au-delà du plus bas / plus haut des 10 jours
+  rangeBars: 60,          // cassure 10 jours : plus haut / plus bas des 60 dernières bougies 4h
+  rangeDays: 20,          // cassure 20 jours : plus haut / plus bas des 20 dernières journées
+  stopAtr: 0.75,          // stop de départ = 0,75 ATR journalier
+  partialR: 5,            // on prend la moitié à 5R et on remonte le stop au prix d'entrée
+  exitDays: 7,            // sortie du reste : clôture journalière au-delà du plus bas / plus haut des 7 jours
   minRR: 2,
+  riskPct: 1,             // risque par trade en % du capital (choix de Gabriel) : 1R = 1 %
   roomAtr: 1.5,           // marge minimale avant le prochain niveau : 2 × 1,5 ATR 4h
   showHours: 24,          // un trade terminé reste affiché 24 h
   statsDays: 365,
 };
 
 export const DETECTORS = {
-  breakout: 'Breakout + volume',
-  sweep: 'Liquidity sweep',
-  fvg: 'FVG',
-  funding: 'Funding/OI extrême',
-  levels: 'Niveaux',
+  range20: 'Cassure 20 jours',
+  range10: 'Cassure 10 jours',
+  macd: 'MACD',
 };
 
 // ---------- Mise en forme (français) ----------
@@ -61,7 +57,6 @@ export function atr(bars, period = RULES.atrPeriod) {
 
 const maxH = (bars, from, to) => { let m = -Infinity; for (let k = from; k < to; k++) m = Math.max(m, bars[k].h); return m; };
 const minL = (bars, from, to) => { let m = Infinity; for (let k = from; k < to; k++) m = Math.min(m, bars[k].l); return m; };
-const avgV = (bars, from, to) => { let s = 0; for (let k = from; k < to; k++) s += bars[k].v; return s / (to - from); };
 
 function ema(values, period) {
   const k = 2 / (period + 1);
@@ -174,111 +169,56 @@ export function trend1d(daily, t) {
   return dc.trend.at(-1) ?? 'neutre';
 }
 
-// ---------- Indicateurs de base (une idée chacun, sur la bougie 4h) ----------
+// ---------- Les 3 indicateurs (sur la bougie 4h qui vient de fermer) ----------
 
-export function detectBreakout(ctx, i) {
-  const { bars } = ctx;
-  const L = RULES.lookback;
-  if (i < L + 1) return null;
-  const hi = maxH(bars, i - L, i), lo = minL(bars, i - L, i);
-  const vr = bars[i].v / avgV(bars, i - L, i);
-  if (!(vr >= RULES.breakoutVolume)) return null;
-  const b = bars[i], pc = bars[i - 1].c;
-  const vol = `avec un volume ${fmtN(vr)}× la moyenne`;
-  if (b.c > hi && pc <= hi) return { dir: 'long', ref: hi, why: `Clôture 4h au-dessus du plus haut des ${L} dernières bougies (${fmtPx(hi)}) ${vol}. Les acheteurs ont pris le dessus sur cette résistance.` };
-  if (b.c < lo && pc >= lo) return { dir: 'short', ref: lo, why: `Clôture 4h sous le plus bas des ${L} dernières bougies (${fmtPx(lo)}) ${vol}. Les vendeurs ont cassé ce support.` };
-  return null;
-}
-
-export function detectSweep(ctx, i) {
+// Cassure 20 jours : la bougie 4h clôture au-dessus du plus haut des 20 dernières journées (sous le plus bas pour un short).
+export function detectRange20(ctx, i) {
   const { bars, daily } = ctx;
-  const L = RULES.lookback;
-  if (i < L + 1) return null;
-  const b = bars[i];
-  const range = b.h - b.l;
-  if (!(range > 0)) return null;
-  const prior = priorLevels(daily, b.t);
-  const pick = keys => prior.filter(l => keys.includes(l.key));
-  const lows = [...pick(['wl']), ...pick(['dl']), { price: minL(bars, i - L, i), label: `plus bas des ${L} dernières bougies` }];
-  const highs = [...pick(['wh']), ...pick(['dh']), { price: maxH(bars, i - L, i), label: `plus haut des ${L} dernières bougies` }];
-  const low = lows.find(l => b.l < l.price && b.c > l.price);
-  if (low && b.c >= b.l + 0.5 * range) {
-    return { dir: 'long', ref: low.price, why: `Mèche sous le ${low.label} (${fmtPx(low.price)}) puis clôture au-dessus. Les stops placés sous ce niveau ont été déclenchés, mais les vendeurs n'ont pas suivi.` };
-  }
-  const high = highs.find(l => b.h > l.price && b.c < l.price);
-  if (high && b.c <= b.h - 0.5 * range) {
-    return { dir: 'short', ref: high.price, why: `Mèche au-dessus du ${high.label} (${fmtPx(high.price)}) puis clôture en dessous. Les stops au-dessus ont été pris, mais les acheteurs n'ont pas tenu.` };
-  }
-  return null;
-}
-
-export function detectFvg(ctx, i) {
-  const { bars, atr: A } = ctx;
-  const b = bars[i];
-  for (let c = i - 1; c >= Math.max(2, i - RULES.fvgMaxAge); c--) {
-    const a = c - 2, size = A[c] ?? A[i];
-    if (!size) continue;
-    // Gap haussier : le bas de la bougie c reste au-dessus du haut de la bougie a.
-    if (bars[c].l - bars[a].h >= RULES.fvgMinAtr * size) {
-      const top = bars[c].l, bottom = bars[a].h;
-      if (minL(bars, c + 1, i) <= top) continue; // déjà revisité
-      if (b.l <= top && b.c >= bottom) {
-        return { dir: 'long', ref: bottom, why: `Le prix revient dans le gap ${fmtPx(bottom)}–${fmtPx(top)} laissé le ${day(bars[c - 1].t)} par une forte hausse. Ces zones servent souvent de support.` };
-      }
-    }
-    if (bars[a].l - bars[c].h >= RULES.fvgMinAtr * size) {
-      const bottom = bars[c].h, top = bars[a].l;
-      if (maxH(bars, c + 1, i) >= bottom) continue;
-      if (b.h >= bottom && b.c <= top) {
-        return { dir: 'short', ref: top, why: `Le prix remonte dans le gap ${fmtPx(bottom)}–${fmtPx(top)} laissé le ${day(bars[c - 1].t)} par une forte baisse. Ces zones servent souvent de résistance.` };
-      }
-    }
-  }
-  return null;
-}
-
-export function detectFunding(ctx, i) {
-  const { bars, fundingAt, oiAt } = ctx;
-  if (!fundingAt || !oiAt) return null;
-  const end = bars[i].t + BAR;
-  const f = fundingAt(Math.min(end, ctx.now ?? end));
-  const oi = oiAt(bars[i].t), oiPrev = oiAt(bars[i].t - 6 * BAR);
-  if (f === null || !oi || !oiPrev) return null;
-  const chg = oi / oiPrev - 1;
-  if (chg < RULES.oiRise) return null;
-  const txt = `Funding à ${f > 0 ? '+' : ''}${fmtN(f * 100, 3)} %/8 h (${fmtN(Math.abs(f) / 0.0001, 0)}× le taux normal) et open interest +${fmtN(chg * 100, 0)} % en 24 h`;
-  if (f >= RULES.fundingExtreme) return { dir: 'short', ref: null, why: `${txt} : beaucoup de positions longues à effet de levier. Si le prix cale, leurs liquidations peuvent le faire baisser.` };
-  if (f <= -RULES.fundingExtreme) return { dir: 'long', ref: null, why: `${txt} : beaucoup de positions courtes à effet de levier. Si le prix tient, leurs rachats forcés peuvent le faire monter.` };
-  return null;
-}
-
-export function detectLevels(ctx, i) {
-  const { bars, daily, atr: A } = ctx;
-  const a = A[i];
-  if (!a || i < 2) return null;
+  if (i < 1) return null;
+  const dc = ctx.dc ?? dailyContext(daily);
+  const j = lastDay(dc, bars[i].t + BAR), n = RULES.rangeDays;
+  if (j < n - 1) return null;
+  const hi = maxH(daily, j - n + 1, j + 1), lo = minL(daily, j - n + 1, j + 1);
   const b = bars[i], pc = bars[i - 1].c;
-  const levels = priorLevels(daily, b.t);
-  const poc = volumePoc(bars, i);
-  if (poc) levels.push({ price: poc, label: 'niveau le plus échangé sur 30 jours' });
-  const step = roundStep(b.c);
-  for (const r of [Math.floor(b.c / step) * step, Math.ceil(b.c / step) * step]) levels.push({ price: r, label: `chiffre rond ${fmtPx(r)}` });
-  const sorted = levels.sort((x, y) => Math.abs(x.price - b.c) - Math.abs(y.price - b.c));
-  for (const l of sorted) {
-    const L = l.price;
-    if (pc > L && b.l <= L + 0.15 * a && b.l >= L - 0.3 * a && b.c >= L + 0.4 * a && b.c > b.o) {
-      return { dir: 'long', ref: L, why: `Rebond sur le ${l.label} (${fmtPx(L)}) : le prix l'a touché puis est reparti à la hausse. Ce niveau tient comme support.` };
-    }
-    if (pc < L && b.h >= L - 0.15 * a && b.h <= L + 0.3 * a && b.c <= L - 0.4 * a && b.c < b.o) {
-      return { dir: 'short', ref: L, why: `Rejet sous le ${l.label} (${fmtPx(L)}) : le prix l'a touché puis est reparti à la baisse. Ce niveau tient comme résistance.` };
-    }
-  }
+  if (b.c > hi && pc <= hi) return { dir: 'long', ref: hi, why: `Clôture 4h au-dessus du plus haut des ${n} derniers jours (${fmtPx(hi)}). Le prix sort par le haut de sa zone du mois.` };
+  if (b.c < lo && pc >= lo) return { dir: 'short', ref: lo, why: `Clôture 4h sous le plus bas des ${n} derniers jours (${fmtPx(lo)}). Le prix sort par le bas de sa zone du mois.` };
   return null;
 }
 
-const DETECT = { breakout: detectBreakout, sweep: detectSweep, fvg: detectFvg, funding: detectFunding, levels: detectLevels };
+// Cassure 10 jours : la bougie 4h clôture au-dessus du plus haut des 60 bougies 4h précédentes.
+export function detectRange10(ctx, i) {
+  const { bars } = ctx;
+  const n = RULES.rangeBars;
+  if (i < n) return null;
+  const hi = maxH(bars, i - n, i), lo = minL(bars, i - n, i);
+  const b = bars[i], pc = bars[i - 1].c;
+  if (b.c > hi && pc <= hi) return { dir: 'long', ref: hi, why: `Clôture 4h au-dessus du plus haut des 10 derniers jours (${fmtPx(hi)}). Les acheteurs reprennent la main.` };
+  if (b.c < lo && pc >= lo) return { dir: 'short', ref: lo, why: `Clôture 4h sous le plus bas des 10 derniers jours (${fmtPx(lo)}). Les vendeurs reprennent la main.` };
+  return null;
+}
+
+// Histogramme MACD 4h (12, 26, 9), calculé une fois pour toutes les bougies.
+export function macdHist(bars) {
+  const c = bars.map(b => b.c);
+  const e12 = ema(c, 12), e26 = ema(c, 26);
+  const line = e12.map((x, k) => x - e26[k]);
+  const sig = ema(line, 9);
+  return line.map((x, k) => x - sig[k]);
+}
+
+// MACD : l'histogramme 4h repasse au-dessus de zéro (en dessous pour un short), l'élan repart dans le sens de la tendance.
+export function detectMacd(ctx, i) {
+  const h = ctx.hist ?? macdHist(ctx.bars);
+  if (i < 35) return null;
+  if (h[i - 1] <= 0 && h[i] > 0) return { dir: 'long', ref: null, why: 'L\'histogramme MACD 4h repasse au-dessus de zéro : l\'élan haussier repart.' };
+  if (h[i - 1] >= 0 && h[i] < 0) return { dir: 'short', ref: null, why: 'L\'histogramme MACD 4h repasse sous zéro : l\'élan baissier repart.' };
+  return null;
+}
+
+const DETECT = { range20: detectRange20, range10: detectRange10, macd: detectMacd };
 const WANT = { long: 'haussière', short: 'baissière' };
 
-// ---------- Plan de trade : stop à 2 ATR journaliers, moitié à 2R ----------
+// ---------- Plan de trade : stop à 0,75 ATR journalier, moitié à 5R ----------
 
 export function plan(dir, entry, atrD) {
   const s = dir === 'long' ? 1 : -1;
@@ -291,7 +231,7 @@ export function plan(dir, entry, atrD) {
   };
 }
 
-// Niveau de sortie du reste : plus bas (long) ou plus haut (short) des 10 jours clôturés avant le jour k.
+// Niveau de sortie du reste : plus bas (long) ou plus haut (short) des 7 jours clôturés avant le jour k.
 export function exitLevel(daily, k, dir) {
   let x = dir === 'long' ? Infinity : -Infinity;
   for (let q = Math.max(0, k - RULES.exitDays); q < k; q++) x = dir === 'long' ? Math.min(x, daily[q].l) : Math.max(x, daily[q].h);
@@ -299,7 +239,7 @@ export function exitLevel(daily, k, dir) {
 }
 
 // ---------- Suivi d'un trade bougie 4h après bougie 4h ----------
-// sl : stop touché avant 2R (−1R) · be : moitié prise, reste sorti au prix d'entrée (+1R)
+// sl : stop touché avant 5R (−1R) · be : moitié prise, reste sorti au prix d'entrée (+2,5R)
 // exit : sortie de tendance sur clôture journalière (R variable) · open : trade encore en jeu.
 
 export function evaluate(sig, bars, i, daily) {
@@ -335,10 +275,10 @@ export function evaluate(sig, bars, i, daily) {
 
 // Renvoie tous les signaux (passés et en cours) d'un actif, avec leur résultat.
 // Un signal ne compte que dans le sens de la tendance journalière. Un seul trade à la fois par actif.
-export function scanAsset(asset, { bars, daily, fundingAt = null, oiAt = null, now = Date.now() }) {
+export function scanAsset(asset, { bars, daily }) {
   const A = atr(bars);
   const dc = dailyContext(daily);
-  const ctx = { bars, daily, atr: A, fundingAt, oiAt, now };
+  const ctx = { bars, daily, dc, hist: macdHist(bars) };
   const signals = [];
   let busyUntil = -1;
   const start = Math.max(RULES.warmup, bars.length - RULES.backtestBars - 1);
