@@ -40,11 +40,31 @@ drop policy if exists "profil : watchlist" on public.profiles;
 create policy "profil : watchlist" on public.profiles for update to authenticated
   using (id = (select auth.uid())) with check (id = (select auth.uid()));
 
--- Le site ne peut écrire que l'adresse à la création, puis la watchlist.
+-- Dernière visite du membre : sert à « Quoi de neuf pour toi ».
+alter table public.profiles add column if not exists last_seen timestamptz;
+
+-- Alertes de prix du membre : une liste JSON de 20 alertes au plus (règles détaillées dans js/pricealerts.js).
+alter table public.profiles add column if not exists alerts jsonb not null default '[]';
+alter table public.profiles drop constraint if exists profiles_alerts_check;
+alter table public.profiles add constraint profiles_alerts_check
+  check (jsonb_typeof(alerts) = 'array' and jsonb_array_length(alerts) <= 20 and pg_column_size(alerts) < 20000);
+
+-- Le site ne peut écrire que l'adresse à la création, puis la watchlist, la dernière visite et les alertes.
 revoke all on public.profiles from anon, authenticated;
 grant select on public.profiles to authenticated;
 grant insert (id, email) on public.profiles to authenticated;
-grant update (watchlist, updated_at) on public.profiles to authenticated;
+grant update (watchlist, updated_at, last_seen, alerts) on public.profiles to authenticated;
+
+-- Liens réservés aux membres connectés (invitation Discord…) : lisibles seulement une fois connecté, modifiables
+-- seulement depuis Supabase. Exemple :
+--   insert into public.member_links (name, url) values ('discord', 'https://discord.gg/xxxx')
+--   on conflict (name) do update set url = excluded.url;
+create table if not exists public.member_links (name text primary key, url text not null);
+alter table public.member_links enable row level security;
+drop policy if exists "liens : membres" on public.member_links;
+create policy "liens : membres" on public.member_links for select to authenticated using (true);
+revoke all on public.member_links from anon, authenticated;
+grant select on public.member_links to authenticated;
 
 -- Bouton « Supprimer mon compte » : efface le compte de la personne connectée (et sa ligne, par cascade).
 create or replace function public.delete_my_account() returns void

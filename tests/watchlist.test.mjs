@@ -65,9 +65,11 @@ test('schéma Supabase : chaque compte ne touche que sa ligne, l\'admin lit tout
   const sql = await readFile(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
   assert.match(sql, /alter table public\.profiles enable row level security/);
   assert.match(sql, /alter table public\.admins enable row level security/);
-  assert.match(sql, /grant update \(watchlist, updated_at\) on public\.profiles to authenticated/, 'pas de mise à jour de l\'adresse ni de l\'identifiant');
+  assert.match(sql, /grant update \(watchlist, updated_at, last_seen, alerts\) on public\.profiles to authenticated/, 'pas de mise à jour de l\'adresse ni de l\'identifiant');
   assert.match(sql, /using \(id = \(select auth\.uid\(\)\) or \(select public\.is_admin\(\)\)\)/);
   assert.match(sql, /revoke all on public\.admins from anon, authenticated/, 'adresses des admins invisibles');
+  assert.match(sql, /revoke all on public\.member_links from anon, authenticated/, 'liens des membres invisibles sans connexion');
+  assert.match(sql, /grant select on public\.member_links to authenticated;/);
   assert.match(sql, /'\^\[A-Z0-9\]\{1,15\}\$'/, 'mêmes règles de symbole que le site');
   assert.ok(!/@/.test(sql), 'aucune adresse e-mail dans le dépôt public');
 });

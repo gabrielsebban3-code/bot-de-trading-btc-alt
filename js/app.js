@@ -4,7 +4,7 @@ import { initProjects, renderProject } from './projects.js';
 import { initSetups, renderSetup, setupsUnavailable } from './setups.js';
 import { focusNews, initNews, newsFocus, newsUnavailable } from './news.js';
 import { starTitle, watchlist } from './watchlist.js';
-import { initAccount, refreshAccount } from './account.js';
+import { alertSymbols, initAccount, refreshAccount, setFeed } from './account.js';
 
 const $ = id => document.getElementById(id);
 const PAGES = ['resume', 'projets', 'setups', 'actu', 'historique', 'compte'];
@@ -92,6 +92,7 @@ async function load() {
   for (const p of projects?.projects || []) if (p.symbol && !known.projects.has(p.symbol.toUpperCase())) known.projects.set(p.symbol.toUpperCase(), p);
   for (const a of setups?.assets || []) known.assets.set(a.symbol, a);
   for (const s of (setups?.live || []).filter(x => x.outcome === 'open')) if (!known.live.has(s.symbol)) known.live.set(s.symbol, s);
+  setFeed(setups, news, projects);
   refreshAccount([...new Set([...known.assets.keys(), ...known.projects.keys()])].sort());
   ticker();
   const latest = [projects, setups, news].map(d => d?.generatedAt).filter(Boolean).sort().at(-1);
@@ -152,7 +153,8 @@ async function quote(s) {
 // Ticker de la watchlist (12 premiers actifs) : OKX en direct, sinon le dernier prix des données du site.
 // Un clic sur une étoile ne redemande que le nouvel actif ; tout est rafraîchi chaque minute.
 async function ticker() {
-  const todo = watchlist.get().slice(0, 12).filter(s => Date.now() - (asked.get(s) ?? 0) > 30_000);
+  // Plus les actifs des alertes de prix, même hors de la watchlist.
+  const todo = [...new Set([...watchlist.get().slice(0, 12), ...alertSymbols()])].filter(s => Date.now() - (asked.get(s) ?? 0) > 30_000);
   for (let i = 0; i < todo.length; i += 4) {
     const batch = todo.slice(i, i + 4);
     batch.forEach(s => asked.set(s, Date.now()));
@@ -172,3 +174,4 @@ route();
 load();
 ticker();
 setInterval(ticker, 60_000);
+window.addEventListener('dinexo-alerts', ticker);

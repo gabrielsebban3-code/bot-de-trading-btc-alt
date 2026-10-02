@@ -23,7 +23,7 @@
         <span class="more">
           <button id="more" aria-expanded="false" aria-controls="menu">Plus ▾</button>
           <span class="menu" id="menu" hidden>
-            <a href="#historique" data-tab="historique">Historique</a>
+            <a href="#historique" data-tab="historique">Historique <span class="lock guest-only">membres</span></a>
           </span>
         </span>
       </nav>
@@ -31,6 +31,7 @@
       <a class="me" id="me" href="#compte/connexion">Connexion</a>
     </div>
     <div class="alert" id="alert" role="alert" hidden><a href="#actu"><span class="k">Critique</span><span class="t"></span><span class="when"></span></a><button type="button" aria-label="Fermer le bandeau">×</button></div>
+    <div class="toast" id="toast" role="alert" hidden></div>
     <div class="ticker" id="ticker" hidden><div id="ticker-track"></div></div>
   </header>
 
@@ -40,6 +41,9 @@
       <div class="intro" data-intro="resume"><span class="i">i</span>
         <p>Dinexo surveille trois choses : <b>des petits projets crypto qui gagnent de l'argent</b>, <b>des setups dans le sens de la tendance, gardés plusieurs semaines</b> sur BTC, ETH, SOL et le pétrole, et <b>l'actu qui fait bouger les marchés</b>. <span>Le bloc orange te dit quoi regarder en priorité. Tout ce qui est cliquable ouvre une fiche détaillée.</span></p>
         <button type="button">Compris</button></div>
+      <div class="box new" id="new-resume" hidden></div>
+      <div class="box join guest-only"><p class="txt"><b>Membres :</b> quoi de neuf sur tes actifs depuis ta dernière visite, historique complet des setups et alertes sur Discord. Gratuit, sans mot de passe.</p>
+        <div class="links"><a class="buy" href="#compte/connexion">Créer mon compte</a></div></div>
       <div class="macro" id="macro"></div>
       <h2>À regarder maintenant</h2>
       <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
@@ -155,6 +159,10 @@
         <p>Le bilan des setups sur 12 mois, indicateur par indicateur. <span>Il sert à savoir si on peut faire confiance aux signaux. Les gains sont en % du capital, avec 1 % du compte risqué par trade : un stop touché coûte 1 %, un trade qui va à 5 fois le risque rapporte 5 %. Les trades gagnants rapportent souvent plus : c'est ce qui paie les stops.</span></p>
         <button type="button">Compris</button></div>
       <h1>Bilan des setups</h1>
+      <div class="box join guest-only"><h2>Réservé aux membres</h2>
+        <p class="txt">Le bilan des setups sur 12 mois et la liste des signaux terminés sont réservés aux membres. Le compte est gratuit et sans mot de passe.</p>
+        <div class="links"><a class="buy" href="#compte/connexion">Se connecter</a></div></div>
+      <div class="members-only">
       <p class="sub" id="history-sub"></p>
       <div class="wrap">
         <table>
@@ -168,6 +176,7 @@
           <thead><tr><th class="l">Signal</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>R:R</th><th class="l">Résultat</th><th>Capital</th></tr></thead>
           <tbody id="history-list"></tbody>
         </table>
+      </div>
       </div>
     </section>
     <section class="page" id="page-compte">
@@ -185,9 +194,11 @@
             <datalist id="wl-symbols"></datalist>
             <div id="wl-list"></div>
           </div>
+          <div class="box new" id="new-compte" hidden></div>
+          <div class="box" id="alerts" hidden></div>
           <div class="box" id="admin" hidden></div>
         </div>
-        <div class="stack"><div class="box" id="account"></div></div>
+        <div class="stack"><div class="box" id="account"></div><div class="box" id="discord" hidden></div></div>
       </div>
     </section>
   </main>
