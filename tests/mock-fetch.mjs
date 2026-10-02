@@ -1,16 +1,18 @@
-// Remplace fetch par les réponses fictives de fixtures.mjs et setups-fixtures.mjs.
+// Remplace fetch par les réponses fictives de fixtures.mjs, setups-fixtures.mjs et news-fixtures.mjs.
 // Usage : node --import ./tests/mock-fetch.mjs scripts/build-data.mjs --out data --sample
 import { fixtures, route } from './fixtures.mjs';
 import { routeSetups, setupRoutes } from './setups-fixtures.mjs';
+import { routeNews } from './news-fixtures.mjs';
 
 const routes = fixtures();
 const setups = setupRoutes();
 globalThis.fetch = async url => {
-  const body = routeSetups(setups, String(url)) ?? route(routes, String(url));
+  const body = routeNews(String(url)) ?? routeSetups(setups, String(url)) ?? route(routes, String(url));
   return {
     ok: body !== undefined,
     status: body !== undefined ? 200 : 404,
     headers: new Headers(),
-    json: async () => structuredClone(body),
+    json: async () => (typeof body === 'string' ? JSON.parse(body) : structuredClone(body)),
+    text: async () => (typeof body === 'string' ? body : JSON.stringify(body)),
   };
 };
