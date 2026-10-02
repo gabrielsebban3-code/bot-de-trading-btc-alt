@@ -1,8 +1,10 @@
 // Onglet Mon compte : watchlist, connexion sans mot de passe (Google, ou code / lien reçu par e-mail, via Supabase),
 // watchlist synchronisée entre appareils, liste des inscrits pour l'admin.
-import { esc, pct, price } from './format.js';
+// Réservé aux membres : Historique, lien du Discord (alertes) et « Quoi de neuf pour toi ».
+import { ago, esc, pct, price } from './format.js';
 import { SUPABASE } from './config.js';
 import { clean, MAX, merge, normalize, star, valid, watchlist } from './watchlist.js';
+import { since, whatsNew } from './whatsnew.js';
 
 const $ = id => document.getElementById(id);
 export const accountsOn = Boolean(SUPABASE.url && SUPABASE.key);
@@ -20,6 +22,10 @@ let admin = false;
 let notice = '';
 let info = () => ({}); // nom, prix et lien d'un actif : fourni par js/app.js
 let saveTimer = null;
+let discord = null; // lien d'invitation, lu dans Supabase : seuls les membres connectés peuvent le lire
+let from = null; // début de « Quoi de neuf » : la visite précédente du membre
+let feed = null; // setups, actu et projets chargés par js/app.js
+let badgeSeen = false; // le membre a ouvert Résumé ou Mon compte : plus de pastille
 
 const local = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -32,7 +38,14 @@ function pending() {
     return p && typeof p.email === 'string' && Date.now() - p.at < PENDING_MS ? p.email : null;
   } catch { return null; }
 }
+// Lien d'invitation Discord accepté : discord.gg/… ou discord.com/invite/…
+const discordUrl = u => (/^https:\/\/(discord\.gg|(www\.)?discord\.com\/invite)\/[\w-]+\/?$/.test(u || '') ? u : null);
 const setPending = email => local.set(PENDING, email ? JSON.stringify({ email, at: Date.now() }) : null);
+const PERKS = `<ul class="perks">
+  <li><b>Quoi de neuf pour toi</b> : ce qui a bougé sur tes actifs depuis ta dernière visite</li>
+  <li><b>Historique</b> complet des setups, avec leur bilan</li>
+  <li><b>Discord</b> : les nouveaux setups et les news critiques en notification</li>
+  <li>Ta <b>watchlist</b> sur tous tes appareils</li></ul>`;
 const row = (k, v) => `<dt>${k}</dt><dd class="txt">${v}</dd>`;
 const day = iso => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Paris' });
 
@@ -60,7 +73,23 @@ export function initAccount(assetInfo) {
   });
   renderAccount();
   renderWatchlist();
+  window.addEventListener('hashchange', seenBadge);
+  seenBadge();
   if (accountsOn) connect();
+}
+
+// Données du site chargées : de quoi calculer « Quoi de neuf ».
+export function setFeed(setups, news, projects) {
+  const bySlug = new Map((projects?.projects || []).map(p => [p.id, p]));
+  feed = { setups, news, projectSymbol: id => bySlug.get(id)?.symbol?.toUpperCase() ?? null };
+  renderNew();
+  renderMe();
+}
+
+function seenBadge() {
+  const page = location.hash.slice(1).split('/')[0] || 'resume';
+  if (user && ['resume', 'compte'].includes(page)) badgeSeen = true;
+  renderMe();
 }
 
 // Données chargées ou prix du ticker mis à jour : symboles proposés à l'ajout et lignes de la watchlist.
@@ -100,6 +129,9 @@ async function onSession(session) {
   if ((next?.id ?? null) === (user?.id ?? null)) return; // jeton rafraîchi, onglet revenu au premier plan…
   user = next;
   admin = false;
+  discord = null;
+  from = null;
+  badgeSeen = false;
   if (user) setPending(null);
   if (!user) {
     local.set(SYNCED, null);
@@ -122,7 +154,24 @@ async function onSession(session) {
   } catch {
     notice = 'Ta watchlist n\'a pas pu être lue dans ton compte. Celle de cet appareil reste affichée.';
   }
+  await memberData();
+  seenBadge();
   renderAccount();
+}
+
+// Visite précédente (dans le compte, sinon sur cet appareil), puis on enregistre celle-ci. Lien du Discord.
+// Chaque lecture est indépendante : si une colonne ou une table manque dans Supabase, le reste marche.
+async function memberData() {
+  const key = `dinexo-seen-${user.id}`;
+  const now = new Date().toISOString();
+  let prev = local.get(key);
+  const { data: seen, error } = await sb.from('profiles').select('last_seen').eq('id', user.id).single();
+  if (!error && seen?.last_seen) prev = seen.last_seen;
+  from = since(prev);
+  local.set(key, now);
+  if (!error) await sb.from('profiles').update({ last_seen: now }).eq('id', user.id);
+  const { data: links } = await sb.from('member_links').select('name, url');
+  discord = discordUrl(links?.find(l => l.name === 'discord')?.url);
 }
 
 function queueSave() {
@@ -216,7 +265,8 @@ function renderAccount() {
       <form class="links" id="login-email"><button class="btn">Renvoyer un code</button><button type="button" class="btn" data-act="change">Changer d'adresse</button></form>`;
   } else {
     el.innerHTML = `<h2>Connexion</h2>
-      <p class="txt">Connecte-toi pour retrouver ta watchlist sur tous tes appareils. Pas de mot de passe.</p>
+      <p class="txt">Crée ton compte gratuit, sans mot de passe :</p>
+      ${PERKS}
       ${SUPABASE.google ? '<div class="links"><button type="button" class="btn primary" data-act="google">Continuer avec Google</button></div>' : ''}
       <form class="login" id="login-email"><label for="login-mail">${SUPABASE.google ? 'Ou reçois' : 'Reçois'} ${SUPABASE.code ? 'un code' : 'un lien'} de connexion par e-mail</label>
         <span class="field"><input id="login-mail" name="email" type="email" required autocomplete="email" placeholder="ton@email.com"><button class="btn primary">${SUPABASE.code ? 'Recevoir un code' : 'Envoyer le lien'}</button></span></form>
@@ -224,7 +274,42 @@ function renderAccount() {
   }
   $('admin').hidden = !admin;
   if (admin) renderAdmin();
+  // Sans comptes branchés, rien n'est réservé.
+  document.body.classList.toggle('member', Boolean(user) || !accountsOn);
+  renderDiscord();
+  renderNew();
   renderMe();
+}
+
+function renderDiscord() {
+  const el = $('discord');
+  el.hidden = !user || (!discord && !admin);
+  if (el.hidden) return;
+  el.innerHTML = discord ? `<h2>Discord Dinexo</h2>
+      <p class="txt">Les nouveaux setups confirmés et les news critiques y arrivent en direct, avec une notification sur ton téléphone.</p>
+      <div class="links"><a class="buy" href="${esc(discord)}" target="_blank" rel="noopener">Rejoindre le Discord</a></div>`
+    : `<h2>Discord Dinexo <span class="muted">admin</span></h2>
+      <p class="txt">Les membres ne voient pas encore de lien : ajoute le lien d'invitation dans Supabase (table member_links), comme dans le guide.</p>`;
+}
+
+function newItems() {
+  return user && feed && from ? whatsNew({ ...feed, list: watchlist.get(), from }) : [];
+}
+
+function renderNew() {
+  const items = newItems();
+  const date = from ? new Date(from).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) : '';
+  const rows = list => list.map(i => `<a class="row" href="${i.href}"><span class="tag ${i.tone}">${i.kind === 'setup' ? 'Setup' : 'Actu'}</span>
+      <span class="d"><span class="wn">${esc(i.title)}</span><span class="muted">${esc(i.detail)}</span></span><span class="r muted">${ago(new Date(i.time).toISOString())}</span></a>`).join('')
+    || '<div class="soon">Rien de nouveau sur les actifs de ta watchlist depuis ta dernière visite.</div>';
+  // Résumé : les 5 plus récentes, la liste complète est dans Mon compte.
+  const head = more => `<h2><span>Quoi de neuf pour toi <span class="muted">depuis ${esc(date)}</span></span>${more ? '<a href="#compte">Tout voir →</a>' : ''}</h2>`;
+  for (const id of ['new-resume', 'new-compte']) {
+    $(id).hidden = !user || !feed || !from;
+    if ($(id).hidden) continue;
+    const short = id === 'new-resume' && items.length > 5;
+    $(id).innerHTML = head(short) + rows(short ? items.slice(0, 5) : items);
+  }
 }
 
 // Bouton en haut à droite : « Connexion » tant qu'on n'est pas connecté, sinon l'initiale et « Mon compte ».
@@ -233,7 +318,8 @@ function renderMe() {
   el.classList.toggle('in', Boolean(user));
   el.href = user ? '#compte' : '#compte/connexion';
   el.title = user ? `Connecté : ${user.email}` : 'Se connecter';
-  el.innerHTML = user ? `<span class="av" aria-hidden="true">${esc((user.email || '?')[0])}</span>Mon compte` : 'Connexion';
+  const n = badgeSeen ? 0 : newItems().length;
+  el.innerHTML = user ? `<span class="av" aria-hidden="true">${esc((user.email || '?')[0])}</span>Mon compte${n ? `<span class="badge" title="${n} nouveauté${n > 1 ? 's' : ''} sur ta watchlist">${n}</span>` : ''}` : 'Connexion';
 }
 
 function renderWatchlist() {

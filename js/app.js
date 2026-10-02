@@ -4,7 +4,7 @@ import { initProjects, renderProject } from './projects.js';
 import { initSetups, renderSetup, setupsUnavailable } from './setups.js';
 import { focusNews, initNews, newsFocus, newsUnavailable } from './news.js';
 import { starTitle, watchlist } from './watchlist.js';
-import { initAccount, refreshAccount } from './account.js';
+import { initAccount, refreshAccount, setFeed } from './account.js';
 
 const $ = id => document.getElementById(id);
 const PAGES = ['resume', 'projets', 'setups', 'actu', 'historique', 'compte'];
@@ -92,6 +92,7 @@ async function load() {
   for (const p of projects?.projects || []) if (p.symbol && !known.projects.has(p.symbol.toUpperCase())) known.projects.set(p.symbol.toUpperCase(), p);
   for (const a of setups?.assets || []) known.assets.set(a.symbol, a);
   for (const s of (setups?.live || []).filter(x => x.outcome === 'open')) if (!known.live.has(s.symbol)) known.live.set(s.symbol, s);
+  setFeed(setups, news, projects);
   refreshAccount([...new Set([...known.assets.keys(), ...known.projects.keys()])].sort());
   ticker();
   const latest = [projects, setups, news].map(d => d?.generatedAt).filter(Boolean).sort().at(-1);
