@@ -88,6 +88,15 @@ jobs:
           if [ "${{ steps.projects.outcome }}" = failure ]; then echo "::warning::Projets non mis à jour à ce passage."; fi
           if [ "${{ steps.setups.outcome }}" = failure ]; then echo "::warning::Setups non mis à jour à ce passage."; fi
 
+      # Alertes Discord : nouveaux setups confirmés et news critiques, comparés à la version déjà en ligne.
+      - name: Alertes Discord
+        if: env.PUBLISH == 'true'
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node scripts/send-alerts.mjs --data _site/data --previous previous --site "${{ steps.pages.outputs.base_url }}"
+
       - name: Assembler le site
         run: cp -r index.html css js mockup _site/
 
