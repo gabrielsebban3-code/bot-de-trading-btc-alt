@@ -1,5 +1,6 @@
 // Onglet Actu : fil des news classées, bandeau critique, news liées aux setups et aux projets, colonne du Résumé.
 import { ago, esc, safeUrl } from './format.js';
+import { touches, watchlist } from './watchlist.js';
 
 const HOUR = 3600_000;
 const LEVEL = { critical: 3, medium: 2, low: 1 };
@@ -57,11 +58,15 @@ function dayLabel(t) {
   return s[0].toUpperCase() + s.slice(1);
 }
 
+// « Ma watchlist » : les news dont l'impact cite un actif suivi, ou qui parlent d'un projet suivi.
+const projectSymbol = id => projectsById.get(id)?.symbol?.toUpperCase() ?? null;
+
 function filtered() {
+  const list = watchlist.get();
   return data.items.filter(i => (state.theme === 'all'
     // Dans « Tout », seuls les gros mouvements de baleines apparaissent : les autres sont dans le filtre Baleines.
     ? !(i.theme === 'whale' && i.importance === 'low')
-    : i.theme === state.theme)
+    : state.theme === 'watch' ? touches(i, list, projectSymbol) : i.theme === state.theme)
     && (state.level === 'all' || LEVEL[i.importance] >= LEVEL[state.level]));
 }
 
@@ -74,14 +79,16 @@ function renderList() {
     const sep = d !== day ? `<div class="day">${d}</div>` : '';
     day = d;
     return sep + itemHtml(i);
-  }).join('') || `<div class="empty">${data.items.length ? 'Aucune news ne correspond à ces filtres.' : 'Aucune news pour le moment. Le fil est mis à jour toutes les 15 minutes.'}</div>`;
+  }).join('') || `<div class="empty">${!data.items.length ? 'Aucune news pour le moment. Le fil est mis à jour toutes les 15 minutes.'
+    : state.theme === 'watch' ? 'Aucune news à ce niveau d\'importance sur les actifs de ta watchlist.' : 'Aucune news ne correspond à ces filtres.'}</div>`;
   $('news-more').hidden = list.length <= state.shown;
   $('news-count').textContent = `${list.length} news sur les ${data.rules.keepHours} dernières heures${list.length > shown.length ? ` · ${shown.length} affichées` : ''}`;
 }
 
 function renderChips() {
   const themes = [['all', 'Tout'], ...Object.entries(data.themes)];
-  $('news-themes').innerHTML = themes.map(([k, v]) => `<button type="button" class="chip" data-theme="${k}" aria-pressed="${state.theme === k}">${esc(v)}</button>`).join('');
+  const chip = ([k, v]) => `<button type="button" class="chip" data-theme="${k}" aria-pressed="${state.theme === k}">${esc(v)}</button>`;
+  $('news-themes').innerHTML = `${themes.map(chip).join('')}<span class="sep"></span>${chip(['watch', 'Ma watchlist'])}`;
   $('news-levels').innerHTML = LEVELS.map(([k, v]) => `<button type="button" class="chip" data-level="${k}" aria-pressed="${state.level === k}">${k === 'all' ? '' : `<i class="dot ${DOT[k][0]}"></i> `}${v}</button>`).join('');
 }
 
@@ -118,7 +125,7 @@ export function initNews(newsData, projects) {
   data = newsData;
   projectsById = new Map((projects?.projects || []).filter(p => p.inTop).map(p => [p.id, p]));
   Object.assign(state, store.get('dinexo-news') || {});
-  if (state.theme !== 'all' && !data.themes[state.theme]) state.theme = 'all';
+  if (!['all', 'watch'].includes(state.theme) && !data.themes[state.theme]) state.theme = 'all';
   if (!LEVELS.some(([k]) => k === state.level)) state.level = 'all';
   state.shown = PAGE;
   const update = () => { store.set('dinexo-news', { theme: state.theme, level: state.level }); state.shown = PAGE; renderChips(); renderList(); };
@@ -131,6 +138,7 @@ export function initNews(newsData, projects) {
     if (b) { state.level = b.dataset.level; update(); }
   });
   $('news-more').addEventListener('click', () => { state.shown += PAGE; renderList(); });
+  watchlist.subscribe(() => { if (state.theme === 'watch') renderList(); });
   $('news-sub').textContent = `Titres traduits automatiquement en français. Mis à jour ${ago(data.generatedAt)}, toutes les 15 minutes.`;
   $('news-warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
   renderChips();

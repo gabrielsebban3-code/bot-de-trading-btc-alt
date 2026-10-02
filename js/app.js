@@ -1,12 +1,17 @@
-// Point d'entrée : navigation, chargement des données, ticker.
+// Point d'entrée : navigation, chargement des données, watchlist et ticker.
 import { ago, esc, fmt, pct, price } from './format.js';
 import { initProjects, renderProject } from './projects.js';
 import { initSetups, renderSetup, setupsUnavailable } from './setups.js';
 import { focusNews, initNews, newsFocus, newsUnavailable } from './news.js';
+import { starTitle, watchlist } from './watchlist.js';
+import { initAccount, refreshAccount } from './account.js';
 
 const $ = id => document.getElementById(id);
 const PAGES = ['resume', 'projets', 'setups', 'actu', 'historique', 'compte'];
-const WATCHLIST = ['BTC', 'ETH', 'SOL'];
+// Actifs connus du site, par symbole : projets, marchés des setups, setup en jeu. Servent au ticker et à Mon compte.
+const known = { projects: new Map(), assets: new Map(), live: new Map() };
+const quotes = new Map(); // derniers prix OKX du ticker
+const asked = new Map(); // heure de la dernière demande à OKX, par symbole
 let ready = false;
 let setupsReady = false;
 let newsReady = false;
@@ -33,6 +38,22 @@ $('more').addEventListener('click', () => {
   $('more').setAttribute('aria-expanded', String(open));
 });
 document.addEventListener('click', e => { if (!e.target.closest('.more')) $('menu').hidden = true; });
+
+// Étoiles : un clic ajoute ou retire l'actif de la watchlist, sans ouvrir la ligne ou la carte autour.
+document.addEventListener('click', e => {
+  const b = e.target.closest('button.star[data-sym]');
+  if (!b) return;
+  e.preventDefault();
+  watchlist.toggle(b.dataset.sym);
+});
+watchlist.subscribe(list => {
+  for (const b of document.querySelectorAll('button.star[data-sym]')) {
+    const on = list.includes(b.dataset.sym);
+    b.setAttribute('aria-pressed', String(on));
+    b.title = starTitle(b.dataset.sym, on);
+  }
+  ticker();
+});
 
 // Encadrés « À savoir » : masqués une fois lus, sur cet appareil.
 document.querySelectorAll('.intro').forEach(el => {
@@ -65,6 +86,11 @@ async function load() {
     setupsReady = true;
   } else setupsUnavailable();
   if (news) newsFocus(setups);
+  for (const p of projects?.projects || []) if (p.symbol && !known.projects.has(p.symbol.toUpperCase())) known.projects.set(p.symbol.toUpperCase(), p);
+  for (const a of setups?.assets || []) known.assets.set(a.symbol, a);
+  for (const s of (setups?.live || []).filter(x => x.outcome === 'open')) if (!known.live.has(s.symbol)) known.live.set(s.symbol, s);
+  refreshAccount([...new Set([...known.assets.keys(), ...known.projects.keys()])].sort());
+  ticker();
   const latest = [projects, setups, news].map(d => d?.generatedAt).filter(Boolean).sort().at(-1);
   if (latest) $('updated').textContent = `Données mises à jour ${ago(latest)}`;
   route();
@@ -95,27 +121,50 @@ function showProjects(projects) {
   ready = true;
 }
 
-// Ticker de la watchlist : OKX, sinon Binance. Masqué si aucune source ne répond.
-async function ticker() {
-  const fromOkx = async () => Promise.all(WATCHLIST.map(async s => {
-    const r = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${s}-USDT`).then(x => x.json());
-    const t = r.data[0];
-    return { s, last: Number(t.last), change: Number(t.last) / Number(t.open24h) - 1 };
-  }));
-  const fromBinance = async () => {
-    const q = encodeURIComponent(JSON.stringify(WATCHLIST.map(s => `${s}USDT`)));
-    const r = await fetch(`https://data-api.binance.vision/api/v3/ticker/24hr?symbols=${q}`).then(x => x.json());
-    return r.map(t => ({ s: t.symbol.replace('USDT', ''), last: Number(t.lastPrice), change: Number(t.priceChangePercent) / 100 }));
+// Nom, dernier prix et lien d'un actif suivi.
+function assetInfo(s) {
+  const p = known.projects.get(s), a = known.assets.get(s), setup = known.live.get(s);
+  const q = quotes.get(s) || (p ? { last: p.price, change: p.change24h } : a ? { last: a.price, change: a.change24h } : null);
+  return {
+    name: p?.name || (a && a.name !== s ? a.name : ''),
+    last: q?.last ?? null, change: q?.change ?? null,
+    href: p ? `#projet/${encodeURIComponent(p.id)}` : setup ? `#setup/${encodeURIComponent(setup.id)}` : null,
+    hrefLabel: p ? 'Fiche' : 'Setup en jeu',
   };
-  let rows;
-  try { rows = await fromOkx(); } catch { rows = await fromBinance().catch(() => null); }
-  if (!rows) return;
-  const html = rows.map(r => `<span class="t">${r.s} <span class="num">${price(r.last)}</span> ${pct(r.change)}</span>`).join('');
-  $('ticker-track').innerHTML = html.repeat(4);
-  $('ticker').hidden = false;
+}
+
+// Prix en direct sur OKX : le perpétuel des marchés des setups, sinon la paire au comptant, sinon le perpétuel.
+async function quote(s) {
+  const ids = known.assets.get(s)?.instId ? [known.assets.get(s).instId] : [`${s}-USDT`, `${s}-USDT-SWAP`];
+  for (const id of ids) {
+    try {
+      const r = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${id}`).then(x => x.json());
+      const t = r.data?.[0];
+      if (t) return { last: Number(t.last), change: Number(t.last) / Number(t.open24h) - 1 };
+    } catch { return null; } // OKX injoignable : le dernier prix des données du site prend le relais
+  }
+  return null;
+}
+
+// Ticker de la watchlist (12 premiers actifs) : OKX en direct, sinon le dernier prix des données du site.
+// Un clic sur une étoile ne redemande que le nouvel actif ; tout est rafraîchi chaque minute.
+async function ticker() {
+  const todo = watchlist.get().slice(0, 12).filter(s => Date.now() - (asked.get(s) ?? 0) > 30_000);
+  for (let i = 0; i < todo.length; i += 4) {
+    const batch = todo.slice(i, i + 4);
+    batch.forEach(s => asked.set(s, Date.now()));
+    const got = await Promise.all(batch.map(quote));
+    batch.forEach((s, k) => { if (got[k]) quotes.set(s, got[k]); });
+  }
+  // Affiche la watchlist du moment, même si elle a changé pendant les demandes.
+  const rows = watchlist.get().slice(0, 12).map(s => ({ s, ...assetInfo(s) })).filter(r => r.last != null);
+  $('ticker').hidden = !rows.length;
+  $('ticker-track').innerHTML = rows.map(r => `<span class="t">${esc(r.s)} <span class="num">${price(r.last)}</span> ${pct(r.change)}</span>`).join('').repeat(4);
+  refreshAccount();
 }
 
 window.addEventListener('hashchange', route);
+initAccount(assetInfo);
 route();
 load();
 ticker();
