@@ -1,0 +1,23 @@
+name: probe
+on: push
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/claude/okx-probe'
+    steps:
+      - run: |
+          set -x
+          O=https://www.okx.com/api/v5
+          curl -s "$O/public/instruments?instType=SWAP" | jq -r '.data|length, (map(select(.settleCcy!="USDT" and .settleCcy!="USDC" and (.instId|test("-USD-SWAP")|not)))|.[0:5]|tostring), (map(select(.instFamily|test("CL|WTI|OIL|BRENT|NG|GAS|XAU|XAG|XBR|XTI|USOIL";"i")))|map({instId,instCategory,ctVal,ctValCcy,lotSz,state})|tostring)'
+          curl -s "$O/public/instruments?instType=SWAP" | jq -c '.data[0]'
+          curl -s "$O/public/instruments?instType=SWAP" | jq -r '[.data[]|.instCategory]|group_by(.)|map({k:.[0],n:length})|tostring'
+          curl -s "$O/public/instruments?instType=SWAP" | jq -r '[.data[]|select(.instCategory!="1")|.instId]|tostring'
+          curl -s "$O/market/history-candles?instId=BTC-USDT-SWAP&bar=4H&limit=3" | head -c 600; echo
+          curl -s "$O/market/candles?instId=BTC-USDT-SWAP&bar=4H&limit=2" | head -c 600; echo
+          curl -s "$O/public/funding-rate-history?instId=BTC-USDT-SWAP&limit=2" | head -c 800; echo
+          curl -s "$O/public/funding-rate?instId=BTC-USDT-SWAP" | head -c 800; echo
+          curl -s "$O/public/open-interest?instType=SWAP&instId=BTC-USDT-SWAP" | head -c 500; echo
+          curl -s "$O/rubik/stat/contracts/open-interest-history?instId=BTC-USDT-SWAP&period=4H&limit=3" | head -c 800; echo
+          curl -s "$O/rubik/stat/contracts/open-interest-volume?ccy=BTC&period=1D" | head -c 400; echo
+          curl -s "$O/market/tickers?instType=SWAP" | jq -c '.data[0]'
+          curl -s "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=3" | jq -c '.[0]|{id,symbol,market_cap_rank}'
