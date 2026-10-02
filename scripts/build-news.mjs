@@ -30,7 +30,7 @@ const SOURCES = [
   { id: 'gn-geo', name: 'Google News · géopolitique', google: true, url: google('(Iran OR Israel OR Russia OR Ukraine OR Taiwan OR China OR Houthis OR Hormuz) (missile OR strike OR attack OR war OR troops OR ceasefire OR sanctions)') },
   { id: 'gn-cb', name: 'Google News · banques centrales', google: true, url: google('("Federal Reserve" OR FOMC OR Powell OR ECB OR "Bank of Japan" OR "Bank of England") (rates OR "rate cut" OR "rate hike" OR decision)') },
   { id: 'gn-data', name: 'Google News · inflation et emploi', google: true, url: google('(CPI OR "consumer prices" OR inflation OR payrolls OR "jobs report" OR "jobless claims" OR PCE) "U.S."') },
-  { id: 'gn-energy', name: 'Google News · pétrole et or', google: true, url: google('(OPEC OR "oil prices" OR "crude oil" OR Brent OR "gold prices" OR "natural gas prices")') },
+  { id: 'gn-energy', name: 'Google News · pétrole et or', google: true, url: google('(OPEC OR "oil prices" OR "crude oil" OR "Brent crude" OR WTI OR "gold prices" OR "natural gas prices")') },
   { id: 'gn-trade', name: 'Google News · commerce', google: true, url: google('(tariffs OR "trade war" OR "trade deal" OR "export controls")') },
   { id: 'gn-crypto', name: 'Google News · crypto', google: true, crypto: true, url: google('(crypto OR bitcoin OR ethereum OR stablecoin) (hack OR exploit OR stolen OR ETF OR SEC OR regulation OR lawsuit OR bill)') },
   { id: 'bbc', name: 'BBC', rank: 2, url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
@@ -89,18 +89,21 @@ async function collect(src, ctx) {
   if (src.telegram) {
     const posts = await telegram(src.telegram, src.pages);
     const items = posts.map(p => {
-      if (!src.whale) return entry(src, headline(p.text), p.link, at(p.time), src.name, ctx);
-      const w = whaleNews(parseWhale(p.text), ctx.top);
+      const tx = src.whale && parseWhale(p.text);
+      if (!tx) return entry(src.whale ? { ...src, crypto: true } : src, headline(p.text), p.link, at(p.time), src.name, ctx);
+      const w = whaleNews(tx, ctx.top);
       return w && { ...w, id: hashId(p.link), time: at(p.time), titleEn: headline(p.text), lang: 'fr', link: p.link, source: src.name, rank: 1, kind: 'whale' };
     });
-    return { raw: posts.length, first: posts[0] && headline(posts[0].text), items: items.filter(Boolean) };
+    // Quelques messages bruts : pour comprendre une source qui ne donne plus rien.
+    const samples = posts.slice(-3).map(p => p.text.replace(/\s+/g, ' ').slice(0, 180));
+    return { raw: posts.length, first: posts[0] && headline(posts[0].text), samples, items: items.filter(Boolean) };
   }
   const feed = parseFeed(await fetchText(src.url, { headers: UA, retries: 1, timeout: 20_000 }));
   const items = feed.map(it => {
     const { title, source } = src.google ? splitSource(it.title, it.source) : { title: it.title, source: src.name };
     return entry(src, title, it.link, at(it.time), source || src.name, ctx);
   });
-  return { raw: feed.length, first: feed[0]?.title, items: items.filter(Boolean) };
+  return { raw: feed.length, first: feed[0]?.title, samples: feed.slice(0, 3).map(i => i.title), items: items.filter(Boolean) };
 }
 
 // ---------- Traduction gratuite : Google Translate (accès public), sinon MyMemory ----------
@@ -134,7 +137,13 @@ const ENGINES = [
   },
 ];
 
-async function translate(text) {
+// Petites retouches de l'anglais avant traduction (le titre anglais d'origine reste la clé du cache).
+const forTranslation = t => t
+  .replace(/\bcrypto(?![.\w-])/gi, m => (m[0] === 'C' ? 'Cryptocurrency' : 'cryptocurrency'))
+  .replace(/\bahead of\b/gi, m => (m[0] === 'A' ? 'Before' : 'before'));
+
+async function translate(english) {
+  const text = forTranslation(english);
   for (const e of ENGINES) {
     if (e.fails >= 3) continue; // trois échecs de suite : moteur abandonné pour cette mise à jour
     try {
@@ -163,6 +172,7 @@ async function main() {
     const r = await attempt(src.name, () => collect(src, ctx));
     sources[src.id] = r.ok ? { name: src.name, status: 'ok', read: r.value.raw, kept: r.value.items.length } : { name: src.name, status: 'erreur' };
     console.log(`${r.ok ? '✓' : '✖'} ${src.id.padEnd(13)} ${r.ok ? `${String(r.value.raw).padStart(3)} lues · ${String(r.value.items.length).padStart(3)} gardées · ${String(r.value.first ?? '—').slice(0, 90)}` : r.error}`);
+    if (r.ok && (src.whale || (r.value.raw && !r.value.items.length))) for (const t of r.value.samples) console.log(`    · ${t}`);
     return r.ok ? r.value.items : [];
   })).flat();
 
@@ -198,9 +208,11 @@ async function main() {
   console.log(`Importance : ${count('importance', 'critical')} critiques · ${count('importance', 'medium')} moyennes · ${count('importance', 'low')} faibles`);
   console.log(`Thèmes : ${Object.entries(THEMES).map(([k, v]) => `${v} ${count('theme', k)}`).join(' · ')}`);
   const arrows = i => i.impacts.map(([a, d]) => `${a} ${d > 0 ? '▲' : '▼'}`).join(' ');
-  for (const i of items.filter(x => x.importance !== 'low').slice(0, 30)) {
-    console.log(`[${i.importance === 'critical' ? 'C' : 'M'}] ${i.rule.padEnd(16)} ${(i.title ?? i.titleEn).slice(0, 110)} · ${i.source}${i.count > 1 ? ` +${i.count - 1}` : ''} ${arrows(i)}`);
-  }
+  const show = i => console.log(`[${i.importance === 'critical' ? 'C' : 'M'}] ${i.rule.padEnd(16)} ${i.titleEn.slice(0, 120)} · ${i.source}${i.count > 1 ? ` +${i.count - 1}` : ''} ${arrows(i)}${i.calm ? ' (guerre en cours)' : ''}`);
+  console.log('\nCritiques :');
+  items.filter(x => x.importance === 'critical').slice(0, 20).forEach(show);
+  console.log('\nMoyennes (les plus récentes) :');
+  items.filter(x => x.importance === 'medium').slice(0, 40).forEach(show);
   const missed = ctx.dropped.filter(d => d.startsWith('gn-'));
   if (missed.length) console.log(`\nExemples de titres Google News écartés (aucune règle) :\n${missed.slice(0, 20).join('\n')}`);
   if (warnings.length) console.log('Avertissements :', warnings);

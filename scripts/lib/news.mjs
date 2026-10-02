@@ -99,11 +99,18 @@ export function headline(text, max = 200) {
   return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), max - 30)).replace(/[\s,;:.-]+$/, '')}…`;
 }
 
-// Google News ajoute « - Source » à la fin du titre.
+// Google News ajoute « - Source » à la fin du titre, parfois avec le slogan du site, parfois deux fois.
 export function splitSource(title, source) {
-  const i = title.lastIndexOf(' - ');
-  if (i > 20 && title.length - i < 45) return { title: title.slice(0, i).trim(), source: source || title.slice(i + 3).trim() };
-  return { title, source };
+  let t = title, src = source;
+  if (src && t.endsWith(` - ${src}`)) t = t.slice(0, -(src.length + 3)).trim();
+  else {
+    const i = t.lastIndexOf(' - ');
+    if (i > 20 && t.length - i < 45) { src ||= t.slice(i + 3).trim(); t = t.slice(0, i).trim(); }
+  }
+  // « ABC News - Breaking News, Latest News and Videos » → « ABC News »
+  const name = src ? src.split(/\s+[-|–—]\s+/)[0].trim() || src : src;
+  if (name && t.endsWith(` - ${name}`)) t = t.slice(0, -(name.length + 3)).trim();
+  return { title: t, source: name };
 }
 
 // ---------- Mise en forme (français) ----------
@@ -158,24 +165,33 @@ const MAJOR_CB = /\b(fed|fomc|federal reserve|federal open market committee|powe
 const CBANK = /\b(fed|fomc|federal reserve|federal open market committee|powell|ecb|lagarde|bank of england|boe|bank of japan|boj|ueda|pboc|people's bank of china|snb|swiss national bank|bank of canada|rba|central banks?)\b/i;
 const RATEWORD = /\b(rates?|cut|cuts|cutting|hike|hikes|hiking|raises?|raised|lowers?|lowered|holds?|keeps?|leaves|basis points?|bps|easing|tightening|hawkish|dovish|interest)\b/i;
 const SURPRISE = /\b(surprise|surprises|surprising(ly)?|unexpected(ly)?|emergency|shock)\b/i;
-const DECISION = /\b(cuts|hikes|raises|lowers|holds|keeps|leaves|decision|decisions|statement|minutes|announces)\b/i;
+const DECISION = /\b(cuts|hikes|hiked|raises|raised|lowers|lowered|holds|keeps|leaves|statement|minutes|announces)\b/i;
 const RATE_CUT = /\b(cut|cuts|cutting|lowers?|lowered|easing|reduc\w*)\b/i;
 const RATE_HIKE = /\b(hike|hikes|hiking|raises?|raised|tightening)\b/i;
 const RATE_HOLD = /\b(holds?|keeps?|leaves|unchanged|steady|on hold|pauses?|paused)\b/i;
 // « further rate cuts », « two more cuts » : des baisses évoquées, pas la décision du jour.
 const RATE_NOUNS = /\b(rate|further|more|future|additional|deeper|faster|slower|two|three|several|fewer|aggressive|bigger|larger|jumbo|possible|next)\s+(?:rate\s+)?(cuts|hikes|increases|reductions)\b/gi;
 const UNCERTAIN = /\b(may|might|could|considers?|considering|weighs?|weighing|mulls?|likely|expected to|sources say|sources|reportedly|plans? to|talks|eyes|seeks?|would|ahead of|bets?|odds|traders)\b/i;
+// Avant-première : le chiffre ou la décision n'est pas encore tombé.
+const PREVIEW = /\b(ahead of|before|awaits?|awaited|awaiting|eyes|eyeing|braces? for|bracing for|in focus|on tap|preview\w*|what to (expect|watch|know)|expected to|seen (rising|falling|slowing|cooling|easing|at)|forecast to|set to|week ahead|looms?|looming)\b/i;
+// Prévisions, analyses, fils en direct des marchés : utiles à lire, mais pas une nouvelle en soi.
+const ANALYSIS = /\b(price predictions?|predictions? for|forecasts? for (today|tomorrow|next)|(price|oil|gas|gold|bitcoin|btc|crypto|weekly|daily) forecasts?|outlook:|technical analysis|price analysis|week ahead|what to (watch|expect|know)|explainer|explained|opinion|podcast|live markets?|markets? live|market wrap|stocks? to (watch|buy))\b|\bforecasts?\s+[–—:-]/i;
+const NEGATED = /\b(no|not|won't|will not|never|rules? out|ruled out|refuses?|refused|rejects?|rejected|denies|denied)\b/i;
 const THREAT = /\b(threat\w*|warns?|warned|warning|vows?|vowed|if|ready to|prepared to|fears?|risk|risks|possible|potential|calls? for|urges?|denies|denied|rules? out)\b/i;
 
 const INFLATION = /\b(cpi|inflation|pce|consumer prices|producer prices|ppi|nonfarm|payrolls|jobs report|unemployment rate|jobless claims)\b/i;
-const DATA_MOVE = /\b(rises?|rose|falls?|fell|climbs?|climbed|jumps?|jumped|slows?|slowed|cools?|cooled|eases?|eased|accelerat\w*|hotter|cooler|than expected|unexpectedly|beats?|misses?|steady|unchanged|surges?|surged|drops?|dropped)\b/i;
+// Le chiffre lui-même (« CPI rises 0.4% », « jobless claims fall », « employers added 150,000 jobs »), pas une simple mention.
+const DATA_RELEASE = /\b(cpi|inflation|pce|consumer prices|producer prices|ppi|payrolls|jobs report|job growth|job gains|unemployment( rate)?|jobless (claims|rate)|wage growth)\b(?:\W+[\w.%,-]+){0,4}?\W+(rises?|rose|falls?|fell|climbs?|climbed|jumps?|jumped|slows?|slowed|cools?|cooled|eases?|eased|accelerat\w*|hotter|cooler|beats?|beat|misses?|missed|surges?|surged|drops?|dropped|declines?|declined|ticks? (up|down)|edges? (up|down|higher|lower)|steady|unchanged|tops?|topped|exceeds?|exceeded|comes? in|came in|hits?|reaches?|reached|soars?|soared|tumbles?|tumbled|plunges?|plunged|spikes?|spiked|increases?|increased|grows?|grew|rebounds?|rebounded)\b|\b(economy|employers|payrolls)\s+(adds?|added|creates?|created|sheds?|shed|loses?|lost)\s+[\d,.]+\s*(k|thousand|million)?\s+jobs\b/i;
 const DATA_HOT = /\b(hotter|accelerat\w*|more than expected|higher than expected|above (expectations|forecasts?|estimates?)|jumps?|jumped|surges?|surged|beats?|stronger|unexpectedly (rises?|rose|jumps?|jumped|climbs?|climbed))\b/i;
 const DATA_COOL = /\b(cooler|slows?|slowed|cools?|cooled|eases?|eased|less than expected|lower than expected|below (expectations|forecasts?|estimates?)|weaker|misses?|unexpectedly (falls?|fell|drops?|dropped))\b/i;
 const LABOR_BAD = /\b(unemployment|jobless)\b/i;
 const DIR_UP = /\b(rises?|rose|climbs?|climbed|jumps?|jumped|increases?|increased|higher|surges?|surged|spikes?|spiked)\b/i;
 const DIR_DOWN = /\b(falls?|fell|drops?|dropped|declines?|declined|lower|dips?|dipped|eases?|eased)\b/i;
-const FOREIGN = /\b(uk|britain|british|euro ?zone|euro area|german\w*|france|french|japan\w*|china|chinese|canada|canadian|australia\w*|india\w*|turkey|turkish|brazil\w*|argentin\w*|russia\w*|mexic\w*|swiss|korea\w*)\b/i;
-const USA = /\b(us|u\.s\.|american|united states|fed)\b/i;
+const FOREIGN = /\b(uk|britain|british|euro ?zone|euro area|europe\w*|eu|german\w*|france|french|japan\w*|tokyo|asia\w*|china|chinese|canada|canadian|australia\w*|india\w*|turkey|turkish|brazil\w*|argentin\w*|russia\w*|mexic\w*|swiss|korea\w*|ftse|dax|nikkei)\b/i;
+const USA = /(?<![\w.])(us|u\.s\.|usa|american|united states|fed)(?!\w)/i;
+// Droits de douane : ceux des États-Unis font bouger les cryptos, pas un accord Japon-Corée. « US » en majuscules
+// seulement (« us » est aussi un pronom).
+const usActor = t => /\b(trump|white house|washington|lutnick|bessent|greer|united states|america|american)\b/i.test(t) || /(?<![\w.])(US|U\.S\.|USA)(?!\w)/.test(t);
 
 const OPEC = /\bopec\+?/i;
 const OUTPUT = /\b(output|production|supply|quotas?|bpd|barrels per day)\b/i;
@@ -191,7 +207,7 @@ const INV_DRAW = /\b(draws?|fall|falls|fell|drop|drops|dropped|decline\w*|plunge
 const INV_BUILD = /\b(builds?|rise|rises|rose|climb\w*|jump\w*|increase\w*|swell\w*)\b/i;
 
 const WAR = /\b(air ?strikes?|missiles?|rockets?|drones?|bomb\w*|invad\w*|invasion|war|wars|military|troops|shelling|attacks?|attacked|strikes? (on|against|in)|struck|retaliat\w*|escalat\w*)\b/i;
-const WAR_ACT = /\b(air ?strikes?|missile (strike|attack)s?|missiles? (hit|hits|fired|launched|strike|strikes)|fires? missiles|launch(es|ed)? missiles|rockets? (hit|hits|fired)|drone (strike|attack)s?|bomb(s|ing|ed|ings)?|invad\w*|invasion|attacks?|attacked|strikes? (on|against|in)|struck|shelling|retaliat\w*|seiz(es|ed) (a )?(tanker|ship|vessel)|war (with|on|against|breaks out))\b/i;
+const WAR_ACT = /\b(air ?strikes?|missile (strike|attack)s?|missiles? (hit|hits|fired|launched|strike|strikes)|fires? missiles|launch(es|ed)? missiles|rockets? (hit|hits|fired)|drone (strike|attack)s?|bomb(s|ing|ed|ings)?|invad\w*|invasion|attacks?|attacked|strikes? (on|against|in)|struck|shelling|retaliat\w*|seiz(es|ed) (a )?(tanker|ship|vessel)|war breaks out|go(es)? to war|went to war)\b/i;
 const STRAIT = /\b(hormuz|red sea|strait)\b/i;
 const CLOSE = /\b(close|closes|closed|closure|block\w*|blockade)\b/i;
 const OIL_SITE = /\b(refiner\w*|oil (facility|facilities|terminal|port|depot|field|infrastructure)|pipelines?|tankers?|oilfields?|aramco|export terminal)\b/i;
@@ -201,7 +217,7 @@ const HOT_ZONE = /\b(iran\w*|hormuz|saudi\w*|houthis?|red sea|taiwan\w*|nato|nuc
 const NEW_WAR = /\b(declares? war|invades|invaded|invasion of|launch(es|ed)? (a )?(military|ground) (operation|offensive)|nuclear (strike|attack|test))\b/i;
 const ONGOING = /\b(ukrain\w*|russia\w*|kyiv|moscow|gaza|israel\w*|lebanon|hezbollah|hamas|syria\w*|yemen|sudan|kashmir|pakistan|india|north korea\w*|pyongyang)\b/i;
 // Démonstrations de force sans attaque : exercices, déploiements, programme nucléaire.
-const POSTURE = /\b(military drills?|drills|war ?games|exercises|mobiliz\w*|deploys?|deployed|warships?|aircraft carriers?|carrier strike group|troops|ballistic missiles?|missile tests?|nuclear (program|programme|enrichment|site|sites|weapons?|facility|facilities)|uranium|enrichment|intercept\w*|shoots? down|shot down|airspace)\b/i;
+const POSTURE = /\b(military drills?|drills|war ?games|exercises|mobiliz\w*|deploys?|deployed|warships?|aircraft carriers?|carrier strike group|(sends?|sending|sent|mass(es|ing)?|amass\w*) (\w+ )?([\d,]+ )?(troops|marines|soldiers)|ballistic missiles?|missile tests?|nuclear (program|programme|enrichment|site|sites|weapons?|facility|facilities)|uranium|enrichment|intercept\w*|shoots? down|shot down|airspace)\b/i;
 const DIPLOMACY = /\b(talks|negotiations?|deal|tensions?|envoy|summit|diplomat\w*)\b/i;
 const ATTACK_ANY = /\b(attacks?|attacked|struck|hits?|hit by|targets?|targeted|targeting|drones?|missiles?|rockets?|explosions?|blasts?|strikes? on|air ?strikes?|sabotage\w*|ablaze|on fire|fire at)\b/i;
 const CYBER = /\b(cyber\w*|hack\w*)\b/i;
@@ -213,6 +229,7 @@ const TARIFF_EASE = /\b(deal|truce|pause\w*|delay\w*|exempt\w*|lift\w*|remov\w*|
 const TARIFF_NEW = /\b(impos\w*|slaps?|announc\w*|raises?|hikes?|new|threat\w*|retaliat\w*|doubles?|triples?)\b/i;
 
 const RECAP = /\b(this year|so far|in 20\d\d|since 20\d\d|report|reports|analysis|total|record year|h1|q[1-4]|first half|annual|monthly|in (january|february|march|april|may|june|july|august|september|october|november|december))\b/i;
+const FOLLOW_UP = /\b(recover\w*|refund\w*|reimburs\w*|compensat\w*|returns? (the )?(stolen )?funds|returned|bounty|ultimatum|identif\w*|arrest\w*|extradit\w*|sentenc\w*|indict\w*|pleads?|guilty|charged|launder\w*|post-?mortem|anniversary)\b/i;
 const HACK = /\b(hack|hacks|hacked|hacker|hackers|hacking|exploit|exploits|exploited|exploiter|drain|drained|draining|stolen|heist|breach|breached|attacker|attackers)\b/i;
 
 const ETF = /\betfs?\b/i;
@@ -288,20 +305,24 @@ const RULES = [
     const amt = amountUsd(t);
     const tk = tokensIn(t);
     const recap = RECAP.test(t); // bilan des piratages, pas un nouveau piratage
-    const importance = recap ? 'low' : amt >= NEWS.hackCriticalUsd ? 'critical' : amt >= NEWS.hackMediumUsd || (amt === null && ctx.crypto) ? 'medium' : 'low';
+    const followUp = FOLLOW_UP.test(t); // suite d'un piratage déjà connu : remboursement, pirate identifié…
+    let importance = recap ? 'low' : amt >= NEWS.hackCriticalUsd ? 'critical' : amt >= NEWS.hackMediumUsd || (amt === null && ctx.crypto) ? 'medium' : 'low';
+    if (followUp && !recap) importance = importance === 'critical' ? 'medium' : 'low';
     const victim = tk.length ? tk : /\b(defi|protocol|lending|dex|bridge|vault|yield)\b/i.test(t) ? ['DeFi'] : ['Crypto'];
     return {
       theme: 'hack', importance, amountUsd: amt,
       impacts: importance === 'critical' ? down(...victim) : [],
       why: recap ? 'Bilan des piratages : le risque reste élevé dans la DeFi.'
-        : importance === 'critical' ? 'Gros piratage : les pirates revendent souvent le butin, et la confiance dans tout le secteur en prend un coup.'
-          : 'Piratage : vérifie que tu n\'as pas de fonds sur ce protocole.',
+        : followUp ? 'Suite d\'un piratage : à suivre si tu as des fonds sur ce protocole ou cet exchange.'
+          : importance === 'critical' ? 'Gros piratage : les pirates revendent souvent le butin, et la confiance dans tout le secteur en prend un coup.'
+            : 'Piratage : vérifie que tu n\'as pas de fonds sur ce protocole.',
     };
   }],
-  ['taux', t => {
+  ['taux', (t, ctx) => {
     // Tout ce qui touche la Fed est gardé (nominations, indépendance, discours), au moins en faible importance.
-    if (!(CBANK.test(t) && (RATEWORD.test(t) || DECISION.test(t))) && !FED.test(t)) return null;
-    const decided = DECISION.test(t) && !UNCERTAIN.test(t);
+    const official = Boolean(ctx.prefix) && /\bdecisions?\b/i.test(t); // communiqué « Monetary policy decisions » de la BCE
+    if (!(CBANK.test(t) && (RATEWORD.test(t) || DECISION.test(t) || official)) && !FED.test(t)) return null;
+    const decided = (DECISION.test(t) || official) && !UNCERTAIN.test(t) && !PREVIEW.test(t);
     const act = decided ? rateAction(t) : null;
     // Seule la Fed fait vraiment bouger les cryptos ; les autres banques centrales sont affichées sans flèche.
     const fed = FED.test(t);
@@ -315,16 +336,17 @@ const RULES = [
     };
   }],
   ['inflation', t => {
-    if (!INFLATION.test(t)) return null;
+    if (!INFLATION.test(t) && !DATA_RELEASE.test(t)) return null;
     const us = !FOREIGN.test(t) || USA.test(t);
     const labor = LABOR_BAD.test(t);
     // Chômage en hausse : mauvaise nouvelle pour l'économie… mais elle rapproche les baisses de taux.
     const strong = labor ? DIR_DOWN.test(t) && !DIR_UP.test(t) : DATA_HOT.test(t) && !DATA_COOL.test(t);
     const weak = labor ? DIR_UP.test(t) && !DIR_DOWN.test(t) : DATA_COOL.test(t) && !DATA_HOT.test(t);
-    const bullish = us && weak, bearish = us && strong;
+    const release = us && DATA_RELEASE.test(t) && !PREVIEW.test(t);
+    const bullish = release && weak, bearish = release && strong;
     const what = labor || /\b(payrolls|jobs)\b/i.test(t) ? "Marché de l'emploi américain" : 'Inflation américaine';
     return {
-      theme: 'cb', importance: us && DATA_MOVE.test(t) ? 'medium' : 'low', impacts: bullish ? up('BTC') : bearish ? down('BTC') : [],
+      theme: 'cb', importance: release ? 'medium' : 'low', impacts: bullish ? up('BTC') : bearish ? down('BTC') : [],
       why: bearish ? `${what} plus forte que prévu : la Fed baissera ses taux moins vite, ce qui pèse sur les cryptos.`
         : bullish ? `${what} plus faible que prévu : la Fed pourra baisser ses taux plus vite, ce qui aide les cryptos.`
           : 'Inflation et emploi décident du rythme des baisses de taux de la Fed.',
@@ -332,10 +354,11 @@ const RULES = [
   }],
   ['droits-de-douane', t => {
     if (!TARIFF.test(t)) return null;
-    const ease = /\b(deal|truce|agreement)\b/i.test(t) || (TARIFF_EASE.test(t) && !TARIFF_NEW.test(t));
-    const tough = !ease && TARIFF_NEW.test(t);
+    const negated = NEGATED.test(t);
+    const ease = !negated && (/\b(deal|truce|agreement)\b/i.test(t) || (TARIFF_EASE.test(t) && !TARIFF_NEW.test(t)));
+    const tough = !negated && !ease && TARIFF_NEW.test(t);
     return {
-      theme: 'geo', importance: (ease || tough) && !UNCERTAIN.test(t) ? 'medium' : 'low', impacts: ease ? up('BTC') : tough ? down('BTC') : [],
+      theme: 'geo', importance: usActor(t) && (ease || tough) && !UNCERTAIN.test(t) ? 'medium' : 'low', impacts: ease ? up('BTC') : tough ? down('BTC') : [],
       why: tough ? 'Nouveaux droits de douane : les marchés à risque, cryptos comprises, baissent souvent.'
         : ease ? 'Apaisement commercial : bon signe pour les marchés à risque, cryptos comprises.'
           : 'Les guerres commerciales font bouger tous les marchés à risque.',
@@ -419,7 +442,7 @@ const RULES = [
     return { theme: 'energy', importance: 'low', impacts: [], why: 'Actualité du pétrole, du gaz et de l\'or.' };
   }],
   ['conflit', t => {
-    if (!((WAR_ACT.test(t) || WAR.test(t) || HITS_PLACE.test(t)) && ONGOING.test(t))) return null;
+    if (!((WAR_ACT.test(t) || WAR.test(t) || HITS_PLACE.test(t)) && (ONGOING.test(t) || HOT_ZONE.test(t)))) return null;
     return { theme: 'geo', importance: 'low', impacts: [], why: 'Conflit en cours : effet limité sur les marchés tant qu\'il ne s\'étend pas.' };
   }],
 ];
@@ -444,6 +467,7 @@ export function classify(title, ctx = {}) {
   for (const [rule, fn] of RULES) {
     const hit = fn(text, ctx);
     if (!hit) continue;
+    if (ANALYSIS.test(text)) hit.importance = 'low'; // prévision, analyse, fil en direct : gardé mais en faible importance
     if (ctx.theme && hit.theme !== ctx.theme && hit.importance === 'low') continue;
     // Sur une news de faible importance, la flèche serait surtout du bruit.
     const impacts = hit.importance === 'low' && rule !== 'stocks-petrole' ? [] : hit.impacts;
@@ -451,7 +475,7 @@ export function classify(title, ctx = {}) {
   }
   if (project) {
     return {
-      rule: 'projet', theme: 'project', importance: 'medium', impacts: [], projectId: project.id,
+      rule: 'projet', theme: 'project', importance: ANALYSIS.test(text) ? 'low' : 'medium', impacts: [], projectId: project.id,
       why: `${project.name} fait partie du top 25 de l'onglet Projets (n°${project.rank}).`,
     };
   }
@@ -577,6 +601,7 @@ export function cluster(items) {
       amountUsd: members.map(m => m.amountUsd).filter(v => v != null).sort((x, y) => y - x)[0] ?? null,
       projectId: members.map(m => m.projectId).find(Boolean) ?? null,
       kind: best.kind ?? 'feed', rank: Math.max(...members.map(rank)),
+      ...(members.some(m => m.calm) && { calm: true }),
     };
   });
 }
@@ -588,8 +613,29 @@ export function hashId(s) {
   return h.toString(36);
 }
 
+// Guerre déjà en cours : seule la première frappe d'une zone en 24 h est critique. Les suivantes passent en
+// « moyenne » (le marché les attend en partie), sauf une escalade majeure : déclaration de guerre, invasion, détroit fermé.
+const zoneOf = t => (/\btaiwan/i.test(t) ? 'taiwan' : /\bnato\b/i.test(t) ? 'otan' : 'moyen-orient');
+const majorEscalation = t => NEW_WAR.test(t) || (STRAIT.test(t) && CLOSE.test(t));
+
+function calmOngoingWars(items) {
+  const last = {};
+  for (const i of [...items].sort((a, b) => a.time - b.time)) {
+    if (i.rule !== 'guerre' || !(i.raw === 'critical' || i.calm)) continue; // une frappe, pas une menace
+    const zone = zoneOf(i.titleEn);
+    if (i.calm || (!majorEscalation(i.titleEn) && last[zone] != null && i.time - last[zone] < 24 * HOUR)) {
+      Object.assign(i, {
+        calm: true, importance: 'medium',
+        why: 'Nouvelle frappe dans une guerre déjà en cours : le marché l\'attend en partie, l\'effet sur le pétrole et l\'or est souvent plus faible qu\'à la première escalade.',
+      });
+    }
+    last[zone] = i.time;
+  }
+}
+
 // Fusionne les anciennes news et les nouvelles, regroupe, garde 72 h.
-// Les petits mouvements de baleines sont limités aux plus récents pour ne pas noyer le fil.
+// Les petits mouvements de baleines sont limités aux plus récents pour ne pas noyer le fil, et les news de faible
+// importance laissent la place aux autres : une news critique reste 72 h même un jour très chargé.
 export function buildFeed(previous, fresh, now = Date.now()) {
   const since = now - NEWS.keepHours * HOUR;
   const prev = (previous || []).filter(i => i.time >= since).map(i => ({ ...i, words: undefined }));
@@ -598,9 +644,11 @@ export function buildFeed(previous, fresh, now = Date.now()) {
   const add = fresh
     .filter(i => i.time >= since && i.time <= now + HOUR && !known.has(i.id) && !seen.has(i.id) && seen.add(i.id))
     .sort((a, b) => a.time - b.time);
-  let smallWhales = 0;
-  return cluster([...prev.sort((a, b) => a.time - b.time), ...add])
-    .sort((a, b) => b.time - a.time)
-    .filter(i => i.kind !== 'whale' || i.importance !== 'low' || ++smallWhales <= NEWS.maxSmallWhales)
-    .slice(0, NEWS.maxItems);
+  const items = cluster([...prev.sort((a, b) => a.time - b.time), ...add]);
+  calmOngoingWars(items);
+  let smallWhales = 0, low = 0;
+  const kept = items.sort((a, b) => b.time - a.time)
+    .filter(i => i.kind !== 'whale' || i.importance !== 'low' || ++smallWhales <= NEWS.maxSmallWhales);
+  const lowRoom = NEWS.maxItems - kept.filter(i => i.importance !== 'low').length;
+  return kept.filter(i => i.importance !== 'low' || ++low <= lowRoom).slice(0, NEWS.maxItems);
 }

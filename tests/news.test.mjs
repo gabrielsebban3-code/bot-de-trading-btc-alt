@@ -40,6 +40,9 @@ test('parseTelegram lit la page publique d\'un canal', () => {
 test('titres : source Google News, emojis, « BREAKING », titre de message Telegram', () => {
   assert.deepEqual(splitSource('Iran fires missiles at Israel, officials say - Associated Press', null), { title: 'Iran fires missiles at Israel, officials say', source: 'Associated Press' });
   assert.deepEqual(splitSource('A short one - X', 'Y'), { title: 'A short one - X', source: 'Y' });
+  const abc = 'ABC News - Breaking News, Latest News and Videos';
+  assert.deepEqual(splitSource(`Fed holds rates steady as inflation hits 3-year high - ${abc}`, abc), { title: 'Fed holds rates steady as inflation hits 3-year high', source: 'ABC News' });
+  assert.deepEqual(splitSource(`Rubio says US struck Iran - ABC News - ${abc}`, abc), { title: 'Rubio says US struck Iran', source: 'ABC News' }, 'source répétée dans le titre');
   assert.equal(tidy('🚨 BREAKING: 🇺🇸 Fed cuts rates'), 'Fed cuts rates');
   assert.equal(tidy('JUST IN - Bitcoin ETF approved'), 'Bitcoin ETF approved');
   assert.equal(headline('🚨 JUST IN:\nSEC approves spot Solana ETFs.\nhttps://t.co/x'), 'SEC approves spot Solana ETFs');
@@ -98,6 +101,27 @@ const CASES = [
   ['SEC drops case against Coinbase', {}, 'regulation', 'medium', [['Crypto', 1]]],
   ['Strategy buys another 10,000 bitcoin for $1.1 billion', {}, 'gros-detenteur', 'medium', [['BTC', 1]]],
   ['Bitcoin price analysis: bulls eye resistance', { crypto: true }, null],
+  // Titres vus lors de l'essai sur les vraies sources (2 octobre 2026) : bruit à garder en faible importance.
+  ['LIVE MARKETS: FTSE seen rebounding as bond yields steady ahead of jobs report', {}, 'inflation', 'low', []],
+  ['US stocks advance as Treasury yields fall ahead of jobs report', {}, 'inflation', 'low', []],
+  ['US job growth expected to slow in September; unemployment rate probably steady', {}, 'inflation', 'low', []],
+  ['Asian officials address long-end rate volatility as Tokyo CPI jumps', {}, 'inflation', 'low', []],
+  ['US mortgage rates climb to 7.28% after Iran war pushed inflation higher', {}, 'inflation', 'low', []],
+  ['US employers added 254,000 jobs in September', {}, 'inflation', 'medium', []],
+  ['US CPI rises 0.4% in September, hotter than expected', {}, 'inflation', 'medium', [['BTC', -1]]],
+  ['Key US inflation data and Fed decision in October', {}, 'taux', 'low', []],
+  ['Bitget "doesn\'t expect to recover much" of $388 million hack, CEO tells CNBC', { crypto: true }, 'hack', 'medium', []],
+  ['NEAR Intents says it identified the hacker, gives 48-hour ultimatum', { crypto: true }, 'hack', 'low', []],
+  ['Pentagon announces combat pay raise amid war with Iran', {}, 'conflit', 'low', []],
+  ['Trump says it is possible the war with Iran costs him the midterm elections', {}, 'tensions', 'low', []],
+  ['Pentagon identifies 6 US troops killed in Kuwait during Iran war', {}, 'conflit', 'low', []],
+  ['Third carrier for Iran? USS Theodore Roosevelt deploys from San Diego', {}, 'tensions', 'medium', []],
+  ['Natural Gas, WTI Oil, Brent Oil Forecasts – Oil Rebounds as Trump Signals More Strikes on Iran', {}, 'guerre', 'low', []],
+  ['Tanker catches fire after first Hormuz attack in October', {}, 'guerre', 'critical', [['Pétrole', 1], ['Or', 1], ['BTC', -1]]],
+  ['Japan and South Korea seal $900 billion deal that eases tariffs', {}, 'droits-de-douane', 'low', []],
+  ['Costco says it used tariff refunds to cut prices', {}, 'droits-de-douane', 'low', []],
+  ['US has no timeline for cutting tariffs on $60 billion of Chinese goods', {}, 'droits-de-douane', 'low', []],
+  ['Trump imposes additional 50% tariffs on some Canadian products', {}, 'droits-de-douane', 'medium', [['BTC', -1]]],
   ['Teachers strikes in France', {}, null],
 ];
 
@@ -117,6 +141,8 @@ test('classify : thème, importance et impact probable sur des titres réels', (
 
 test('classify : communiqués officiels et projets du top', () => {
   assert.equal(classify('ECB publishes supervisory banking statistics', { prefix: 'ECB', theme: 'cb', why: 'Communiqué BCE.' }).rule, 'source');
+  assert.deepEqual(['rule', 'importance'].map(k => classify('ECB: Monetary policy decisions', { prefix: 'ECB', theme: 'cb' })[k]), ['taux', 'medium'], 'décision officielle du jour');
+  assert.equal(classify('TRUMP ANNOUNCES 100% TARIFFS ON CHINA').importance, 'medium', 'titre tout en majuscules');
   const projects = [{ id: 'nebula-dex', name: 'Nebula DEX', symbol: 'NBL', rank: 1 }, { id: 'lighter', name: 'Lighter', symbol: 'LIT', rank: 2 }];
   const hit = classify('Nebula DEX launches v2 with fee buybacks', { projects });
   assert.deepEqual([hit.theme, hit.importance, hit.projectId], ['project', 'medium', 'nebula-dex']);
@@ -187,6 +213,33 @@ test('buildFeed : garde 72 h, ne rajoute pas une news déjà vue, limite les pet
   assert.equal(feed.filter(i => i.id === 'n1').length, 1);
   assert.equal(feed.filter(i => i.kind === 'whale').length, NEWS.maxSmallWhales);
   assert.ok(feed.every((x, k) => k === 0 || feed[k - 1].time >= x.time), 'plus récentes en premier');
+});
+
+test('guerre en cours : seule la première frappe d\'une zone en 24 h reste critique', () => {
+  const strike = (id, hoursAgo, titleEn) => ({ ...item(id, titleEn, { time: NOW - hoursAgo * HOUR }), ...classify(titleEn) });
+  const feed = buildFeed([], [
+    strike('a', 10, 'Israel strikes Iran nuclear sites'),
+    strike('b', 6, 'US strikes Iranian missile bases'),
+    strike('c', 2, 'Iran closes Strait of Hormuz to shipping'),
+    strike('d', 1, 'China fires missiles at Taiwan'),
+  ], NOW);
+  const level = (f, id) => f.find(i => i.id === id).importance;
+  assert.deepEqual(['a', 'b', 'c', 'd'].map(id => level(feed, id)), ['critical', 'medium', 'critical', 'critical'],
+    'frappe suivante : moyenne ; détroit fermé : toujours critique ; autre zone : critique');
+  assert.match(feed.find(i => i.id === 'b').why, /guerre déjà en cours/);
+  assert.deepEqual(feed.find(i => i.id === 'b').impacts, [['Pétrole', 1], ['Or', 1], ['BTC', -1]]);
+  assert.equal(level(buildFeed(feed, [], NOW + HOUR), 'b'), 'medium', 'reste moyenne aux mises à jour suivantes');
+  const later = buildFeed([], [strike('a', 40, 'Israel strikes Iran nuclear sites'), strike('e', 1, 'US strikes Iranian missile bases')], NOW);
+  assert.equal(level(later, 'e'), 'critical', 'plus de 24 h sans frappe : nouvelle escalade');
+});
+
+test('buildFeed : les news faibles laissent la place aux importantes un jour chargé', () => {
+  const lows = Array.from({ length: NEWS.maxItems + 20 }, (_, k) => item(`l${k}`, `w${k}a w${k}b w${k}c w${k}d`, { importance: 'low', time: NOW - k * 60_000 }));
+  const crit = item('c', 'Iran launches missile attack on Israel', { importance: 'critical', theme: 'geo', rule: 'guerre', time: NOW - 30 * HOUR });
+  const feed = buildFeed([], [...lows, crit], NOW);
+  assert.equal(feed.length, NEWS.maxItems);
+  assert.ok(feed.some(i => i.id === 'c'), 'la news critique de la veille est gardée');
+  assert.ok(feed.some(i => i.id === 'l0') && !feed.some(i => i.id === `l${NEWS.maxItems + 19}`), 'les news faibles les plus anciennes partent');
 });
 
 test('build-news écrit news.json à partir des réponses fictives', async () => {

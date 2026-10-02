@@ -11,7 +11,8 @@ const COMMODITY = { CL: 'Pétrole', BZ: 'Pétrole', NG: 'Gaz' };
 
 let data = null;
 let projectsById = new Map();
-const state = { theme: 'all', level: 'all', shown: PAGE };
+// Par défaut : moyennes et critiques (les faibles restent à un clic, filtre « Toutes »).
+const state = { theme: 'all', level: 'medium', shown: PAGE };
 const store = {
   get(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } },
   set(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* stockage indisponible */ } },
@@ -118,6 +119,7 @@ export function initNews(newsData, projects) {
   projectsById = new Map((projects?.projects || []).filter(p => p.inTop).map(p => [p.id, p]));
   Object.assign(state, store.get('dinexo-news') || {});
   if (state.theme !== 'all' && !data.themes[state.theme]) state.theme = 'all';
+  if (!LEVELS.some(([k]) => k === state.level)) state.level = 'all';
   state.shown = PAGE;
   const update = () => { store.set('dinexo-news', { theme: state.theme, level: state.level }); state.shown = PAGE; renderChips(); renderList(); };
   $('news-themes').addEventListener('click', e => {
