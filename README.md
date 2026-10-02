@@ -3,7 +3,7 @@
 Dashboard de trading public :
 
 - **Projets** : petits projets crypto (< 1 Md$, pas encore sur Binance) qui génèrent de vrais revenus et grandissent. ✅
-- **Setups 4h** : 5 détecteurs indépendants sur OKX (top 50 crypto + pétrole/gaz), avec stop, objectifs et taux de réussite de chaque détecteur. ✅
+- **Setups swing** : trades de 2 à 5 jours sur BTC, ETH, SOL et le pétrole Brent (OKX). Un seul signal, rare : cassure du plus haut/bas de 20 jours dans le sens de la tendance journalière, avec stop, objectifs et bilan sur 12 mois. ✅
 - **Actu** : géopolitique, banques centrales, OPEP, régulation, hacks, ETF, baleines, traduits en français, classés par importance avec l'impact probable par actif. Bandeau rouge sur les news critiques. ✅
 
 Le cahier des charges complet est dans [`SPEC.md`](SPEC.md), la maquette dans [`mockup/index.html`](mockup/index.html).

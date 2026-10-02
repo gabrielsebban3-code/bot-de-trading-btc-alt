@@ -3,7 +3,7 @@
 Dashboard web public pour trader crypto et matières premières :
 
 1. **Projets** : trouver des petits projets crypto qui génèrent de vrais revenus et grandissent.
-2. **Setups** : détecter des setups de trading en 4h sur OKX.
+2. **Setups** : détecter des setups swing (2 à 5 jours) sur BTC, ETH, SOL et le pétrole Brent, via OKX.
 3. **Actu** : être prévenu de l'actualité qui fait bouger les marchés.
 
 Maquette de référence : [`mockup/index.html`](mockup/index.html).
@@ -64,36 +64,34 @@ Maquette de référence : [`mockup/index.html`](mockup/index.html).
 
 ## 4. Onglet Setups
 
+Gabriel trade en **swing sur 2 à 3 jours** et veut **peu de signaux**. Révision du 2 octobre 2026 : la v1 (5 détecteurs 4h sur le top 50 crypto) perdait. Sur les 90 derniers jours, 75 % de stops touchés rien que sur BTC, ETH, SOL et le Brent, et encore plus sur les altcoins.
+
 | Sujet | Décision |
 |---|---|
-| Données | OKX |
-| Marchés | Top 50 crypto + pétrole / gaz |
-| Unité de temps | 4h. Tendance 1D affichée à titre d'info, sans filtrer |
-| Détecteurs | Indépendants et simples (une cassure = juste une cassure). Départ avec 5 : **Breakout + volume, Liquidity sweep, FVG, Funding/OI extrême, Niveaux** (veille/semaine, chiffres ronds, volume) |
-| Détecteurs ensuite | Order block, BOS/CHoCH, RSI/divergences, EMA, cascades de liquidations — ajoutés seulement si l'historique montre qu'ils fonctionnent |
-| Statut | « En cours » (bougie ouverte) puis « Confirmé » (bougie clôturée) |
-| Contenu d'un signal | **Pourquoi ce signal** (très important), entrée, stop-loss ATR, TP partiels (TP1/TP2/TP3), R:R, taux de réussite du détecteur, lien vers un projet du top ou une news liée |
-| Filtre | R:R minimum 1:2 |
-| Durée d'affichage | 24 h |
-| Historique | Taux de réussite par détecteur (gagné = TP1 touché avant le SL), stocké côté serveur |
+| Données | OKX, perpétuels USDT |
+| Marchés | **BTC, ETH, SOL et pétrole Brent (`BZ`) seulement** |
+| Style | Swing de 2 à 5 jours, un seul trade à la fois par actif |
+| Détecteur | **Cassure 20 jours** : clôture 4h au-dessus du plus haut des 20 derniers jours quand la tendance 1D est haussière (long), ou sous le plus bas quand elle est baissière (short) |
+| Tendance 1D | Haussière si clôture et EMA20 au-dessus de l'EMA50 journalière, baissière si les deux en dessous. Sert de **filtre** : pas de trade contre la tendance |
+| Stop | 1 ATR(14) journalier |
+| Objectifs | TP1 à 2R, TP2 à 3R, TP3 à 4R |
+| Sortie | Ni stop ni TP1 au bout de 5 jours : on sort au prix du moment |
+| Fréquence | Environ 1 signal par semaine sur les 4 paires |
+| Statut | « En cours » (bougie 4h ouverte) puis « Confirmé » (bougie clôturée) |
+| Affichage | Tant que le trade est en jeu, et au moins 24 h |
+| Contenu d'un signal | Pourquoi ce signal, entrée, stop, TP1/TP2/TP3, R:R, bilan sur 12 mois, news liée |
+| Historique | Recalculé à chaque mise à jour sur 12 mois de bougies 4h. Gagnant = TP1 touché avant le stop, ou sortie à 5 jours en gain |
 | Discord | Watchlist seulement, 3 signaux max par jour (plus tard) |
 
-**Fonctionnement (v1) :**
+**Backtest qui a servi au choix** (bougies OKX de mars 2023 à octobre 2026, frais de 0,12 % par trade inclus, stop prioritaire si stop et objectif tombent dans la même bougie) :
 
-| Sujet | Règle |
-|---|---|
-| Marchés | Top 50 CoinGecko disponible en perpétuel USDT sur OKX (stablecoins exclus) + WTI (`CL`), Brent (`BZ`), gaz naturel (`NG`). Si CoinGecko ne répond pas : les 50 plus gros volumes OKX |
-| Breakout + volume | Clôture au-dessus du plus haut (ou sous le plus bas) des 20 dernières bougies, volume ≥ 1,8× la moyenne 20 bougies |
-| Liquidity sweep | Mèche sous un plus bas (semaine dernière, veille ou 20 bougies) puis clôture au-dessus, dans la moitié haute de la bougie. Inverse pour un short |
-| FVG | Premier retour du prix dans un gap de 3 bougies (≥ 0,3 ATR) de moins de 30 bougies, clôture qui tient le gap |
-| Funding/OI extrême | Funding ≥ 0,04 %/8 h (ou ≤ −0,04 %) et open interest +10 % en 24 h → signal contraire |
-| Niveaux | Rebond (ou rejet) sur le plus haut/bas de la veille ou de la semaine dernière, un chiffre rond ou le niveau le plus échangé sur 30 jours |
-| Stop | 1,5 ATR(14) |
-| Objectifs | Juste avant les niveaux suivants (sommets/creux, veille, semaine, chiffres ronds, volume). Sinon 2R, 3R, 4,5R |
-| Filtre R:R | Si le premier niveau gênant est à moins de 2R, le signal est écarté |
-| Anti-doublon | Un même détecteur ne redonne pas le même signal sur un actif pendant 24 h |
-| Résultat | TP1 avant le stop = gagné. Stop et TP1 dans la même bougie = perdu. Rien après 5 jours = expiré (non gagné) |
-| Historique | Recalculé à chaque mise à jour sur 90 jours de bougies 4h. L'open interest OKX ne remonte qu'à ~16 jours : l'historique Funding/OI se construit au fil des mises à jour (fichier `setups.json` déjà en ligne) |
+| Stratégie | Trades | Stops touchés | R moyen par trade |
+|---|---|---|---|
+| v1 : 5 détecteurs 4h, sans filtre | 447 | 68 % | −0,03R |
+| v1, 90 derniers jours | 28 | 75 % | −0,33R |
+| **Cassure 20 jours + tendance 1D** | 211 (1,2 par semaine) | 44 % | **+0,21R**, positif chaque année et sur chaque paire |
+
+Testés et écartés : pullback sur l'EMA20 journalière (≈ 0R), sweep journalier (+0,05R, instable), v1 avec filtre de tendance (+0,16R mais 64 % de stops). La v1 avait trois défauts : des altcoins faibles, des signaux pris contre la tendance journalière et un stop à 1,5 ATR 4h, trop serré pour tenir plusieurs jours.
 
 ## 5. Onglet Actu
 
@@ -162,7 +160,7 @@ Pied de page : avertissement « pas un conseil financier »
 GitHub Actions (toutes les heures ; l'actu toutes les 15 minutes)
   └── scripts/build-data.mjs  → récupère les API, calcule scores et badges
         └── data/projects.json, data/market.json
-  └── scripts/build-setups.mjs → bougies 4h OKX, détecteurs, bilan
+  └── scripts/build-setups.mjs → bougies 4h et 1D OKX (BTC, ETH, SOL, Brent), détecteur swing, bilan
         └── data/setups.json
   └── scripts/build-news.mjs  → flux d'actu, classement, doublons, traduction
         └── data/news.json
