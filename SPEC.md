@@ -95,7 +95,7 @@ Maquette de référence : [`mockup/index.html`](mockup/index.html).
 | Résultat | TP1 avant le stop = gagné. Stop et TP1 dans la même bougie = perdu. Rien après 5 jours = expiré (non gagné) |
 | Historique | Recalculé à chaque mise à jour sur 90 jours de bougies 4h. L'open interest OKX ne remonte qu'à ~16 jours : l'historique Funding/OI se construit au fil des mises à jour (fichier `setups.json` déjà en ligne) |
 
-## 5. Onglet Actu (à venir)
+## 5. Onglet Actu
 
 | Sujet | Décision |
 |---|---|
@@ -107,6 +107,24 @@ Maquette de référence : [`mockup/index.html`](mockup/index.html).
 | Baleines | > 10 M$, tokens des projets du top, dépôts sur exchange et wallets connus |
 | Bandeau | Bandeau rouge en haut du site quand une news critique tombe |
 | Discord | Importance moyenne et critique, 24h/24 (plus tard) |
+
+**Fonctionnement (v1) :**
+
+| Sujet | Règle |
+|---|---|
+| Sources | Flux officiels Fed, BCE et SEC · Google News, une recherche par thème sur 24 h (Reuters, AP, Bloomberg, CNBC…) · BBC, Al Jazeera, CNBC, FXStreet, OilPrice · CoinDesk, Cointelegraph, The Block, Decrypt, DL News, Blockworks · pages publiques Telegram : Watcher.Guru, Wu Blockchain, Whale Alert |
+| Fréquence | Toutes les 15 minutes. Une news reste 72 h dans le fil |
+| Classement | Règles par mots-clés sur le titre : thème, importance, impact probable par actif et « pourquoi ça compte ». Un titre hors des thèmes suivis est écarté |
+| Critique | Attaque ou frappe dans une zone clé (Iran, Golfe, Hormuz, Taïwan…), nouvelle guerre, détroit fermé · décision de taux surprise d'une grande banque centrale · décision ferme de l'OPEP+ de changer sa production · hack crypto > 50 M$ |
+| Moyenne | Décision de taux (Fed, BCE, BoE, BoJ) · chiffre d'inflation ou d'emploi américain · droits de douane annoncés ou levés · sanctions pétrolières · menace d'escalade ou tensions militaires sans attaque · attaque d'installations pétrolières · flux ETF > 500 M$, approbation ou refus d'ETF · plainte, loi ou interdiction sur les cryptos · hack > 5 M$ · baleine > 100 M$ · news sur un projet du top 25 |
+| Faible | Le reste des thèmes suivis : frappes dans les conflits déjà en cours (Ukraine, Gaza…), discours, stocks de pétrole, prix de l'or… Sans flèche d'impact |
+| Confirmation | Une news critique venue d'un seul petit média reste « moyenne » tant qu'une agence, une source officielle ou un deuxième média ne l'a pas confirmée |
+| Impact probable | Guerre : pétrole ▲ or ▲ BTC ▼ · baisse de taux de la Fed : BTC ▲ or ▲ (hausse : BTC ▼) · inflation ou emploi américains plus forts que prévu : BTC ▼ (plus faibles : ▲) · moins de production OPEP+ : pétrole ▲ · hack : token touché ou DeFi ▼ · entrées dans les ETF : ▲ · dépôt d'une baleine sur un exchange : ▼, retrait : ▲, création de stablecoins : crypto ▲ |
+| Doublons | Même jour, mêmes mots importants et mêmes acteurs (la Fed n'est pas la BCE) = une seule ligne avec le nombre de sources. Le titre affiché vient de la source la plus fiable |
+| Traduction | Google Traduction (accès gratuit), sinon MyMemory. Un titre pas encore traduit s'affiche en anglais avec la mention EN et repasse à la traduction suivante |
+| Baleines | Whale Alert, transferts > 10 M$, plus les achats et ventes des gros détenteurs connus (Strategy, gouvernements, fondations). Dans « Tout », seuls ceux > 100 M$ ou sur un token du top 25 apparaissent ; les autres sont dans le filtre Baleines |
+| Bandeau | Dernière news critique des 6 dernières heures, en rouge en haut de toutes les pages, refermable |
+| Liens | Un setup affiche la news importante des dernières 24 h sur son actif (pétrole pour WTI/Brent, BTC pour tout le marché crypto) et dit si elle va dans son sens. Une fiche projet affiche ses news |
 
 ## 6. Organisation des pages
 
@@ -141,17 +159,19 @@ Pied de page : avertissement « pas un conseil financier »
 ## 8. Architecture technique
 
 ```
-GitHub Actions (toutes les heures)
+GitHub Actions (toutes les heures ; l'actu toutes les 15 minutes)
   └── scripts/build-data.mjs  → récupère les API, calcule scores et badges
         └── data/projects.json, data/market.json
   └── scripts/build-setups.mjs → bougies 4h OKX, détecteurs, bilan
         └── data/setups.json
+  └── scripts/build-news.mjs  → flux d'actu, classement, doublons, traduction
+        └── data/news.json
 GitHub Pages
   └── index.html + css/ + js/ → lit les fichiers JSON
 ```
 
 - Les données sont récupérées **une fois pour tout le monde** par GitHub Actions. Le nombre de visiteurs ne change rien aux coûts ni aux limites des API.
-- Si une source tombe, le site garde la dernière version publiée.
+- Si une source tombe, le site garde la dernière version publiée de la partie concernée, sans bloquer les autres.
 - Supabase (plus tard) : comptes, watchlists.
 
 ## 9. Ordre de réalisation
@@ -159,6 +179,6 @@ GitHub Pages
 1. ✅ Cahier des charges + maquette
 2. ✅ Onglet Projets
 3. ✅ Onglet Setups + Historique
-4. Onglet Actu
+4. ✅ Onglet Actu
 5. Comptes (Supabase)
 6. IA + alertes Discord

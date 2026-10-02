@@ -30,6 +30,7 @@
       </nav>
       <span class="updated" id="updated"></span>
     </div>
+    <div class="alert" id="alert" role="alert" hidden><a href="#actu"><span class="k">Critique</span><span class="t"></span><span class="when"></span></a><button type="button" aria-label="Fermer le bandeau">×</button></div>
     <div class="ticker" id="ticker" hidden><div id="ticker-track"></div></div>
   </header>
 
@@ -46,7 +47,7 @@
       <div class="cols">
         <div class="box"><h2>Projets <a href="#projets">Top 25 →</a></h2><div id="resume-projects"></div></div>
         <div class="box"><h2>Setups 4h <a href="#setups">Tous →</a></h2><div id="resume-setups"></div></div>
-        <div class="box"><h2>Actu <a href="#actu">Fil complet →</a></h2><div class="soon">Le fil d'actualité arrive après les setups.</div></div>
+        <div class="box"><h2>Actu <a href="#actu">Fil complet →</a></h2><div id="resume-news"></div></div>
       </div>
     </section>
 
@@ -127,10 +128,28 @@
       <div id="setup-detail"></div>
     </section>
 
+    <!-- Actu -->
     <section class="page" id="page-actu">
-      <h1>Actu</h1>
-      <div class="box"><div class="empty">En construction. Géopolitique, banques centrales, OPEP, régulation, hacks, ETF et baleines, traduits en français et classés par importance.</div></div>
+      <div class="intro" data-intro="actu"><span class="i">i</span>
+        <p>Les news qui peuvent faire bouger crypto, pétrole et or, traduites en français et classées par importance. <span>Quand plusieurs médias publient la même info, elle n'apparaît qu'une fois. Une news critique venue d'un seul petit média reste orange tant qu'une agence ou un deuxième média ne l'a pas confirmée. L'impact est une tendance probable, pas une certitude.</span>
+          <span class="legend">
+            <span><i class="dot c"></i> critique</span>
+            <span><i class="dot m"></i> moyenne</span>
+            <span><i class="dot l"></i> faible</span>
+            <span><b class="tag up">BTC ▲</b> <b class="tag down">Pétrole ▼</b> impact probable sur l'actif</span>
+          </span></p>
+        <button type="button">Compris</button></div>
+      <h1>Actu qui fait bouger les marchés</h1>
+      <p class="sub" id="news-sub"></p>
+      <div id="news-warnings"></div>
+      <div class="tools" id="news-themes" role="group" aria-label="Thèmes"></div>
+      <div class="tools" id="news-levels" role="group" aria-label="Importance"></div>
+      <p class="count" id="news-count"></p>
+      <div class="news" id="news-list"></div>
+      <button type="button" class="more-btn" id="news-more" hidden>Afficher plus</button>
+      <p class="fine" id="news-sources"></p>
     </section>
+
     <section class="page" id="page-historique">
       <div class="intro" data-intro="historique"><span class="i">i</span>
         <p>Le bilan de chaque détecteur sur 90 jours. <span>Il sert à savoir à quels signaux faire confiance. « R moyen » : gain ou perte moyen par signal, en multiples du risque (+1R = on gagne ce qu'on risquait).</span></p>
@@ -157,7 +176,7 @@
     </section>
   </main>
 
-  <footer><p><b>Ceci n'est pas un conseil financier.</b> Monexo est un outil d'information. Le trading de cryptomonnaies et de matières premières comporte un risque élevé de perte en capital. Données : DefiLlama, CoinGecko, Binance, OKX. Les taux de réussite passés ne garantissent pas les résultats futurs.</p></footer>
+  <footer><p><b>Ceci n'est pas un conseil financier.</b> Monexo est un outil d'information. Le trading de cryptomonnaies et de matières premières comporte un risque élevé de perte en capital. Données : DefiLlama, CoinGecko, Binance, OKX. Actu : sources officielles, agences de presse via Google News, médias crypto, Whale Alert. Les taux de réussite passés ne garantissent pas les résultats futurs.</p></footer>
 
   <script type="module" src="js/app.js"></script>
 </body>
