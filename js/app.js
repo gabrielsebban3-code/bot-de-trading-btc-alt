@@ -95,11 +95,11 @@ async function load() {
   if (latest) $('updated').textContent = `Données mises à jour ${ago(latest)}`;
   route();
 
-  const wti = setups?.assets.find(a => a.symbol === 'CL');
+  const brent = setups?.assets.find(a => a.symbol === 'BZ');
   const tiles = [
     ['Dominance BTC', market?.btcDominance != null ? `${fmt(market.btcDominance, 1)} %` : '—'],
     ['Fear & Greed', market?.fearGreed ? `${market.fearGreed.value} · ${esc(market.fearGreed.label)}` : '—'],
-    ['Pétrole WTI', wti ? `${price(wti.price)} ${pct(wti.change24h)}` : '—'],
+    ['Pétrole Brent', brent ? `${price(brent.price)} ${pct(brent.change24h)}` : '—'],
     ['Projets suivis', projects ? String(projects.projects.length) : '—'],
     ['Setups en jeu', setups ? String(setups.live.filter(s => s.outcome === 'open').length) : '—'],
     ['News critiques 24 h', news ? String(news.items.filter(i => i.importance === 'critical' && Date.now() - i.time < 86_400_000).length) : '—'],

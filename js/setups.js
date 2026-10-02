@@ -1,4 +1,4 @@
-// Onglets Setups et Historique : cartes de signaux, fiche détaillée avec graphique, bilan des détecteurs.
+// Onglets Setups et Historique : setups swing (BTC, ETH, SOL, Brent), fiche détaillée avec graphique, bilan sur 12 mois.
 import { ago, esc, fmt, pct } from './format.js';
 import { candleChart } from './charts.js';
 import { linkedNews, linkedText } from './news.js';
@@ -8,7 +8,7 @@ const BAR = 4 * 3600_000;
 const OUTCOME = {
   tp1: ['TP1 touché', 'up'],
   sl: ['Stop touché', 'down'],
-  expired: ['Expiré', ''],
+  expired: ['Sortie à 5 j', ''],
   open: ['En jeu', 'acc'],
 };
 const TREND = { haussière: 'up', baissière: 'down', neutre: '' };
@@ -31,15 +31,17 @@ export function px(n) {
 
 const dirTag = d => `<span class="tag ${d === 'long' ? 'up' : 'down'}">${d === 'long' ? '▲ Long' : '▼ Short'}</span>`;
 const statusTag = s => `<span class="tag ${s.status === 'confirmé' ? 'acc' : 'mid'}">${s.status === 'confirmé' ? 'Confirmé' : 'En cours'}</span>`;
-const outcomeTag = s => (s.status === 'confirmé' && s.outcome !== 'open' ? `<span class="tag ${OUTCOME[s.outcome][1]}">${OUTCOME[s.outcome][0]}</span>` : '');
+const outcomeTag = s => (s.status === 'confirmé' && s.outcome !== 'open' ? `<span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span>` : '');
 const asset = sym => data.assets.find(a => a.symbol === sym) || { symbol: sym, name: sym };
 const okxUrl = sym => `https://www.okx.com/trade-swap/${sym.toLowerCase()}-usdt-swap`;
 const parisTime = t => new Date(t).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 
+const outcomeCls = s => (s.outcome === 'expired' ? (s.r > 0 ? 'up' : s.r < 0 ? 'down' : '') : OUTCOME[s.outcome][1]);
+
 function winLine(key) {
   const s = data.stats[key];
-  if (!s || s.winRate === null) return `${esc(data.detectors[key])} : pas encore assez de signaux pour un taux de réussite`;
-  return `${esc(data.detectors[key])} : ${fmt(s.winRate * 100, 0)} % de réussite sur ${s.resolved} signaux (90 j)`;
+  if (!s || s.winRate === null) return `${esc(data.detectors[key])} : pas encore assez de trades pour un bilan`;
+  return `${esc(data.detectors[key])} : ${fmt(s.winRate * 100, 0)} % de trades gagnants sur ${s.resolved}, ${s.avgR > 0 ? '+' : ''}${fmt(s.avgR, 2)}R en moyenne (12 mois)`;
 }
 
 function projectLink(sym) {
@@ -83,7 +85,7 @@ function renderList() {
     ? `${list.length} setup${list.length > 1 ? 's' : ''} affiché${list.length > 1 ? 's' : ''} sur ${total} · ${data.assets.length} marchés surveillés`
     : `${data.assets.length} marchés surveillés`;
   document.getElementById('setups-grid').innerHTML = list.length ? list.map(card).join('')
-    : `<div class="box"><div class="empty">${!total ? 'Aucun setup pour le moment. Les détecteurs repassent toutes les heures sur les bougies 4h.'
+    : `<div class="box"><div class="empty">${!total ? 'Aucun setup swing en jeu pour le moment. Le signal est rare exprès : environ un par semaine sur les 4 paires.'
       : state.watch ? 'Aucun setup en ce moment sur les actifs de ta watchlist.' : 'Aucun setup ne correspond à ces filtres.'} <a href="#historique">Voir l'historique →</a></div></div>`;
 }
 
@@ -99,7 +101,7 @@ export function initSetups(setupsData, projects) {
       `<button type="button" class="chip" data-key="${k}" aria-pressed="${state.detectors.includes(k)}">${esc(data.detectors[k])}</button>`).join('');
     document.getElementById('setups-filters').innerHTML = [
       ['dir', 'all', 'Long et short'], ['dir', 'long', 'Long'], ['dir', 'short', 'Short'], null,
-      ['kind', 'all', 'Tous les marchés'], ['kind', 'crypto', 'Crypto'], ['kind', 'commodity', 'Pétrole et gaz'], null,
+      ['kind', 'all', 'Tous les marchés'], ['kind', 'crypto', 'Crypto'], ['kind', 'commodity', 'Pétrole'], null,
       ['watch', true, 'Ma watchlist'],
     ].map(c => (c ? `<button type="button" class="chip" data-f="${c[0]}" data-v="${c[1]}" aria-pressed="${state[c[0]] === c[1]}">${c[2]}</button>` : '<span class="sep"></span>')).join('');
   };
@@ -135,7 +137,7 @@ function renderResume() {
   const best = live.filter(s => s.status === 'confirmé').sort((a, b) => rate(b) - rate(a) || b.rr - a.rr)[0];
   const focus = document.getElementById('focus');
   if (best && focus) {
-    const html = `<a class="card" href="#setup/${encodeURIComponent(best.id)}"><span class="k">SETUP CONFIRMÉ · 4H</span>
+    const html = `<a class="card" href="#setup/${encodeURIComponent(best.id)}"><span class="k">SETUP SWING · 2 À 5 JOURS</span>
       <span class="hd"><b class="mono">${esc(best.symbol)}</b><span class="tag">${esc(data.detectors[best.detector])}</span>${dirTag(best.dir)}</span>
       <span class="why">${esc(best.why)} R:R 1:${fmt(best.rr, 1)}.</span></a>`;
     if (focus.querySelector('.card .why')?.textContent.startsWith('Rien de particulier')) focus.innerHTML = html;
@@ -148,17 +150,17 @@ export function renderSetup(id) {
   const el = document.getElementById('setup-detail');
   const s = data?.live.find(x => x.id === id);
   if (!s) {
-    el.innerHTML = '<div class="box"><div class="empty">Ce setup n\'est plus affiché : les signaux restent 24 h. Son résultat apparaît dans l\'<a href="#historique">historique</a>.</div></div>';
+    el.innerHTML = '<div class="box"><div class="empty">Ce setup n\'est plus affiché : le trade est terminé. Son résultat apparaît dans l\'<a href="#historique">historique</a>.</div></div>';
     return;
   }
   const a = asset(s.symbol);
   const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
   const R = Math.abs(s.entry - s.sl);
   const st = data.stats[s.detector];
-  const expires = s.time + BAR + data.rules.showHours * 3600_000;
+  const exitBy = s.time + BAR + data.rules.expiryBars * BAR;
   el.innerHTML = `
-    <div class="ph"><h1>${esc(s.symbol)} · ${esc(data.detectors[s.detector])} 4h</h1>${dirTag(s.dir)}${statusTag(s)}${outcomeTag(s)}${star(s.symbol, { text: true })}</div>
-    <p class="sub">${esc(a.name)} · perpétuel OKX · bougie du ${parisTime(s.time)} (heure de Paris)</p>
+    <div class="ph"><h1>${esc(s.symbol)} · ${esc(data.detectors[s.detector])}</h1>${dirTag(s.dir)}${statusTag(s)}${outcomeTag(s)}${star(s.symbol, { text: true })}</div>
+    <p class="sub">${esc(a.name)} · perpétuel OKX · swing de 2 à 5 jours · bougie 4h du ${parisTime(s.time)} (heure de Paris)</p>
     <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     <div class="detail">
       <div class="stack">
@@ -170,19 +172,19 @@ export function renderSetup(id) {
       <div class="stack">
         <div class="box"><h2>Plan</h2><dl>
           ${row('Entrée', px(s.entry))}
-          ${row(`Stop (${fmt(data.rules.stopAtr, 1)} ATR)`, `${px(s.sl)} <small class="muted">${pct((s.sl - s.entry) / s.entry)}</small>`, 'down')}
+          ${row(`Stop (${fmt(data.rules.stopAtr, 0)} ATR jour)`, `${px(s.sl)} <small class="muted">${pct((s.sl - s.entry) / s.entry)}</small>`, 'down')}
           ${s.tp.map((t, k) => row(`TP${k + 1}`, `${px(t)} <small class="muted">${fmt(Math.abs(t - s.entry) / R, 1)}R</small>`, 'up')).join('')}
           ${row('R:R (TP1)', `1:${fmt(s.rr, 1)}`)}
           ${row('Tendance 1D', esc(s.trend), TREND[s.trend])}
-          ${row('Résultat', s.status === 'confirmé' ? OUTCOME[s.outcome][0] + (s.outcome === 'tp1' && s.tpHit > 1 ? ` (jusqu'à TP${s.tpHit})` : '') : 'Bougie en cours', s.status === 'confirmé' ? OUTCOME[s.outcome][1] : '')}
-          ${row('Affiché jusqu\'au', parisTime(expires))}
+          ${row('Résultat', s.status === 'confirmé' ? OUTCOME[s.outcome][0] + (s.outcome === 'tp1' && s.tpHit > 1 ? ` (jusqu'à TP${s.tpHit})` : '') + (s.outcome === 'expired' ? ` (${s.r > 0 ? '+' : ''}${fmt(s.r, 2)}R)` : '') : 'Bougie en cours', s.status === 'confirmé' ? outcomeCls(s) : '')}
+          ${row('Sortie au plus tard', parisTime(exitBy))}
         </dl></div>
         <div class="box"><h2>Objectifs</h2><dl>
           ${s.tpLabels.map((l, k) => row(`TP${k + 1}`, esc(l), 'txt')).join('')}
         </dl></div>
-        <div class="box"><h2>Fiabilité du détecteur</h2><dl>
-          ${row('Réussite (90 j)', st?.winRate === null || !st ? '—' : `${fmt(st.winRate * 100, 0)} %`)}
-          ${row('Signaux analysés', st ? String(st.resolved) : '—')}
+        <div class="box"><h2>Bilan sur 12 mois</h2><dl>
+          ${row('Trades gagnants', st?.winRate === null || !st ? '—' : `${fmt(st.winRate * 100, 0)} %`)}
+          ${row('Trades terminés', st ? String(st.resolved) : '—')}
           ${row('R moyen', st?.avgR === null || !st ? '—' : `${st.avgR > 0 ? '+' : ''}${fmt(st.avgR, 2)}R`, st?.avgR > 0 ? 'up' : st?.avgR < 0 ? 'down' : '')}
         </dl>${projectLink(s.symbol)}${newsLink(s)}</div>
         <div class="box"><h2>Liens</h2><div class="links"><a class="buy" href="${okxUrl(s.symbol)}" target="_blank" rel="noopener">Ouvrir sur OKX</a></div></div>
@@ -195,16 +197,16 @@ export function renderSetup(id) {
 function renderHistory() {
   const keys = Object.keys(data.detectors);
   const since = Math.min(...Object.values(data.freshStart || {}).filter(Boolean));
-  document.getElementById('history-sub').textContent = `Un signal compte comme gagné s'il touche TP1 avant le stop. Sans résultat après ${data.rules.expiryBars / 6} jours, il est « expiré » et compte comme non gagné. `
-    + (Number.isFinite(since) ? `Calculé sur les bougies 4h OKX depuis le ${new Date(since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'Europe/Paris' })}.` : '');
+  document.getElementById('history-sub').textContent = `Un trade est gagnant s'il touche TP1 (${data.rules.targetsR?.[0] ?? 2}R) avant le stop, ou s'il est en gain quand on sort au bout de ${data.rules.expiryBars / 6} jours. `
+    + (Number.isFinite(since) ? `Calculé sur les bougies OKX depuis le ${new Date(since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' })}.` : '');
   document.getElementById('history-body').innerHTML = keys.map(k => {
     const s = data.stats[k];
     const w = s.winRate === null ? null : Math.round(s.winRate * 100);
     return `<tr>
-      <td class="l"><b>${esc(data.detectors[k])}</b>${k === 'funding' && data.freshStart?.funding ? '<br><span class="muted" style="font-size:12px">historique de l\'open interest limité à ~16 jours au départ</span>' : ''}</td>
+      <td class="l"><b>${esc(data.detectors[k])}</b><br><span class="muted" style="font-size:12px">dans le sens de la tendance 1D</span></td>
       <td class="n">${s.signals}</td>
       <td class="n">${w === null ? '—' : `<span class="score"><i style="--w:${w}%"></i>${w} %</span>`}</td>
-      <td class="n"><span class="up">${s.wins}</span> / <span class="down">${s.losses}</span> / <span class="muted">${s.expired}</span></td>
+      <td class="n"><span class="up">${s.tp1 ?? s.wins}</span> / <span class="down">${s.losses}</span> / <span class="muted">${s.expired}</span></td>
       <td class="n ${s.avgR > 0 ? 'up' : s.avgR < 0 ? 'down' : ''}">${s.avgR === null ? '—' : `${s.avgR > 0 ? '+' : ''}${fmt(s.avgR, 2)}R`}</td>
       <td class="l">${s.best ? `${esc(s.best.symbol)} <span class="muted">${fmt(s.best.winRate * 100, 0)} % sur ${s.best.n}</span>` : '<span class="muted">—</span>'}</td>
     </tr>`;
@@ -217,7 +219,7 @@ function renderHistory() {
       <td class="l">${dirTag(s.dir)}</td>
       <td class="n">${px(s.entry)}</td>
       <td class="n">1:${fmt(s.rr, 1)}</td>
-      <td class="l"><span class="tag ${OUTCOME[s.outcome][1]}">${OUTCOME[s.outcome][0]}</span></td>
+      <td class="l"><span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span></td>
       <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${s.r > 0 ? '+' : ''}${fmt(s.r, 2)}R</td>
     </tr>`).join('') : '<tr><td colspan="8"><div class="empty">Aucun signal terminé pour le moment.</div></td></tr>';
 }

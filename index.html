@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Dinexo</title>
-  <meta name="description" content="Petits projets crypto rentables, setups de trading 4h et actualité des marchés.">
+  <meta name="description" content="Petits projets crypto rentables, setups swing sur BTC, ETH, SOL et le pétrole, et actualité des marchés.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
@@ -38,7 +38,7 @@
     <!-- Résumé -->
     <section class="page" id="page-resume">
       <div class="intro" data-intro="resume"><span class="i">i</span>
-        <p>Dinexo surveille trois choses : <b>des petits projets crypto qui gagnent de l'argent</b>, <b>des setups de trading en 4h</b> sur OKX, et <b>l'actu qui fait bouger les marchés</b>. <span>Le bloc orange te dit quoi regarder en priorité. Tout ce qui est cliquable ouvre une fiche détaillée.</span></p>
+        <p>Dinexo surveille trois choses : <b>des petits projets crypto qui gagnent de l'argent</b>, <b>des setups swing de quelques jours</b> sur BTC, ETH, SOL et le pétrole, et <b>l'actu qui fait bouger les marchés</b>. <span>Le bloc orange te dit quoi regarder en priorité. Tout ce qui est cliquable ouvre une fiche détaillée.</span></p>
         <button type="button">Compris</button></div>
       <div class="macro" id="macro"></div>
       <h2>À regarder maintenant</h2>
@@ -46,7 +46,7 @@
       <div class="focus" id="focus"></div>
       <div class="cols">
         <div class="box"><h2>Projets <a href="#projets">Top 25 →</a></h2><div id="resume-projects"></div></div>
-        <div class="box"><h2>Setups 4h <a href="#setups">Tous →</a></h2><div id="resume-setups"></div></div>
+        <div class="box"><h2>Setups swing <a href="#setups">Tous →</a></h2><div id="resume-setups"></div></div>
         <div class="box"><h2>Actu <a href="#actu">Fil complet →</a></h2><div id="resume-news"></div></div>
       </div>
     </section>
@@ -111,10 +111,10 @@
     <!-- Setups -->
     <section class="page" id="page-setups">
       <div class="intro" data-intro="setups"><span class="i">i</span>
-        <p>Opportunités de trade détectées sur les bougies 4h d'OKX, pour le top 50 crypto, le pétrole et le gaz. Chaque détecteur cherche <b>une seule chose</b>, par exemple une cassure de résistance. <span>« En cours » : la bougie n'est pas fermée, le signal peut disparaître. « Confirmé » : bougie fermée. Le stop est à 1,5 ATR, les objectifs sont placés juste avant les niveaux suivants, et seuls les setups avec un R:R d'au moins 1:2 sont gardés. Un signal reste affiché 24 h.</span></p>
+        <p>Trades swing de 2 à 5 jours sur <b>BTC, ETH, SOL et le pétrole Brent</b> (perpétuels OKX). Un seul signal, volontairement rare (environ un par semaine sur les 4 paires) : <b>le prix casse son plus haut ou son plus bas des 20 derniers jours, dans le sens de la tendance journalière</b>. <span>« En cours » : la bougie 4h n'est pas fermée, le signal peut disparaître. « Confirmé » : bougie fermée. Le stop est à 1 ATR journalier, TP1 à 2R, TP2 à 3R, TP3 à 4R. Sans stop ni TP1 au bout de 5 jours, on sort au prix du moment. Un setup reste affiché tant que le trade est en jeu.</span></p>
         <button type="button">Compris</button></div>
       <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
-      <h1>Setups 4h · OKX</h1>
+      <h1>Setups swing · BTC, ETH, SOL, pétrole</h1>
       <div id="setups-warnings"></div>
       <div class="tools" id="setups-detectors" role="group" aria-label="Détecteurs"></div>
       <div class="tools" id="setups-filters" role="group" aria-label="Filtres"></div>
@@ -152,20 +152,20 @@
 
     <section class="page" id="page-historique">
       <div class="intro" data-intro="historique"><span class="i">i</span>
-        <p>Le bilan de chaque détecteur sur 90 jours. <span>Il sert à savoir à quels signaux faire confiance. « R moyen » : gain ou perte moyen par signal, en multiples du risque (+1R = on gagne ce qu'on risquait).</span></p>
+        <p>Le bilan des setups swing sur 12 mois. <span>Il sert à savoir si on peut faire confiance aux signaux. « R moyen » : gain ou perte moyen par trade, en multiples du risque (+1R = on gagne ce qu'on risquait). Un trade gagné à 2R paie deux trades perdus.</span></p>
         <button type="button">Compris</button></div>
-      <h1>Taux de réussite par détecteur</h1>
+      <h1>Bilan des setups swing</h1>
       <p class="sub" id="history-sub"></p>
       <div class="wrap">
         <table>
-          <thead><tr><th class="l">Détecteur</th><th>Signaux</th><th>Réussite</th><th>Gagnés / perdus / expirés</th><th>R moyen</th><th class="l">Meilleur actif</th></tr></thead>
+          <thead><tr><th class="l">Détecteur</th><th>Signaux</th><th>Gagnants</th><th>TP1 / stop / sortie à 5 j</th><th>R moyen</th><th class="l">Meilleur actif</th></tr></thead>
           <tbody id="history-body"></tbody>
         </table>
       </div>
       <h2 class="section">Derniers signaux terminés</h2>
       <div class="wrap">
         <table class="static">
-          <thead><tr><th class="l">Bougie</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>R:R</th><th class="l">Résultat</th><th>R</th></tr></thead>
+          <thead><tr><th class="l">Signal</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>R:R</th><th class="l">Résultat</th><th>R</th></tr></thead>
           <tbody id="history-list"></tbody>
         </table>
       </div>

@@ -1,21 +1,24 @@
 #!/usr/bin/env node
-// Récupère les bougies 4h d'OKX, cherche les setups et calcule le bilan de chaque détecteur.
+// Récupère les bougies 4h et 1D d'OKX pour BTC, ETH, SOL et le Brent, cherche les setups swing et calcule leur bilan.
 // Usage : node scripts/build-setups.mjs [--out data] [--previous ancien-setups.json] [--sample]
 // Lancé toutes les heures par GitHub Actions (.github/workflows/deploy.yml).
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { attempt, fetchJson, mapLimit } from './lib/http.mjs';
+import { fetchJson, mapLimit } from './lib/http.mjs';
 import { BAR, DETECTORS, RULES, detectorStats, mergeHistory, scanAsset, trend1d } from './lib/setups.mjs';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
 const OUT = args.out || 'data';
 const OKX = 'https://www.okx.com/api/v5';
-const CG = 'https://api.coingecko.com/api/v3';
-const cgHeaders = process.env.COINGECKO_API_KEY ? { 'x-cg-demo-api-key': process.env.COINGECKO_API_KEY } : {};
-const TOP = 50;
-const COMMODITIES = { CL: 'Pétrole WTI', BZ: 'Pétrole Brent', NG: 'Gaz naturel' };
+// Les seules paires suivies (choix de Gabriel) : perpétuels USDT d'OKX.
+const UNIVERSE = [
+  { symbol: 'BTC', name: 'Bitcoin', kind: 'crypto' },
+  { symbol: 'ETH', name: 'Ethereum', kind: 'crypto' },
+  { symbol: 'SOL', name: 'Solana', kind: 'crypto' },
+  { symbol: 'BZ', name: 'Pétrole Brent', kind: 'commodity' },
+];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // OKX limite le nombre de requêtes par seconde : on espace les appels.
@@ -28,10 +31,10 @@ function spacer(gap) {
     if (wait) await sleep(wait);
   };
 }
-const pace = { market: spacer(120), public: spacer(250), rubik: spacer(450) };
+const pace = { market: spacer(120), public: spacer(250) };
 
 async function okx(path) {
-  await (path.startsWith('/rubik') ? pace.rubik : path.startsWith('/public') ? pace.public : pace.market)();
+  await (path.startsWith('/public') ? pace.public : pace.market)();
   const r = await fetchJson(`${OKX}${path}`, { retries: 2 });
   if (r.code !== '0') throw new Error(`OKX ${path} : ${r.msg || r.code}`);
   return r.data;
@@ -39,36 +42,20 @@ async function okx(path) {
 
 const toBar = row => ({ t: Number(row[0]), o: Number(row[1]), h: Number(row[2]), l: Number(row[3]), c: Number(row[4]), v: Number(row[7]), closed: row[8] === '1' });
 
-async function candles(instId) {
-  const rows = await okx(`/market/candles?instId=${instId}&bar=4H&limit=300`);
-  for (let page = 0; page < 3 && rows.length; page++) {
-    const older = await okx(`/market/history-candles?instId=${instId}&bar=4H&limit=100&after=${rows.at(-1)[0]}`);
+// Bougies du plus ancien au plus récent : 300 récentes puis des pages de 100 plus anciennes.
+async function candles(instId, bar, pages) {
+  const rows = await okx(`/market/candles?instId=${instId}&bar=${bar}&limit=300`);
+  for (let page = 0; page < pages && rows.length; page++) {
+    const older = await okx(`/market/history-candles?instId=${instId}&bar=${bar}&limit=100&after=${rows.at(-1)[0]}`);
     if (!older.length) break;
     rows.push(...older);
   }
   return rows.map(toBar).sort((a, b) => a.t - b.t);
 }
 
-async function funding(instId) {
-  const rows = (await okx(`/public/funding-rate-history?instId=${instId}&limit=100`))
-    .map(r => ({ t: Number(r.fundingTime), f: Number(r.realizedRate || r.fundingRate) }))
-    .sort((a, b) => a.t - b.t);
-  // Certains contrats paient toutes les 4 h ou toutes les heures : on ramène tout à 8 h.
-  const gap = rows.length > 1 ? (rows.at(-1).t - rows[0].t) / (rows.length - 1) : 8 * 3600_000;
-  const k = (8 * 3600_000) / Math.max(3600_000, Math.round(gap / 3600_000) * 3600_000);
-  return rows.map(r => ({ t: r.t, f: r.f * k }));
-}
-
-async function openInterest(instId) {
-  const rows = await okx(`/rubik/stat/contracts/open-interest-history?instId=${instId}&period=4H&limit=100`);
-  return new Map(rows.map(r => [Number(r[0]), Number(r[2])]));
-}
-
-const STABLE = new Set(['USDT', 'USDC', 'DAI', 'USDE', 'FDUSD', 'PYUSD', 'TUSD', 'USDS', 'USD1', 'RLUSD', 'USDD', 'BUSD', 'USDG', 'USDTB', 'FRAX', 'GHO', 'USD0', 'EURC']);
-
 async function main() {
   const now = Date.now();
-  console.log(`Dinexo · setups 4h · ${new Date(now).toISOString()}`);
+  console.log(`Dinexo · setups swing · ${new Date(now).toISOString()}`);
   const sources = {}, warnings = [];
 
   const [instruments, tickers] = await Promise.all([
@@ -76,63 +63,30 @@ async function main() {
     okx('/market/tickers?instType=SWAP'),
   ]);
   sources.okx = 'ok';
-  const swaps = new Map(instruments
-    .filter(i => i.state === 'live' && i.settleCcy === 'USDT' && i.instId.endsWith('-USDT-SWAP'))
-    .map(i => [i.instId.replace('-USDT-SWAP', ''), i]));
+  const listed = new Set(instruments.filter(i => i.state === 'live').map(i => i.instId));
   const tick = new Map(tickers.map(t => [t.instId, t]));
-
-  // Top 50 crypto par market cap (CoinGecko) disponibles en perpétuel sur OKX. Sinon : les 50 plus gros volumes OKX.
-  let crypto = [];
-  const cg = await attempt('CoinGecko top 100', () => fetchJson(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1`, { headers: cgHeaders, retries: 3 }));
-  if (cg.ok) {
-    sources.coingecko = 'ok';
-    const seen = new Set();
-    for (const c of cg.value) {
-      const sym = String(c.symbol).toUpperCase();
-      if (STABLE.has(sym) || seen.has(sym) || !swaps.has(sym) || swaps.get(sym).instCategory !== '1') continue;
-      if (Math.abs((c.current_price ?? 0) - 1) < 0.02) continue; // stablecoin non listé
-      seen.add(sym);
-      crypto.push({ symbol: sym, name: c.name, rank: c.market_cap_rank });
-      if (crypto.length === TOP) break;
-    }
-  } else {
-    sources.coingecko = 'erreur';
-    warnings.push('Classement CoinGecko indisponible : les 50 cryptos les plus échangées sur OKX sont utilisées à la place.');
-    crypto = [...swaps.entries()]
-      .filter(([sym, i]) => i.instCategory === '1' && !STABLE.has(sym) && tick.has(i.instId))
-      .map(([sym, i]) => ({ symbol: sym, name: sym, vol: Number(tick.get(i.instId).volCcy24h) * Number(tick.get(i.instId).last) }))
-      .sort((a, b) => b.vol - a.vol).slice(0, TOP).map(({ symbol, name }, k) => ({ symbol, name, rank: k + 1 }));
-  }
-  const commodities = Object.entries(COMMODITIES).filter(([sym]) => swaps.has(sym)).map(([symbol, name]) => ({ symbol, name, kind: 'commodity' }));
-  const universe = [...crypto.map(c => ({ ...c, kind: 'crypto' })), ...commodities];
-  console.log(`${crypto.length} cryptos + ${commodities.length} matières premières : ${universe.map(a => a.symbol).join(' ')}`);
+  const universe = UNIVERSE.filter(a => listed.has(`${a.symbol}-USDT-SWAP`));
+  const missing = UNIVERSE.filter(a => !universe.includes(a)).map(a => a.symbol);
+  if (missing.length) warnings.push(`Pas de perpétuel OKX actif pour ${missing.join(', ')} : actif non analysé.`);
+  console.log(`Paires suivies : ${universe.map(a => a.symbol).join(' ')}`);
 
   let failed = 0;
   const results = await mapLimit(universe, 3, async asset => {
     const instId = `${asset.symbol}-USDT-SWAP`;
     try {
-      const [bars, daily] = await Promise.all([
-        candles(instId),
-        okx(`/market/candles?instId=${instId}&bar=1Dutc&limit=120`).then(r => r.map(toBar).sort((a, b) => a.t - b.t)),
-      ]);
-      const [fund, oi] = await Promise.all([
-        funding(instId).catch(() => null),
-        openInterest(instId).catch(() => null),
-      ]);
-      const fundingAt = fund?.length ? t => { let v = null; for (const r of fund) { if (r.t <= t) v = r.f; else break; } return v; } : null;
-      const oiAt = oi?.size ? t => oi.get(t) ?? null : null;
-      const signals = scanAsset(asset, { bars, daily, fundingAt, oiAt, now });
+      const bars = await candles(instId, '4H', 20);   // ~13 mois
+      const daily = await candles(instId, '1Dutc', 2); // ~16 mois
+      const signals = scanAsset(asset, { bars, daily, now });
       const tk = tick.get(instId);
       const last = tk ? Number(tk.last) : bars.at(-1).c;
       return {
         asset: {
           ...asset, instId, price: last,
           change24h: tk && Number(tk.open24h) ? last / Number(tk.open24h) - 1 : null,
-          trend: trend1d(daily, now), funding: fund?.at(-1)?.f ?? null,
+          trend: trend1d(daily, now),
         },
         signals, bars,
         start: bars[Math.max(RULES.warmup, bars.length - RULES.backtestBars - 1)]?.t,
-        oiStart: oi?.size ? Math.min(...oi.keys()) + 6 * BAR : null,
       };
     } catch (err) {
       failed++;
@@ -141,7 +95,7 @@ async function main() {
     }
   });
   const ok = results.filter(Boolean);
-  if (ok.length < universe.length / 2) throw new Error(`OKX : seulement ${ok.length} actifs sur ${universe.length} récupérés. La version déjà en ligne est conservée.`);
+  if (ok.length < Math.ceil(universe.length / 2)) throw new Error(`OKX : seulement ${ok.length} actifs sur ${universe.length} récupérés. La version déjà en ligne est conservée.`);
   if (failed) warnings.push(`${failed} actif(s) n'ont pas pu être analysés à cette mise à jour.`);
 
   // Historique : les signaux recalculés font foi, l'ancien historique complète la période non couverte.
@@ -149,7 +103,7 @@ async function main() {
   const confirmed = all.filter(s => s.status === 'confirmé');
   const freshStart = {};
   for (const key of Object.keys(DETECTORS)) {
-    const starts = ok.map(r => (key === 'funding' ? r.oiStart : r.start)).filter(Boolean);
+    const starts = ok.map(r => r.start).filter(Boolean);
     if (starts.length) freshStart[key] = Math.min(...starts);
   }
   let previous = null;
@@ -158,31 +112,32 @@ async function main() {
     id: s.id, detector: s.detector, symbol: s.symbol, dir: s.dir, status: s.status, time: s.time,
     entry: s.entry, sl: s.sl, tp1: s.tp?.[0] ?? s.tp1, rr: s.rr, outcome: s.outcome, at: s.at, r: s.r, tpHit: s.tpHit ?? null,
   });
-  const history = mergeHistory(previous?.history, confirmed.map(compact), freshStart, now);
+  const history = mergeHistory(previous?.history, confirmed.map(compact), freshStart, now, UNIVERSE.map(a => a.symbol));
   const stats = detectorStats(history, now);
 
-  // Signaux affichés : en cours, ou confirmés depuis moins de 24 h.
-  const live = all
-    .filter(s => s.status === 'en cours' || s.time + BAR >= now - RULES.showHours * 3600_000)
+  // Signaux affichés : bougie en cours, trade encore en jeu, ou signal de moins de 24 h.
+  const shown = all
+    .filter(s => s.status === 'en cours' || s.outcome === 'open' || s.time + BAR >= now - RULES.showHours * 3600_000)
     .sort((a, b) => b.time - a.time || (a.status === 'en cours' ? -1 : 1));
   const charts = {};
   for (const r of ok) {
-    if (live.some(s => s.symbol === r.asset.symbol)) charts[r.asset.symbol] = r.bars.slice(-90).map(b => [b.t, b.o, b.h, b.l, b.c]);
+    if (shown.some(s => s.symbol === r.asset.symbol)) charts[r.asset.symbol] = r.bars.slice(-120).map(b => [b.t, b.o, b.h, b.l, b.c]);
   }
 
   await mkdir(OUT, { recursive: true });
   await writeFile(join(OUT, 'setups.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), sources, warnings,
-    rules: { minRR: RULES.minRR, stopAtr: RULES.stopAtr, expiryBars: RULES.expiryBars, showHours: RULES.showHours },
+    rules: { minRR: RULES.minRR, stopAtr: RULES.stopAtr, targetsR: RULES.targetsR, breakoutDays: RULES.breakoutDays, expiryBars: RULES.expiryBars, showHours: RULES.showHours, statsDays: RULES.statsDays },
     detectors: DETECTORS, freshStart,
-    assets: ok.map(r => r.asset), live, stats, history, charts,
+    assets: ok.map(r => r.asset), live: shown, stats, history, charts,
   }));
 
-  console.log(`\n${live.length} setups affichés (${live.filter(s => s.status === 'en cours').length} en cours), ${history.length} signaux dans l'historique.`);
+  console.log(`\n${shown.length} setups affichés (${shown.filter(s => s.outcome === 'open').length} en jeu), ${history.length} signaux dans l'historique.`);
   for (const [key, s] of Object.entries(stats)) {
-    console.log(`${DETECTORS[key].padEnd(20)} ${String(s.signals).padStart(4)} signaux · réussite ${s.winRate === null ? '—' : `${Math.round(s.winRate * 100)} %`} · R moyen ${s.avgR ?? '—'} · meilleur ${s.best?.symbol ?? '—'}`);
+    console.log(`${DETECTORS[key].padEnd(20)} ${String(s.signals).padStart(4)} signaux · gagnants ${s.winRate === null ? '—' : `${Math.round(s.winRate * 100)} %`} · stops ${s.losses} · R moyen ${s.avgR ?? '—'} · total ${s.totalR}R · meilleur ${s.best?.symbol ?? '—'}`);
   }
-  for (const s of live.slice(0, 10)) console.log(`${s.symbol} ${DETECTORS[s.detector]} ${s.dir} ${s.status} R:R ${s.rr} · ${s.outcome}`);
+  for (const s of history.slice(0, 12)) console.log(`${new Date(s.time).toISOString().slice(0, 13)} ${s.symbol} ${s.dir} ${s.outcome} ${s.r ?? ''}`);
+  for (const s of shown.slice(0, 10)) console.log(`${s.symbol} ${DETECTORS[s.detector]} ${s.dir} ${s.status} R:R ${s.rr} · ${s.outcome}`);
   if (warnings.length) console.log('Avertissements :', warnings);
 }
 
