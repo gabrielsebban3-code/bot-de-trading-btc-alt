@@ -2,6 +2,7 @@
 import { esc, fmt, money, pct, price, safeUrl } from './format.js';
 import { revenueChart, sparkline } from './charts.js';
 import { newsForProject, newsRows } from './news.js';
+import { star, watchlist } from './watchlist.js';
 
 const TOP = 25;
 const ETH_L2 = new Set(['Ethereum', 'Arbitrum', 'Base', 'Optimism', 'zkSync Era', 'Linea', 'Scroll', 'Blast', 'Mantle',
@@ -26,7 +27,7 @@ const store = {
   get() { try { return JSON.parse(localStorage.getItem('dinexo-filters')) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem('dinexo-filters', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
 };
-const state = { chain: 'all', badges: [], hideLowFloat: false, mcap: 1e9, rev: 0, sort: 'score', ...store.get() };
+const state = { chain: 'all', badges: [], hideLowFloat: false, watch: false, mcap: 1e9, rev: 0, sort: 'score', ...store.get() };
 let data = null;
 
 export function badges(p, { short = false } = {}) {
@@ -54,6 +55,7 @@ function filtered() {
     .filter(p => chainTest(p))
     .filter(p => state.badges.every(b => p.badges[b]))
     .filter(p => !(state.hideLowFloat && p.badges.lowFloat))
+    .filter(p => !state.watch || watchlist.has(p.symbol))
     .filter(p => (p.mcap ?? 0) < state.mcap && p.revenue30d >= state.rev)
     .sort(sorters[state.sort] || sorters.score);
 }
@@ -66,7 +68,8 @@ export function initProjects(projectsData) {
   const renderChips = () => {
     chainsEl.innerHTML = chips(CHAINS, k => state.chain === k);
     badgesEl.innerHTML = chips(BADGES.filter(b => FILTER_BADGES.includes(b[0])), k => state.badges.includes(k))
-      + `<span class="sep"></span><button type="button" class="chip" data-key="hideLowFloat" aria-pressed="${state.hideLowFloat}">Masquer faible flottant</button>`;
+      + `<span class="sep"></span><button type="button" class="chip" data-key="hideLowFloat" aria-pressed="${state.hideLowFloat}">Masquer faible flottant</button>`
+      + `<span class="sep"></span><button type="button" class="chip" data-key="watch" aria-pressed="${state.watch}">Ma watchlist</button>`;
   };
   renderChips();
   chainsEl.addEventListener('click', e => {
@@ -78,7 +81,7 @@ export function initProjects(projectsData) {
   badgesEl.addEventListener('click', e => {
     const k = e.target.closest('.chip')?.dataset.key;
     if (!k) return;
-    if (k === 'hideLowFloat') state.hideLowFloat = !state.hideLowFloat;
+    if (k === 'hideLowFloat' || k === 'watch') state[k] = !state[k];
     else state.badges = state.badges.includes(k) ? state.badges.filter(b => b !== k) : [...state.badges, k];
     update();
   });
@@ -89,7 +92,7 @@ export function initProjects(projectsData) {
   }
   document.getElementById('projects-body').addEventListener('click', e => {
     const tr = e.target.closest('tr[data-id]');
-    if (tr && !e.target.closest('a')) location.hash = `projet/${tr.dataset.id}`;
+    if (tr && !e.target.closest('a, button')) location.hash = `projet/${tr.dataset.id}`;
   });
   document.getElementById('warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
 
@@ -98,6 +101,7 @@ export function initProjects(projectsData) {
     renderChips();
     renderTable();
   }
+  watchlist.subscribe(() => { if (state.watch) renderTable(); });
   renderTable();
   renderResume();
 }
@@ -111,7 +115,7 @@ function renderTable() {
     : '';
   document.getElementById('projects-body').innerHTML = shown.length ? shown.map((p, i) => `
     <tr data-id="${esc(p.id)}">
-      <td class="l n muted">${i + 1}</td>
+      <td class="l n muted">${star(p.symbol)}${i + 1}</td>
       <td class="l name"><a href="#projet/${esc(p.id)}">${esc(p.name)}</a><small>${esc(p.symbol || '')}</small><br><span class="muted" style="font-size:12px">${esc(p.category || '')} · ${esc(p.chains.slice(0, 2).join(', '))}${p.chainsTotal > 2 ? ` +${p.chainsTotal - 2}` : ''}</span></td>
       <td class="l">${sparkline(p.series)}</td>
       <td class="n"><span class="score"><i style="--w:${p.score}%"></i>${p.score}</span></td>
@@ -123,7 +127,7 @@ function renderTable() {
       <td class="n ${p.badges.lowFloat ? 'down' : ''}">${p.float === null ? '—' : `${fmt(p.float * 100, 0)} %`}</td>
       <td class="l"><span class="tags">${badges(p)}</span></td>
     </tr>`).join('')
-    : '<tr><td colspan="11"><div class="empty">Aucun projet ne correspond à ces filtres. Retire un filtre pour élargir la recherche.</div></td></tr>';
+    : `<tr><td colspan="11"><div class="empty">${state.watch ? 'Aucun projet de ta watchlist ne passe ces filtres. Ajoute un projet avec l\'étoile, ou retire le filtre « Ma watchlist ».' : 'Aucun projet ne correspond à ces filtres. Retire un filtre pour élargir la recherche.'}</div></td></tr>`;
 }
 
 function renderResume() {
@@ -166,7 +170,7 @@ export function renderProject(id) {
   const news = newsForProject(p.id);
   el.innerHTML = `
     <div class="ph"><h1>${esc(p.name)}</h1><span class="mono muted">${esc(p.symbol || '')}</span>
-      <span class="tag">${esc(p.category || '')}</span><span class="tags">${badges(p)}</span></div>
+      <span class="tag">${esc(p.category || '')}</span><span class="tags">${badges(p)}</span>${star(p.symbol, { text: true })}</div>
     <p class="sub">${esc(p.chains.join(', '))}${p.chainsTotal > p.chains.length ? ` et ${p.chainsTotal - p.chains.length} autres` : ''} · n°${p.rank} au classement général</p>
     <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     <div class="detail">

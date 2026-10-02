@@ -2,6 +2,7 @@
 import { ago, esc, fmt, pct } from './format.js';
 import { candleChart } from './charts.js';
 import { linkedNews, linkedText } from './news.js';
+import { star, watchlist } from './watchlist.js';
 
 const BAR = 4 * 3600_000;
 const OUTCOME = {
@@ -14,7 +15,7 @@ const TREND = { haussière: 'up', baissière: 'down', neutre: '' };
 
 let data = null;
 let projectsBySymbol = new Map();
-const state = { detectors: null, kind: 'all', dir: 'all' };
+const state = { detectors: null, kind: 'all', dir: 'all', watch: false };
 const store = {
   get() { try { return JSON.parse(localStorage.getItem('dinexo-setups')) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem('dinexo-setups', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
@@ -73,7 +74,8 @@ function card(s) {
 function filtered() {
   return data.live.filter(s => state.detectors.includes(s.detector)
     && (state.dir === 'all' || s.dir === state.dir)
-    && (state.kind === 'all' || (asset(s.symbol).kind || 'crypto') === state.kind));
+    && (state.kind === 'all' || (asset(s.symbol).kind || 'crypto') === state.kind)
+    && (!state.watch || watchlist.has(s.symbol)));
 }
 
 function renderList() {
@@ -83,7 +85,8 @@ function renderList() {
     ? `${list.length} setup${list.length > 1 ? 's' : ''} affiché${list.length > 1 ? 's' : ''} sur ${total} · ${data.assets.length} marchés surveillés`
     : `${data.assets.length} marchés surveillés`;
   document.getElementById('setups-grid').innerHTML = list.length ? list.map(card).join('')
-    : `<div class="box"><div class="empty">${total ? 'Aucun setup ne correspond à ces filtres.' : 'Aucun setup swing en jeu pour le moment. Le signal est rare exprès : environ un par semaine sur les 4 paires.'} <a href="#historique">Voir l'historique →</a></div></div>`;
+    : `<div class="box"><div class="empty">${!total ? 'Aucun setup swing en jeu pour le moment. Le signal est rare exprès : environ un par semaine sur les 4 paires.'
+      : state.watch ? 'Aucun setup en ce moment sur les actifs de ta watchlist.' : 'Aucun setup ne correspond à ces filtres.'} <a href="#historique">Voir l'historique →</a></div></div>`;
 }
 
 export function initSetups(setupsData, projects) {
@@ -98,7 +101,8 @@ export function initSetups(setupsData, projects) {
       `<button type="button" class="chip" data-key="${k}" aria-pressed="${state.detectors.includes(k)}">${esc(data.detectors[k])}</button>`).join('');
     document.getElementById('setups-filters').innerHTML = [
       ['dir', 'all', 'Long et short'], ['dir', 'long', 'Long'], ['dir', 'short', 'Short'], null,
-      ['kind', 'all', 'Tous les marchés'], ['kind', 'crypto', 'Crypto'], ['kind', 'commodity', 'Pétrole'],
+      ['kind', 'all', 'Tous les marchés'], ['kind', 'crypto', 'Crypto'], ['kind', 'commodity', 'Pétrole'], null,
+      ['watch', true, 'Ma watchlist'],
     ].map(c => (c ? `<button type="button" class="chip" data-f="${c[0]}" data-v="${c[1]}" aria-pressed="${state[c[0]] === c[1]}">${c[2]}</button>` : '<span class="sep"></span>')).join('');
   };
   const update = () => { store.set(state); chips(); renderList(); };
@@ -111,9 +115,11 @@ export function initSetups(setupsData, projects) {
   document.getElementById('setups-filters').addEventListener('click', e => {
     const b = e.target.closest('.chip');
     if (!b) return;
-    state[b.dataset.f] = b.dataset.v;
+    if (b.dataset.f === 'watch') state.watch = !state.watch;
+    else state[b.dataset.f] = b.dataset.v;
     update();
   });
+  watchlist.subscribe(() => { if (state.watch) renderList(); });
   document.getElementById('setups-warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
   chips();
   renderList();
@@ -153,7 +159,7 @@ export function renderSetup(id) {
   const st = data.stats[s.detector];
   const exitBy = s.time + BAR + data.rules.expiryBars * BAR;
   el.innerHTML = `
-    <div class="ph"><h1>${esc(s.symbol)} · ${esc(data.detectors[s.detector])}</h1>${dirTag(s.dir)}${statusTag(s)}${outcomeTag(s)}</div>
+    <div class="ph"><h1>${esc(s.symbol)} · ${esc(data.detectors[s.detector])}</h1>${dirTag(s.dir)}${statusTag(s)}${outcomeTag(s)}${star(s.symbol, { text: true })}</div>
     <p class="sub">${esc(a.name)} · perpétuel OKX · swing de 2 à 5 jours · bougie 4h du ${parisTime(s.time)} (heure de Paris)</p>
     <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     <div class="detail">

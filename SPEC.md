@@ -30,8 +30,20 @@ Maquette de référence : [`mockup/index.html`](mockup/index.html).
 - Site **public et gratuit**. Pas de version payante prévue.
 - Un visiteur **voit tout sans compte** (projets, setups, actu, historique).
 - Le compte sert à garder sa **watchlist** sur tous ses appareils.
-- Connexion : **Google** ou **e-mail avec lien magique** (pas de mot de passe). Prévu avec Supabase (offre gratuite).
+- Connexion : **Google** ou **e-mail avec lien magique** (pas de mot de passe), avec Supabase (offre gratuite).
 - **Admin** (le propriétaire) : voit le nombre et la liste des inscrits.
+
+| Watchlist | Règle |
+|---|---|
+| Sans compte | Gardée sur l'appareil. Au départ : BTC, ETH, SOL |
+| Ajout | Étoile sur chaque ligne de Projets, sur la fiche projet et sur la fiche setup, ou par symbole dans Mon compte. 50 actifs au plus |
+| Filtre | « Ma watchlist » dans Projets, Setups et Actu (une news compte si son impact ou son projet touche un actif suivi ; pétrole pour WTI et Brent, gaz pour NG) |
+| Ticker | Prix en direct OKX des 12 premiers actifs, qui défilent sous l'en-tête. Dernier prix des données si OKX ne répond pas |
+| Première connexion sur un appareil | La liste du compte, plus ce qui a été ajouté sur l'appareil, puis enregistrée dans le compte |
+| Ensuite | La liste du compte fait foi (elle a pu changer sur un autre appareil). Chaque clic sur une étoile est enregistré |
+| Déconnexion | La watchlist reste sur l'appareil |
+| Supprimer mon compte | Bouton dans Mon compte : efface le compte et sa watchlist enregistrée |
+| Admin | Nombre d'inscrits, actifs les plus suivis, liste (adresse, date d'inscription, nombre d'actifs suivis). L'admin est désigné par son adresse dans la table `admins` |
 - Avertissement « Ceci n'est pas un conseil financier » sur l'accueil, Projets, Setups, chaque fiche, et en pied de page.
 - ⚠️ À faire vérifier : publier des signaux de trading au public en France peut relever de la réglementation AMF.
 
@@ -166,11 +178,16 @@ GitHub Actions (toutes les heures ; l'actu toutes les 15 minutes)
         └── data/news.json
 GitHub Pages
   └── index.html + css/ + js/ → lit les fichiers JSON
+Supabase (offre gratuite, seulement si js/config.js est rempli)
+  └── connexion (Google, lien par e-mail) ; tables profiles (adresse, watchlist) et admins
 ```
 
 - Les données sont récupérées **une fois pour tout le monde** par GitHub Actions. Le nombre de visiteurs ne change rien aux coûts ni aux limites des API.
 - Si une source tombe, le site garde la dernière version publiée de la partie concernée, sans bloquer les autres.
-- Supabase (plus tard) : comptes, watchlists.
+- Supabase : comptes et watchlists. Le schéma est dans [`supabase/schema.sql`](supabase/schema.sql), à coller une fois dans l'éditeur SQL (il peut être relancé). Chaque compte ne lit et ne modifie que sa ligne, et seulement sa watchlist (règles RLS et droits par colonne) ; l'admin lit toutes les lignes.
+- `js/config.js` contient l'adresse du projet Supabase et sa clé publique (« publishable » ou « anon »). Cette clé est faite pour être visible dans le site : ce sont les règles RLS qui protègent les données. La clé secrète (« secret » ou « service_role ») ne va jamais dans le dépôt.
+- Tant que `js/config.js` est vide, le site marche sans comptes : la watchlist reste sur l'appareil.
+- La librairie supabase-js est chargée depuis jsDelivr à une version fixée, seulement quand les comptes sont branchés.
 
 ## 9. Ordre de réalisation
 
@@ -178,5 +195,5 @@ GitHub Pages
 2. ✅ Onglet Projets
 3. ✅ Onglet Setups + Historique
 4. ✅ Onglet Actu
-5. Comptes (Supabase)
+5. ✅ Comptes (Supabase)
 6. IA + alertes Discord
