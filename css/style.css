@@ -146,6 +146,24 @@ dd.txt { font-family: var(--sans); }
 .links a.buy { background: var(--accent); color: #1a0f00; font-weight: 600; }
 .links a:hover { text-decoration: none; filter: brightness(1.1); }
 
+/* Setups */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+@media (max-width: 400px) { .grid { grid-template-columns: 1fr; } }
+.card.setup .hd .muted { font-size: 12px; }
+.card .when { margin-left: auto; font-size: 12px; color: var(--muted); align-self: center; }
+@media (max-width: 520px) { .lv { grid-template-columns: repeat(2, 1fr); } }
+.tag.mid { color: var(--mid); background: var(--mid-soft); }
+.lv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: var(--bg); border-radius: 8px; padding: 10px; font: 13px var(--mono); font-variant-numeric: tabular-nums; }
+.lv span { min-width: 0; overflow-wrap: anywhere; }
+.lv i { color: var(--muted); display: block; font: normal 11px var(--sans); }
+.wr { font-size: 12px; color: var(--muted); }
+.box > p.txt { margin: 0; padding: 0 14px 14px; font-size: 13px; color: var(--fg2); }
+.box > .link { display: block; padding: 0 14px 14px; font-size: 12px; color: var(--muted); }
+.box > .link b { color: var(--accent); font-weight: 500; }
+canvas.tall { height: 340px; }
+table.static tbody tr { cursor: default; }
+h2.section { margin: 28px 0 10px; }
+
 footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; padding-inline: 16px; padding-block: 20px 28px; text-align: center; }
 footer p { max-width: 70ch; margin: 0 auto; }
 footer b { color: var(--fg); }

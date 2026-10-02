@@ -62,7 +62,7 @@ Maquette de référence : [`mockup/index.html`](mockup/index.html).
 - La détection « sur Binance » compare les tickers. Un projet qui porte le même ticker qu'un token Binance est exclu à tort (rare).
 - Seul le **spot** Binance est vérifié : les serveurs de GitHub sont aux États-Unis, où l'API futures de Binance est bloquée.
 
-## 4. Onglet Setups (à venir)
+## 4. Onglet Setups
 
 | Sujet | Décision |
 |---|---|
@@ -77,6 +77,23 @@ Maquette de référence : [`mockup/index.html`](mockup/index.html).
 | Durée d'affichage | 24 h |
 | Historique | Taux de réussite par détecteur (gagné = TP1 touché avant le SL), stocké côté serveur |
 | Discord | Watchlist seulement, 3 signaux max par jour (plus tard) |
+
+**Fonctionnement (v1) :**
+
+| Sujet | Règle |
+|---|---|
+| Marchés | Top 50 CoinGecko disponible en perpétuel USDT sur OKX (stablecoins exclus) + WTI (`CL`), Brent (`BZ`), gaz naturel (`NG`). Si CoinGecko ne répond pas : les 50 plus gros volumes OKX |
+| Breakout + volume | Clôture au-dessus du plus haut (ou sous le plus bas) des 20 dernières bougies, volume ≥ 1,8× la moyenne 20 bougies |
+| Liquidity sweep | Mèche sous un plus bas (semaine dernière, veille ou 20 bougies) puis clôture au-dessus, dans la moitié haute de la bougie. Inverse pour un short |
+| FVG | Premier retour du prix dans un gap de 3 bougies (≥ 0,3 ATR) de moins de 30 bougies, clôture qui tient le gap |
+| Funding/OI extrême | Funding ≥ 0,04 %/8 h (ou ≤ −0,04 %) et open interest +10 % en 24 h → signal contraire |
+| Niveaux | Rebond (ou rejet) sur le plus haut/bas de la veille ou de la semaine dernière, un chiffre rond ou le niveau le plus échangé sur 30 jours |
+| Stop | 1,5 ATR(14) |
+| Objectifs | Juste avant les niveaux suivants (sommets/creux, veille, semaine, chiffres ronds, volume). Sinon 2R, 3R, 4,5R |
+| Filtre R:R | Si le premier niveau gênant est à moins de 2R, le signal est écarté |
+| Anti-doublon | Un même détecteur ne redonne pas le même signal sur un actif pendant 24 h |
+| Résultat | TP1 avant le stop = gagné. Stop et TP1 dans la même bougie = perdu. Rien après 5 jours = expiré (non gagné) |
+| Historique | Recalculé à chaque mise à jour sur 90 jours de bougies 4h. L'open interest OKX ne remonte qu'à ~16 jours : l'historique Funding/OI se construit au fil des mises à jour (fichier `setups.json` déjà en ligne) |
 
 ## 5. Onglet Actu (à venir)
 
@@ -127,19 +144,21 @@ Pied de page : avertissement « pas un conseil financier »
 GitHub Actions (toutes les heures)
   └── scripts/build-data.mjs  → récupère les API, calcule scores et badges
         └── data/projects.json, data/market.json
+  └── scripts/build-setups.mjs → bougies 4h OKX, détecteurs, bilan
+        └── data/setups.json
 GitHub Pages
   └── index.html + css/ + js/ → lit les fichiers JSON
 ```
 
 - Les données sont récupérées **une fois pour tout le monde** par GitHub Actions. Le nombre de visiteurs ne change rien aux coûts ni aux limites des API.
 - Si une source tombe, le site garde la dernière version publiée.
-- Supabase (plus tard) : comptes, watchlists, historique des signaux.
+- Supabase (plus tard) : comptes, watchlists.
 
 ## 9. Ordre de réalisation
 
 1. ✅ Cahier des charges + maquette
 2. ✅ Onglet Projets
-3. Onglet Setups
+3. ✅ Onglet Setups + Historique
 4. Onglet Actu
 5. Comptes (Supabase)
 6. IA + alertes Discord

@@ -40,12 +40,23 @@ jobs:
 
       - name: Récupérer les données déjà en ligne
         if: env.PUBLISH == 'true'
-        run: curl -fsSL "${{ steps.pages.outputs.base_url }}/data/projects.json" -o previous-projects.json || echo "Pas encore de données en ligne."
+        run: |
+          curl -fsSL "${{ steps.pages.outputs.base_url }}/data/projects.json" -o previous-projects.json || echo "Pas encore de projets en ligne."
+          curl -fsSL "${{ steps.pages.outputs.base_url }}/data/setups.json" -o previous-setups.json || echo "Pas encore de setups en ligne."
 
       - name: Récupérer les nouvelles données
         env:
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
         run: node scripts/build-data.mjs --out _site/data --previous previous-projects.json
+
+      # Si OKX ne répond pas, on republie les setups déjà en ligne plutôt que de bloquer tout le site.
+      - name: Chercher les setups 4h
+        env:
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: |
+          node scripts/build-setups.mjs --out _site/data --previous previous-setups.json \
+            || cp previous-setups.json _site/data/setups.json \
+            || echo "Setups indisponibles à cette mise à jour."
 
       - name: Assembler le site
         run: cp -r index.html css js mockup _site/

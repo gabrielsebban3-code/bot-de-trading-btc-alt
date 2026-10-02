@@ -3,7 +3,7 @@
 Dashboard de trading public :
 
 - **Projets** : petits projets crypto (< 1 Md$, pas encore sur Binance) qui génèrent de vrais revenus et grandissent. ✅
-- **Setups 4h** : détecteurs indépendants sur OKX (top 50 crypto + pétrole/gaz). À venir.
+- **Setups 4h** : 5 détecteurs indépendants sur OKX (top 50 crypto + pétrole/gaz), avec stop, objectifs et taux de réussite de chaque détecteur. ✅
 - **Actu** : géopolitique, banques centrales, OPEP, régulation, hacks, ETF, baleines. À venir.
 
 Le cahier des charges complet est dans [`SPEC.md`](SPEC.md), la maquette dans [`mockup/index.html`](mockup/index.html).
@@ -14,11 +14,13 @@ Le cahier des charges complet est dans [`SPEC.md`](SPEC.md), la maquette dans [`
 
 ```
 GitHub Actions (toutes les heures) ── scripts/build-data.mjs ──▶ data/projects.json, data/market.json
+                                  └─ scripts/build-setups.mjs ──▶ data/setups.json
 GitHub Pages ── index.html + css/ + js/ ──▶ lit les fichiers JSON
 ```
 
 Les données sont récupérées une seule fois pour tous les visiteurs (DefiLlama, CoinGecko, Binance, OKX).
 Si une source essentielle ne répond pas, la publication est annulée et la version déjà en ligne reste.
+Si OKX ne répond pas, les setups déjà en ligne sont republiés tels quels.
 
 ## Mise en ligne (une seule fois)
 
