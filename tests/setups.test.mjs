@@ -153,7 +153,7 @@ test('detectorStats et mergeHistory', () => {
 });
 
 test('build-setups écrit setups.json à partir des réponses fictives', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'monexo-setups-'));
+  const dir = await mkdtemp(join(tmpdir(), 'dinexo-setups-'));
   await writeFile(join(dir, 'prev.json'), JSON.stringify({ history: [{ id: 'old', detector: 'funding', symbol: 'BTC', status: 'confirmé', time: Date.now() - 60 * DAY, outcome: 'tp1', r: 2 }] }));
   await promisify(execFile)('node', ['--import', './tests/mock-fetch.mjs', 'scripts/build-setups.mjs', '--out', dir, '--previous', join(dir, 'prev.json'), '--sample']);
   const out = JSON.parse(await readFile(join(dir, 'setups.json'), 'utf8'));

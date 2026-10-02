@@ -136,7 +136,7 @@ test('preselect exclut les projets sans token, trop gros, trop petits ou déjà 
 });
 
 test('build-data.mjs produit des fichiers complets à partir des API simulées', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'monexo-'));
+  const dir = await mkdtemp(join(tmpdir(), 'dinexo-'));
   const run = promisify(execFile);
   await run(process.execPath, ['--import', './tests/mock-fetch.mjs', 'scripts/build-data.mjs', '--out', dir, '--sample']);
   const data = JSON.parse(await readFile(join(dir, 'projects.json'), 'utf8'));

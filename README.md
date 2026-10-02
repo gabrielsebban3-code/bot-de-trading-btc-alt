@@ -1,4 +1,4 @@
-# Monexo
+# Dinexo
 
 Dashboard de trading public :
 

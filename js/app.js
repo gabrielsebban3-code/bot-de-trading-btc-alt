@@ -36,7 +36,7 @@ document.addEventListener('click', e => { if (!e.target.closest('.more')) $('men
 
 // Encadrés « À savoir » : masqués une fois lus, sur cet appareil.
 document.querySelectorAll('.intro').forEach(el => {
-  const key = `monexo-intro-${el.dataset.intro}`;
+  const key = `dinexo-intro-${el.dataset.intro}`;
   try { if (localStorage.getItem(key)) el.hidden = true; } catch { /* stockage indisponible */ }
   el.querySelector('button').addEventListener('click', () => {
     el.hidden = true;

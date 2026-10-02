@@ -20,7 +20,7 @@ async function request(url, { headers = {}, timeout = 30_000, retries = 3, metho
       const res = await fetch(url, {
         method,
         body,
-        headers: { 'User-Agent': 'Monexo/1.0 (+github pages dashboard)', Accept: accept, ...headers },
+        headers: { 'User-Agent': 'Dinexo/1.0 (+github pages dashboard)', Accept: accept, ...headers },
         signal: ctrl.signal,
       });
       if (res.status === 429 || res.status >= 500) {

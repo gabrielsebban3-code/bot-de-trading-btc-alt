@@ -1,4 +1,4 @@
-# Monexo — cahier des charges
+# Dinexo — cahier des charges
 
 Dashboard web public pour trader crypto et matières premières :
 
@@ -8,7 +8,7 @@ Dashboard web public pour trader crypto et matières premières :
 
 Maquette de référence : [`mockup/index.html`](mockup/index.html).
 
-> Monexo est un outil d'information. **Ceci n'est pas un conseil financier.**
+> Dinexo est un outil d'information. **Ceci n'est pas un conseil financier.**
 
 ---
 

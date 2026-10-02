@@ -14,7 +14,7 @@ import {
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
 const OUT = args.out || 'data';
-const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; Monexo/1.0; +https://github.com/gabrielsebban3-code/bot-de-trading-btc-alt)' };
+const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; Dinexo/1.0; +https://github.com/gabrielsebban3-code/bot-de-trading-btc-alt)' };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Google News : une recherche par thème sur les dernières 24 h (Reuters, AP, Bloomberg, CNBC…).
@@ -152,7 +152,7 @@ async function translate(text) {
 
 async function main() {
   const now = Date.now();
-  console.log(`Monexo · actu · ${new Date(now).toISOString()}`);
+  console.log(`Dinexo · actu · ${new Date(now).toISOString()}`);
   const read = path => (path ? readFile(path, 'utf8').then(JSON.parse).catch(() => null) : null);
   const [previous, projects] = await Promise.all([read(args.previous), read(args.projects)]);
   const top = (projects?.projects || []).filter(p => p.inTop ?? p.rank <= 25).map(({ id, name, symbol, rank }) => ({ id, name, symbol, rank }));

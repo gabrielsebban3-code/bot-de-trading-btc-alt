@@ -16,8 +16,8 @@ let data = null;
 let projectsBySymbol = new Map();
 const state = { detectors: null, kind: 'all', dir: 'all' };
 const store = {
-  get() { try { return JSON.parse(localStorage.getItem('monexo-setups')) || {}; } catch { return {}; } },
-  set(v) { try { localStorage.setItem('monexo-setups', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
+  get() { try { return JSON.parse(localStorage.getItem('dinexo-setups')) || {}; } catch { return {}; } },
+  set(v) { try { localStorage.setItem('dinexo-setups', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
 };
 
 // Prix avec assez de chiffres significatifs, même pour les tokens à 0,00001 $.

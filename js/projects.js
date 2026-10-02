@@ -23,8 +23,8 @@ const BADGES = [
 const FILTER_BADGES = ['buyback', 'accelerating', 'binanceAlpha', 'okx', 'trending'];
 
 const store = {
-  get() { try { return JSON.parse(localStorage.getItem('monexo-filters')) || {}; } catch { return {}; } },
-  set(v) { try { localStorage.setItem('monexo-filters', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
+  get() { try { return JSON.parse(localStorage.getItem('dinexo-filters')) || {}; } catch { return {}; } },
+  set(v) { try { localStorage.setItem('dinexo-filters', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
 };
 const state = { chain: 'all', badges: [], hideLowFloat: false, mcap: 1e9, rev: 0, sort: 'score', ...store.get() };
 let data = null;

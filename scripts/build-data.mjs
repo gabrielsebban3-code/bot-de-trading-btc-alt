@@ -28,7 +28,7 @@ const track = (name, res, warning) => {
 
 async function main() {
   const now = new Date();
-  console.log(`Monexo · mise à jour des données · ${now.toISOString()}`);
+  console.log(`Dinexo · mise à jour des données · ${now.toISOString()}`);
 
   // 1. DefiLlama : revenus (obligatoire), revenus reversés aux détenteurs, liste des protocoles.
   const feesUrl = type => `${LLAMA}/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=${type}`;

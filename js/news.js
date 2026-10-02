@@ -97,11 +97,11 @@ function renderBanner() {
   const since = Date.now() - data.rules.bannerHours * HOUR;
   const crit = data.items.find(i => i.importance === 'critical' && i.time >= since);
   const el = $('alert');
-  if (!crit || store.get('monexo-alert-closed') === crit.id) { el.hidden = true; return; }
+  if (!crit || store.get('dinexo-alert-closed') === crit.id) { el.hidden = true; return; }
   el.querySelector('a').href = `#actu/${encodeURIComponent(crit.id)}`;
   el.querySelector('.t').textContent = crit.title || crit.titleEn;
   el.querySelector('.when').textContent = ago(new Date(crit.time).toISOString());
-  el.querySelector('button').onclick = () => { store.set('monexo-alert-closed', crit.id); el.hidden = true; };
+  el.querySelector('button').onclick = () => { store.set('dinexo-alert-closed', crit.id); el.hidden = true; };
   el.hidden = false;
 }
 
@@ -116,10 +116,10 @@ function renderResume() {
 export function initNews(newsData, projects) {
   data = newsData;
   projectsById = new Map((projects?.projects || []).filter(p => p.inTop).map(p => [p.id, p]));
-  Object.assign(state, store.get('monexo-news') || {});
+  Object.assign(state, store.get('dinexo-news') || {});
   if (state.theme !== 'all' && !data.themes[state.theme]) state.theme = 'all';
   state.shown = PAGE;
-  const update = () => { store.set('monexo-news', { theme: state.theme, level: state.level }); state.shown = PAGE; renderChips(); renderList(); };
+  const update = () => { store.set('dinexo-news', { theme: state.theme, level: state.level }); state.shown = PAGE; renderChips(); renderList(); };
   $('news-themes').addEventListener('click', e => {
     const b = e.target.closest('.chip');
     if (b) { state.theme = b.dataset.theme; update(); }
