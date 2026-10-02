@@ -67,3 +67,61 @@ export function revenueChart(canvas, series, startIso) {
     });
   }
 }
+
+// Bougies 4h avec les lignes du plan (entrée, stop, objectifs) et la bougie du signal surlignée.
+export function candleChart(canvas, rows, plan) {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const g = canvas.getContext('2d');
+  g.scale(dpr, dpr);
+  const font = getComputedStyle(document.body).getPropertyValue('--mono') || 'monospace';
+  g.font = `11px ${font}`;
+  const fmtV = v => { const a = Math.abs(v); const d = a >= 1000 ? 0 : a >= 100 ? 1 : a >= 1 ? 2 : Math.min(8, 3 - Math.floor(Math.log10(a))); return v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }); };
+  const labelW = Math.max(...[plan.entry, plan.sl, ...plan.tp].map(v => g.measureText(`Entrée ${fmtV(v)}`).width));
+  const W = rect.width, H = rect.height, L = 8, R = Math.ceil(labelW) + 14, T = 10, B = 22;
+  const bars = rows.slice(-Math.max(30, Math.min(rows.length, Math.floor((W - L - R) / 7))));
+  const lines = [
+    [plan.entry, css('--fg'), 'Entrée'],
+    [plan.sl, css('--down'), 'Stop'],
+    ...plan.tp.map((t, k) => [t, css('--up'), `TP${k + 1}`]),
+  ];
+  const values = [...bars.flatMap(b => [b[2], b[3]]), ...lines.map(l => l[0])];
+  let lo = Math.min(...values), hi = Math.max(...values);
+  const pad = (hi - lo) * 0.04 || 1;
+  lo -= pad; hi += pad;
+  const y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const bw = (W - L - R) / bars.length;
+  const k = bars.findIndex(b => b[0] === plan.time);
+  if (k >= 0) {
+    g.fillStyle = css('--accent-soft');
+    g.fillRect(L + k * bw, T, bw, H - T - B);
+  }
+  bars.forEach(([, o, h, l, c], i) => {
+    const x = L + i * bw + bw / 2;
+    g.strokeStyle = g.fillStyle = c >= o ? css('--up') : css('--down');
+    g.beginPath(); g.moveTo(Math.round(x) + 0.5, y(h)); g.lineTo(Math.round(x) + 0.5, y(l)); g.stroke();
+    const top = y(Math.max(o, c)), bot = y(Math.min(o, c));
+    g.fillRect(x - Math.max(1, bw * 0.35), top, Math.max(2, bw * 0.7), Math.max(1, bot - top));
+  });
+  g.setLineDash([4, 3]);
+  g.textBaseline = 'middle';
+  g.textAlign = 'left';
+  // Étiquettes à droite, écartées d'au moins 13 px pour rester lisibles.
+  const tags = lines.map(([v, color, label]) => ({ yy: Math.round(y(v)) + 0.5, color, text: `${label} ${fmtV(v)}` })).sort((a, b) => a.yy - b.yy);
+  tags.forEach((t, i) => { t.ty = i ? Math.max(t.yy, tags[i - 1].ty + 13) : t.yy; });
+  for (const t of tags) {
+    g.strokeStyle = t.color;
+    g.beginPath(); g.moveTo(L + Math.max(0, k) * bw, t.yy); g.lineTo(W - R + 4, t.yy); g.stroke();
+    g.fillStyle = t.color;
+    g.fillText(t.text, W - R + 8, t.ty);
+  }
+  g.setLineDash([]);
+  g.fillStyle = css('--muted');
+  g.textBaseline = 'top';
+  [0, Math.floor(bars.length / 2), bars.length - 1].forEach((i, n) => {
+    g.textAlign = ['left', 'center', 'right'][n];
+    g.fillText(new Date(bars[i][0]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Europe/Paris' }), L + (i + 0.5) * bw, H - B + 6);
+  });
+}

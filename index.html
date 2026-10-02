@@ -45,7 +45,7 @@
       <div class="focus" id="focus"></div>
       <div class="cols">
         <div class="box"><h2>Projets <a href="#projets">Top 25 →</a></h2><div id="resume-projects"></div></div>
-        <div class="box"><h2>Setups 4h <a href="#setups">Tous →</a></h2><div class="soon">Les setups arrivent dans la prochaine version.</div></div>
+        <div class="box"><h2>Setups 4h <a href="#setups">Tous →</a></h2><div id="resume-setups"></div></div>
         <div class="box"><h2>Actu <a href="#actu">Fil complet →</a></h2><div class="soon">Le fil d'actualité arrive après les setups.</div></div>
       </div>
     </section>
@@ -107,21 +107,49 @@
       <div id="project-detail"></div>
     </section>
 
-    <!-- À venir -->
+    <!-- Setups -->
     <section class="page" id="page-setups">
       <div class="intro" data-intro="setups"><span class="i">i</span>
-        <p>Opportunités de trade détectées sur les bougies 4h d'OKX. Chaque détecteur cherche <b>une seule chose</b>, par exemple une cassure de résistance. <span>Chaque signal dira pourquoi il apparaît, avec entrée, stop et objectifs.</span></p>
+        <p>Opportunités de trade détectées sur les bougies 4h d'OKX, pour le top 50 crypto, le pétrole et le gaz. Chaque détecteur cherche <b>une seule chose</b>, par exemple une cassure de résistance. <span>« En cours » : la bougie n'est pas fermée, le signal peut disparaître. « Confirmé » : bougie fermée. Le stop est à 1,5 ATR, les objectifs sont placés juste avant les niveaux suivants, et seuls les setups avec un R:R d'au moins 1:2 sont gardés. Un signal reste affiché 24 h.</span></p>
         <button type="button">Compris</button></div>
-      <h1>Setups 4h</h1>
-      <div class="box"><div class="empty">En construction. Cinq détecteurs arrivent : Breakout + volume, Liquidity sweep, FVG, Funding/OI extrême, Niveaux clés.</div></div>
+      <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
+      <h1>Setups 4h · OKX</h1>
+      <div id="setups-warnings"></div>
+      <div class="tools" id="setups-detectors" role="group" aria-label="Détecteurs"></div>
+      <div class="tools" id="setups-filters" role="group" aria-label="Filtres"></div>
+      <p class="count" id="setups-count"></p>
+      <div class="grid" id="setups-grid"></div>
     </section>
+
+    <!-- Fiche setup -->
+    <section class="page" id="page-setup">
+      <a class="back" href="#setups">← Setups</a>
+      <div id="setup-detail"></div>
+    </section>
+
     <section class="page" id="page-actu">
       <h1>Actu</h1>
       <div class="box"><div class="empty">En construction. Géopolitique, banques centrales, OPEP, régulation, hacks, ETF et baleines, traduits en français et classés par importance.</div></div>
     </section>
     <section class="page" id="page-historique">
-      <h1>Historique</h1>
-      <div class="box"><div class="empty">Le taux de réussite de chaque détecteur s'affichera ici une fois les setups en ligne.</div></div>
+      <div class="intro" data-intro="historique"><span class="i">i</span>
+        <p>Le bilan de chaque détecteur sur 90 jours. <span>Il sert à savoir à quels signaux faire confiance. « R moyen » : gain ou perte moyen par signal, en multiples du risque (+1R = on gagne ce qu'on risquait).</span></p>
+        <button type="button">Compris</button></div>
+      <h1>Taux de réussite par détecteur</h1>
+      <p class="sub" id="history-sub"></p>
+      <div class="wrap">
+        <table>
+          <thead><tr><th class="l">Détecteur</th><th>Signaux</th><th>Réussite</th><th>Gagnés / perdus / expirés</th><th>R moyen</th><th class="l">Meilleur actif</th></tr></thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+      <h2 class="section">Derniers signaux terminés</h2>
+      <div class="wrap">
+        <table class="static">
+          <thead><tr><th class="l">Bougie</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>R:R</th><th class="l">Résultat</th><th>R</th></tr></thead>
+          <tbody id="history-list"></tbody>
+        </table>
+      </div>
     </section>
     <section class="page" id="page-compte">
       <h1>Mon compte</h1>
@@ -129,7 +157,7 @@
     </section>
   </main>
 
-  <footer><p><b>Ceci n'est pas un conseil financier.</b> Monexo est un outil d'information. Le trading de cryptomonnaies et de matières premières comporte un risque élevé de perte en capital. Données : DefiLlama, CoinGecko, Binance, OKX.</p></footer>
+  <footer><p><b>Ceci n'est pas un conseil financier.</b> Monexo est un outil d'information. Le trading de cryptomonnaies et de matières premières comporte un risque élevé de perte en capital. Données : DefiLlama, CoinGecko, Binance, OKX. Les taux de réussite passés ne garantissent pas les résultats futurs.</p></footer>
 
   <script type="module" src="js/app.js"></script>
 </body>

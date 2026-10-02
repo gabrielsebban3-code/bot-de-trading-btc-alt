@@ -1,23 +1,26 @@
 // Point d'entrée : navigation, chargement des données, ticker.
 import { ago, esc, fmt, pct, price } from './format.js';
 import { initProjects, renderProject } from './projects.js';
+import { initSetups, renderSetup, setupsUnavailable } from './setups.js';
 
 const $ = id => document.getElementById(id);
 const PAGES = ['resume', 'projets', 'setups', 'actu', 'historique', 'compte'];
 const WATCHLIST = ['BTC', 'ETH', 'SOL'];
 let ready = false;
+let setupsReady = false;
 
 // Navigation par ancre : #resume, #projets, #projet/<id>…
 function route() {
   const [page, id] = location.hash.slice(1).split('/');
-  const target = page === 'projet' ? 'projet' : PAGES.includes(page) ? page : 'resume';
+  const target = ['projet', 'setup'].includes(page) ? page : PAGES.includes(page) ? page : 'resume';
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === `page-${target}`));
-  const tab = target === 'projet' ? 'projets' : target;
+  const tab = { projet: 'projets', setup: 'setups' }[target] || target;
   document.querySelectorAll('#nav [data-tab]').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   $('more').classList.toggle('on', ['historique', 'compte'].includes(tab));
   $('menu').hidden = true;
   $('more').setAttribute('aria-expanded', 'false');
   if (target === 'projet' && ready) renderProject(decodeURIComponent(id || ''));
+  if (target === 'setup' && setupsReady) renderSetup(decodeURIComponent(id || ''));
   window.scrollTo(0, 0);
 }
 
@@ -45,6 +48,25 @@ async function getJson(path) {
 }
 
 async function load() {
+  const projects = await loadProjects();
+  const setups = await getJson('data/setups.json').catch(() => null);
+  if (setups) {
+    initSetups(setups, projects);
+    setupsReady = true;
+    route();
+  } else setupsUnavailable();
+
+  const market = await getJson('data/market.json').catch(() => null);
+  const tiles = [
+    ['Dominance BTC', market?.btcDominance != null ? `${fmt(market.btcDominance, 1)} %` : '—'],
+    ['Fear & Greed', market?.fearGreed ? `${market.fearGreed.value} · ${esc(market.fearGreed.label)}` : '—'],
+    ['Projets suivis', projects ? String(projects.projects.length) : '—'],
+    ['Setups en jeu', setups ? String(setups.live.filter(s => s.outcome === 'open').length) : '—'],
+  ];
+  $('macro').innerHTML = tiles.map(([k, v]) => `<div>${k}<b>${v}</b></div>`).join('');
+}
+
+async function loadProjects() {
   let projects;
   try {
     projects = await getJson('data/projects.json');
@@ -54,21 +76,14 @@ async function load() {
     $('resume-projects').innerHTML = '<div class="soon">Données pas encore disponibles.</div>';
     $('focus').innerHTML = '';
     $('project-detail').innerHTML = `<div class="box">${msg}</div>`;
-    return;
+    return null;
   }
   $('sample').hidden = !projects.sample;
   $('updated').textContent = `Données mises à jour ${ago(projects.generatedAt)}`;
   initProjects(projects);
   ready = true;
   route();
-
-  const market = await getJson('data/market.json').catch(() => null);
-  const tiles = [
-    ['Dominance BTC', market?.btcDominance != null ? `${fmt(market.btcDominance, 1)} %` : '—'],
-    ['Fear & Greed', market?.fearGreed ? `${market.fearGreed.value} · ${esc(market.fearGreed.label)}` : '—'],
-    ['Projets suivis', String(projects.projects.length)],
-  ];
-  $('macro').innerHTML = tiles.map(([k, v]) => `<div>${k}<b>${v}</b></div>`).join('');
+  return projects;
 }
 
 // Ticker de la watchlist : OKX, sinon Binance. Masqué si aucune source ne répond.
