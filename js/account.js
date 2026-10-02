@@ -1,10 +1,11 @@
 // Onglet Mon compte : watchlist, connexion sans mot de passe (Google, ou code / lien reçu par e-mail, via Supabase),
 // watchlist synchronisée entre appareils, liste des inscrits pour l'admin.
-// Réservé aux membres : Historique, lien du Discord (alertes) et « Quoi de neuf pour toi ».
+// Réservé aux membres : Historique, lien du Discord (alertes), « Quoi de neuf pour toi » et alertes de prix.
 import { ago, esc, pct, price } from './format.js';
 import { SUPABASE } from './config.js';
 import { clean, MAX, merge, normalize, star, valid, watchlist } from './watchlist.js';
 import { since, whatsNew } from './whatsnew.js';
+import { MAX_ALERTS, checkAlerts, guessDir, normalizeAlerts, parsePrice } from './pricealerts.js';
 
 const $ = id => document.getElementById(id);
 export const accountsOn = Boolean(SUPABASE.url && SUPABASE.key);
@@ -26,6 +27,8 @@ let discord = null; // lien d'invitation, lu dans Supabase : seuls les membres c
 let from = null; // début de « Quoi de neuf » : la visite précédente du membre
 let feed = null; // setups, actu et projets chargés par js/app.js
 let badgeSeen = false; // le membre a ouvert Résumé ou Mon compte : plus de pastille
+let alerts = null; // alertes de prix du compte ; null tant qu'elles ne sont pas lues (ou colonne absente dans Supabase)
+let alertsUnseen = 0; // alertes déclenchées depuis le dernier passage sur Mon compte
 
 const local = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -45,6 +48,7 @@ const PERKS = `<ul class="perks">
   <li><b>Quoi de neuf pour toi</b> : ce qui a bougé sur tes actifs depuis ta dernière visite</li>
   <li><b>Historique</b> complet des setups, avec leur bilan</li>
   <li><b>Discord</b> : les nouveaux setups et les news critiques en notification</li>
+  <li><b>Alertes de prix</b> sur n'importe quel actif</li>
   <li>Ta <b>watchlist</b> sur tous tes appareils</li></ul>`;
 const row = (k, v) => `<dt>${k}</dt><dd class="txt">${v}</dd>`;
 const day = iso => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Paris' });
@@ -67,6 +71,10 @@ export function initAccount(assetInfo) {
     else if (e.target.id === 'login-code') verifyCode(e);
   });
   $('account').addEventListener('click', onAction);
+  $('alerts').addEventListener('submit', addAlert);
+  $('alerts').addEventListener('input', e => { if (e.target.name === 'target' || e.target.name === 'symbol') suggestDir(); });
+  $('alerts').addEventListener('click', onAlertAction);
+  $('toast').addEventListener('click', e => { if (e.target.closest('button')) $('toast').hidden = true; });
   watchlist.subscribe((list, source) => {
     renderWatchlist();
     if (source === 'user') queueSave();
@@ -89,6 +97,7 @@ export function setFeed(setups, news, projects) {
 function seenBadge() {
   const page = location.hash.slice(1).split('/')[0] || 'resume';
   if (user && ['resume', 'compte'].includes(page)) badgeSeen = true;
+  if (page === 'compte') alertsUnseen = 0;
   renderMe();
 }
 
@@ -96,7 +105,11 @@ function seenBadge() {
 export function refreshAccount(symbols) {
   if (symbols) $('wl-symbols').innerHTML = symbols.map(s => `<option value="${esc(s)}">`).join('');
   renderWatchlist();
+  checkHits();
 }
+
+// Actifs des alertes actives : le ticker demande aussi leur prix à OKX.
+export const alertSymbols = () => (alerts || []).filter(a => !a.hit).map(a => a.symbol);
 
 async function connect() {
   try {
@@ -131,6 +144,8 @@ async function onSession(session) {
   admin = false;
   discord = null;
   from = null;
+  alerts = null;
+  alertsUnseen = 0;
   badgeSeen = false;
   if (user) setPending(null);
   if (!user) {
@@ -170,6 +185,8 @@ async function memberData() {
   from = since(prev);
   local.set(key, now);
   if (!error) await sb.from('profiles').update({ last_seen: now }).eq('id', user.id);
+  const { data: al, error: alErr } = await sb.from('profiles').select('alerts').eq('id', user.id).single();
+  alerts = alErr ? null : normalizeAlerts(al?.alerts);
   const { data: links } = await sb.from('member_links').select('name, url');
   discord = discordUrl(links?.find(l => l.name === 'discord')?.url);
 }
@@ -278,8 +295,102 @@ function renderAccount() {
   document.body.classList.toggle('member', Boolean(user) || !accountsOn);
   renderDiscord();
   renderNew();
+  renderAlerts();
   renderMe();
 }
+
+// Alertes de prix --------------------------------------------------------------------------------------------
+
+async function saveAlerts() {
+  const { error } = await sb.from('profiles').update({ alerts }).eq('id', user.id);
+  if (error) { notice = 'Tes alertes n\'ont pas pu être enregistrées. Réessaie plus tard.'; renderAccount(); }
+}
+
+function suggestDir() {
+  const f = $('alert-form');
+  const target = parsePrice(f.target.value);
+  const last = info(clean(f.symbol.value)).last;
+  if (target && last != null) f.dir.value = guessDir(target, last);
+}
+
+function addAlert(e) {
+  e.preventDefault();
+  const f = e.target;
+  const symbol = clean(f.symbol.value);
+  const target = parsePrice(f.target.value);
+  const msg = !valid(symbol) ? 'Symbole invalide : des lettres et des chiffres, comme BTC.'
+    : !target ? 'Prix invalide : par exemple 90 000 ou 0,45.'
+      : alerts.filter(a => !a.hit).length >= MAX_ALERTS ? `${MAX_ALERTS} alertes actives au maximum.` : '';
+  $('alert-msg').textContent = msg;
+  if (msg) return;
+  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  alerts = [{ id, symbol, dir: f.dir.value, price: target, created: Date.now(), hit: null }, ...alerts].slice(0, MAX_ALERTS);
+  f.target.value = '';
+  saveAlerts();
+  renderAlerts();
+  window.dispatchEvent(new Event('dinexo-alerts')); // le ticker va chercher le prix de ce nouvel actif
+}
+
+function onAlertAction(e) {
+  const b = e.target.closest('[data-alert]');
+  if (b?.dataset.act === 'notify') { Notification.requestPermission().then(renderAlerts); return; }
+  if (!b) return;
+  const id = b.dataset.alert;
+  alerts = b.dataset.act === 'again' ? alerts.map(a => (a.id === id ? { ...a, hit: null, created: Date.now() } : a)) : alerts.filter(a => a.id !== id);
+  saveAlerts();
+  renderAlerts();
+}
+
+const phrase = a => `${a.symbol} ${a.dir === 'above' ? 'au-dessus de' : 'sous'} ${price(a.price)}`;
+
+// Appelé à chaque mise à jour des prix du ticker.
+function checkHits() {
+  if (!user || !alerts?.length) return;
+  const { alerts: next, hits } = checkAlerts(alerts, s => info(s).last);
+  if (!hits.length) return;
+  alerts = next;
+  saveAlerts();
+  if (!location.hash.startsWith('#compte')) alertsUnseen += hits.length;
+  const text = hits.map(h => `${phrase(h)} : ${price(h.at)}`).join(' · ');
+  $('toast').innerHTML = `<span>🔔 ${esc(text)}</span><a href="#compte">Mes alertes</a><button type="button" aria-label="Fermer">×</button>`;
+  $('toast').hidden = false;
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification('Dinexo : alerte de prix', { body: text }); } catch { /* notifications indisponibles (iPhone hors écran d'accueil) */ }
+  }
+  renderAlerts();
+  renderMe();
+}
+
+function renderAlerts() {
+  const el = $('alerts');
+  el.hidden = !user || alerts === null;
+  if (el.hidden) return;
+  const notify = 'Notification' in window && Notification.permission === 'default'
+    ? '<div class="links"><button type="button" class="btn" data-alert="" data-act="notify">Recevoir aussi une notification du navigateur</button></div>' : '';
+  const line = a => {
+    const last = info(a.symbol).last;
+    const gap = last != null && !a.hit ? ` <span class="muted">· à ${fmtGap(a.price / last - 1)}</span>` : '';
+    return `<div class="row al${a.hit ? ' hit' : ''}"><span class="d"><span class="wn mono">${esc(phrase(a))}</span>
+      <span class="muted">${a.hit ? `Déclenchée ${ago(new Date(a.hit).toISOString())}` : `Active${last != null ? ` · prix actuel ${price(last)}` : ''}`}${gap}</span></span>
+      ${a.hit ? `<button type="button" class="btn" data-alert="${a.id}" data-act="again">Réactiver</button>` : ''}
+      <button type="button" class="btn" data-alert="${a.id}" data-act="delete" aria-label="Supprimer l'alerte ${esc(phrase(a))}">×</button></div>`;
+  };
+  const keep = id => $(id)?.value ?? '';
+  const [sym, target, dir] = [keep('alert-symbol'), keep('alert-target'), $('alert-form')?.dir.value || 'above'];
+  el.innerHTML = `<h2>Alertes de prix <span class="muted">${alerts.filter(a => !a.hit).length} / ${MAX_ALERTS}</span></h2>
+    <form class="login" id="alert-form"><label for="alert-symbol">Préviens-moi quand</label>
+      <span class="field"><input id="alert-symbol" name="symbol" list="wl-symbols" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="16" placeholder="BTC" class="sym">
+        <select name="dir" aria-label="Sens"><option value="above">passe au-dessus de</option><option value="below">passe sous</option></select></span>
+      <span class="field"><input id="alert-target" name="target" inputmode="decimal" autocomplete="off" placeholder="Prix, ex. 90 000"><button class="btn primary">Créer l'alerte</button></span>
+      <span class="msg" id="alert-msg" role="status"></span></form>
+    ${alerts.map(line).join('') || '<div class="soon">Aucune alerte. Elles sont vérifiées toutes les minutes tant que Dinexo est ouvert.</div>'}
+    ${notify}`;
+  $('alert-symbol').value = sym;
+  $('alert-target').value = target;
+  $('alert-form').dir.value = dir;
+}
+
+const fmtGap = r => `${r >= 0 ? '+' : ''}${(r * 100).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`;
 
 function renderDiscord() {
   const el = $('discord');
@@ -318,7 +429,7 @@ function renderMe() {
   el.classList.toggle('in', Boolean(user));
   el.href = user ? '#compte' : '#compte/connexion';
   el.title = user ? `Connecté : ${user.email}` : 'Se connecter';
-  const n = badgeSeen ? 0 : newItems().length;
+  const n = (badgeSeen ? 0 : newItems().length) + alertsUnseen;
   el.innerHTML = user ? `<span class="av" aria-hidden="true">${esc((user.email || '?')[0])}</span>Mon compte${n ? `<span class="badge" title="${n} nouveauté${n > 1 ? 's' : ''} sur ta watchlist">${n}</span>` : ''}` : 'Connexion';
 }
 

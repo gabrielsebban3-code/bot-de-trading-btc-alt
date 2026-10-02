@@ -4,7 +4,7 @@ import { initProjects, renderProject } from './projects.js';
 import { initSetups, renderSetup, setupsUnavailable } from './setups.js';
 import { focusNews, initNews, newsFocus, newsUnavailable } from './news.js';
 import { starTitle, watchlist } from './watchlist.js';
-import { initAccount, refreshAccount, setFeed } from './account.js';
+import { alertSymbols, initAccount, refreshAccount, setFeed } from './account.js';
 
 const $ = id => document.getElementById(id);
 const PAGES = ['resume', 'projets', 'setups', 'actu', 'historique', 'compte'];
@@ -153,7 +153,8 @@ async function quote(s) {
 // Ticker de la watchlist (12 premiers actifs) : OKX en direct, sinon le dernier prix des données du site.
 // Un clic sur une étoile ne redemande que le nouvel actif ; tout est rafraîchi chaque minute.
 async function ticker() {
-  const todo = watchlist.get().slice(0, 12).filter(s => Date.now() - (asked.get(s) ?? 0) > 30_000);
+  // Plus les actifs des alertes de prix, même hors de la watchlist.
+  const todo = [...new Set([...watchlist.get().slice(0, 12), ...alertSymbols()])].filter(s => Date.now() - (asked.get(s) ?? 0) > 30_000);
   for (let i = 0; i < todo.length; i += 4) {
     const batch = todo.slice(i, i + 4);
     batch.forEach(s => asked.set(s, Date.now()));
@@ -173,3 +174,4 @@ route();
 load();
 ticker();
 setInterval(ticker, 60_000);
+window.addEventListener('dinexo-alerts', ticker);

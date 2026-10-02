@@ -43,11 +43,17 @@ create policy "profil : watchlist" on public.profiles for update to authenticate
 -- Dernière visite du membre : sert à « Quoi de neuf pour toi ».
 alter table public.profiles add column if not exists last_seen timestamptz;
 
--- Le site ne peut écrire que l'adresse à la création, puis la watchlist et la dernière visite.
+-- Alertes de prix du membre : une liste JSON de 20 alertes au plus (règles détaillées dans js/pricealerts.js).
+alter table public.profiles add column if not exists alerts jsonb not null default '[]';
+alter table public.profiles drop constraint if exists profiles_alerts_check;
+alter table public.profiles add constraint profiles_alerts_check
+  check (jsonb_typeof(alerts) = 'array' and jsonb_array_length(alerts) <= 20 and pg_column_size(alerts) < 20000);
+
+-- Le site ne peut écrire que l'adresse à la création, puis la watchlist, la dernière visite et les alertes.
 revoke all on public.profiles from anon, authenticated;
 grant select on public.profiles to authenticated;
 grant insert (id, email) on public.profiles to authenticated;
-grant update (watchlist, updated_at, last_seen) on public.profiles to authenticated;
+grant update (watchlist, updated_at, last_seen, alerts) on public.profiles to authenticated;
 
 -- Liens réservés aux membres connectés (invitation Discord…) : lisibles seulement une fois connecté, modifiables
 -- seulement depuis Supabase. Exemple :
