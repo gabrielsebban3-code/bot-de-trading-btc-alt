@@ -561,11 +561,9 @@ export function cluster(items) {
     const best = [...members].sort((a, b) => rank(b) - rank(a) || a.time - b.time)[0];
     const raw = m => m.raw ?? m.importance;
     const top = [...members].sort((a, b) => LEVEL[raw(b)] - LEVEL[raw(a)] || rank(b) - rank(a))[0];
-    const sources = [];
+    const sources = []; // noms des médias, sans doublon
     for (const m of members) {
-      for (const s of m.sources ?? [{ name: m.source, link: m.link }]) {
-        if (s.name && !sources.some(x => x.name === s.name)) sources.push(s);
-      }
+      for (const name of m.sources ?? [m.source]) if (name && !sources.includes(name)) sources.push(name);
     }
     return {
       id: members[0].id,
@@ -573,8 +571,8 @@ export function cluster(items) {
       ids: [...new Set(members.flatMap(m => m.ids ?? [m.id]))].slice(-40),
       time: Math.min(...members.map(m => m.time)),
       title: best.title ?? null, titleEn: best.titleEn, lang: best.lang ?? 'en',
-      link: best.link, source: best.source ?? best.sources?.[0]?.name ?? null,
-      sources: sources.slice(0, 8), count: sources.length,
+      link: best.link, source: best.source ?? best.sources?.[0] ?? null,
+      sources: sources.slice(0, 12), count: Math.max(sources.length, ...members.map(m => m.count ?? 0)),
       theme: top.theme, raw: raw(top), importance: confirmed(raw(top), sources.length, members), impacts: top.impacts, why: top.why, rule: top.rule,
       amountUsd: members.map(m => m.amountUsd).filter(v => v != null).sort((x, y) => y - x)[0] ?? null,
       projectId: members.map(m => m.projectId).find(Boolean) ?? null,

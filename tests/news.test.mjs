@@ -195,10 +195,11 @@ test('build-news écrit news.json à partir des réponses fictives', async () =>
   await writeFile(join(dir, 'prev.json'), JSON.stringify({
     items: [
       { id: 'vieux', ids: ['vieux'], time: now - 80 * HOUR, titleEn: 'Old news', title: 'Vieille news', lang: 'fr', importance: 'low', theme: 'geo', impacts: [], kind: 'feed', sources: [] },
-      { id: 'garde', ids: ['garde'], time: now - 10 * HOUR, titleEn: 'Gold prices climb as dollar weakens', title: 'Le prix de l\'or grimpe', lang: 'fr', importance: 'low', theme: 'energy', impacts: [], kind: 'feed', rank: 1, source: 'Kitco', sources: [{ name: 'Kitco', link: 'https://k' }], count: 1, rule: 'energie', why: '…' },
+      { id: 'garde', ids: ['garde'], time: now - 10 * HOUR, titleEn: 'Gold prices climb as dollar weakens', title: 'Le prix de l\'or grimpe', lang: 'fr', importance: 'low', theme: 'energy', impacts: [], kind: 'feed', rank: 1, source: 'Kitco', sources: ['Kitco'], count: 1, rule: 'energie', why: '…' },
     ],
   }));
-  await promisify(execFile)('node', ['--import', './tests/mock-fetch.mjs', 'scripts/build-news.mjs', '--out', dir, '--previous', join(dir, 'prev.json'), '--projects', 'data/projects.json', '--sample']);
+  await writeFile(join(dir, 'projects.json'), JSON.stringify({ projects: [{ id: 'nebula-dex', name: 'Nebula DEX', symbol: 'NBL', rank: 1, inTop: true }] }));
+  await promisify(execFile)('node', ['--import', './tests/mock-fetch.mjs', 'scripts/build-news.mjs', '--out', dir, '--previous', join(dir, 'prev.json'), '--projects', join(dir, 'projects.json'), '--sample']);
   const out = JSON.parse(await readFile(join(dir, 'news.json'), 'utf8'));
   const find = re => out.items.find(i => re.test(i.titleEn));
 

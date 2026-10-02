@@ -28,7 +28,7 @@ function impacts(i) {
 }
 
 function sources(i) {
-  const names = (i.sources || []).map(s => s.name).filter(Boolean);
+  const names = (i.sources || []).filter(Boolean);
   const extra = Math.max(0, (i.count || names.length) - 1);
   return `<span title="${esc(names.join(', '))}">${esc(i.source || names[0] || '')}${extra ? ` + ${extra} source${extra > 1 ? 's' : ''}` : ''}</span>`;
 }
@@ -143,7 +143,11 @@ export function focusNews(id) {
   if (!data || !id) return;
   const i = data.items.findIndex(x => x.id === id);
   if (i < 0) return;
-  if (!filtered().some(x => x.id === id)) { state.theme = 'all'; state.level = 'all'; renderChips(); }
+  if (!filtered().some(x => x.id === id)) {
+    Object.assign(state, { theme: 'all', level: 'all' });
+    if (!filtered().some(x => x.id === id)) state.theme = data.items[i].theme; // petite baleine : seulement dans son filtre
+    renderChips();
+  }
   state.shown = Math.max(state.shown, filtered().findIndex(x => x.id === id) + 1);
   renderList();
   const el = document.getElementById(`n-${id}`);
