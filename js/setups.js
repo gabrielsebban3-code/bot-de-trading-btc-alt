@@ -1,10 +1,10 @@
-// Onglets Setups et Historique : suivi de tendance (BTC, ETH, SOL, Brent), fiche détaillée avec graphique, bilan sur 12 mois.
+// Onglets Setups et Historique : 5 indicateurs dans le sens de la tendance (BTC, ETH, SOL, Brent), fiche détaillée avec graphique, bilan sur 12 mois.
 import { ago, esc, fmt, pct } from './format.js';
 import { candleChart } from './charts.js';
 import { linkedNews, linkedText } from './news.js';
 import { star, watchlist } from './watchlist.js';
 
-const BAR = 86_400_000; // une bougie = un jour
+const BAR = 4 * 3600_000;
 const OUTCOME = {
   sl: ['Stop touché', 'down'],
   be: ['Moitié prise, reste à l\'entrée', 'up'],
@@ -34,6 +34,7 @@ const statusTag = s => `<span class="tag ${s.status === 'confirmé' ? 'acc' : 'm
 const outcomeTag = s => (s.status === 'confirmé' && s.outcome !== 'open' ? `<span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span>` : '');
 const asset = sym => data.assets.find(a => a.symbol === sym) || { symbol: sym, name: sym };
 const okxUrl = sym => `https://www.okx.com/trade-swap/${sym.toLowerCase()}-usdt-swap`;
+const parisTime = t => new Date(t).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 const parisDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 const outcomeCls = s => (s.outcome === 'exit' ? (s.r > 0 ? 'up' : s.r < 0 ? 'down' : '') : OUTCOME[s.outcome][1]);
@@ -63,7 +64,7 @@ function card(s) {
   return `<a class="card setup" href="#setup/${encodeURIComponent(s.id)}">
     <span class="hd"><b class="mono">${esc(s.symbol)}</b><span class="muted">${esc(a.name)}</span>${dirTag(s.dir)}${statusTag(s)}${outcomeTag(s)}</span>
     <span class="tags"><span class="tag">${esc(data.detectors[s.detector])}</span><span class="tag ${TREND[s.trend]}">Tendance 1D ${esc(s.trend)}</span>
-      <span class="when">${s.status === 'en cours' ? 'journée en cours' : ago(new Date(s.time + BAR).toISOString())}</span></span>
+      <span class="when">${s.status === 'en cours' ? 'bougie en cours' : ago(new Date(s.time + BAR).toISOString())}</span></span>
     <span class="why">${esc(s.why)}</span>
     <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(s.sl)}</span><span><i>Moitié à 2R</i>${px(s.tp[0])}</span>${s.exitAt ? `<span><i>Sortie</i>${px(s.exitAt)}</span>` : `<span><i>R:R</i>1:${fmt(s.rr, 1)}</span>`}</span>
     <span class="wr">${winLine(s.detector)}</span>
@@ -85,7 +86,7 @@ function renderList() {
     ? `${list.length} setup${list.length > 1 ? 's' : ''} affiché${list.length > 1 ? 's' : ''} sur ${total} · ${data.assets.length} marchés surveillés`
     : `${data.assets.length} marchés surveillés`;
   document.getElementById('setups-grid').innerHTML = list.length ? list.map(card).join('')
-    : `<div class="box"><div class="empty">${!total ? 'Aucun trade de tendance en jeu pour le moment. Le signal est rare exprès : environ quatre par mois sur les 4 paires, et un trade dure en moyenne trois semaines.'
+    : `<div class="box"><div class="empty">${!total ? 'Aucun setup en jeu pour le moment. Le signal est rare exprès : environ deux par mois sur les 4 paires, et un trade dure en moyenne trois semaines.'
       : state.watch ? 'Aucun setup en ce moment sur les actifs de ta watchlist.' : 'Aucun setup ne correspond à ces filtres.'} <a href="#historique">Voir l'historique →</a></div></div>`;
 }
 
@@ -137,7 +138,7 @@ function renderResume() {
   const best = live.filter(s => s.status === 'confirmé').sort((a, b) => rate(b) - rate(a) || b.rr - a.rr)[0];
   const focus = document.getElementById('focus');
   if (best && focus) {
-    const html = `<a class="card" href="#setup/${encodeURIComponent(best.id)}"><span class="k">SUIVI DE TENDANCE · PLUSIEURS SEMAINES</span>
+    const html = `<a class="card" href="#setup/${encodeURIComponent(best.id)}"><span class="k">SETUP DANS LE SENS DE LA TENDANCE</span>
       <span class="hd"><b class="mono">${esc(best.symbol)}</b><span class="tag">${esc(data.detectors[best.detector])}</span>${dirTag(best.dir)}</span>
       <span class="why">${esc(best.why)} R:R 1:${fmt(best.rr, 1)}.</span></a>`;
     if (focus.querySelector('.card .why')?.textContent.startsWith('Rien de particulier')) focus.innerHTML = html;
@@ -159,14 +160,14 @@ export function renderSetup(id) {
   const short = s.dir === 'short';
   el.innerHTML = `
     <div class="ph"><h1>${esc(s.symbol)} · ${esc(data.detectors[s.detector])}</h1>${dirTag(s.dir)}${statusTag(s)}${outcomeTag(s)}${star(s.symbol, { text: true })}</div>
-    <p class="sub">${esc(a.name)} · perpétuel OKX · suivi de tendance de plusieurs semaines · clôture journalière du ${parisDay(s.time)}</p>
+    <p class="sub">${esc(a.name)} · perpétuel OKX · dans le sens de la tendance · bougie 4h du ${parisTime(s.time)} (heure de Paris)</p>
     <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     <div class="detail">
       <div class="stack">
         <div class="box"><h2>Pourquoi ce signal</h2><p class="txt">${esc(s.why)}</p>
-          ${s.status === 'en cours' ? '<p class="txt muted">La journée n\'est pas encore clôturée (clôture à minuit UTC) : le signal peut disparaître d\'ici là.</p>' : ''}</div>
-        <div class="box"><h2>Graphique journalier <span class="muted" style="font-weight:400;font-size:12px">entrée, stop et objectifs</span></h2>
-          <div class="chart">${data.charts[s.symbol] ? '<canvas id="setup-chart" class="tall" role="img" aria-label="Bougies journalières avec entrée, stop et objectifs"></canvas>' : '<div class="empty">Graphique indisponible.</div>'}</div></div>
+          ${s.status === 'en cours' ? '<p class="txt muted">La bougie 4h n\'est pas encore fermée : le signal peut disparaître à la clôture.</p>' : ''}</div>
+        <div class="box"><h2>Graphique 4h <span class="muted" style="font-weight:400;font-size:12px">entrée, stop et objectifs</span></h2>
+          <div class="chart">${data.charts[s.symbol] ? '<canvas id="setup-chart" class="tall" role="img" aria-label="Bougies 4h avec entrée, stop et objectifs"></canvas>' : '<div class="empty">Graphique indisponible.</div>'}</div></div>
       </div>
       <div class="stack">
         <div class="box"><h2>Plan</h2><dl>

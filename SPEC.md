@@ -76,34 +76,35 @@ Maquette de référence : [`mockup/index.html`](mockup/index.html).
 
 ## 4. Onglet Setups
 
-Gabriel veut du **suivi de tendance** : long quand le marché monte, short quand il baisse, et **rester dans le trade tant que la tendance dure**, pas sortir après quelques pourcents. Révision du 2 octobre 2026 au soir : la v2 (cassure 4h, sortie à 2R ou au bout de 5 jours) coupait les gros mouvements.
+Décidé avec Gabriel le 2 octobre 2026 au soir (questionnaire en 9 questions) : on garde **les 5 indicateurs de base du début**, mais **un signal ne compte que s'il va dans le sens de la tendance journalière**, et le trade est gardé tant que la tendance tient.
 
 | Sujet | Décision |
 |---|---|
-| Données | OKX, perpétuels USDT, bougies journalières (clôture à minuit UTC) |
+| Données | OKX, perpétuels USDT, bougies 4h (signaux) et journalières (tendance, stop, sortie) |
 | Marchés | **BTC, ETH, SOL et pétrole Brent (`BZ`) seulement** |
-| Style | Suivi de tendance, trades de plusieurs semaines (23 jours en moyenne), un seul trade à la fois par actif |
-| Tendance 1D | Haussière si clôture et EMA20 au-dessus de l'EMA50 journalière, baissière si les deux en dessous. Pas de trade contre la tendance, pas de trade en tendance neutre |
-| Entrée | **Dès que la tendance journalière est haussière : long. Dès qu'elle est baissière : short** (choix de Gabriel, sans condition de cassure). Après une sortie, nouveau trade à la clôture suivante si la tendance est toujours là |
+| Indicateurs | Les 5 du début, sur bougies 4h : **Breakout + volume** (clôture au-delà du plus haut/bas des 20 bougies avec un volume ≥ 1,8× la moyenne), **Liquidity sweep** (mèche au-delà d'un plus haut/bas puis clôture en dedans), **FVG** (retour dans un gap encore intact), **Funding/OI extrême** (funding ≥ 0,04 %/8 h et open interest +10 % en 24 h), **Niveaux** (rebond ou rejet sur la veille, la semaine dernière, le niveau le plus échangé ou un chiffre rond) |
+| Tendance 1D | Haussière si clôture et EMA20 au-dessus de l'EMA50 journalière, baissière si les deux en dessous. **Long seulement en tendance haussière, short seulement en tendance baissière**, rien en tendance neutre |
+| Marge | Le premier niveau devant le prix doit laisser au moins 2R de marge (R = 1,5 ATR 4h), sinon le signal est ignoré |
+| Un trade à la fois | Tant qu'un trade est en jeu sur une paire, les autres signaux de cette paire sont ignorés |
 | Stop de départ | 2 ATR(14) journaliers |
 | Moitié | À 2R, on prend la moitié et le stop remonte au prix d'entrée |
 | Sortie du reste | Quand une journée clôture sous le plus bas des 10 jours précédents (au-dessus du plus haut pour un short). Pas d'objectif fixe ni de durée maximale |
-| Résultats possibles | Stop touché (−1R) · moitié prise puis reste sorti à l'entrée (+1R) · sortie de tendance (R variable : de −1R à +10R et plus) |
-| Fréquence | Environ 4 signaux par mois sur les 4 paires |
-| Statut | « En cours » (journée pas encore clôturée) puis « Confirmé » |
+| Résultats possibles | Stop touché (−1R) · moitié prise puis reste sorti à l'entrée (+1R) · sortie de tendance (R variable) |
+| Fréquence | Environ 2 signaux par mois sur les 4 paires (souhait de Gabriel) |
+| Statut | « En cours » (bougie 4h ouverte) puis « Confirmé » |
 | Affichage | Tant que le trade est en jeu, puis 24 h après sa sortie. La fiche montre le stop actuel et le niveau de sortie du reste dès qu'il est plus serré que le stop |
-| Historique | Recalculé à chaque mise à jour sur 12 mois de bougies journalières. Gagnant = trade fini en gain |
-| Discord | Une alerte par nouveau signal confirmé, dans les 24 h qui suivent la clôture de la journée |
+| Historique | Recalculé à chaque mise à jour sur 12 mois de bougies 4h, bilan par indicateur. Gagnant = trade fini en gain |
+| Discord | Une alerte par nouveau signal confirmé, dans les 24 h |
 
-**Backtest qui a servi au choix** (bougies journalières OKX de mars 2023 à octobre 2026 sur BTC, ETH, SOL et le Brent, coté seulement depuis mars 2026 ; frais de 0,12 % par trade inclus, stop prioritaire si stop et objectif tombent le même jour) :
+**Backtest qui a servi au choix de la sortie** (bougies OKX de mars 2023 à octobre 2026 sur BTC, ETH, SOL et le Brent coté depuis mars 2026, frais de 0,12 % inclus, stop prioritaire si stop et objectif tombent dans la même bougie ; le funding n'a pas d'historique assez long pour être testé) :
 
-| Stratégie | Trades | Gagnants | R moyen | R total par année (2023 / 2024 / 2025 / 2026) | Durée moyenne |
+| 5 indicateurs dans le sens de la tendance, un trade à la fois | Trades | Gagnants | R moyen | R total par année (2023 / 2024 / 2025 / 2026) | 12 derniers mois |
 |---|---|---|---|---|---|
-| v2 : cassure 4h, TP 2R, sortie à 5 jours, filtre volume | 189 | 48 % | +0,28R | 8 / 14 / 12 / 19 | 2 à 5 jours |
-| v3 avec cassure 20 jours (écartée par Gabriel) | 76 | 51 % | +0,55R | 13 / 10 / 7 / 13 | 23 jours |
-| **v3 retenue : entrée dès que la tendance est là** | 171 | 29 % | **+0,13R** | 15 / −3 / 8 / 3 | 21 jours |
+| Sortie du début (stop 1,5 ATR 4h, objectif au niveau suivant, 5 jours max) | 173 | 33 % | +0,07R | 11 / 4 / 2 / −6 | 45 trades, −10R |
+| Suivi de tendance, stop serré 1,5 ATR 4h | 113 | 38 % | +0,54R | 43 / 23 / 0 / −5 | 35 trades, −9R |
+| **Suivi de tendance, stop 2 ATR journaliers (retenu)** | 75 (1,8 par mois) | 41 % | **+0,41R** | 13 / 10 / −5 / 13 | **16 trades, 63 % gagnants, +12,9R** |
 
-Sur les 12 derniers mois, la version retenue donne 56 trades, 36 % de gagnants et +7,9R (la version avec cassure : 20 trades, 70 %, +16,8R). Gabriel préfère entrer dès que la tendance est là, sans attendre de cassure : moins de gagnants, mais aucun départ de tendance raté. Testés et écartés : sortie sur clôture sous l'EMA20 (bon en 2026 mais −5R en 2025), sortie au plus bas de 20 jours (gros gains en 2023, presque rien ensuite), stop suiveur à 3 ou 4 ATR, sortie quand la tendance 1D change, entrées sur pullback (beaucoup de petits stops), filtre volume (n'aide plus avec les entrées journalières).
+Par indicateur (version retenue) : Breakout + volume 60 trades +20,7R, Niveaux 12 trades +7,1R, FVG 3 trades +3R. Le sweep ne passe presque jamais le filtre de tendance. Un trade dure 22 jours en moyenne. Pour comparaison, une simple cassure du plus haut/bas de 20 jours a fait 76 trades, 51 % de gagnants et +0,55R, mais Gabriel préfère ses indicateurs.
 
 ## 5. Onglet Actu
 

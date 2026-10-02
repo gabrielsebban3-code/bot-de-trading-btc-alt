@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Récupère les bougies journalières d'OKX pour BTC, ETH, SOL et le Brent, cherche les trades de suivi de tendance et calcule leur bilan.
+// Récupère les bougies 4h et 1D, le funding et l'open interest d'OKX pour BTC, ETH, SOL et le Brent,
+// cherche les signaux des 5 indicateurs dans le sens de la tendance et calcule leur bilan.
 // Usage : node scripts/build-setups.mjs [--out data] [--previous ancien-setups.json] [--sample]
 // Lancé toutes les heures par GitHub Actions (.github/workflows/deploy.yml).
 
@@ -31,10 +32,10 @@ function spacer(gap) {
     if (wait) await sleep(wait);
   };
 }
-const pace = { market: spacer(120), public: spacer(250) };
+const pace = { market: spacer(120), public: spacer(250), rubik: spacer(450) };
 
 async function okx(path) {
-  await (path.startsWith('/public') ? pace.public : pace.market)();
+  await (path.startsWith('/rubik') ? pace.rubik : path.startsWith('/public') ? pace.public : pace.market)();
   const r = await fetchJson(`${OKX}${path}`, { retries: 2 });
   if (r.code !== '0') throw new Error(`OKX ${path} : ${r.msg || r.code}`);
   return r.data;
@@ -53,9 +54,24 @@ async function candles(instId, bar, pages) {
   return rows.map(toBar).sort((a, b) => a.t - b.t);
 }
 
+async function funding(instId) {
+  const rows = (await okx(`/public/funding-rate-history?instId=${instId}&limit=100`))
+    .map(r => ({ t: Number(r.fundingTime), f: Number(r.realizedRate || r.fundingRate) }))
+    .sort((a, b) => a.t - b.t);
+  // Certains contrats paient toutes les 4 h ou toutes les heures : on ramène tout à 8 h.
+  const gap = rows.length > 1 ? (rows.at(-1).t - rows[0].t) / (rows.length - 1) : 8 * 3600_000;
+  const k = (8 * 3600_000) / Math.max(3600_000, Math.round(gap / 3600_000) * 3600_000);
+  return rows.map(r => ({ t: r.t, f: r.f * k }));
+}
+
+async function openInterest(instId) {
+  const rows = await okx(`/rubik/stat/contracts/open-interest-history?instId=${instId}&period=4H&limit=100`);
+  return new Map(rows.map(r => [Number(r[0]), Number(r[2])]));
+}
+
 async function main() {
   const now = Date.now();
-  console.log(`Dinexo · suivi de tendance · ${new Date(now).toISOString()}`);
+  console.log(`Dinexo · setups dans le sens de la tendance · ${new Date(now).toISOString()}`);
   const sources = {}, warnings = [];
 
   const [instruments, tickers] = await Promise.all([
@@ -74,18 +90,23 @@ async function main() {
   const results = await mapLimit(universe, 3, async asset => {
     const instId = `${asset.symbol}-USDT-SWAP`;
     try {
-      const daily = await candles(instId, '1Dutc', 3); // ~20 mois : 1 an de backtest + le temps de calculer la tendance
-      const signals = scanAsset(asset, { daily, now });
+      const bars = await candles(instId, '4H', 20);    // ~13 mois
+      const daily = await candles(instId, '1Dutc', 3); // ~20 mois : de quoi calculer la tendance et suivre les trades
+      const [fund, oi] = await Promise.all([funding(instId).catch(() => null), openInterest(instId).catch(() => null)]);
+      const fundingAt = fund?.length ? t => { let v = null; for (const r of fund) { if (r.t <= t) v = r.f; else break; } return v; } : null;
+      const oiAt = oi?.size ? t => oi.get(t) ?? null : null;
+      const signals = scanAsset(asset, { bars, daily, fundingAt, oiAt, now });
       const tk = tick.get(instId);
-      const last = tk ? Number(tk.last) : daily.at(-1).c;
+      const last = tk ? Number(tk.last) : bars.at(-1).c;
       return {
         asset: {
           ...asset, instId, price: last,
           change24h: tk && Number(tk.open24h) ? last / Number(tk.open24h) - 1 : null,
           trend: trend1d(daily, now),
         },
-        signals, daily,
-        start: daily[Math.max(1, daily.length - RULES.backtestBars - 1)]?.t,
+        signals, bars,
+        start: bars[Math.max(RULES.warmup, bars.length - RULES.backtestBars - 1)]?.t,
+        oiStart: oi?.size ? Math.min(...oi.keys()) + 6 * BAR : null,
       };
     } catch (err) {
       failed++;
@@ -102,7 +123,7 @@ async function main() {
   const confirmed = all.filter(s => s.status === 'confirmé');
   const freshStart = {};
   for (const key of Object.keys(DETECTORS)) {
-    const starts = ok.map(r => r.start).filter(Boolean);
+    const starts = ok.map(r => (key === 'funding' ? r.oiStart : r.start)).filter(Boolean);
     if (starts.length) freshStart[key] = Math.min(...starts);
   }
   let previous = null;
@@ -120,13 +141,13 @@ async function main() {
     .sort((a, b) => b.time - a.time || (a.status === 'en cours' ? -1 : 1));
   const charts = {};
   for (const r of ok) {
-    if (shown.some(s => s.symbol === r.asset.symbol)) charts[r.asset.symbol] = r.daily.slice(-120).map(b => [b.t, b.o, b.h, b.l, b.c]);
+    if (shown.some(s => s.symbol === r.asset.symbol)) charts[r.asset.symbol] = r.bars.slice(-180).map(b => [b.t, b.o, b.h, b.l, b.c]);
   }
 
   await mkdir(OUT, { recursive: true });
   await writeFile(join(OUT, 'setups.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), sources, warnings,
-    rules: { minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: RULES.exitDays, showHours: RULES.showHours, statsDays: RULES.statsDays },
+    rules: { minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: RULES.exitDays, barMs: BAR, showHours: RULES.showHours, statsDays: RULES.statsDays },
     detectors: DETECTORS, freshStart,
     assets: ok.map(r => r.asset), live: shown, stats, history, charts,
   }));

@@ -3,7 +3,7 @@
 Dashboard de trading public :
 
 - **Projets** : petits projets crypto (< 1 Md$, pas encore sur Binance) qui génèrent de vrais revenus et grandissent. ✅
-- **Suivi de tendance** : trades de plusieurs semaines sur BTC, ETH, SOL et le pétrole Brent (OKX). Long dès que la tendance journalière est haussière, short dès qu'elle est baissière, moitié prise à 2R, le reste suit la tendance jusqu'à la cassure du plus bas/haut de 10 jours. Bilan sur 12 mois. ✅
+- **Setups** : les 5 indicateurs de base sur bougies 4h (Breakout + volume, Liquidity sweep, FVG, Funding/OI, Niveaux) sur BTC, ETH, SOL et le pétrole Brent (OKX), gardés seulement dans le sens de la tendance journalière. Un trade à la fois par paire, moitié prise à 2R, le reste suit la tendance. Bilan sur 12 mois. ✅
 - **Actu** : géopolitique, banques centrales, OPEP, régulation, hacks, ETF, baleines, traduits en français, classés par importance avec l'impact probable par actif. Bandeau rouge sur les news critiques. ✅
 - **Mon compte** : watchlist (étoile sur les projets et les setups, filtre « Ma watchlist », prix qui défilent en haut), gardée sur l'appareil, et sur tous les appareils avec un compte (Google ou lien par e-mail, via Supabase). L'admin voit la liste des inscrits. ✅
 

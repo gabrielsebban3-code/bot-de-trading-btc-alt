@@ -53,7 +53,11 @@ export function setupRoutes(now = Date.now()) {
       if (!inDay.length) continue;
       days.push([String(t), String(inDay[0][0]), String(Math.max(...inDay.map(b => b[1]))), String(Math.min(...inDay.map(b => b[2]))), String(inDay.at(-1)[3]), '0', '0', String(inDay.reduce((v, b) => v + b[4], 0)), t === endDay ? '0' : '1']);
     }
-    data[sym] = { bars, days: days.reverse(), last: Number(bars[0][4]), open24h: Number(bars[6][1]) };
+    const r = rng(seed + 100);
+    const funding = Array.from({ length: 90 }, (_, k) => ({ fundingTime: String(Math.floor(now / (8 * 3600_000)) * 8 * 3600_000 - k * 8 * 3600_000), realizedRate: String((r() - 0.3) * (sym === 'DOGE' ? 0.0012 : 0.0002)) }));
+    let oi = 1e6;
+    const oiRows = Array.from({ length: 100 }, (_, k) => [String(end4h - (99 - k) * BAR), '0', String((oi *= 1 + (sym === 'DOGE' ? 0.025 : (r() - 0.5) * 0.02))), '0']).reverse();
+    data[sym] = { bars, days: days.reverse(), funding, oiRows, last: Number(bars[0][4]), open24h: Number(bars[6][1]) };
   }
   return data;
 }
@@ -78,6 +82,10 @@ export function routeSetups(data, url) {
       const after = Number(q('after'));
       return ok(rows(data[sym], q('bar')).filter(b => Number(b[0]) < after).slice(0, 100));
     }
+    case '/api/v5/public/funding-rate-history':
+      return ok(data[sym].funding);
+    case '/api/v5/rubik/stat/contracts/open-interest-history':
+      return ok(data[sym].oiRows);
     default:
       return undefined;
   }

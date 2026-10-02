@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Dinexo</title>
-  <meta name="description" content="Petits projets crypto rentables, trades de suivi de tendance sur BTC, ETH, SOL et le pétrole, et actualité des marchés.">
+  <meta name="description" content="Petits projets crypto rentables, setups dans le sens de la tendance sur BTC, ETH, SOL et le pétrole, et actualité des marchés.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
@@ -38,7 +38,7 @@
     <!-- Résumé -->
     <section class="page" id="page-resume">
       <div class="intro" data-intro="resume"><span class="i">i</span>
-        <p>Dinexo surveille trois choses : <b>des petits projets crypto qui gagnent de l'argent</b>, <b>des trades de suivi de tendance de plusieurs semaines</b> sur BTC, ETH, SOL et le pétrole, et <b>l'actu qui fait bouger les marchés</b>. <span>Le bloc orange te dit quoi regarder en priorité. Tout ce qui est cliquable ouvre une fiche détaillée.</span></p>
+        <p>Dinexo surveille trois choses : <b>des petits projets crypto qui gagnent de l'argent</b>, <b>des setups dans le sens de la tendance, gardés plusieurs semaines</b> sur BTC, ETH, SOL et le pétrole, et <b>l'actu qui fait bouger les marchés</b>. <span>Le bloc orange te dit quoi regarder en priorité. Tout ce qui est cliquable ouvre une fiche détaillée.</span></p>
         <button type="button">Compris</button></div>
       <div class="macro" id="macro"></div>
       <h2>À regarder maintenant</h2>
@@ -46,7 +46,7 @@
       <div class="focus" id="focus"></div>
       <div class="cols">
         <div class="box"><h2>Projets <a href="#projets">Top 25 →</a></h2><div id="resume-projects"></div></div>
-        <div class="box"><h2>Suivi de tendance <a href="#setups">Tous →</a></h2><div id="resume-setups"></div></div>
+        <div class="box"><h2>Setups <a href="#setups">Tous →</a></h2><div id="resume-setups"></div></div>
         <div class="box"><h2>Actu <a href="#actu">Fil complet →</a></h2><div id="resume-news"></div></div>
       </div>
     </section>
@@ -111,10 +111,10 @@
     <!-- Setups -->
     <section class="page" id="page-setups">
       <div class="intro" data-intro="setups"><span class="i">i</span>
-        <p>Suivi de tendance sur <b>BTC, ETH, SOL et le pétrole Brent</b> (perpétuels OKX) : <b>long quand le marché monte, short quand il baisse, et on reste dedans tant que la tendance dure</b>. On entre en long dès que la tendance journalière est haussière (clôture et EMA20 au-dessus de l'EMA50), en short dès qu'elle est baissière. <span>Stop de départ à 2 ATR journaliers. À 2R on prend la moitié et le stop remonte au prix d'entrée. Le reste sort quand une journée clôture sous le plus bas des 10 derniers jours (au-dessus du plus haut pour un short) : un trade dure en moyenne trois semaines. Après une sortie, on reprend un trade le lendemain si la tendance est toujours là. « En cours » : la journée n'est pas clôturée, le signal peut disparaître. Un trade reste affiché tant qu'il est en jeu.</span></p>
+        <p>Les 5 indicateurs de base sur bougies 4h (<b>Breakout + volume, Liquidity sweep, FVG, Funding/OI extrême, Niveaux</b>) sur <b>BTC, ETH, SOL et le pétrole Brent</b> (perpétuels OKX). <b>Un signal ne compte que s'il va dans le sens de la tendance journalière</b> : long quand le marché monte, short quand il baisse. <span>Un seul trade à la fois par paire, et seulement s'il y a au moins 2R de marge avant le prochain niveau. Stop de départ à 2 ATR journaliers. À 2R on prend la moitié et le stop remonte au prix d'entrée. Le reste sort quand une journée clôture sous le plus bas des 10 derniers jours (au-dessus du plus haut pour un short) : un trade dure en moyenne trois semaines. « En cours » : la bougie 4h n'est pas fermée, le signal peut disparaître.</span></p>
         <button type="button">Compris</button></div>
       <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
-      <h1>Suivi de tendance · BTC, ETH, SOL, pétrole</h1>
+      <h1>Setups dans le sens de la tendance · BTC, ETH, SOL, pétrole</h1>
       <div id="setups-warnings"></div>
       <div class="tools" id="setups-detectors" role="group" aria-label="Détecteurs"></div>
       <div class="tools" id="setups-filters" role="group" aria-label="Filtres"></div>
@@ -152,9 +152,9 @@
 
     <section class="page" id="page-historique">
       <div class="intro" data-intro="historique"><span class="i">i</span>
-        <p>Le bilan du suivi de tendance sur 12 mois. <span>Il sert à savoir si on peut faire confiance aux signaux. « R moyen » : gain ou perte moyen par trade, en multiples du risque (+1R = on gagne ce qu'on risquait). Les trades gagnants rapportent souvent plus de 2R : c'est ce qui paie les stops.</span></p>
+        <p>Le bilan des setups sur 12 mois, indicateur par indicateur. <span>Il sert à savoir si on peut faire confiance aux signaux. « R moyen » : gain ou perte moyen par trade, en multiples du risque (+1R = on gagne ce qu'on risquait). Les trades gagnants rapportent souvent plus de 2R : c'est ce qui paie les stops.</span></p>
         <button type="button">Compris</button></div>
-      <h1>Bilan du suivi de tendance</h1>
+      <h1>Bilan des setups</h1>
       <p class="sub" id="history-sub"></p>
       <div class="wrap">
         <table>
