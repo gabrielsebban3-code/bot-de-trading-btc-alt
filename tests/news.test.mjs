@@ -122,6 +122,24 @@ const CASES = [
   ['Costco says it used tariff refunds to cut prices', {}, 'droits-de-douane', 'low', []],
   ['US has no timeline for cutting tariffs on $60 billion of Chinese goods', {}, 'droits-de-douane', 'low', []],
   ['Trump imposes additional 50% tariffs on some Canadian products', {}, 'droits-de-douane', 'medium', [['BTC', -1]]],
+  ["Trump's 50% tariffs on Canada take effect as Carney vows to retaliate", {}, 'droits-de-douane', 'medium', [['BTC', -1]]],
+  ['RESCON: Tariffs will escalate the cost of new home building in both Canada and U.S.', {}, 'droits-de-douane', 'low', []],
+  ['Trump, Modi Discuss Trade, Energy Ties as New Tariffs Loom', {}, 'droits-de-douane', 'low', []],
+  ['Canadian trailer dealers call for removal of tariffs on specialized US auto-hauling equipment', {}, 'droits-de-douane', 'low', []],
+  ['IMF approves $120 million for El Salvador despite bitcoin breach', {}, 'regulation', 'low', []],
+  ['Hormuz oil exports recover as blockade eases', {}, 'cessez-le-feu', 'medium', [['Pétrole', -1], ['Or', -1]]],
+  ['Crude oil exports from strait of Hormuz largely return to pre-war levels', {}, 'cessez-le-feu', 'medium', [['Pétrole', -1], ['Or', -1]]],
+  ['On CNN, Gallego Condemns Trump and Hegseth’s War in Iran, Attacks on the Free Press', {}, 'conflit', 'low', []],
+  ["Türkiye condemns Houthis' attack on holy city of Medina", {}, 'conflit', 'low', []],
+  ["US sanctions target Iran's auto, rail sectors as blockade chokes ship lanes", {}, 'sanctions', 'low', []],
+  ["Treasury sanctions operation targets Iran's auto, rail industries in latest economic attack", {}, 'sanctions', 'low', []],
+  ['Evernorth shareholders approve $1 billion XRP treasury deal, clearing path to Nasdaq debut', {}, 'regulation', 'low', []],
+  ['Cryptohack Roundup: $387M Bitget Hack', {}, 'hack', 'low', []],
+  ['Bitcoin ETF Demand Roars Back With $6.34 Billion in Q3 Inflows', {}, 'etf', 'low', []],
+  ['Stablecoins can drain from banks and nations at lightning speed', { crypto: true }, null],
+  ['US Regulators Have Changed Bank Crypto Rules With Every New President Since 2017. Why a Law Is Better for Bitcoin', {}, 'regulation', 'low', []],
+  ['U.S. unemployment claims dip to the lowest since mid-July', {}, 'inflation', 'medium', [['BTC', -1]]],
+  ['U.S. core PCE inflation falls to 3.0%; why do long-term interest rates remain elevated?', {}, 'inflation', 'medium', [['BTC', 1]]],
   ['Teachers strikes in France', {}, null],
 ];
 
@@ -163,6 +181,10 @@ test('baleines : dépôts, retraits, création de stablecoins, seuil de 10 M$', 
   assert.equal(small.importance, 'low');
   assert.deepEqual(small.impacts, [], 'pas de flèche sur un petit mouvement');
   assert.equal(whaleNews(parseWhale('120 #ETH (450,000 USD) transferred from unknown wallet to #Binance')), null);
+  // Format actuel du canal : « $UNI » et le lien « Details ».
+  const cashtag = whaleNews(parseWhale('🚨 2,493,137 $UNI (22,464,516 USD) transferred from #BitGet to unknown wallet\nDetails'));
+  assert.equal(sp(cashtag.title), '2,5 M UNI (22 M$) envoyés de BitGet vers un portefeuille inconnu');
+  assert.equal(sp(whaleNews(parseWhale('💵 💵 250,000,000 $USDC (250,022,874 USD) minted at USDC Treasury Details')).title), '250 M USDC créés par USDC Treasury');
   const top = whaleNews(parseWhale('9,000,000 #NBL (12,000,000 USD) transferred from unknown wallet to #Bybit'), [{ id: 'nebula-dex', symbol: 'NBL' }]);
   assert.deepEqual([top.importance, top.projectId, top.impacts], ['medium', 'nebula-dex', [['NBL', -1]]]);
 });
@@ -229,6 +251,13 @@ test('guerre en cours : seule la première frappe d\'une zone en 24 h reste crit
   assert.match(feed.find(i => i.id === 'b').why, /guerre déjà en cours/);
   assert.deepEqual(feed.find(i => i.id === 'b').impacts, [['Pétrole', 1], ['Or', 1], ['BTC', -1]]);
   assert.equal(level(buildFeed(feed, [], NOW + HOUR), 'b'), 'medium', 'reste moyenne aux mises à jour suivantes');
+  const threats = buildFeed([], [
+    strike('a', 10, 'Israel strikes Iran nuclear sites'),
+    strike('t', 8, 'Iran threatens to retaliate against US bases'),
+    strike('h', 7, 'Iran threatens to close Strait of Hormuz'),
+  ], NOW);
+  assert.deepEqual(['t', 'h'].map(id => level(threats, id)), ['low', 'medium'], 'menace pendant la guerre : faible, sauf escalade majeure');
+  assert.deepEqual(threats.find(i => i.id === 't').impacts, []);
   const later = buildFeed([], [strike('a', 40, 'Israel strikes Iran nuclear sites'), strike('e', 1, 'US strikes Iranian missile bases')], NOW);
   assert.equal(level(later, 'e'), 'critical', 'plus de 24 h sans frappe : nouvelle escalade');
 });
@@ -275,6 +304,7 @@ test('build-news écrit news.json à partir des réponses fictives', async () =>
   assert.ok(!find(/price analysis/), 'hors des thèmes suivis');
   assert.deepEqual(find(/Trump announces new 100% tariffs/).impacts, [['BTC', -1]]);
 
+  assert.equal(find(/NEAR Intents pauses/)?.theme, 'hack', 'un message Whale Alert qui n\'est pas un transfert est lu comme une news');
   const whales = out.items.filter(i => i.kind === 'whale');
   assert.deepEqual(whales.map(w => sp(w.title)).sort(), ['1 500 BTC (150 M$) envoyés d\'un portefeuille inconnu vers Coinbase', '250 M USDT créés par Tether Treasury']);
   for (const i of out.items) {

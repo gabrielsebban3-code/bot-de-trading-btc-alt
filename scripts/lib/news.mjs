@@ -175,18 +175,30 @@ const UNCERTAIN = /\b(may|might|could|considers?|considering|weighs?|weighing|mu
 // Avant-première : le chiffre ou la décision n'est pas encore tombé.
 const PREVIEW = /\b(ahead of|before|awaits?|awaited|awaiting|eyes|eyeing|braces? for|bracing for|in focus|on tap|preview\w*|what to (expect|watch|know)|expected to|seen (rising|falling|slowing|cooling|easing|at)|forecast to|set to|week ahead|looms?|looming)\b/i;
 // Prévisions, analyses, fils en direct des marchés : utiles à lire, mais pas une nouvelle en soi.
-const ANALYSIS = /\b(price predictions?|predictions? for|forecasts? for (today|tomorrow|next)|(price|oil|gas|gold|bitcoin|btc|crypto|weekly|daily) forecasts?|outlook:|technical analysis|price analysis|week ahead|what to (watch|expect|know)|explainer|explained|opinion|podcast|live markets?|markets? live|market wrap|stocks? to (watch|buy))\b|\bforecasts?\s+[–—:-]/i;
+const ANALYSIS = /\b(price predictions?|predictions? for|forecasts? for (today|tomorrow|next)|(price|oil|gas|gold|bitcoin|btc|crypto|weekly|daily) forecasts?|outlook:|technical analysis|price analysis|week ahead|what to (watch|expect|know)|explainer|explained|opinion|podcast|live markets?|markets? live|market wrap|stocks? to (watch|buy)|here[’']?s (why|what|how)|what comes next)\b|\bforecasts?\s+[–—:-]|^why\b|\.\s+why\b/i;
+const REQUEST = /\b(calls? for|call to|urges?|urging|asks?|asking|seeks?|seeking|lobb\w*|petition\w*|push(es)? for|wants?)\b/i;
 const NEGATED = /\b(no|not|won't|will not|never|rules? out|ruled out|refuses?|refused|rejects?|rejected|denies|denied)\b/i;
 const THREAT = /\b(threat\w*|warns?|warned|warning|vows?|vowed|if|ready to|prepared to|fears?|risk|risks|possible|potential|calls? for|urges?|denies|denied|rules? out)\b/i;
 
-const INFLATION = /\b(cpi|inflation|pce|consumer prices|producer prices|ppi|nonfarm|payrolls|jobs report|unemployment rate|jobless claims)\b/i;
-// Le chiffre lui-même (« CPI rises 0.4% », « jobless claims fall », « employers added 150,000 jobs »), pas une simple mention.
-const DATA_RELEASE = /\b(cpi|inflation|pce|consumer prices|producer prices|ppi|payrolls|jobs report|job growth|job gains|unemployment( rate)?|jobless (claims|rate)|wage growth)\b(?:\W+[\w.%,-]+){0,4}?\W+(rises?|rose|falls?|fell|climbs?|climbed|jumps?|jumped|slows?|slowed|cools?|cooled|eases?|eased|accelerat\w*|hotter|cooler|beats?|beat|misses?|missed|surges?|surged|drops?|dropped|declines?|declined|ticks? (up|down)|edges? (up|down|higher|lower)|steady|unchanged|tops?|topped|exceeds?|exceeded|comes? in|came in|hits?|reaches?|reached|soars?|soared|tumbles?|tumbled|plunges?|plunged|spikes?|spiked|increases?|increased|grows?|grew|rebounds?|rebounded)\b|\b(economy|employers|payrolls)\s+(adds?|added|creates?|created|sheds?|shed|loses?|lost)\s+[\d,.]+\s*(k|thousand|million)?\s+jobs\b/i;
-const DATA_HOT = /\b(hotter|accelerat\w*|more than expected|higher than expected|above (expectations|forecasts?|estimates?)|jumps?|jumped|surges?|surged|beats?|stronger|unexpectedly (rises?|rose|jumps?|jumped|climbs?|climbed))\b/i;
-const DATA_COOL = /\b(cooler|slows?|slowed|cools?|cooled|eases?|eased|less than expected|lower than expected|below (expectations|forecasts?|estimates?)|weaker|misses?|unexpectedly (falls?|fell|drops?|dropped))\b/i;
-const LABOR_BAD = /\b(unemployment|jobless)\b/i;
-const DIR_UP = /\b(rises?|rose|climbs?|climbed|jumps?|jumped|increases?|increased|higher|surges?|surged|spikes?|spiked)\b/i;
-const DIR_DOWN = /\b(falls?|fell|drops?|dropped|declines?|declined|lower|dips?|dipped|eases?|eased)\b/i;
+const INFLATION = /\b(cpi|inflation|pce|consumer prices|producer prices|ppi|nonfarm|non-farm|nfp|payrolls|jobs report|unemployment (rate|claims)|jobless claims)\b/i;
+// Le chiffre lui-même (« CPI jumps 0.6% », « jobless claims fall »), pas une simple mention : l'indicateur, puis le verbe.
+const INDICATOR = '(cpi|inflation|pce|consumer prices|producer prices|ppi|payrolls|nfp|jobs report|job growth|job gains|unemployment(?: rate| claims)?|jobless (?:claims|rate)|wage growth)';
+const MOVE = '(rises?|rose|falls?|fell|climbs?|climbed|jumps?|jumped|slows?|slowed|cools?|cooled|eases?|eased|accelerat\\w*|heats? up|hotter|cooler|beats?|beat|misses?|missed|surges?|surged|drops?|dropped|dips?|dipped|declines?|declined|ticks? (?:up|down)|edges? (?:up|down|higher|lower)|steady|unchanged|tops?|topped|exceeds?|exceeded|comes? in|came in|hits?|reaches?|reached|soars?|soared|tumbles?|tumbled|plunges?|plunged|spikes?|spiked|increases?|increased|grows?|grew|rebounds?|rebounded)';
+const RELEASE = new RegExp(`\\b${INDICATOR}\\b(?:\\W+[\\w.%,-]+){0,4}?\\W+${MOVE}\\b`, 'i');
+const JOBS_ADDED = /\b(economy|employers|payrolls)\s+(adds?|added|creates?|created|sheds?|shed|loses?|lost)\s+[\d,.]+\s*(k|thousand|million)?\s+jobs\b/i;
+// Sens du chiffre : la comparaison avec les attentes si le titre la donne, sinon le verbe qui suit l'indicateur
+// (« rises » seul ne compte pas pour les prix : une hausse mensuelle est la norme).
+const HOT_WORDS = /\b(hotter|stronger|more than expected|higher than expected|above (expectations|forecasts?|estimates?)|beats?|beat)\b/i;
+const COOL_WORDS = /\b(cooler|weaker|less than expected|lower than expected|below (expectations|forecasts?|estimates?)|misses?|missed)\b/i;
+const UP_STRONG = /^(jumps?|jumped|surges?|surged|accelerat\w*|heats? up|hotter|spikes?|spiked|soars?|soared|tops?|topped|exceeds?|exceeded)$/i;
+const UP_ANY = /^(jumps?|jumped|surges?|surged|accelerat\w*|heats? up|spikes?|spiked|soars?|soared|tops?|topped|exceeds?|exceeded|rises?|rose|climbs?|climbed|increases?|increased|ticks? up|edges? (up|higher)|rebounds?|rebounded|grows?|grew|hits?|reaches?|reached)$/i;
+const DOWN = /^(falls?|fell|drops?|dropped|dips?|dipped|declines?|declined|cools?|cooled|cooler|eases?|eased|slows?|slowed|tumbles?|tumbled|plunges?|plunged|ticks? down|edges? (down|lower))$/i;
+
+function dataRelease(t) {
+  const m = t.match(RELEASE);
+  if (m) return { what: m[1].toLowerCase(), verb: m[2] };
+  return JOBS_ADDED.test(t) ? { what: 'payrolls', verb: '' } : null;
+}
 const FOREIGN = /\b(uk|britain|british|euro ?zone|euro area|europe\w*|eu|german\w*|france|french|japan\w*|tokyo|asia\w*|china|chinese|canada|canadian|australia\w*|india\w*|turkey|turkish|brazil\w*|argentin\w*|russia\w*|mexic\w*|swiss|korea\w*|ftse|dax|nikkei)\b/i;
 const USA = /(?<![\w.])(us|u\.s\.|usa|american|united states|fed)(?!\w)/i;
 // Droits de douane : ceux des États-Unis font bouger les cryptos, pas un accord Japon-Corée. « US » en majuscules
@@ -210,6 +222,9 @@ const WAR = /\b(air ?strikes?|missiles?|rockets?|drones?|bomb\w*|invad\w*|invasi
 const WAR_ACT = /\b(air ?strikes?|missile (strike|attack)s?|missiles? (hit|hits|fired|launched|strike|strikes)|fires? missiles|launch(es|ed)? missiles|rockets? (hit|hits|fired)|drone (strike|attack)s?|bomb(s|ing|ed|ings)?|invad\w*|invasion|attacks?|attacked|strikes? (on|against|in)|struck|shelling|retaliat\w*|seiz(es|ed) (a )?(tanker|ship|vessel)|war breaks out|go(es)? to war|went to war)\b/i;
 const STRAIT = /\b(hormuz|red sea|strait)\b/i;
 const CLOSE = /\b(close|closes|closed|closure|block\w*|blockade)\b/i;
+const REOPEN = /\b(reopen\w*|lift\w*|ends?|ended|eases?|eased|easing|returns?|returned|resum\w*|recover\w*|normal\w*|pre-war)\b/i;
+const REACTION = /\b(condemns?|condemned|criticiz\w*|slams?|blasts?|denounc\w*|blames?|accus\w*)\b/i;
+const NOT_MILITARY = /\b(economic|financial|trade|tariff|cyber|verbal|political|legal|rhetorical|media)\s+(attacks?|war|warfare|strikes?)\b|\battacks? on (the )?(free )?(press|media|democracy|journalists)\b/gi;
 const OIL_SITE = /\b(refiner\w*|oil (facility|facilities|terminal|port|depot|field|infrastructure)|pipelines?|tankers?|oilfields?|aramco|export terminal)\b/i;
 // « Israel strikes Iran », « US hits Houthi targets » : un verbe d'attaque suivi d'un lieu (« strikes » seul = grèves).
 const HITS_PLACE = /\b(strikes?|struck|hits?|targets?|targeted|pounds?|pounded|bombs?|bombed)\s+(?:on\s+)?(?:the\s+)?(iran\w*|tehran|israel\w*|saudi\w*|houthis?|yemen\w*|taiwan\w*|syria\w*|lebanon|hezbollah|gaza|riyadh|gulf|ukrain\w*|kyiv|russia\w*|moscow)\b/i;
@@ -226,11 +241,11 @@ const SANCTIONS = /\bsanction(s|ed|ing)?\b/i;
 const OIL_SANCTION = /\b(oil|crude|tankers?|shadow fleet|rosneft|lukoil|gazprom|energy|lng|petroleum)\b/i;
 const TARIFF = /\b(tariffs?|trade war|export controls?|trade deal|trade truce)\b/i;
 const TARIFF_EASE = /\b(deal|truce|pause\w*|delay\w*|exempt\w*|lift\w*|remov\w*|cut|cuts|lower\w*|eases?|eased|suspend\w*)\b/i;
-const TARIFF_NEW = /\b(impos\w*|slaps?|announc\w*|raises?|hikes?|new|threat\w*|retaliat\w*|doubles?|triples?)\b/i;
+const TARIFF_NEW = /\b(impos\w*|slaps?|announc\w*|raises?|hikes?|new (\w+ ){0,2}(tariffs?|duties|levies)|threat\w*|retaliat\w*|doubles?|triples?|takes? effect|took effect)\b/i;
 
-const RECAP = /\b(this year|so far|in 20\d\d|since 20\d\d|report|reports|analysis|total|record year|h1|q[1-4]|first half|annual|monthly|in (january|february|march|april|may|june|july|august|september|october|november|december))\b/i;
+const RECAP = /\b(roundup|recap|weekly|this week|last week|this year|so far|in 20\d\d|since 20\d\d|report|reports|analysis|total|record year|h1|q[1-4]|first half|annual|monthly|in (january|february|march|april|may|june|july|august|september|october|november|december))\b/i;
 const FOLLOW_UP = /\b(recover\w*|refund\w*|reimburs\w*|compensat\w*|returns? (the )?(stolen )?funds|returned|bounty|ultimatum|identif\w*|arrest\w*|extradit\w*|sentenc\w*|indict\w*|pleads?|guilty|charged|launder\w*|post-?mortem|anniversary)\b/i;
-const HACK = /\b(hack|hacks|hacked|hacker|hackers|hacking|exploit|exploits|exploited|exploiter|drain|drained|draining|stolen|heist|breach|breached|attacker|attackers)\b/i;
+const HACK = /\b(hack|hacks|hacked|hacker|hackers|hacking|exploit|exploits|exploited|exploiter|drained|draining|stolen|heist|attacker|attackers)\b/i;
 
 const ETF = /\betfs?\b/i;
 const ETF_UP = /\b(inflows?|net (buying|inflows?)|attract\w*|record demand|approv\w*|launch\w*|debut\w*|green[- ]?light\w*|lists?|listed)\b/i;
@@ -240,6 +255,7 @@ const ETF_EVENT = /\b(approv\w*|reject\w*|denied|launch\w*|debut\w*|green[- ]?li
 const REG = /\b(sec|cftc|regulat\w*|pardon\w*|lawsuit|sues?|sued|suing|charges?|charged|ban|bans|banned|banning|bill|legislation|congress|senate|law|laws|mica|genius act|clarity act|approv\w*|reject\w*|fines?|fined|settle\w*|crackdown|enforcement|license|licence|lawmakers|white house|executive order)\b/i;
 const REG_POS = /\b(approv\w*|pardon\w*|pass(es|ed)|signs?|signed|clears?|cleared|dismiss\w*|drops? (its |the )?(case|lawsuit|charges|probe)|ends? (its |the )?(case|probe|lawsuit)|wins?|won|green[- ]?light\w*|legaliz\w*|license granted|grants?|licen[cs]e)\b/i;
 const REG_NEG = /\b(sues?|sued|suing|charges?|charged|ban|bans|banned|banning|crackdown|fines?|fined|penalt\w*|reject\w*|probe\w*|investigat\w*|subpoena\w*|arrest\w*|seiz\w*|halts?|restrict\w*)\b/i;
+const REGULATOR = /\b(sec|cftc|occ|fdic|fed|federal reserve|treasury (department|secretary)|u\.?s\.? treasury|irs|doj|justice department|fbi|congress|senate|house|lawmakers|regulators?|court|judge|government|president|trump|white house|governor|state|eu|european|parliament|commission|esma|fca|mas|authorit\w*|ministry|minister|central bank|police|prosecutors?)\b/i;
 const REG_STRONG = /\b(sues?|sued|charges?|charged|ban|bans|banned|approv\w*|pass(es|ed)|signs?|signed|law|dismiss\w*|arrest\w*|executive order|pardon\w*|drops? (its |the )?(case|lawsuit|charges|probe)|ends? (its |the )?(case|probe|lawsuit))\b/i;
 
 const HOLDER = /\b(strategy|microstrategy|saylor|metaplanet|tesla|semler|gamestop|trump media|bitmine|sharplink|treasury (company|firm)|foundation|government|el salvador|bhutan|mt\.? ?gox|blackrock|fidelity|grayscale)\b/i;
@@ -263,8 +279,11 @@ function firstAction(t, actions) {
 // Chaque règle renvoie { theme, importance, impacts, why } ou null. La première qui répond l'emporte.
 const RULES = [
   ['guerre', t => {
-    if (CEASE.test(t) || CYBER.test(t)) return null;
-    const blockade = HOT_ZONE.test(t) && STRAIT.test(t) && CLOSE.test(t);
+    if (CEASE.test(t) || CYBER.test(t) || REACTION.test(t)) return null;
+    const military = t.replace(NOT_MILITARY, ' ');
+    if (SANCTIONS.test(t) && !WAR_ACT.test(military)) return null; // « US sanctions target Iran's auto sector »
+    t = military;
+    const blockade = HOT_ZONE.test(t) && STRAIT.test(t) && CLOSE.test(t) && !REOPEN.test(t);
     if (!(((WAR_ACT.test(t) || HITS_PLACE.test(t)) && HOT_ZONE.test(t)) || NEW_WAR.test(t) || blockade)) return null;
     const threat = UNCERTAIN.test(t) || THREAT.test(t);
     return {
@@ -336,19 +355,22 @@ const RULES = [
     };
   }],
   ['inflation', t => {
-    if (!INFLATION.test(t) && !DATA_RELEASE.test(t)) return null;
+    const rel = dataRelease(t);
+    if (!rel && !INFLATION.test(t)) return null;
     const us = !FOREIGN.test(t) || USA.test(t);
-    const labor = LABOR_BAD.test(t);
-    // Chômage en hausse : mauvaise nouvelle pour l'économie… mais elle rapproche les baisses de taux.
-    const strong = labor ? DIR_DOWN.test(t) && !DIR_UP.test(t) : DATA_HOT.test(t) && !DATA_COOL.test(t);
-    const weak = labor ? DIR_UP.test(t) && !DIR_DOWN.test(t) : DATA_COOL.test(t) && !DATA_HOT.test(t);
-    const release = us && DATA_RELEASE.test(t) && !PREVIEW.test(t);
-    const bullish = release && weak, bearish = release && strong;
-    const what = labor || /\b(payrolls|jobs)\b/i.test(t) ? "Marché de l'emploi américain" : 'Inflation américaine';
+    const release = Boolean(rel) && us && !PREVIEW.test(t);
+    const labor = /unemployment|jobless/.test(rel?.what ?? '');
+    const jobs = labor || /payrolls|nfp|jobs|job /.test(rel?.what ?? '');
+    const verb = rel?.verb ?? '';
+    // > 0 : économie ou inflation plus forte, la Fed baissera ses taux moins vite. Chômage en hausse : l'inverse.
+    const heat = labor ? (UP_ANY.test(verb) ? -1 : DOWN.test(verb) ? 1 : 0)
+      : HOT_WORDS.test(t) !== COOL_WORDS.test(t) ? (HOT_WORDS.test(t) ? 1 : -1)
+        : UP_STRONG.test(verb) ? 1 : DOWN.test(verb) ? -1 : 0;
+    const bearish = release && heat > 0, bullish = release && heat < 0;
     return {
       theme: 'cb', importance: release ? 'medium' : 'low', impacts: bullish ? up('BTC') : bearish ? down('BTC') : [],
-      why: bearish ? `${what} plus forte que prévu : la Fed baissera ses taux moins vite, ce qui pèse sur les cryptos.`
-        : bullish ? `${what} plus faible que prévu : la Fed pourra baisser ses taux plus vite, ce qui aide les cryptos.`
+      why: bearish ? `${jobs ? 'Emploi américain solide' : 'Inflation américaine en hausse'} : la Fed baissera ses taux moins vite, ce qui pèse sur les cryptos.`
+        : bullish ? `${jobs ? 'Emploi américain qui ralentit' : 'Inflation américaine en baisse'} : la Fed pourra baisser ses taux plus vite, ce qui aide les cryptos.`
           : 'Inflation et emploi décident du rythme des baisses de taux de la Fed.',
     };
   }],
@@ -358,7 +380,7 @@ const RULES = [
     const ease = !negated && (/\b(deal|truce|agreement)\b/i.test(t) || (TARIFF_EASE.test(t) && !TARIFF_NEW.test(t)));
     const tough = !negated && !ease && TARIFF_NEW.test(t);
     return {
-      theme: 'geo', importance: usActor(t) && (ease || tough) && !UNCERTAIN.test(t) ? 'medium' : 'low', impacts: ease ? up('BTC') : tough ? down('BTC') : [],
+      theme: 'geo', importance: usActor(t) && (ease || tough) && !UNCERTAIN.test(t) && !PREVIEW.test(t) && !REQUEST.test(t) ? 'medium' : 'low', impacts: ease ? up('BTC') : tough ? down('BTC') : [],
       why: tough ? 'Nouveaux droits de douane : les marchés à risque, cryptos comprises, baissent souvent.'
         : ease ? 'Apaisement commercial : bon signe pour les marchés à risque, cryptos comprises.'
           : 'Les guerres commerciales font bouger tous les marchés à risque.',
@@ -373,7 +395,8 @@ const RULES = [
     };
   }],
   ['cessez-le-feu', t => {
-    if (!CEASE.test(t) || !(HOT_ZONE.test(t) || ONGOING.test(t))) return null;
+    const reopen = STRAIT.test(t) && REOPEN.test(t) && /\b(oil|crude|tankers?|shipping|exports?|traffic|blockade)\b/i.test(t);
+    if (!(CEASE.test(t) || reopen) || !(HOT_ZONE.test(t) || ONGOING.test(t))) return null;
     const hot = HOT_ZONE.test(t);
     return {
       theme: 'geo', importance: hot ? 'medium' : 'low', impacts: hot ? down('Pétrole', 'Or') : [],
@@ -396,7 +419,7 @@ const RULES = [
     const assets = tk.length ? tk : ['Crypto'];
     const isUp = ETF_UP.test(t) && !ETF_DOWN.test(t), isDown = ETF_DOWN.test(t) && !ETF_UP.test(t);
     return {
-      theme: 'etf', importance: amt >= NEWS.etfMediumUsd || ETF_EVENT.test(t) ? 'medium' : 'low', amountUsd: amt,
+      theme: 'etf', importance: (amt >= NEWS.etfMediumUsd && !RECAP.test(t)) || ETF_EVENT.test(t) ? 'medium' : 'low', amountUsd: amt,
       impacts: isUp ? up(...assets) : isDown ? down(...assets) : [],
       why: isUp ? 'Argent qui entre dans les ETF : les fonds doivent acheter les cryptos correspondantes.'
         : isDown ? 'Argent qui sort des ETF : les fonds revendent les cryptos correspondantes.'
@@ -406,7 +429,7 @@ const RULES = [
   ['regulation', t => {
     if (!(REG.test(t) && CRYPTO.test(t))) return null;
     const pos = REG_POS.test(t) && !REG_NEG.test(t), neg = REG_NEG.test(t) && !REG_POS.test(t);
-    const strong = REG_STRONG.test(t) && !UNCERTAIN.test(t);
+    const strong = REG_STRONG.test(t) && REGULATOR.test(t) && !UNCERTAIN.test(t);
     return {
       theme: 'reg', importance: strong ? 'medium' : 'low', impacts: strong && pos ? up('Crypto') : strong && neg ? down('Crypto') : [],
       why: pos ? 'Feu vert des autorités : bon signe pour l\'adoption des cryptos.'
@@ -494,8 +517,8 @@ const place = s => {
 };
 
 export function parseWhale(text) {
-  const line = String(text).split('\n').find(l => /\(\s*[\d,.]+\s*USD\s*\)/i.test(l));
-  const m = line?.match(/([\d][\d,.]*)\s+#?([A-Za-z0-9]+)\s*\(\s*([\d,.]+)\s*USD\s*\)\s+(transferred|minted|burned|burnt)\b(.*)$/i);
+  const line = String(text).split('\n').find(l => /\(\s*[\d,.]+\s*USD\s*\)/i.test(l))?.replace(/\s+details\s*$/i, '');
+  const m = line?.match(/([\d][\d,.]*)\s+[#$]?([A-Za-z0-9]+)\s*\(\s*([\d,.]+)\s*USD\s*\)\s+(transferred|minted|burned|burnt)\b(.*)$/i);
   if (!m) return null;
   const qty = Number(m[1].replace(/,/g, '')), token = m[2].toUpperCase(), usd = Number(m[3].replace(/,/g, ''));
   const action = m[4].toLowerCase().replace('burnt', 'burned');
@@ -616,20 +639,24 @@ export function hashId(s) {
 // Guerre déjà en cours : seule la première frappe d'une zone en 24 h est critique. Les suivantes passent en
 // « moyenne » (le marché les attend en partie), sauf une escalade majeure : déclaration de guerre, invasion, détroit fermé.
 const zoneOf = t => (/\btaiwan/i.test(t) ? 'taiwan' : /\bnato\b/i.test(t) ? 'otan' : 'moyen-orient');
-const majorEscalation = t => NEW_WAR.test(t) || (STRAIT.test(t) && CLOSE.test(t));
+const majorEscalation = t => NEW_WAR.test(t) || (STRAIT.test(t) && CLOSE.test(t) && !REOPEN.test(t));
 
 function calmOngoingWars(items) {
   const last = {};
   for (const i of [...items].sort((a, b) => a.time - b.time)) {
-    if (i.rule !== 'guerre' || !(i.raw === 'critical' || i.calm)) continue; // une frappe, pas une menace
+    if (i.rule !== 'guerre') continue;
     const zone = zoneOf(i.titleEn);
+    const strike = i.raw === 'critical'; // une frappe ; sinon une menace
     if (i.calm || (!majorEscalation(i.titleEn) && last[zone] != null && i.time - last[zone] < 24 * HOUR)) {
-      Object.assign(i, {
+      Object.assign(i, strike ? {
         calm: true, importance: 'medium',
         why: 'Nouvelle frappe dans une guerre déjà en cours : le marché l\'attend en partie, l\'effet sur le pétrole et l\'or est souvent plus faible qu\'à la première escalade.',
+      } : {
+        calm: true, importance: 'low', impacts: [],
+        why: 'Déclaration ou menace dans une guerre déjà en cours : peu d\'effet tant qu\'elle ne change pas l\'ampleur du conflit.',
       });
     }
-    last[zone] = i.time;
+    if (strike) last[zone] = i.time;
   }
 }
 

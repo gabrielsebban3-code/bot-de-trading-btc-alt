@@ -56,7 +56,8 @@ export function routeNews(url, now = Date.now()) {
         return telegram('whale_alert_io', [
           { id: 101, time: ago(0.5), html: '🚨 🚨 1,500 #BTC (150,123,456 USD) transferred from unknown wallet to #Coinbase<br/><br/><a href="https://whale-alert.io/tx/1">Details</a>' },
           { id: 102, time: ago(0.4), html: '🚨 120 #ETH (450,000 USD) transferred from unknown wallet to #Binance' },
-          { id: 103, time: ago(0.3), html: '💵 💵 250,000,000 #USDT (250,001,234 USD) minted at Tether Treasury' },
+          { id: 103, time: ago(0.3), html: '💵 💵 250,000,000 $USDT (250,001,234 USD) minted at Tether Treasury <a href="https://whale-alert.io/tx/3">Details</a>' },
+          { id: 104, time: ago(0.25), html: 'NEAR Intents pauses cross-chain trading after $3.8 million exploit in Omni deposit and withdrawal flow' },
         ]);
       }
       if (u.pathname === '/s/WatcherGuru') {
