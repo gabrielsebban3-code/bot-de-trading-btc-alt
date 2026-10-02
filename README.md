@@ -37,6 +37,9 @@ L'actu n'a besoin d'aucune clé : la traduction utilise l'accès gratuit de Goog
    (`insert into public.admins (email) values ('ton@adresse');`), mettre l'adresse du site dans
    **Authentication → URL Configuration**, puis remplir [`js/config.js`](js/config.js) avec l'URL du projet
    et sa clé publique. Sans ça, le site marche sans comptes.
+5. Optionnel, pour les alertes Discord : dans le salon, **Modifier le salon → Intégrations → Webhooks → Nouveau webhook → Copier l'URL du webhook**,
+   puis l'ajouter dans **Settings → Secrets and variables → Actions** sous le nom `DISCORD_WEBHOOK_URL`.
+   À la mise à jour suivante, un message de bienvenue arrive dans le salon ; ensuite, seuls les nouveaux setups confirmés et les news critiques sont envoyés.
 
 Le site sera à l'adresse `https://<compte>.github.io/<dépôt>/`.
 

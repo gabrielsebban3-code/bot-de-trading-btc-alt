@@ -46,7 +46,7 @@ jobs:
         if: env.PUBLISH == 'true'
         run: |
           mkdir -p previous
-          for f in projects market setups news; do
+          for f in projects market setups news alerts; do
             curl -fsSL "${{ steps.pages.outputs.base_url }}/data/$f.json" -o "previous/$f.json" || echo "Pas encore de $f.json en ligne."
           done
 
@@ -89,6 +89,7 @@ jobs:
           if [ "${{ steps.setups.outcome }}" = failure ]; then echo "::warning::Setups non mis à jour à ce passage."; fi
 
       # Alertes Discord : nouveaux setups confirmés et news critiques, comparés à la version déjà en ligne.
+      # Au premier passage avec le lien, un message de bienvenue ; data/alerts.json retient qu'il est parti.
       - name: Alertes Discord
         if: env.PUBLISH == 'true'
         continue-on-error: true

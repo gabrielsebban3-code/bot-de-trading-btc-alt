@@ -9,6 +9,7 @@ export const ALERTS = {
 const GREEN = 0x22c55e;
 const RED = 0xef4444;
 const ORANGE = 0xf97316;
+const ACCENT = 0xff8a00; // orange du site
 const NFA = 'Pas un conseil financier.';
 
 const num = v => {
@@ -67,5 +68,16 @@ export function toDiscord(alert, siteUrl = '') {
     description: [n.why, impacts && `Impact probable : ${impacts}`].filter(Boolean).join('\n') || undefined,
     footer: { text: `${(n.sources || [n.source]).filter(Boolean).join(', ')} · ${NFA}` },
     timestamp: new Date(n.time).toISOString(),
+  };
+}
+
+// Envoyé une seule fois, au premier passage avec le lien : on voit tout de suite que le branchement marche.
+export function welcome(siteUrl = '') {
+  return {
+    title: 'Dinexo est branché sur ce salon',
+    url: siteUrl ? siteUrl.replace(/\/?$/, '/') : undefined,
+    color: ACCENT,
+    description: `Tu recevras ici les nouveaux setups confirmés et les news critiques. Rien d'autre, et jamais plus de ${ALERTS.maxPerRun} messages d'un coup.`,
+    footer: { text: NFA },
   };
 }
