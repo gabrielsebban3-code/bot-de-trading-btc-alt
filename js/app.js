@@ -23,12 +23,15 @@ function route() {
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === `page-${target}`));
   const tab = { projet: 'projets', setup: 'setups' }[target] || target;
   document.querySelectorAll('#nav [data-tab]').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
-  $('more').classList.toggle('on', ['historique', 'compte'].includes(tab));
+  $('more').classList.toggle('on', tab === 'historique');
+  $('me').classList.toggle('on', tab === 'compte');
   $('menu').hidden = true;
   $('more').setAttribute('aria-expanded', 'false');
   if (target === 'projet' && ready) renderProject(decodeURIComponent(id || ''));
   if (target === 'setup' && setupsReady) renderSetup(decodeURIComponent(id || ''));
   window.scrollTo(0, 0);
+  // Bouton Connexion en haut à droite : sur mobile, le bloc de connexion est sous la watchlist, on l'amène à l'écran.
+  if (target === 'compte' && id === 'connexion') $('account').scrollIntoView({ block: 'center' });
   if (target === 'actu' && id && newsReady) focusNews(decodeURIComponent(id));
 }
 
