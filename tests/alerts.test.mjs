@@ -1,6 +1,12 @@
 // Alertes Discord : seulement ce qui vient d'apparaître, jamais d'avalanche, messages épurés.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { createServer } from 'node:http';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ALERTS, pickAlerts, toDiscord } from '../scripts/lib/alerts.mjs';
 
 const now = Date.UTC(2026, 9, 2, 16);
@@ -49,4 +55,56 @@ test('message Discord : vert pour un long, rouge pour un short, lien vers le set
   assert.match(n.title, /^Critique · La Fed/);
   assert.match(n.description, /Impact probable : BTC ▲/);
   assert.match(n.footer.text, /Reuters · Pas un conseil financier/);
+});
+
+// Lance scripts/send-alerts.mjs contre un faux Discord qui répond `status`.
+async function sendAlerts({ status = 204, state, hook = true } = {}) {
+  const got = [];
+  const server = createServer((req, res) => {
+    let body = '';
+    req.on('data', c => (body += c));
+    req.on('end', () => {
+      got.push(JSON.parse(body));
+      res.writeHead(status, { 'content-type': 'application/json' }).end(status < 300 ? '' : '{"message": "Unknown Webhook", "code": 10015}');
+    });
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  const dir = await mkdtemp(join(tmpdir(), 'dinexo-alerts-'));
+  await mkdir(join(dir, 'previous'));
+  if (state) await writeFile(join(dir, 'previous', 'alerts.json'), JSON.stringify(state));
+  const env = { ...process.env, DISCORD_WEBHOOK_URL: hook ? `http://127.0.0.1:${server.address().port}/api/webhooks/1/abc` : '' };
+  const script = fileURLToPath(new URL('../scripts/send-alerts.mjs', import.meta.url));
+  const log = await new Promise((resolve, reject) => execFile(process.execPath, [script, '--data', join(dir, 'site'), '--previous', join(dir, 'previous'), '--site', 'https://site.fr/dinexo'], { env }, (err, out) => (err ? reject(err) : resolve(out))));
+  server.close();
+  const saved = await readFile(join(dir, 'site', 'alerts.json'), 'utf8').then(JSON.parse).catch(() => null);
+  return { got, log, saved };
+}
+
+test('premier passage avec le lien : un message de bienvenue, une seule fois', async () => {
+  const first = await sendAlerts();
+  assert.equal(first.got.length, 1);
+  assert.equal(first.got[0].username, 'Dinexo');
+  assert.equal(first.got[0].embeds[0].title, 'Dinexo est branché sur ce salon');
+  assert.equal(first.got[0].embeds[0].url, 'https://site.fr/dinexo/');
+  assert.match(first.log, /Message de bienvenue envoyé/);
+  assert.ok(!Number.isNaN(Date.parse(first.saved.connected)));
+
+  const next = await sendAlerts({ state: first.saved });
+  assert.equal(next.got.length, 0);
+  assert.deepEqual(next.saved, first.saved);
+});
+
+test('lien refusé par Discord : rien de retenu, nouvel essai au passage suivant', async () => {
+  const { got, log, saved } = await sendAlerts({ status: 404 });
+  assert.equal(got.length, 1);
+  assert.match(log, /::warning::Discord a refusé un message \(404 Unknown Webhook\)/);
+  assert.match(log, /::warning::Bienvenue non envoyée/);
+  assert.equal(saved, null);
+});
+
+test('sans lien : aucun message, état gardé', async () => {
+  const { got, log, saved } = await sendAlerts({ hook: false, state: { connected: '2026-10-02T20:30:00.000Z' } });
+  assert.equal(got.length, 0);
+  assert.match(log, /Pas de DISCORD_WEBHOOK_URL/);
+  assert.deepEqual(saved, { connected: '2026-10-02T20:30:00.000Z' });
 });
