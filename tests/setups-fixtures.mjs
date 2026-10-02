@@ -39,7 +39,7 @@ export function setupRoutes(now = Date.now()) {
   const endDay = Math.floor(now / DAY) * DAY;
   const data = {};
   for (const [sym, , price, seed] of ASSETS) {
-    const n = 2600;
+    const n = 3600; // 600 jours
     const w = walk(price, n, seed);
     const bars = w.map(([o, h, l, c, v], i) => {
       const t = end4h - (n - 1 - i) * BAR;

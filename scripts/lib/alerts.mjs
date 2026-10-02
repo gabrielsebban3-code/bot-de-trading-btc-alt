@@ -19,7 +19,8 @@ const num = v => {
     .replace(/ | /g, ' ');
 };
 
-const isAlertSetup = (s, now) => s.status === 'confirmé' && s.outcome === 'open' && now - s.time <= ALERTS.setupMaxAgeMs;
+// L'âge compte depuis la clôture de la bougie du signal (une journée entière pour le suivi de tendance).
+const isAlertSetup = (s, now) => s.status === 'confirmé' && s.outcome === 'open' && now - (s.confirmedAt ?? s.time) <= ALERTS.setupMaxAgeMs;
 const isAlertNews = (n, now) => n.importance === 'critical' && now - n.time <= ALERTS.newsMaxAgeMs;
 
 // Nouveaux setups et news à envoyer. Sans version précédente (premier passage), rien n'est envoyé : pas d'avalanche.
@@ -52,9 +53,9 @@ export function toDiscord(alert, siteUrl = '') {
         { name: 'Entrée', value: num(s.entry), inline: true },
         { name: 'Stop', value: num(s.sl), inline: true },
         { name: 'R:R', value: `1:${String(Math.round(s.rr * 10) / 10).replace('.', ',')}`, inline: true },
-        { name: 'Objectifs', value: (s.tp || []).map(num).join(' · ') || '—', inline: false },
+        { name: 'Moitié à prendre', value: (s.tp || []).map(num).join(' · ') || '—', inline: false },
       ],
-      footer: { text: `Bougie 4h confirmée · ${NFA}` },
+      footer: { text: `Clôture journalière confirmée · ${NFA}` },
       timestamp: new Date(s.time).toISOString(),
     };
   }

@@ -68,7 +68,7 @@ export function revenueChart(canvas, series, startIso) {
   }
 }
 
-// Bougies 4h avec les lignes du plan (entrée, stop, objectifs) et la bougie du signal surlignée.
+// Bougies avec les lignes du plan (entrée, stop, objectifs, niveau de sortie) et la bougie du signal surlignée.
 export function candleChart(canvas, rows, plan) {
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
@@ -79,13 +79,14 @@ export function candleChart(canvas, rows, plan) {
   const font = getComputedStyle(document.body).getPropertyValue('--mono') || 'monospace';
   g.font = `11px ${font}`;
   const fmtV = v => { const a = Math.abs(v); const d = a >= 1000 ? 0 : a >= 100 ? 1 : a >= 1 ? 2 : Math.min(8, 3 - Math.floor(Math.log10(a))); return v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }); };
-  const labelW = Math.max(...[plan.entry, plan.sl, ...plan.tp].map(v => g.measureText(`Entrée ${fmtV(v)}`).width));
+  const labelW = Math.max(...[plan.entry, plan.sl, ...plan.tp, plan.exit ?? plan.entry].map(v => g.measureText(`Entrée ${fmtV(v)}`).width));
   const W = rect.width, H = rect.height, L = 8, R = Math.ceil(labelW) + 14, T = 10, B = 22;
   const bars = rows.slice(-Math.max(30, Math.min(rows.length, Math.floor((W - L - R) / 7))));
   const lines = [
     [plan.entry, css('--fg'), 'Entrée'],
     [plan.sl, css('--down'), 'Stop'],
-    ...plan.tp.map((t, k) => [t, css('--up'), `TP${k + 1}`]),
+    ...plan.tp.map((t, k) => [t, css('--up'), plan.tpNames?.[k] ?? `TP${k + 1}`]),
+    ...(plan.exit ? [[plan.exit, css('--muted'), 'Sortie']] : []),
   ];
   const values = [...bars.flatMap(b => [b[2], b[3]]), ...lines.map(l => l[0])];
   let lo = Math.min(...values), hi = Math.max(...values);

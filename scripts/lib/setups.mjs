@@ -1,27 +1,25 @@
-// Logique de l'onglet Setups : swing de 2 à 5 jours sur BTC, ETH, SOL et le Brent.
-// Un seul détecteur, retenu après backtest (3,5 ans de bougies OKX) : cassure du plus haut/bas de 20 jours
-// dans le sens de la tendance journalière. Fonctions pures, sans accès réseau, testées dans tests/setups.test.mjs.
+// Logique de l'onglet Setups : suivi de tendance sur BTC, ETH, SOL et le Brent, trades de plusieurs semaines.
+// Retenu après backtest (3,5 ans de bougies journalières OKX) : on entre quand le prix clôture au-dessus du plus haut
+// (ou sous le plus bas) des 20 derniers jours dans le sens de la tendance, on prend la moitié à 2R, puis on laisse
+// courir le reste tant que la tendance tient. Fonctions pures, sans accès réseau, testées dans tests/setups.test.mjs.
 
-export const BAR = 4 * 3600_000;
 const DAY = 86_400_000;
+export const BAR = DAY;   // une bougie = un jour
 
 export const RULES = {
-  backtestBars: 2190,     // 1 an de bougies 4h
-  warmup: 1,              // il faut la bougie 4h précédente pour voir la cassure
+  backtestBars: 365,      // 1 an de bougies journalières
   atrPeriod: 14,          // ATR journalier
-  breakoutDays: 20,       // plus haut / plus bas des 20 derniers jours
-  minVolume: 1,           // volume des dernières 24 h ≥ volume journalier moyen des 20 jours précédents
-  stopAtr: 1,             // stop = 1 ATR journalier
-  targetsR: [2, 3, 4],    // TP1 à 2R, TP2 à 3R, TP3 à 4R
+  breakoutDays: 20,       // entrée : clôture au-delà du plus haut / plus bas des 20 derniers jours
+  exitDays: 10,           // sortie : clôture au-delà du plus bas / plus haut des 10 derniers jours
+  stopAtr: 2,             // stop de départ = 2 ATR journaliers
+  partialR: 2,            // on prend la moitié à 2R et on remonte le stop au prix d'entrée
   minRR: 2,
-  expiryBars: 30,         // le trade est clôturé au bout de 5 jours s'il n'a touché ni le stop ni TP1
-  cooldownBars: 6,        // 24 h entre deux signaux sur un même actif
-  showHours: 24,          // un signal reste affiché 24 h (ou tant que le trade est en jeu)
+  showHours: 24,          // un trade terminé reste affiché 24 h
   statsDays: 365,
 };
 
 export const DETECTORS = {
-  swing: 'Cassure 20 jours',
+  tendance: 'Suivi de tendance',
 };
 
 // ---------- Mise en forme (français) ----------
@@ -67,18 +65,7 @@ export function dailyContext(daily) {
     if (d.c < e50[j] && e20[j] < e50[j]) return 'baissière';
     return 'neutre';
   });
-  const volAvg = daily.map((_, j) => (j < 20 ? null : daily.slice(j - 20, j).reduce((t, d) => t + d.v, 0) / 20));
-  return { daily, atr: A, trend, volAvg };
-}
-
-// Indice de la dernière journée clôturée au temps t (-1 si aucune).
-export function lastDay(dc, t) {
-  let lo = 0, hi = dc.daily.length - 1, ans = -1;
-  while (lo <= hi) {
-    const m = (lo + hi) >> 1;
-    if (dc.daily[m].t + DAY <= t) { ans = m; lo = m + 1; } else hi = m - 1;
-  }
-  return ans;
+  return { daily, atr: A, trend };
 }
 
 // Tendance 1D : clôture et EMA20 au-dessus de l'EMA50 = haussière (inverse = baissière).
@@ -87,107 +74,98 @@ export function trend1d(daily, t) {
   return dc.trend.at(-1) ?? 'neutre';
 }
 
-// ---------- Détecteur : cassure du plus haut/bas de 20 jours dans le sens de la tendance 1D, avec du volume ----------
+// ---------- Détecteur : clôture au-delà du plus haut / plus bas de 20 jours, dans le sens de la tendance ----------
 
-export function detectSwing(ctx, i) {
-  const { bars, dc } = ctx;
-  if (i < 1) return null;
-  const j = lastDay(dc, bars[i].t + BAR);
-  const N = RULES.breakoutDays;
-  if (j < N || !dc.atr[j]) return null;
-  let hi = -Infinity, lo = Infinity;
-  for (let k = j - N + 1; k <= j; k++) { hi = Math.max(hi, dc.daily[k].h); lo = Math.min(lo, dc.daily[k].l); }
-  const b = bars[i], pc = bars[i - 1].c, trend = dc.trend[j];
-  const up = trend === 'haussière' && b.c > hi && pc <= hi;
-  const down = trend === 'baissière' && b.c < lo && pc >= lo;
-  if (!up && !down) return null;
-  // Une cassure sans volume est souvent un faux départ : on exige au moins le volume d'une journée normale sur 24 h.
-  let v24 = 0;
-  for (let k = Math.max(0, i - 5); k <= i; k++) v24 += bars[k].v;
-  const vr = dc.volAvg[j] ? v24 / dc.volAvg[j] : null;
-  if (vr === null || vr < RULES.minVolume) return null;
-  const vol = `Volume des dernières 24 h : ${fmtN(vr)}× la moyenne.`;
-  if (up) return { dir: 'long', ref: hi, atrD: dc.atr[j], why: `Clôture 4h au-dessus du plus haut des ${N} derniers jours (${fmtPx(hi)}), avec une tendance journalière haussière. Le prix sort de sa zone de range dans le sens de la tendance : c'est le départ typique d'un mouvement de plusieurs jours. ${vol}` };
-  return { dir: 'short', ref: lo, atrD: dc.atr[j], why: `Clôture 4h sous le plus bas des ${N} derniers jours (${fmtPx(lo)}), avec une tendance journalière baissière. Le prix casse son support dans le sens de la tendance : c'est le départ typique d'une baisse de plusieurs jours. ${vol}` };
+const highest = (daily, from, to) => { let x = -Infinity; for (let k = Math.max(0, from); k <= to; k++) x = Math.max(x, daily[k].h); return x; };
+const lowest = (daily, from, to) => { let x = Infinity; for (let k = Math.max(0, from); k <= to; k++) x = Math.min(x, daily[k].l); return x; };
+
+// Tendance calculée sur les jours fermés jusqu'à la veille, cassure jugée sur la clôture du jour j.
+export function detectTrend(dc, j) {
+  const N = RULES.breakoutDays, d = dc.daily;
+  if (j < N + 1 || !dc.atr[j - 1]) return null;
+  const hi = highest(d, j - N, j - 1), lo = lowest(d, j - N, j - 1), trend = dc.trend[j - 1], c = d[j].c;
+  if (trend === 'haussière' && c > hi) return { dir: 'long', ref: hi, atrD: dc.atr[j - 1], why: `Clôture journalière au-dessus du plus haut des ${N} derniers jours (${fmtPx(hi)}), dans une tendance haussière. On achète la continuation de la hausse et on reste dedans tant qu'elle dure : la moitié est prise à 2R, le reste suit la tendance jusqu'à ce que le prix clôture sous son plus bas des ${RULES.exitDays} derniers jours.` };
+  if (trend === 'baissière' && c < lo) return { dir: 'short', ref: lo, atrD: dc.atr[j - 1], why: `Clôture journalière sous le plus bas des ${N} derniers jours (${fmtPx(lo)}), dans une tendance baissière. On vend la continuation de la baisse et on reste dedans tant qu'elle dure : la moitié est prise à 2R, le reste suit la tendance jusqu'à ce que le prix clôture au-dessus de son plus haut des ${RULES.exitDays} derniers jours.` };
+  return null;
 }
 
-// ---------- Plan de trade : stop à 1 ATR journalier, objectifs à 2R, 3R et 4R ----------
+// ---------- Plan de trade : stop à 2 ATR journaliers, moitié à 2R ----------
 
 export function plan(dir, entry, atrD) {
   const s = dir === 'long' ? 1 : -1;
   const R = RULES.stopAtr * atrD;
   return {
     sl: entry - s * R,
-    tp: RULES.targetsR.map(k => entry + s * k * R),
-    tpLabels: RULES.targetsR.map(k => `objectif ${fmtN(k, 0)}R`),
-    rr: RULES.targetsR[0],
+    tp: [entry + s * RULES.partialR * R],
+    tpLabels: [`prendre la moitié à ${fmtN(RULES.partialR, 0)}R et remonter le stop au prix d'entrée`],
+    rr: RULES.partialR,
   };
 }
 
-// ---------- Résultat d'un signal : TP1, stop, ou sortie au bout de 5 jours ----------
+// Niveau de sortie du reste : plus bas (long) ou plus haut (short) des 10 jours fermés avant le jour k.
+export function exitLevel(daily, k, dir) {
+  const N = RULES.exitDays;
+  return dir === 'long' ? lowest(daily, k - N, k - 1) : highest(daily, k - N, k - 1);
+}
 
-export function evaluate(sig, bars, i) {
+// ---------- Suivi d'un trade jour après jour ----------
+// sl : stop touché avant 2R (−1R) · be : moitié prise, reste sorti au prix d'entrée (+1R)
+// exit : sortie de tendance sur clôture (R variable) · open : trade encore en jeu.
+
+export function evaluate(sig, daily, i) {
   const s = sig.dir === 'long' ? 1 : -1;
   const R = Math.abs(sig.entry - sig.sl);
-  const last = Math.min(bars.length - 1, i + RULES.expiryBars);
-  let best = 0;
-  for (let k = i + 1; k <= last; k++) {
-    const b = bars[k];
+  const P = RULES.partialR;
+  let stop = sig.sl, half = false;
+  const rOf = px => Math.round((s * (px - sig.entry) / R) * 100) / 100;
+  const done = (outcome, at, rest) => ({ outcome, at, r: Math.round((half ? (P + rest) / 2 : rest) * 100) / 100, tpHit: half ? 1 : 0 });
+  for (let k = i + 1; k < daily.length; k++) {
+    const b = daily[k];
     if (!b.closed) break;
-    const hitSl = s > 0 ? b.l <= sig.sl : b.h >= sig.sl;
-    const hitTp = s > 0 ? b.h >= sig.tp[0] : b.l <= sig.tp[0];
-    if (hitSl) return { outcome: 'sl', at: b.t, r: -1 };
-    if (hitTp) {
-      for (let j = 1; j < sig.tp.length; j++) if ((s > 0 ? b.h >= sig.tp[j] : b.l <= sig.tp[j])) best = j;
-      for (let m = k + 1; m <= last && best < sig.tp.length - 1; m++) {
-        const n = bars[m];
-        if (!n.closed || (s > 0 ? n.l <= sig.entry : n.h >= sig.entry)) break; // retour à l'entrée : on s'arrête là
-        while (best < sig.tp.length - 1 && (s > 0 ? n.h >= sig.tp[best + 1] : n.l <= sig.tp[best + 1])) best++;
-      }
-      return { outcome: 'tp1', at: b.t, r: sig.rr, tpHit: best + 1 };
-    }
-    if (k === i + RULES.expiryBars) return { outcome: 'expired', at: b.t, r: Math.round(((b.c - sig.entry) * s / R) * 100) / 100 };
+    const hitStop = s > 0 ? b.l <= stop : b.h >= stop;   // le stop compte en premier si tout arrive le même jour
+    if (hitStop) return done(half ? 'be' : 'sl', b.t, half ? 0 : -1);
+    if (!half && (s > 0 ? b.h >= sig.tp[0] : b.l <= sig.tp[0])) { half = true; stop = sig.entry; }
+    const lvl = exitLevel(daily, k, sig.dir);
+    if (s > 0 ? b.c < lvl : b.c > lvl) return done('exit', b.t, rOf(b.c));
   }
-  return { outcome: 'open', at: null, r: null };
+  // Niveau de sortie du reste, affiché seulement quand il est plus serré que le stop.
+  const last = daily.length - 1;
+  const lvl = exitLevel(daily, last + (daily[last].closed ? 1 : 0), sig.dir);
+  return { outcome: 'open', at: null, r: null, tpHit: half ? 1 : 0, stop, exitAt: (s > 0 ? lvl > stop : lvl < stop) ? lvl : null };
 }
 
 // ---------- Balayage d'un actif ----------
 
 // Renvoie tous les signaux (passés et en cours) d'un actif, avec leur résultat.
 // Un seul trade à la fois par actif : pas de nouveau signal tant que le précédent est en jeu.
-export function scanAsset(asset, { bars, daily, now = Date.now() }) {
+export function scanAsset(asset, { daily, now = Date.now() }) {
   const dc = dailyContext(daily);
-  const ctx = { bars, dc, now };
   const signals = [];
   let busyUntil = -1;
-  const start = Math.max(RULES.warmup, bars.length - RULES.backtestBars - 1);
-  for (let i = start; i < bars.length; i++) {
-    if (i <= busyUntil) continue;
-    const hit = detectSwing(ctx, i);
+  for (let j = Math.max(1, daily.length - RULES.backtestBars - 1); j < daily.length; j++) {
+    if (j <= busyUntil) continue;
+    const hit = detectTrend(dc, j);
     if (!hit) continue;
-    const entry = bars[i].c;
+    const entry = daily[j].c;
     const p = plan(hit.dir, entry, hit.atrD);
-    const j = lastDay(dc, bars[i].t + BAR);
     const sig = {
-      id: `${asset.symbol}-swing-${hit.dir}-${bars[i].t}`,
-      detector: 'swing', symbol: asset.symbol, dir: hit.dir,
-      status: bars[i].closed ? 'confirmé' : 'en cours',
-      time: bars[i].t, entry, sl: p.sl, tp: p.tp, tpLabels: p.tpLabels, rr: p.rr, atr: hit.atrD,
-      why: hit.why, trend: dc.trend[j],
+      id: `${asset.symbol}-tendance-${hit.dir}-${daily[j].t}`,
+      detector: 'tendance', symbol: asset.symbol, dir: hit.dir,
+      status: daily[j].closed ? 'confirmé' : 'en cours',
+      time: daily[j].t, confirmedAt: daily[j].t + DAY, entry, sl: p.sl, tp: p.tp, tpLabels: p.tpLabels, rr: p.rr, atr: hit.atrD,
+      why: hit.why, trend: dc.trend[j - 1],
     };
-    Object.assign(sig, bars[i].closed ? evaluate(sig, bars, i) : { outcome: 'open', at: null, r: null });
+    Object.assign(sig, daily[j].closed ? evaluate(sig, daily, j) : { outcome: 'open', at: null, r: null, tpHit: 0 });
     signals.push(sig);
-    if (!bars[i].closed) continue;
-    // Trade en jeu jusqu'à sa sortie (et au moins 24 h) : pas de doublon pendant ce temps.
-    const exit = sig.at === null ? bars.length : bars.findIndex(b => b.t === sig.at);
-    busyUntil = Math.max(i + RULES.cooldownBars - 1, exit);
+    if (!daily[j].closed) continue;
+    busyUntil = sig.at === null ? daily.length : daily.findIndex(b => b.t === sig.at);
   }
   return signals;
 }
 
 // ---------- Statistiques par détecteur ----------
 
-// Un trade est gagnant s'il finit en gain : TP1 touché, ou sortie à 5 jours au-dessus de l'entrée.
+// Un trade est gagnant s'il finit en gain (r > 0).
 export function detectorStats(history, now = Date.now()) {
   const since = now - RULES.statsDays * DAY;
   const stats = {};
@@ -206,12 +184,14 @@ export function detectorStats(history, now = Date.now()) {
       signals: list.length,
       resolved: done.length,
       wins, losses,
-      tp1: done.filter(s => s.outcome === 'tp1').length,
-      expired: done.filter(s => s.outcome === 'expired').length,
+      tp1: done.filter(s => s.tpHit > 0).length,
+      exits: done.filter(s => s.outcome !== 'sl').length,
       open: list.length - done.length,
       winRate: done.length ? wins / done.length : null,
       avgR: done.length ? Math.round((done.reduce((t, s) => t + s.r, 0) / done.length) * 100) / 100 : null,
       totalR: Math.round(done.reduce((t, s) => t + s.r, 0) * 10) / 10,
+      bestR: done.length ? Math.max(...done.map(s => s.r)) : null,
+      avgDays: done.length ? Math.round(done.reduce((t, s) => t + (s.at - s.time) / DAY, 0) / done.length) : null,
       best,
       since: list.length ? Math.min(...list.map(s => s.time)) : null,
     };
