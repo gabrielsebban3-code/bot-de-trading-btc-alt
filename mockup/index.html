@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monexo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: style DEX (Hyperliquid / Uniswap / Jupiter) — fond ardoise, panneaux arrondis, onglets en pilules, chiffres en mono. Accent orange conservé. Thème sombre unique. */
+:root {
+  color-scheme: dark;
+  --bg: #0c0d10; --panel: #15171c; --panel2: #1c1f26; --line: #23262e; --fg: #eceef2; --muted: #8b909c;
+  --accent: #ff8a00; --accent-soft: rgba(255,138,0,.12); --up: #22c55e; --up-soft: rgba(34,197,94,.12);
+  --down: #ef4444; --down-soft: rgba(239,68,68,.12); --mid: #f59e0b; --low: #5c616c;
+  --sans: "Geist", system-ui, -apple-system, sans-serif;
+  --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+  --r: 12px;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--sans); margin: 0; }
+.num, td.n, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+a { color: var(--accent); }
+.note { text-align: center; color: var(--muted); font-size: 12px; padding: 6px 16px; background: var(--panel); }
+header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: rgba(12,13,16,.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.bar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; max-width: 1280px; margin: 0 auto; flex-wrap: wrap; }
+.logo { font: 600 18px var(--sans); letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; }
+.logo::before { content: ""; width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(135deg, var(--accent), #ffb347); }
+nav { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+nav button { background: none; border: 0; color: var(--muted); font: 500 13px var(--sans); padding: 6px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+nav button:hover { color: var(--fg); }
+nav button.on { color: var(--fg); background: var(--panel2); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ticker { overflow: hidden; border-top: 1px solid var(--line); font: 12px var(--mono); white-space: nowrap; color: var(--muted); }
+.ticker div { display: inline-block; padding: 6px 0; animation: run 45s linear infinite; }
+.ticker span { margin-right: 28px; } .ticker span > .num { color: var(--fg); }
+@keyframes run { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+@media (prefers-reduced-motion: reduce) { .ticker div { animation: none; } }
+.alert { background: var(--down-soft); color: #fca5a5; font-size: 13px; padding: 8px 16px; display: flex; gap: 10px; justify-content: center; border-top: 1px solid rgba(239,68,68,.3); }
+.alert span:first-child { background: var(--down); color: #fff; font-weight: 600; font-size: 11px; padding: 1px 8px; border-radius: 999px; }
+main { padding-inline: 16px; padding-block: 24px 64px; max-width: 1280px; margin: 0 auto; }
+.page { display: none; } .page.on { display: block; }
+h2 { font: 600 16px var(--sans); letter-spacing: -.01em; margin: 0 0 10px; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 13px; margin: -4px 0 14px; }
+.macro { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.macro span { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 14px; font-size: 12px; color: var(--muted); display: flex; flex-direction: column; }
+.macro b { color: var(--fg); font: 500 15px var(--mono); }
+.cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+.box { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); min-width: 0; overflow: hidden; }
+.box > h2 { padding: 12px 14px; margin: 0; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+.box > h2 a { font-weight: 400; font-size: 12px; color: var(--muted); text-decoration: none; cursor: pointer; }
+.box > h2 a:hover { color: var(--accent); }
+.row { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; }
+.row:hover { background: var(--panel2); }
+.row .t { font-weight: 500; min-width: 70px; }
+.row .d { color: var(--muted); font-size: 12px; flex: 1; min-width: 0; }
+.row .r { font: 12px var(--mono); }
+.up { color: var(--up); } .down { color: var(--down); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.dot.c { background: var(--down); box-shadow: 0 0 0 3px var(--down-soft); } .dot.m { background: var(--mid); } .dot.l { background: var(--low); }
+.tag { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 6px; background: var(--panel2); color: var(--muted); white-space: nowrap; display: inline-block; }
+.tag.acc { color: var(--accent); background: var(--accent-soft); }
+.tag.up { color: var(--up); background: var(--up-soft); } .tag.down { color: var(--down); background: var(--down-soft); }
+.tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; align-items: center; }
+.chip { font: 500 12px var(--sans); border: 1px solid var(--line); background: var(--panel); color: var(--muted); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.chip.on { color: var(--fg); border-color: var(--accent); background: var(--accent-soft); }
+.wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { font-weight: 500; font-size: 12px; color: var(--muted); text-align: right; padding: 12px 14px; white-space: nowrap; }
+td { padding: 12px 14px; border-top: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:nth-child(-n+2), td:nth-child(-n+2) { text-align: left; }
+tbody tr { cursor: pointer; } tbody tr:hover { background: var(--panel2); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+.card { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); padding: 16px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: border-color .15s, transform .15s; }
+.card:hover { border-color: #3a3e48; transform: translateY(-1px); }
+.card .hd { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.card .hd b { font-size: 15px; }
+.card .why { font-size: 13px; color: #c9ccd3; }
+.lv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: var(--bg); border-radius: 8px; padding: 10px; font: 13px var(--mono); }
+.lv span { color: var(--muted); display: block; font: 11px var(--sans); }
+.news { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--panel); }
+.item { display: grid; grid-template-columns: 8px 1fr; gap: 4px 14px; padding: 14px 16px; border-top: 1px solid var(--line); }
+.item:first-child { border-top: 0; }
+.item .dot { margin-top: 7px; }
+.item h3 { font-size: 14px; font-weight: 500; margin: 0; }
+.item p { margin: 0; color: var(--muted); font-size: 13px; grid-column: 2; }
+.item .meta { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.detail { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .detail { grid-template-columns: 1fr; } }
+canvas { width: 100%; height: 340px; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; font-size: 13px; padding: 16px; }
+dt { color: var(--muted); } dd { margin: 0; text-align: right; font-family: var(--mono); }
+.back { background: none; border: 0; color: var(--muted); font: 13px var(--sans); cursor: pointer; padding: 0; margin-bottom: 12px; }
+.back:hover { color: var(--fg); }
+.disc { border-left: 4px solid var(--up); background: #2b2d31; border-radius: 4px; padding: 10px 12px; font-size: 13px; max-width: 460px; }
+.disc.s { border-color: var(--down); }
+.disc b { display: block; margin-bottom: 4px; }
+.intro { border: 1px solid var(--line); background: linear-gradient(90deg, var(--accent-soft), transparent 60%), var(--panel); border-radius: var(--r); padding: 14px 16px; margin-bottom: 20px; display: flex; gap: 14px; align-items: flex-start; }
+.intro .k { width: 22px; height: 22px; flex: none; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 600 12px var(--sans); display: grid; place-items: center; font-size: 0; }
+.intro .k::after { content: "i"; font-size: 12px; }
+.intro p { margin: 0; font-size: 13px; max-width: 80ch; flex: 1; min-width: 0; }
+.intro p span { color: var(--muted); }
+.intro button { background: var(--panel2); border: 0; color: var(--fg); font: 500 12px var(--sans); padding: 6px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.focus { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; margin-bottom: 28px; }
+.focus .card { background: linear-gradient(180deg, var(--accent-soft), transparent 70%), var(--panel); border-color: rgba(255,138,0,.25); }
+.focus .k { font-size: 11px; font-weight: 600; color: var(--accent); }
+.link { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+.link b { color: var(--accent); font-weight: 500; }
+.wr { font-size: 12px; color: var(--muted); }
+svg.sp { width: 90px; height: 22px; display: block; }
+.more { position: relative; }
+.menu { position: absolute; right: 0; top: calc(100% + 8px); background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); padding: 4px; display: flex; flex-direction: column; min-width: 150px; z-index: 20; }
+.menu button { text-align: left; border-radius: 8px; }
+@media (max-width: 700px) {
+  nav { position: fixed; bottom: 0; left: 0; right: 0; border-radius: 0; border-width: 1px 0 0; justify-content: space-around; padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--panel); z-index: 10; }
+  .menu { top: auto; bottom: calc(100% + 8px); }
+  main { padding-block: 20px 90px; }
+}
+.btn { background: var(--accent); color: #1a0f00; border: 0; font: 600 13px var(--sans); padding: 8px 16px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.btn.ghost { background: var(--panel2); color: var(--fg); }
+.user { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.av { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: grid; place-items: center; font-weight: 600; font-size: 12px; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); display: grid; place-items: center; z-index: 50; padding: 16px; }
+.dlg { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px; width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
+.dlg h3 { margin: 0; font-size: 18px; }
+.dlg p { margin: 0; color: var(--muted); font-size: 13px; }
+.dlg .opt { display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--panel2); border: 1px solid var(--line); color: var(--fg); font: 500 14px var(--sans); padding: 11px; border-radius: 10px; cursor: pointer; }
+.dlg input { background: var(--bg); border: 1px solid var(--line); color: var(--fg); font: 14px var(--sans); padding: 11px; border-radius: 10px; }
+.dlg .or { text-align: center; font-size: 12px; color: var(--muted); }
+.locked { padding: 28px 16px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; }
+.star { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0 4px; }
+.star.on { color: var(--accent); }
+footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; padding-inline: 16px; padding-block: 20px 90px; text-align: center; }
+footer p { max-width: 70ch; margin: 0 auto; }
+.nfa { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--mid); background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; }
+.nfa.sm { margin: 0; padding: 6px 10px; font-size: 11px; }
+</style>
+
+<div class="note">Maquette · données fictives</div>
+<header>
+  <div class="bar">
+    <span class="logo">Monexo</span>
+  <nav id="nav">
+      <button data-p="resume" class="on">Résumé</button>
+      <button data-p="projets">Projets</button>
+      <button data-p="setups">Setups</button>
+      <button data-p="actu">Actu</button>
+      <span class="more"><button id="morebtn" data-t="plus">Plus ▾</button><div class="menu" id="menu" hidden><button data-p="historique">Historique</button><button data-p="reglages">Mon compte</button></div></span>
+    </nav>
+    <span class="mono" style="margin-left:auto;font-size:12px;color:var(--muted)">OKX · 4h</span>
+    <span id="auth"></span>
+  </div>
+  <div class="alert"><span>Critique</span><span>L'OPEP+ annonce une baisse de production de 500 000 barils/jour</span></div>
+  <div class="ticker"><div id="tk"></div></div>
+</header>
+
+<main>
+  <!-- RÉSUMÉ -->
+  <section class="page on" id="resume">
+    <div class="intro" data-intro="resume"><span class="k">À savoir</span><p>Monexo surveille trois choses pour toi : <b>des petits projets crypto qui gagnent de l'argent</b>, <b>des setups de trading en 4h</b> sur OKX, et <b>l'actu qui fait bouger les marchés</b>. <span>Le bloc orange te dit quoi regarder en priorité. Tout ce qui est cliquable ouvre une fiche détaillée.</span></p><button>Compris</button></div>
+    <h2>À regarder maintenant</h2>
+    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
+    
+    <div class="focus" id="focus"></div>
+    <div class="macro"><span>DOMINANCE BTC <b>57,8 %</b></span><span>FEAR &amp; GREED <b class="up">68 · Avidité</b></span><span>WTI <b class="up">78,42 +3,9 %</b></span><span>BRENT <b class="up">82,10 +3,6 %</b></span></div>
+    <div class="cols">
+      <div class="box"><h2>Projets <a data-go="projets">Top 25 →</a></h2><div id="r-proj"></div></div>
+      <div class="box"><h2>Setups 4h <a data-go="setups">Tous →</a></h2><div id="r-set"></div></div>
+      <div class="box"><h2>Actu <a data-go="actu">Fil complet →</a></h2><div id="r-news"></div></div>
+    </div>
+  </section>
+
+  <!-- PROJETS -->
+  <section class="page" id="projets">
+    <div class="intro" data-intro="projets"><span class="k">À savoir</span><p>Petits projets (moins de 1 Md$ de valorisation, pas encore sur Binance) classés par une note sur 100. <span>Elle compte surtout leurs revenus réels (50 %), puis leur croissance (30 %), puis s'ils sont bon marché par rapport à ce qu'ils gagnent (20 %).</span><span class="legend"><span><b class="tag acc">Buyback</b> le projet rachète son token</span><span><b class="tag">Accélère</b> revenus en hausse plus rapide ce mois</span><span><b class="tag down">Faible flottant</b> peu de tokens en circulation, risque de dilution</span><span>MC / Rev. bas = moins cher</span></span></p><button>Compris</button></div>
+    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
+    <h2>Projets &lt; 1 Md$ pas encore sur Binance</h2>
+    <p class="sub">Score : 50 % revenus · 30 % croissance · 20 % valorisation. Cliquer une ligne ouvre la fiche.</p>
+    <div class="tools"><button class="chip on">Toutes chaînes</button><button class="chip">Solana</button><button class="chip">Ethereum + L2</button><button class="chip">Buyback</button><button class="chip">Binance Alpha</button><button class="chip">Sur OKX</button></div>
+    <div class="wrap"><table><thead><tr><th>#</th><th>Projet</th><th>Revenus 90j</th><th>Score</th><th>Market cap</th><th>Revenu 30j</th><th>Rev. Δ30j</th><th>TVL Δ30j</th><th>MC / Rev.</th><th>Flottant</th><th>Badges</th></tr></thead><tbody id="t-proj"></tbody></table></div>
+  </section>
+
+  <section class="page" id="projet">
+    <button class="back" data-go="projets">← Projets</button>
+    <h2 id="pf-name"></h2>
+    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
+    
+    <div class="detail">
+      <div><canvas id="pf-chart"></canvas><p class="sub" style="margin-top:6px">Revenus quotidiens sur 90 jours (dans l'outil : graphique TradingView du token en dessous)</p></div>
+      <div class="box"><dl id="pf-dl"></dl></div>
+    </div>
+  </section>
+
+  <!-- SETUPS -->
+  <section class="page" id="setups">
+    <div class="intro" data-intro="setups"><span class="k">À savoir</span><p>Opportunités de trade détectées sur les bougies 4h. Chaque détecteur cherche <b>une seule chose</b>, par exemple une cassure de résistance. <span>« En cours » = la bougie n'est pas fermée, le signal peut disparaître. « Confirmé » = bougie fermée. Le % indique combien de fois ce type de signal a atteint son premier objectif ces 90 derniers jours.</span></p><button>Compris</button></div>
+    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
+    <h2>Setups 4h · OKX</h2>
+    <p class="sub">Chaque détecteur est indépendant. Les signaux restent 24h.</p>
+    <div class="tools" id="s-chips"></div>
+    <div class="grid" id="s-grid"></div>
+  </section>
+
+  <section class="page" id="setup">
+    <button class="back" data-go="setups">← Setups</button>
+    <h2 id="sf-name"></h2>
+    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
+    
+    <div class="detail">
+      <div><canvas id="sf-chart"></canvas><p class="sub" style="margin-top:6px">Dans l'outil : graphique TradingView interactif avec entrée, SL et TP tracés</p></div>
+      <div class="box"><dl id="sf-dl"></dl></div>
+    </div>
+  </section>
+
+  <!-- ACTU -->
+  <section class="page" id="actu">
+    <div class="intro" data-intro="actu"><span class="k">À savoir</span><p>Les news qui peuvent faire bouger crypto, pétrole et or, traduites en français. <span>Quand plusieurs médias publient la même info, elle n'apparaît qu'une fois.</span><span class="legend"><span><i class="dot c"></i> critique</span><span><i class="dot m"></i> moyen</span><span><i class="dot l"></i> faible</span><span>▲ ▼ = impact probable sur l'actif</span></span></p><button>Compris</button></div>
+    <h2>Actu qui fait bouger les marchés</h2>
+    <p class="sub">Titres traduits automatiquement. Même news de plusieurs sources = une seule ligne.</p>
+    <div class="tools"><button class="chip on">Tout</button><button class="chip">Géopolitique</button><button class="chip">Banques centrales</button><button class="chip">OPEP / énergie</button><button class="chip">Régulation</button><button class="chip">Hacks</button><button class="chip">ETF</button><button class="chip">Baleines</button></div>
+    <div class="news" id="n-list"></div>
+  </section>
+
+  <!-- HISTORIQUE -->
+  <section class="page" id="historique">
+    <div class="intro" data-intro="hist"><span class="k">À savoir</span><p>Le bilan de chaque détecteur. <span>Sert à savoir à quels types de signaux faire confiance : un détecteur sous 45 % pourra être désactivé.</span></p><button>Compris</button></div>
+    <h2>Taux de réussite par détecteur · 90 jours</h2>
+    <p class="sub">Un signal compte comme gagné s'il touche TP1 avant le SL.</p>
+    <div class="wrap"><table><thead><tr><th>Détecteur</th><th></th><th>Signaux</th><th>Réussite</th><th>R moyen</th><th>Meilleur actif</th></tr></thead><tbody id="t-hist"></tbody></table></div>
+  </section>
+
+  <!-- RÉGLAGES -->
+  <section class="page" id="reglages">
+    <div class="intro" data-intro="regl"><span class="k">À savoir</span><p>Ton compte : ta watchlist (les actifs que tu suis de près). <span>Elle met tes actifs en avant partout sur le site. Les alertes Discord arriveront plus tard.</span></p><button>Compris</button></div>
+    <div class="cols">
+      <div class="box"><h2>Watchlist</h2><div id="wl"></div></div>
+      <div class="box" id="admin" hidden><h2>Admin · Inscrits <a>1 284 au total</a></h2><div class="row"><span class="t">Cette semaine</span><span class="d">+96 inscrits</span><span class="r up">+8 %</span></div><div class="row"><span class="t">Google</span><span class="d">71 %</span></div><div class="row"><span class="t">E-mail</span><span class="d">29 %</span></div><div class="row"><span class="d">Voir la liste complète →</span></div></div>
+      </div>
+  </section>
+</main>
+<footer><p><b style="color:var(--fg)">Ceci n'est pas un conseil financier.</b> Monexo est un outil d'information. Le trading de cryptomonnaies et de matières premières comporte un risque élevé de perte en capital.</p></footer>
+<div class="modal" id="login" hidden><div class="dlg">
+  <h3>Connexion à Monexo</h3>
+  <p>Gratuit. Le compte sert à garder ta watchlist sur tous tes appareils.</p>
+  <button class="opt" data-login="g"><b>G</b> Continuer avec Google</button>
+  <div class="or">ou</div>
+  <input id="mail" type="email" placeholder="ton@email.com">
+  <button class="btn" data-login="m">Recevoir un lien de connexion</button>
+  <p id="sent" hidden>Lien envoyé. Ouvre ton e-mail pour te connecter (simulation).</p>
+  <button class="opt" data-close style="background:none;border:0;color:var(--muted)">Plus tard</button>
+</div></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const fmt = (n, d = 0) => n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const money = n => n >= 1e9 ? fmt(n / 1e9, 2) + ' Md$' : n >= 1e6 ? fmt(n / 1e6, 1) + ' M$' : fmt(n / 1e3) + ' k$';
+const pct = n => `<span class="${n >= 0 ? 'up' : 'down'}">${n >= 0 ? '+' : ''}${fmt(n, 1)} %</span>`;
+
+const ticks = [['BTC', 98412, 2.1], ['ETH', 3840, -0.4], ['SOL', 184.2, 3.8], ['WTI', 78.42, 3.9], ['BRENT', 82.1, 3.6]];
+const tk = ticks.map(([s, p, c]) => `<span>${s} <span class="num">${fmt(p, p < 1000 ? 2 : 0)}</span> ${pct(c)}</span>`).join('');
+$('#tk').innerHTML = tk + tk;
+
+const projects = [
+  { n: 'Aerodrome', c: 'Base', s: 91, mc: 820e6, rev: 14.2e6, rg: 38, tg: 22, fl: 61, b: ['Buyback', 'Accélère'] },
+  { n: 'Kamino', c: 'Solana', s: 87, mc: 410e6, rev: 6.1e6, rg: 24, tg: 31, fl: 24, b: ['Alpha', 'Faible flottant'] },
+  { n: 'Drift', c: 'Solana', s: 84, mc: 360e6, rev: 4.8e6, rg: 41, tg: 12, fl: 38, b: ['OKX'] },
+  { n: 'Morpho Blue fork', c: 'Arbitrum', s: 79, mc: 95e6, rev: 1.4e6, rg: 66, tg: 48, fl: 52, b: ['Buyback', 'Accélère'] },
+  { n: 'Orca', c: 'Solana', s: 76, mc: 180e6, rev: 2.2e6, rg: 12, tg: 9, fl: 71, b: ['OKX'] },
+  { n: 'Velo Finance', c: 'Optimism', s: 72, mc: 42e6, rev: 0.6e6, rg: 85, tg: 27, fl: 33, b: ['Alpha'] },
+  { n: 'Ostium', c: 'Arbitrum', s: 70, mc: 28e6, rev: 0.4e6, rg: 120, tg: 64, fl: 18, b: ['Accélère', 'Faible flottant'] },
+];
+const spark = (seed, g) => { const n = 30, a = []; let v = 10; for (let i = 0; i < n; i++) { v += Math.sin(i * .9 + seed) * .8 + g / 60; a.push(v); }
+  const lo = Math.min(...a), hi = Math.max(...a);
+  const pts = a.map((v, i) => `${(i / (n - 1) * 88 + 1).toFixed(1)},${(20 - (v - lo) / (hi - lo || 1) * 18).toFixed(1)}`).join(' ');
+  const last = pts.split(' ').pop().split(',');
+  return `<svg class="sp" viewBox="0 0 90 22"><polyline points="${pts}" fill="none" stroke="#ff8a00" stroke-width="1.2"/><circle cx="${last[0]}" cy="${last[1]}" r="2" fill="#ff8a00"/></svg>`; };
+const badge = b => b === 'Buyback' ? `<span class="tag acc">${b}</span>` : b === 'Faible flottant' ? `<span class="tag down">${b}</span>` : `<span class="tag">${b}</span>`;
+$('#t-proj').innerHTML = projects.map((p, i) => `<tr data-i="${i}"><td class="n">${i + 1}</td><td>${p.n} <span class="tag">${p.c}</span></td><td>${spark(i, p.rg)}</td><td class="n">${p.s}</td><td class="n">${money(p.mc)}</td><td class="n">${money(p.rev)}</td><td class="n">${pct(p.rg)}</td><td class="n">${pct(p.tg)}</td><td class="n">${fmt(p.mc / (p.rev * 12), 1)}×</td><td class="n">${p.fl} %</td><td style="text-align:left">${p.b.map(badge).join(' ')}</td></tr>`).join('');
+$('#r-proj').innerHTML = projects.slice(0, 5).map((p, i) => `<div class="row" data-pi="${i}"><span class="t">${i + 1}. ${p.n.split(' ')[0]}</span><span class="d">${money(p.rev)}/mois · MC ${money(p.mc)}</span><span class="r">${pct(p.rg)}</span></div>`).join('');
+
+const detectors = ['Breakout', 'Sweep', 'FVG', 'Funding/OI', 'Niveaux'];
+const winRate = { Breakout: 48, Sweep: 58, FVG: 55, 'Funding/OI': 64, Niveaux: 52 };
+const setups = [
+  { a: 'SOL', d: 'Breakout', dir: 'LONG', st: 'confirmé', why: 'Clôture 4h au-dessus de la résistance 182,4 avec un volume 2,3× la moyenne.', e: 183.1, sl: 176.9, tp: [189.5, 195.9, 202.2], rr: 2.8, tr: 'haussière', t: 'il y a 1h', proj: false, news: null },
+  { a: 'WTI', d: 'Sweep', dir: 'SHORT', st: 'en cours', why: 'Mèche au-dessus du plus haut de la semaine (79,60) puis retour dessous.', e: 78.4, sl: 79.95, tp: [75.3, 73.8], rr: 2.1, tr: 'haussière', t: 'il y a 20 min', news: 'OPEP+ : baisse de production de 500 000 b/j (contre ce short)' },
+  { a: 'ETH', d: 'FVG', dir: 'LONG', st: 'confirmé', why: 'Le prix revient combler le gap 3 790–3 812 laissé par l\'impulsion de mardi.', e: 3805, sl: 3741, tp: [3905, 3990], rr: 2.4, tr: 'neutre', t: 'il y a 5h', news: 'ETF : +420 M$ d\'entrées sur BTC (sentiment positif)' },
+  { a: 'DOGE', d: 'Funding/OI', dir: 'SHORT', st: 'confirmé', why: 'Funding à +0,09 % / 8h et open interest +34 % en 24h : longs surchargés.', e: 0.412, sl: 0.431, tp: [0.385, 0.372], rr: 2.2, tr: 'haussière', t: 'il y a 8h' },
+  { a: 'DRIFT', d: 'Breakout', dir: 'LONG', st: 'confirmé', why: 'Clôture au-dessus du plus haut de 3 semaines (0,92) avec volume ×3,1.', e: 0.94, sl: 0.88, tp: [1.03, 1.10], rr: 2.5, tr: 'haussière', t: 'il y a 3h', proj: 3 },
+  { a: 'GAZ', d: 'Niveaux', dir: 'LONG', st: 'en cours', why: 'Rebond sur le plus bas de la semaine précédente (2,84).', e: 2.88, sl: 2.79, tp: [3.07, 3.18], rr: 2.1, tr: 'neutre', t: 'il y a 40 min' },
+];
+const dirTag = d => `<span class="tag ${d === 'LONG' ? 'up' : 'down'}">${d === 'LONG' ? '▲' : '▼'} ${d}</span>`;
+let on = new Set(detectors);
+const links = s => (s.proj ? `<div class="link"><b>Projet du top</b> · n°${s.proj} dans Projets</div>` : '') + (s.news ? `<div class="link"><b>News liée</b> · ${s.news}</div>` : '');
+$('#s-chips').innerHTML = detectors.map(d => `<button class="chip on" data-d="${d}">${d}</button>`).join('');
+function drawSetups() {
+  $('#s-grid').innerHTML = setups.map((s, i) => !on.has(s.d) ? '' : `<div class="card" data-si="${i}"><div class="hd"><b class="mono">${s.a}</b><span class="tag">${s.d}</span>${dirTag(s.dir)}<span class="tag ${s.st === 'confirmé' ? 'acc' : ''}">${s.st}</span><span class="sub" style="margin:0 0 0 auto">${s.t}</span></div><div class="why">${s.why}</div><div class="lv"><div><span>Entrée</span>${s.e}</div><div><span>Stop</span>${s.sl}</div><div><span>R:R</span>1:${s.rr}</div></div><div class="wr">${s.d} : ${winRate[s.d]} % de réussite sur 90j</div>${links(s)}</div>`).join('');
+}
+drawSetups();
+$('#s-chips').onclick = e => { const d = e.target.dataset.d; if (!d) return; on.has(d) ? on.delete(d) : on.add(d); e.target.classList.toggle('on'); drawSetups(); };
+$('#r-set').innerHTML = setups.slice(0, 5).map((s, i) => `<div class="row" data-si="${i}"><span class="t">${s.a}</span><span class="d">${s.d} · ${s.st}</span><span class="r ${s.dir === 'LONG' ? 'up' : 'down'}">${s.dir === 'LONG' ? '▲' : '▼'} 1:${s.rr}</span></div>`).join('');
+
+const news = [
+  { i: 'c', t: 'L\'OPEP+ annonce une baisse de production de 500 000 barils/jour', w: 'Moins d\'offre de pétrole : hausse probable du WTI et du Brent, pression inflationniste.', imp: 'WTI ▲ · BRENT ▲', src: 'Reuters + 6 sources', h: '14:05', th: 'OPEP' },
+  { i: 'm', t: 'La Fed maintient ses taux à 4,25 %, conforme aux attentes', w: 'Pas de surprise : impact limité, le discours de Powell à 20h30 compte plus.', imp: 'BTC = · OR =', src: 'Federal Reserve + 9 sources', h: '13:40', th: 'Banques centrales' },
+  { i: 'm', t: 'ETF Bitcoin spot : +420 M$ d\'entrées hier', w: 'Troisième jour d\'entrées : demande institutionnelle soutenue.', imp: 'BTC ▲', src: 'Farside', h: '11:12', th: 'ETF' },
+  { i: 'c', t: 'Exploit sur un protocole de lending : 74 M$ volés', w: 'Hack > 50 M$ : risque de contagion sur les tokens DeFi du même écosystème.', imp: 'DeFi ▼', src: 'The Block + 4 sources', h: '09:58', th: 'Hacks' },
+  { i: 'm', t: 'Baleine : 18 M$ de KMNO envoyés sur un exchange', w: 'Un dépôt de cette taille précède souvent une vente.', imp: 'KMNO ▼', src: 'On-chain', h: '08:21', th: 'Baleines' },
+  { i: 'l', t: 'La Chine prolonge ses quotas d\'importation de brut', w: 'Décision attendue, effet faible sur la demande.', imp: 'WTI =', src: 'Bloomberg', h: '07:30', th: 'Géopolitique' },
+];
+$('#n-list').innerHTML = news.map(n => `<div class="item"><span class="dot ${n.i}"></span><h3>${n.t}</h3><p>${n.w}</p><div class="meta"><span class="num">${n.h}</span><span class="tag">${n.th}</span><span class="tag acc">${n.imp}</span><span>${n.src}</span></div></div>`).join('');
+$('#r-news').innerHTML = news.slice(0, 5).map(n => `<div class="row" data-go="actu"><span class="dot ${n.i}"></span><span class="d" style="color:var(--fg)">${n.t}</span><span class="r" style="color:var(--muted)">${n.h}</span></div>`).join('');
+
+$('#t-hist').innerHTML = [['Breakout', 42, 48, 1.3, 'SOL'], ['Sweep', 31, 58, 1.6, 'ETH'], ['FVG', 38, 55, 1.4, 'BTC'], ['Funding/OI', 17, 64, 1.9, 'DOGE'], ['Niveaux', 29, 52, 1.2, 'WTI']]
+  .sort((a, b) => b[2] - a[2]).map(r => `<tr><td>${r[0]}</td><td></td><td class="n">${r[1]}</td><td class="n ${r[2] >= 50 ? 'up' : 'down'}">${r[2]} %</td><td class="n">${fmt(r[3], 1)} R</td><td class="n">${r[4]}</td></tr>`).join('');
+let logged = false;
+function renderAuth() {
+  $('#auth').innerHTML = logged ? '<span class="user"><span class="av">GS</span><span>Gabriel</span><button class="btn ghost" data-logout>Déconnexion</button></span>' : '<button class="btn" data-open>Se connecter</button>';
+  $('#wl').innerHTML = logged
+    ? ticks.map(([s, p, c]) => `<div class="row"><span class="t">${s}</span><span class="d num">${fmt(p, p < 1000 ? 2 : 0)}</span><span class="r">${pct(c)}</span></div>`).join('') + '<div class="row"><span class="d">+ Ajouter un actif</span></div>'
+    : '<div class="locked">Connecte-toi pour créer ta watchlist et la retrouver sur tous tes appareils.<button class="btn" data-open>Se connecter</button></div>';
+  $('#admin').hidden = !logged;
+}
+renderAuth();
+document.body.addEventListener('click', e => {
+  const t = e.target.closest('[data-open],[data-close],[data-login],[data-logout]');
+  if (!t) return;
+  if (t.hasAttribute('data-open')) { $('#sent').hidden = true; $('#login').hidden = false; }
+  if (t.hasAttribute('data-close')) $('#login').hidden = true;
+  if (t.dataset.login === 'm') { $('#sent').hidden = false; setTimeout(() => { logged = true; $('#login').hidden = true; renderAuth(); }, 1200); }
+  if (t.dataset.login === 'g') { logged = true; $('#login').hidden = true; renderAuth(); }
+  if (t.hasAttribute('data-logout')) { logged = false; renderAuth(); }
+});
+$('#login').addEventListener('click', e => { if (e.target.id === 'login') $('#login').hidden = true; });
+
+function chart(cv, data, lines) {
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  const g = cv.getContext('2d'); g.scale(dpr, dpr);
+  const W = r.width, H = r.height, P = 12;
+  const all = data.concat(lines.map(l => l[0]));
+  const lo = Math.min(...all), hi = Math.max(...all);
+  const y = v => H - P - (v - lo) / (hi - lo) * (H - 2 * P), x = i => P + i / (data.length - 1) * (W - 2 * P - 60);
+  g.strokeStyle = '#23262e'; for (let k = 0; k < 5; k++) { const yy = P + k * (H - 2 * P) / 4; g.beginPath(); g.moveTo(0, yy); g.lineTo(W, yy); g.stroke(); }
+  g.beginPath(); data.forEach((v, i) => i ? g.lineTo(x(i), y(v)) : g.moveTo(x(i), y(v))); g.strokeStyle = '#ff8a00'; g.lineWidth = 1.5; g.stroke();
+  g.font = '11px "Geist Mono", monospace';
+  lines.forEach(([v, c, t]) => { g.setLineDash([4, 4]); g.strokeStyle = c; g.beginPath(); g.moveTo(P, y(v)); g.lineTo(W - 60, y(v)); g.stroke(); g.setLineDash([]); g.fillStyle = c; g.fillText(t, W - 56, y(v) + 4); });
+}
+const walk = (n, s, v) => { let a = [], p = s; for (let i = 0; i < n; i++) { p += (Math.sin(i * 1.7) + Math.cos(i * .6)) * v + v * .15; a.push(p); } return a; };
+
+function openProject(i) {
+  const p = projects[i];
+  $('#pf-name').textContent = `${p.n} · ${p.c}`;
+  $('#pf-dl').innerHTML = [['Score', p.s], ['Market cap', money(p.mc)], ['Revenu 30j', money(p.rev)], ['Croissance revenu', pct(p.rg)], ['Croissance TVL', pct(p.tg)], ['MC / revenu', fmt(p.mc / (p.rev * 12), 1) + '×'], ['Flottant', p.fl + ' %'], ['Prochain unlock', '3,2 % · 14 nov.'], ['Investisseurs', 'Coinbase Ventures, Multicoin'], ['Buyback', p.b.includes('Buyback') ? 'Oui · 40 % des frais' : 'Non'], ['Tendance CoinGecko', '#12'], ['Où acheter', p.b.includes('OKX') ? 'OKX' : 'DEX']].map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+  show('projet'); chart($('#pf-chart'), walk(90, 100, 3), []);
+}
+function openSetup(i) {
+  const s = setups[i];
+  $('#sf-name').innerHTML = `${s.a} · ${s.d} 4h · ${dirTag(s.dir)}`;
+  $('#sf-dl').innerHTML = [['Pourquoi', ''], ['', s.why], ['Statut', s.st], ['Entrée', s.e], ['Stop (1,5 ATR)', s.sl], ...s.tp.map((t, k) => ['TP' + (k + 1), t]), ['R:R', '1:' + s.rr], ['Tendance 1D', s.tr], ['Expire', 'dans 18h']].map(([a, b]) => a === '' ? `<dd style="grid-column:1/-1;text-align:left;font-family:var(--sans)">${b}</dd>` : `<dt>${a}</dt><dd>${b}</dd>`).join('');
+  show('setup');
+  const long = s.dir === 'LONG', base = walk(60, s.e, Math.abs(s.e - s.sl) / 4);
+  const sh = s.e - base[base.length - 1]; const d = base.map(v => v + sh);
+  chart($('#sf-chart'), d, [[s.e, '#eceef2', 'Entrée'], [s.sl, '#ef4444', 'SL'], ...s.tp.map((t, k) => [t, '#22c55e', 'TP' + (k + 1)])]);
+}
+
+$('#focus').innerHTML = [
+  `<div class="card" data-si="0"><span class="k">SETUP CONFIRMÉ · WATCHLIST</span><div class="hd"><b class="mono">SOL</b><span class="tag">Breakout</span>${dirTag('LONG')}</div><div class="why">Cassure de 182,4 avec volume. R:R 1:2,8.</div></div>`,
+  `<div class="card" data-go="actu"><span class="k">NEWS CRITIQUE</span><div class="why">OPEP+ baisse sa production. Ton setup short WTI va contre cette news.</div></div>`,
+  `<div class="card" data-pi="5"><span class="k">NOUVEAU DANS LE TOP</span><div class="hd"><b class="mono">Velo Finance</b><span class="tag">Accélère</span></div><div class="why">Revenus +85 % ce mois, valorisation 42 M$.</div></div>`,
+  `<div class="card" data-pi="0"><span class="k">BUYBACK DÉTECTÉ</span><div class="hd"><b class="mono">Aerodrome</b><span class="tag acc">Buyback</span></div><div class="why">40 % des frais servent à racheter le token.</div></div>`
+].join('');
+const tabOf = { projet: 'projets', setup: 'setups' };
+function show(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === id));
+  const t = tabOf[id] || id;
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.p === t || (b.id === 'morebtn' && ['historique', 'reglages'].includes(t))));
+  scrollTo(0, 0);
+}
+$('#nav').onclick = e => {
+  if (e.target.id === 'morebtn') { $('#menu').hidden = !$('#menu').hidden; return; }
+  if (e.target.dataset.p) { $('#menu').hidden = true; show(e.target.dataset.p); }
+};
+document.querySelectorAll('.intro').forEach(el => {
+  const k = 'intro-' + el.dataset.intro;
+  try { if (localStorage.getItem(k)) el.hidden = true; } catch (_) {}
+  el.querySelector('button').onclick = () => { el.hidden = true; try { localStorage.setItem(k, '1'); } catch (_) {} };
+});
+document.body.addEventListener('click', e => {
+  const el = e.target.closest('[data-go],[data-pi],[data-si],tr[data-i]');
+  if (!el) return;
+  if (el.dataset.go) show(el.dataset.go);
+  else if (el.dataset.pi) openProject(+el.dataset.pi);
+  else if (el.dataset.i) openProject(+el.dataset.i);
+  else if (el.dataset.si) openSetup(+el.dataset.si);
+});
+</script>
