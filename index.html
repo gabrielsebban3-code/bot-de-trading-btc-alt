@@ -171,8 +171,24 @@
       </div>
     </section>
     <section class="page" id="page-compte">
+      <div class="intro" data-intro="compte"><span class="i">i</span>
+        <p>Ta <b>watchlist</b> rassemble les actifs que tu suis : leurs prix défilent en haut du site, et le filtre <b>Ma watchlist</b> les isole dans Projets, Setups et Actu. <span>Ajoute un actif avec l'étoile, sur un projet ou un setup. Elle est gardée sur cet appareil ; connecte-toi pour la retrouver sur tous tes appareils.</span></p>
+        <button type="button">Compris</button></div>
       <h1>Mon compte</h1>
-      <div class="box"><div class="empty">La connexion (Google ou e-mail) arrive bientôt. Elle servira à garder ta watchlist sur tous tes appareils.</div></div>
+      <div class="detail">
+        <div class="stack">
+          <div class="box">
+            <h2>Ma watchlist <span class="muted" id="wl-count"></span></h2>
+            <form class="login" id="wl-add"><label for="wl-input">Ajouter un actif par son symbole</label>
+              <span class="field"><input id="wl-input" list="wl-symbols" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="16" placeholder="BTC, CL, STONK…"><button class="btn">Ajouter</button></span>
+              <span class="msg" id="wl-msg" role="status"></span></form>
+            <datalist id="wl-symbols"></datalist>
+            <div id="wl-list"></div>
+          </div>
+          <div class="box" id="admin" hidden></div>
+        </div>
+        <div class="stack"><div class="box" id="account"></div></div>
+      </div>
     </section>
   </main>
 
