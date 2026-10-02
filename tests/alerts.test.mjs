@@ -33,6 +33,11 @@ test('rien à envoyer : déjà vu, en cours, terminé, trop vieux, pas critique'
   assert.deepEqual(out, []);
 });
 
+test('signal journalier : l\'âge compte depuis la clôture de la journée', () => {
+  const day = setup('j', { time: h(25), confirmedAt: h(1) });
+  assert.deepEqual(pickAlerts({ setups: S([day]), prevSetups: S([]), news: null, prevNews: null, now }).map(a => a.item.id), ['j']);
+});
+
 test('premier passage (pas de version en ligne) : aucune alerte', () => {
   assert.deepEqual(pickAlerts({ setups: S([setup('a')]), prevSetups: null, news: N([news('n1')]), prevNews: null, now }), []);
 });

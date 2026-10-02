@@ -2,7 +2,7 @@
   "name": "dinexo",
   "private": true,
   "type": "module",
-  "description": "Dashboard de trading : projets crypto, setups 4h, actualité des marchés.",
+  "description": "Dashboard de trading : projets crypto, setups dans le sens de la tendance, actualité des marchés.",
   "engines": { "node": ">=20" },
   "scripts": {
     "test": "node --test tests/*.test.mjs",

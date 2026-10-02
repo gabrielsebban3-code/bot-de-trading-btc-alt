@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Récupère les bougies 4h et 1D d'OKX pour BTC, ETH, SOL et le Brent, cherche les setups swing et calcule leur bilan.
+// Récupère les bougies 4h et 1D d'OKX pour BTC, ETH, SOL et le Brent,
+// cherche les signaux des 3 indicateurs dans le sens de la tendance et calcule leur bilan.
 // Usage : node scripts/build-setups.mjs [--out data] [--previous ancien-setups.json] [--sample]
 // Lancé toutes les heures par GitHub Actions (.github/workflows/deploy.yml).
 
@@ -55,7 +56,7 @@ async function candles(instId, bar, pages) {
 
 async function main() {
   const now = Date.now();
-  console.log(`Dinexo · setups swing · ${new Date(now).toISOString()}`);
+  console.log(`Dinexo · setups dans le sens de la tendance · ${new Date(now).toISOString()}`);
   const sources = {}, warnings = [];
 
   const [instruments, tickers] = await Promise.all([
@@ -74,9 +75,9 @@ async function main() {
   const results = await mapLimit(universe, 3, async asset => {
     const instId = `${asset.symbol}-USDT-SWAP`;
     try {
-      const bars = await candles(instId, '4H', 20);   // ~13 mois
-      const daily = await candles(instId, '1Dutc', 2); // ~16 mois
-      const signals = scanAsset(asset, { bars, daily, now });
+      const bars = await candles(instId, '4H', 20);    // ~13 mois
+      const daily = await candles(instId, '1Dutc', 3); // ~20 mois : de quoi calculer la tendance et suivre les trades
+      const signals = scanAsset(asset, { bars, daily });
       const tk = tick.get(instId);
       const last = tk ? Number(tk.last) : bars.at(-1).c;
       return {
@@ -109,32 +110,32 @@ async function main() {
   let previous = null;
   if (args.previous) previous = await readFile(args.previous, 'utf8').then(JSON.parse).catch(() => null);
   const compact = s => ({
-    id: s.id, detector: s.detector, symbol: s.symbol, dir: s.dir, status: s.status, time: s.time,
+    id: s.id, detector: s.detector, symbol: s.symbol, dir: s.dir, status: s.status, time: s.time, confirmedAt: s.confirmedAt,
     entry: s.entry, sl: s.sl, tp1: s.tp?.[0] ?? s.tp1, rr: s.rr, outcome: s.outcome, at: s.at, r: s.r, tpHit: s.tpHit ?? null,
   });
   const history = mergeHistory(previous?.history, confirmed.map(compact), freshStart, now, UNIVERSE.map(a => a.symbol));
   const stats = detectorStats(history, now);
 
-  // Signaux affichés : bougie en cours, trade encore en jeu, ou signal de moins de 24 h.
+  // Signaux affichés : bougie en cours, trade encore en jeu, ou trade terminé depuis moins de 24 h.
   const shown = all
-    .filter(s => s.status === 'en cours' || s.outcome === 'open' || s.time + BAR >= now - RULES.showHours * 3600_000)
+    .filter(s => s.status === 'en cours' || s.outcome === 'open' || (s.at !== null && s.at + BAR >= now - RULES.showHours * 3600_000))
     .sort((a, b) => b.time - a.time || (a.status === 'en cours' ? -1 : 1));
   const charts = {};
   for (const r of ok) {
-    if (shown.some(s => s.symbol === r.asset.symbol)) charts[r.asset.symbol] = r.bars.slice(-120).map(b => [b.t, b.o, b.h, b.l, b.c]);
+    if (shown.some(s => s.symbol === r.asset.symbol)) charts[r.asset.symbol] = r.bars.slice(-180).map(b => [b.t, b.o, b.h, b.l, b.c]);
   }
 
   await mkdir(OUT, { recursive: true });
   await writeFile(join(OUT, 'setups.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), sources, warnings,
-    rules: { minRR: RULES.minRR, stopAtr: RULES.stopAtr, targetsR: RULES.targetsR, breakoutDays: RULES.breakoutDays, expiryBars: RULES.expiryBars, showHours: RULES.showHours, statsDays: RULES.statsDays },
+    rules: { minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: RULES.exitDays, barMs: BAR, riskPct: RULES.riskPct, showHours: RULES.showHours, statsDays: RULES.statsDays },
     detectors: DETECTORS, freshStart,
     assets: ok.map(r => r.asset), live: shown, stats, history, charts,
   }));
 
   console.log(`\n${shown.length} setups affichés (${shown.filter(s => s.outcome === 'open').length} en jeu), ${history.length} signaux dans l'historique.`);
   for (const [key, s] of Object.entries(stats)) {
-    console.log(`${DETECTORS[key].padEnd(20)} ${String(s.signals).padStart(4)} signaux · gagnants ${s.winRate === null ? '—' : `${Math.round(s.winRate * 100)} %`} · stops ${s.losses} · R moyen ${s.avgR ?? '—'} · total ${s.totalR}R · meilleur ${s.best?.symbol ?? '—'}`);
+    console.log(`${DETECTORS[key].padEnd(20)} ${String(s.signals).padStart(4)} signaux · gagnants ${s.winRate === null ? '—' : `${Math.round(s.winRate * 100)} %`} · stops ${s.losses} · moitié prise ${s.tp1} · durée ${s.avgDays ?? '—'} j · R moyen ${s.avgR ?? '—'} · total ${s.totalR}R · meilleur ${s.best?.symbol ?? '—'}`);
   }
   for (const s of history.slice(0, 12)) console.log(`${new Date(s.time).toISOString().slice(0, 13)} ${s.symbol} ${s.dir} ${s.outcome} ${s.r ?? ''}`);
   for (const s of shown.slice(0, 10)) console.log(`${s.symbol} ${DETECTORS[s.detector]} ${s.dir} ${s.status} R:R ${s.rr} · ${s.outcome}`);
