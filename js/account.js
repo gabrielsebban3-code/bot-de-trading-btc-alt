@@ -26,6 +26,7 @@ const local = {
   set(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* stockage indisponible */ } },
 };
 function pending() {
+  if (!SUPABASE.code) return null;
   try {
     const p = JSON.parse(local.get(PENDING));
     return p && typeof p.email === 'string' && Date.now() - p.at < PENDING_MS ? p.email : null;
@@ -148,8 +149,9 @@ async function sendLink(e) {
   button.disabled = true;
   const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect() } });
   button.disabled = false;
-  if (!error) setPending(email);
-  notice = !error ? '' : error.status === 429 ? 'Trop de demandes. Attends un peu avant de redemander un code.'
+  if (!error && SUPABASE.code) setPending(email);
+  notice = !error ? (SUPABASE.code ? '' : `Lien envoyé à ${email}. Ouvre-le sur cet appareil, dans ce navigateur, pour te connecter.`)
+    : error.status === 429 ? 'Trop de demandes. Attends un peu avant de redemander un code.'
     : 'L\'e-mail n\'a pas pu être envoyé. Vérifie l\'adresse, ou réessaie plus tard.';
   renderAccount();
   if (!error) $('login-token')?.focus();
@@ -216,8 +218,8 @@ function renderAccount() {
     el.innerHTML = `<h2>Connexion</h2>
       <p class="txt">Connecte-toi pour retrouver ta watchlist sur tous tes appareils. Pas de mot de passe.</p>
       ${SUPABASE.google ? '<div class="links"><button type="button" class="btn primary" data-act="google">Continuer avec Google</button></div>' : ''}
-      <form class="login" id="login-email"><label for="login-mail">${SUPABASE.google ? 'Ou reçois' : 'Reçois'} un code de connexion par e-mail</label>
-        <span class="field"><input id="login-mail" name="email" type="email" required autocomplete="email" placeholder="ton@email.com"><button class="btn primary">Recevoir un code</button></span></form>
+      <form class="login" id="login-email"><label for="login-mail">${SUPABASE.google ? 'Ou reçois' : 'Reçois'} ${SUPABASE.code ? 'un code' : 'un lien'} de connexion par e-mail</label>
+        <span class="field"><input id="login-mail" name="email" type="email" required autocomplete="email" placeholder="ton@email.com"><button class="btn primary">${SUPABASE.code ? 'Recevoir un code' : 'Envoyer le lien'}</button></span></form>
       ${note}`;
   }
   $('admin').hidden = !admin;
