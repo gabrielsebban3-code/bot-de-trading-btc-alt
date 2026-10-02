@@ -22,6 +22,7 @@ export const NEWS = {
   maxTranslations: 150,   // titres traduits par mise à jour au maximum
   whaleMinUsd: 10e6,      // baleines : transferts de plus de 10 M$
   whaleMediumUsd: 100e6,
+  whaleStableMediumUsd: 500e6, // créations de stablecoins : routinières en dessous
   hackCriticalUsd: 50e6,  // hack de plus de 50 M$ = critique
   hackMediumUsd: 5e6,
   etfMediumUsd: 500e6,
@@ -175,7 +176,7 @@ const UNCERTAIN = /\b(may|might|could|considers?|considering|weighs?|weighing|mu
 // Avant-première : le chiffre ou la décision n'est pas encore tombé.
 const PREVIEW = /\b(ahead of|before|awaits?|awaited|awaiting|eyes|eyeing|braces? for|bracing for|in focus|on tap|preview\w*|what to (expect|watch|know)|expected to|seen (rising|falling|slowing|cooling|easing|at)|forecast to|set to|week ahead|looms?|looming)\b/i;
 // Prévisions, analyses, fils en direct des marchés : utiles à lire, mais pas une nouvelle en soi.
-const ANALYSIS = /\b(price predictions?|predictions? for|forecasts? for (today|tomorrow|next)|(price|oil|gas|gold|bitcoin|btc|crypto|weekly|daily) forecasts?|outlook:|technical analysis|price analysis|week ahead|what to (watch|expect|know)|explainer|explained|opinion|podcast|live markets?|markets? live|market wrap|stocks? to (watch|buy)|here[’']?s (why|what|how)|what comes next)\b|\bforecasts?\s+[–—:-]|^why\b|\.\s+why\b/i;
+const ANALYSIS = /\b(price predictions?|predictions? for|forecasts? for (today|tomorrow|next)|(price|oil|gas|gold|bitcoin|btc|crypto|weekly|daily) forecasts?|outlook:|technical analysis|price analysis|week ahead|what to (watch|expect|know)|explainer|explained|opinion|podcast|live markets?|markets? live|market wrap|stocks? to (watch|buy)|here[’']?s (why|what|how)|what comes next|away from)\b|\bforecasts?\s+[–—:-]|^why\b|\.\s+why\b/i;
 const REQUEST = /\b(calls? for|call to|urges?|urging|asks?|asking|seeks?|seeking|lobb\w*|petition\w*|push(es)? for|wants?)\b/i;
 const NEGATED = /\b(no|not|won't|will not|never|rules? out|ruled out|refuses?|refused|rejects?|rejected|denies|denied)\b/i;
 const THREAT = /\b(threat\w*|warns?|warned|warning|vows?|vowed|if|ready to|prepared to|fears?|risk|risks|possible|potential|calls? for|urges?|denies|denied|rules? out)\b/i;
@@ -183,7 +184,7 @@ const THREAT = /\b(threat\w*|warns?|warned|warning|vows?|vowed|if|ready to|prepa
 const INFLATION = /\b(cpi|inflation|pce|consumer prices|producer prices|ppi|nonfarm|non-farm|nfp|payrolls|jobs report|unemployment (rate|claims)|jobless claims)\b/i;
 // Le chiffre lui-même (« CPI jumps 0.6% », « jobless claims fall »), pas une simple mention : l'indicateur, puis le verbe.
 const INDICATOR = '(cpi|inflation|pce|consumer prices|producer prices|ppi|payrolls|nfp|jobs report|job growth|job gains|unemployment(?: rate| claims)?|jobless (?:claims|rate)|wage growth)';
-const MOVE = '(rises?|rose|falls?|fell|climbs?|climbed|jumps?|jumped|slows?|slowed|cools?|cooled|eases?|eased|accelerat\\w*|heats? up|hotter|cooler|beats?|beat|misses?|missed|surges?|surged|drops?|dropped|dips?|dipped|declines?|declined|ticks? (?:up|down)|edges? (?:up|down|higher|lower)|steady|unchanged|tops?|topped|exceeds?|exceeded|comes? in|came in|hits?|reaches?|reached|soars?|soared|tumbles?|tumbled|plunges?|plunged|spikes?|spiked|increases?|increased|grows?|grew|rebounds?|rebounded)';
+const MOVE = '(rises?|rose|falls?|fell|climbs?|climbed|jumps?|jumped|slows?|slowed|cools?|cooled|eases?|eased|accelerat\\w*|heats? up|hotter|cooler|beats?|beat|misses?|missed|surges?|surged|drops?|dropped|dips?|dipped|slips?|slipped|sinks?|sank|declines?|declined|ticks? (?:up|down)|edges? (?:up|down|higher|lower)|steady|unchanged|tops?|topped|exceeds?|exceeded|comes? in|came in|hits?|reaches?|reached|soars?|soared|tumbles?|tumbled|plunges?|plunged|spikes?|spiked|increases?|increased|grows?|grew|rebounds?|rebounded)';
 const RELEASE = new RegExp(`\\b${INDICATOR}\\b(?:\\W+[\\w.%,-]+){0,4}?\\W+${MOVE}\\b`, 'i');
 const JOBS_ADDED = /\b(economy|employers|payrolls)\s+(adds?|added|creates?|created|sheds?|shed|loses?|lost)\s+[\d,.]+\s*(k|thousand|million)?\s+jobs\b/i;
 // Sens du chiffre : la comparaison avec les attentes si le titre la donne, sinon le verbe qui suit l'indicateur
@@ -192,7 +193,16 @@ const HOT_WORDS = /\b(hotter|stronger|more than expected|higher than expected|ab
 const COOL_WORDS = /\b(cooler|weaker|less than expected|lower than expected|below (expectations|forecasts?|estimates?)|misses?|missed)\b/i;
 const UP_STRONG = /^(jumps?|jumped|surges?|surged|accelerat\w*|heats? up|hotter|spikes?|spiked|soars?|soared|tops?|topped|exceeds?|exceeded)$/i;
 const UP_ANY = /^(jumps?|jumped|surges?|surged|accelerat\w*|heats? up|spikes?|spiked|soars?|soared|tops?|topped|exceeds?|exceeded|rises?|rose|climbs?|climbed|increases?|increased|ticks? up|edges? (up|higher)|rebounds?|rebounded|grows?|grew|hits?|reaches?|reached)$/i;
-const DOWN = /^(falls?|fell|drops?|dropped|dips?|dipped|declines?|declined|cools?|cooled|cooler|eases?|eased|slows?|slowed|tumbles?|tumbled|plunges?|plunged|ticks? down|edges? (down|lower))$/i;
+const DOWN = /^(falls?|fell|drops?|dropped|dips?|dipped|slips?|slipped|sinks?|sank|declines?|declined|cools?|cooled|cooler|eases?|eased|slows?|slowed|tumbles?|tumbled|plunges?|plunged|ticks? down|edges? (down|lower))$/i;
+
+// « jobless claims fall » et « initial claims slip to 197,000 » : le même chiffre, une seule news.
+function dataKey(what, t) {
+  if (/claims/.test(what)) return 'data-claims';
+  if (/\bpce\b/i.test(t)) return 'data-pce';
+  if (/ppi|producer/.test(what)) return 'data-ppi';
+  if (/payrolls|nfp|jobs|job |unemployment|wage/.test(what)) return 'data-jobs';
+  return 'data-cpi';
+}
 
 function dataRelease(t) {
   const m = t.match(RELEASE);
@@ -285,7 +295,7 @@ const RULES = [
     t = military;
     const blockade = HOT_ZONE.test(t) && STRAIT.test(t) && CLOSE.test(t) && !REOPEN.test(t);
     if (!(((WAR_ACT.test(t) || HITS_PLACE.test(t)) && HOT_ZONE.test(t)) || NEW_WAR.test(t) || blockade)) return null;
-    const threat = UNCERTAIN.test(t) || THREAT.test(t);
+    const threat = UNCERTAIN.test(t) || THREAT.test(t) || /\b(despite|amid|in spite of)\b/i.test(t); // « despite attacks » : le contexte
     return {
       theme: 'geo', importance: threat ? 'medium' : 'critical', impacts: [...up('Pétrole', 'Or'), ...down('BTC')],
       why: threat ? "Menace d'escalade dans une zone clé (Golfe, Iran, Taïwan…) : si elle se concrétise, le pétrole et l'or montent souvent et les cryptos baissent."
@@ -324,7 +334,7 @@ const RULES = [
     const amt = amountUsd(t);
     const tk = tokensIn(t);
     const recap = RECAP.test(t); // bilan des piratages, pas un nouveau piratage
-    const followUp = FOLLOW_UP.test(t); // suite d'un piratage déjà connu : remboursement, pirate identifié…
+    const followUp = FOLLOW_UP.test(t) || /\?\s*$/.test(t); // suite d'un piratage déjà connu : remboursement, pirate identifié, analyse…
     let importance = recap ? 'low' : amt >= NEWS.hackCriticalUsd ? 'critical' : amt >= NEWS.hackMediumUsd || (amt === null && ctx.crypto) ? 'medium' : 'low';
     if (followUp && !recap) importance = importance === 'critical' ? 'medium' : 'low';
     const victim = tk.length ? tk : /\b(defi|protocol|lending|dex|bridge|vault|yield)\b/i.test(t) ? ['DeFi'] : ['Crypto'];
@@ -345,8 +355,9 @@ const RULES = [
     const act = decided ? rateAction(t) : null;
     // Seule la Fed fait vraiment bouger les cryptos ; les autres banques centrales sont affichées sans flèche.
     const fed = FED.test(t);
+    const bank = fed ? 'fed' : /\b(ecb|lagarde)\b/i.test(t) ? 'ecb' : /\b(bank of england|boe)\b/i.test(t) ? 'boe' : /\b(bank of japan|boj|ueda)\b/i.test(t) ? 'boj' : null;
     return {
-      theme: 'cb', importance: decided && MAJOR_CB.test(t) ? 'medium' : 'low',
+      theme: 'cb', importance: decided && MAJOR_CB.test(t) ? 'medium' : 'low', key: decided && bank ? `taux-${bank}` : null,
       impacts: fed && act === 'cut' ? up('BTC', 'Or') : fed && act === 'hike' ? down('BTC') : [],
       why: act === 'cut' ? "Baisse des taux : l'argent coûte moins cher, ce qui aide les actifs à risque comme les cryptos."
         : act === 'hike' ? "Hausse des taux : l'argent coûte plus cher, ce qui pèse sur les actifs à risque comme les cryptos."
@@ -369,6 +380,7 @@ const RULES = [
     const bearish = release && heat > 0, bullish = release && heat < 0;
     return {
       theme: 'cb', importance: release ? 'medium' : 'low', impacts: bullish ? up('BTC') : bearish ? down('BTC') : [],
+      key: release ? dataKey(rel.what, t) : null,
       why: bearish ? `${jobs ? 'Emploi américain solide' : 'Inflation américaine en hausse'} : la Fed baissera ses taux moins vite, ce qui pèse sur les cryptos.`
         : bullish ? `${jobs ? 'Emploi américain qui ralentit' : 'Inflation américaine en baisse'} : la Fed pourra baisser ses taux plus vite, ce qui aide les cryptos.`
           : 'Inflation et emploi décident du rythme des baisses de taux de la Fed.',
@@ -550,7 +562,7 @@ export function whaleNews(w, projects = []) {
       if (!stable) { impacts = up(w.token); why = 'Gros retrait d\'un exchange : l\'acheteur garde ses tokens, moins d\'offre à vendre.'; } else why = 'Des stablecoins quittent un exchange.';
     } else why = 'Gros transfert entre deux portefeuilles.';
   } else return null;
-  const importance = w.usd >= NEWS.whaleMediumUsd || top ? 'medium' : 'low';
+  const importance = w.usd >= (stable ? NEWS.whaleStableMediumUsd : NEWS.whaleMediumUsd) || top ? 'medium' : 'low';
   return {
     theme: 'whale', importance, impacts: importance === 'low' ? [] : impacts, why, title,
     amountUsd: w.usd, projectId: top?.id ?? null, rule: 'baleine',
@@ -601,13 +613,16 @@ export function cluster(items) {
   for (const it of items) {
     it.words ??= words(it.titleEn);
     const g = it.kind === 'whale' ? null
-      : groups.find(c => c.kind !== 'whale' && Math.abs(c.time - it.time) <= 24 * HOUR && c.members.some(m => similar(m, it)));
+      : groups.find(c => c.kind !== 'whale' && Math.abs(c.time - it.time) <= 24 * HOUR
+        && c.members.some(m => similar(m, it) || (it.key && m.key === it.key && Math.abs(m.time - it.time) <= 12 * HOUR)));
     if (g) { g.members.push(it); g.time = Math.min(g.time, it.time); } else groups.push({ kind: it.kind, time: it.time, members: [it] });
   }
   return groups.map(({ members }) => {
-    const best = [...members].sort((a, b) => rank(b) - rank(a) || a.time - b.time)[0];
     const raw = m => m.raw ?? m.importance;
-    const top = [...members].sort((a, b) => LEVEL[raw(b)] - LEVEL[raw(a)] || rank(b) - rank(a))[0];
+    // Le titre affiché vient de la news qui a donné l'importance (sinon un bandeau « critique » sur un titre anodin),
+    // puis de la source la plus fiable.
+    const top = [...members].sort((a, b) => LEVEL[raw(b)] - LEVEL[raw(a)] || rank(b) - rank(a) || a.time - b.time)[0];
+    const key = members.map(m => m.key).find(Boolean);
     const sources = []; // noms des médias, sans doublon
     for (const m of members) {
       for (const name of m.sources ?? [m.source]) if (name && !sources.includes(name)) sources.push(name);
@@ -617,14 +632,15 @@ export function cluster(items) {
       // Identifiants de toutes les news regroupées : elles ne sont plus rajoutées aux mises à jour suivantes.
       ids: [...new Set(members.flatMap(m => m.ids ?? [m.id]))].slice(-40),
       time: Math.min(...members.map(m => m.time)),
-      title: best.title ?? null, titleEn: best.titleEn, lang: best.lang ?? 'en',
-      link: best.link, source: best.source ?? best.sources?.[0] ?? null,
+      title: top.title ?? null, titleEn: top.titleEn, lang: top.lang ?? 'en',
+      link: top.link, source: top.source ?? top.sources?.[0] ?? null,
       sources: sources.slice(0, 12), count: Math.max(sources.length, ...members.map(m => m.count ?? 0)),
       theme: top.theme, raw: raw(top), importance: confirmed(raw(top), sources.length, members), impacts: top.impacts, why: top.why, rule: top.rule,
       amountUsd: members.map(m => m.amountUsd).filter(v => v != null).sort((x, y) => y - x)[0] ?? null,
       projectId: members.map(m => m.projectId).find(Boolean) ?? null,
-      kind: best.kind ?? 'feed', rank: Math.max(...members.map(rank)),
+      kind: top.kind ?? 'feed', rank: Math.max(...members.map(rank)),
       ...(members.some(m => m.calm) && { calm: true }),
+      ...(key && { key }),
     };
   });
 }

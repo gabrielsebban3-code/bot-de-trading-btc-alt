@@ -118,6 +118,9 @@ const CASES = [
   ['Third carrier for Iran? USS Theodore Roosevelt deploys from San Diego', {}, 'tensions', 'medium', []],
   ['Natural Gas, WTI Oil, Brent Oil Forecasts – Oil Rebounds as Trump Signals More Strikes on Iran', {}, 'guerre', 'low', []],
   ['Tanker catches fire after first Hormuz attack in October', {}, 'guerre', 'critical', [['Pétrole', 1], ['Or', 1], ['BTC', -1]]],
+  ['Hormuz oil exports back to pre-war levels despite Iran attacks', {}, 'guerre', 'medium', [['Pétrole', 1], ['Or', 1], ['BTC', -1]]],
+  ['Bitget hack: Where did the stolen $387M go?', { crypto: true }, 'hack', 'medium', []],
+  ['Bitcoin ETFs are $5 billion away from a new flow record after a brutal 11-month reset', {}, 'etf', 'low', []],
   ['Japan and South Korea seal $900 billion deal that eases tariffs', {}, 'droits-de-douane', 'low', []],
   ['Costco says it used tariff refunds to cut prices', {}, 'droits-de-douane', 'low', []],
   ['US has no timeline for cutting tariffs on $60 billion of Chinese goods', {}, 'droits-de-douane', 'low', []],
@@ -176,7 +179,9 @@ test('baleines : dépôts, retraits, création de stablecoins, seuil de 10 M$', 
   assert.deepEqual([deposit.importance, deposit.impacts], ['medium', [['BTC', -1]]]);
   const mint = whaleNews(parseWhale('💵 250,000,000 #USDT (250,001,234 USD) minted at Tether Treasury'));
   assert.equal(sp(mint.title), '250 M USDT créés par Tether Treasury');
-  assert.deepEqual(mint.impacts, [['Crypto', 1]]);
+  assert.deepEqual([mint.importance, mint.impacts], ['low', []], 'création de stablecoins courante : faible');
+  const bigMint = whaleNews(parseWhale('💵 1,000,000,000 #USDT (1,000,123,456 USD) minted at Tether Treasury'));
+  assert.deepEqual([bigMint.importance, bigMint.impacts], ['medium', [['Crypto', 1]]]);
   const small = whaleNews(parseWhale('12,345 #ETH (45,678,901 USD) transferred from #Binance to unknown wallet'));
   assert.equal(small.importance, 'low');
   assert.deepEqual(small.impacts, [], 'pas de flèche sur un petit mouvement');
@@ -202,6 +207,10 @@ test('similar et cluster : une même info de plusieurs médias = une seule news'
   assert.deepEqual(groups[0].ids, ['a', 'b']);
   assert.equal(groups[0].count, 2);
   assert.equal(groups[0].time, NOW - 2 * HOUR, 'heure de la première source');
+  const claims = ['U.S. weekly jobless claims fall to lowest level since mid-July', 'US Initial Jobless Claims Slip to 197,000, Lowest Since July']
+    .map((t, k) => ({ ...item(`j${k}`, t, { source: k ? 'Bloomberg' : 'Yahoo Finance' }), ...classify(t) }));
+  assert.ok(!similar(...claims), 'peu de mots en commun');
+  assert.equal(cluster(claims).length, 1, 'même chiffre (inscriptions au chômage) : une seule news');
   const whales = cluster([item('w1', '1,000 BTC transferred to Binance', { kind: 'whale' }), item('w2', '1,000 BTC transferred to Binance', { kind: 'whale' })]);
   assert.equal(whales.length, 2, 'les baleines ne sont jamais regroupées');
 });
@@ -212,6 +221,10 @@ test('une news critique d\'un seul petit média reste moyenne jusqu\'à confirma
   assert.deepEqual([alone.importance, alone.raw], ['medium', 'critical']);
   const [confirmed] = cluster([alone, item('s', 'Iran launches missile attack against Israel', { rank: 1, source: 'Autre média', importance: 'critical', theme: 'geo', rule: 'guerre' })]);
   assert.equal(confirmed.importance, 'critical');
+  const [mixed] = cluster([item('q', 'Hormuz oil exports return to pre-war levels, Iran says', { importance: 'medium', theme: 'geo', rule: 'cessez-le-feu', source: 'The Guardian' }),
+    item('z', 'Iran attacks oil tanker as Hormuz exports return to pre-war levels', { rank: 1, source: 'Blog', importance: 'critical', theme: 'geo', rule: 'guerre' })]);
+  assert.deepEqual([mixed.importance, mixed.titleEn, mixed.count], ['critical', 'Iran attacks oil tanker as Hormuz exports return to pre-war levels', 2],
+    'le titre affiché explique l\'importance');
   const [agency] = cluster([{ ...rumor, rank: 2 }]);
   assert.equal(agency.importance, 'critical', 'une agence suffit');
 });

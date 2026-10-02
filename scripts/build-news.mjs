@@ -211,6 +211,9 @@ async function main() {
   const show = i => console.log(`[${i.importance === 'critical' ? 'C' : 'M'}] ${i.rule.padEnd(16)} ${i.titleEn.slice(0, 120)} · ${i.source}${i.count > 1 ? ` +${i.count - 1}` : ''} ${arrows(i)}${i.calm ? ' (guerre en cours)' : ''}`);
   console.log('\nCritiques :');
   items.filter(x => x.importance === 'critical').slice(0, 20).forEach(show);
+  // Avant regroupement et confirmation : d'où vient chaque critique.
+  const rawCritical = fresh.filter(i => i.importance === 'critical');
+  if (rawCritical.length) console.log(`Titres classés critiques à cette lecture :\n${rawCritical.slice(0, 15).map(i => `  · ${i.rule} · ${i.titleEn.slice(0, 120)} · ${i.source}`).join('\n')}`);
   console.log('\nMoyennes (les plus récentes) :');
   items.filter(x => x.importance === 'medium').slice(0, 40).forEach(show);
   const missed = ctx.dropped.filter(d => d.startsWith('gn-'));
