@@ -18,14 +18,16 @@ export const NEWS = {
   keepHours: 72,          // une news reste 3 jours dans le fil
   bannerHours: 6,         // bandeau rouge pendant 6 h après une news critique
   maxItems: 250,
-  maxSmallWhales: 40,     // baleines de moins de 100 M$ gardées dans le fil (les plus récentes)
+  maxSmallWhales: 40,     // baleines de faible importance gardées dans le fil (les plus récentes)
   maxTranslations: 150,   // titres traduits par mise à jour au maximum
   whaleMinUsd: 10e6,      // baleines : transferts de plus de 10 M$
   whaleMediumUsd: 100e6,
   whaleStableMediumUsd: 500e6, // créations de stablecoins : routinières en dessous
+  whaleQuietMediumUsd: 1e9,    // transfert sans sens clair (entre portefeuilles inconnus, interne à un exchange)
   hackCriticalUsd: 50e6,  // hack de plus de 50 M$ = critique
   hackMediumUsd: 5e6,
   etfMediumUsd: 500e6,
+  regCaseMediumUsd: 100e6, // poursuite ou amende plus petite : affaire isolée, sans effet sur le marché
 };
 
 const HOUR = 3600_000;
@@ -172,13 +174,14 @@ const RATE_HIKE = /\b(hike|hikes|hiking|raises?|raised|tightening)\b/i;
 const RATE_HOLD = /\b(holds?|keeps?|leaves|unchanged|steady|on hold|pauses?|paused)\b/i;
 // « further rate cuts », « two more cuts » : des baisses évoquées, pas la décision du jour.
 const RATE_NOUNS = /\b(rate|further|more|future|additional|deeper|faster|slower|two|three|several|fewer|aggressive|bigger|larger|jumbo|possible|next)\s+(?:rate\s+)?(cuts|hikes|increases|reductions)\b/gi;
-const UNCERTAIN = /\b(may|might|could|considers?|considering|weighs?|weighing|mulls?|likely|expected to|sources say|sources|reportedly|plans? to|talks|eyes|seeks?|would|ahead of|bets?|odds|traders)\b/i;
+const UNCERTAIN = /\b(may|might|could|considers?|considering|weighs?|weighing|mulls?|likely|expected to|sources say|sources|reportedly|plans? to|talks|eyes|seeks?|would|ahead of|bets?|odds|probabilit\w*|chances?|traders)\b/i;
 // Avant-première : le chiffre ou la décision n'est pas encore tombé.
 const PREVIEW = /\b(ahead of|before|awaits?|awaited|awaiting|eyes|eyeing|braces? for|bracing for|in focus|on tap|preview\w*|what to (expect|watch|know)|expected to|seen (rising|falling|slowing|cooling|easing|at)|forecast to|set to|week ahead|looms?|looming)\b/i;
-// Prévisions, analyses, fils en direct des marchés : utiles à lire, mais pas une nouvelle en soi.
-const ANALYSIS = /\b(price predictions?|predictions? for|forecasts? for (today|tomorrow|next)|(price|oil|gas|gold|bitcoin|btc|crypto|weekly|daily) forecasts?|outlook:|technical analysis|price analysis|week ahead|what to (watch|expect|know)|explainer|explained|opinion|podcast|live markets?|markets? live|market wrap|stocks? to (watch|buy)|here[’']?s (why|what|how)|what comes next|away from)\b|\bforecasts?\s+[–—:-]|^why\b|\.\s+why\b/i;
+// Prévisions, analyses, avis d'experts, fils en direct des marchés, commentaires de change (« NZD/USD holds… ») :
+// utiles à lire, mais pas une nouvelle en soi.
+const ANALYSIS = /\b(price predictions?|predictions? for|forecasts? for (today|tomorrow|next)|(price|oil|gas|gold|bitcoin|btc|crypto|weekly|daily) forecasts?|outlook:|technical analysis|price analysis|week ahead|what to (watch|expect|know)|explainer|explained|opinion|podcast|live markets?|markets? live|market wrap|stocks? to (watch|buy)|here[’']?s (why|what|how)|what comes next|away from|what (it|this|that) means|means for (you|your)|should (you )?(be )?worr(y|ied)|experts? (says?|claims?|warns?)|(eur|usd|gbp|jpy|aud|nzd|cad|chf|cny|xau|xag)\/(usd|jpy|chf|cad|eur|gbp|aud|nzd|cny))\b|\bforecasts?\s+[–—:-]|^why\b|\.\s+why\b/i;
 const REQUEST = /\b(calls? for|call to|urges?|urging|asks?|asking|seeks?|seeking|lobb\w*|petition\w*|push(es)? for|wants?)\b/i;
-const NEGATED = /\b(no|not|won't|will not|never|rules? out|ruled out|refuses?|refused|rejects?|rejected|denies|denied)\b/i;
+const NEGATED = /\b(no|not|nothing|won't|will not|never|rules? out|ruled out|refuses?|refused|rejects?|rejected|denies|denied)\b/i;
 const THREAT = /\b(threat\w*|warns?|warned|warning|vows?|vowed|if|ready to|prepared to|fears?|risk|risks|possible|potential|calls? for|urges?|denies|denied|rules? out)\b/i;
 
 const INFLATION = /\b(cpi|inflation|pce|consumer prices|producer prices|ppi|nonfarm|non-farm|nfp|payrolls|jobs report|unemployment (rate|claims)|jobless claims)\b/i;
@@ -189,8 +192,10 @@ const RELEASE = new RegExp(`\\b${INDICATOR}\\b(?:\\W+[\\w.%,-]+){0,4}?\\W+${MOVE
 const JOBS_ADDED = /\b(economy|employers|payrolls)\s+(adds?|added|creates?|created|sheds?|shed|loses?|lost)\s+[\d,.]+\s*(k|thousand|million)?\s+jobs\b/i;
 // Sens du chiffre : la comparaison avec les attentes si le titre la donne, sinon le verbe qui suit l'indicateur
 // (« rises » seul ne compte pas pour les prix : une hausse mensuelle est la norme).
-const HOT_WORDS = /\b(hotter|stronger|more than expected|higher than expected|above (expectations|forecasts?|estimates?)|beats?|beat)\b/i;
-const COOL_WORDS = /\b(cooler|weaker|less than expected|lower than expected|below (expectations|forecasts?|estimates?)|misses?|missed)\b/i;
+const HOT_WORDS = /\b(hotter|stronger|higher than expected|above (expectations|forecasts?|estimates?)|beats?|beat)\b/i;
+const COOL_WORDS = /\b(cooler|weaker|lower than expected|below (expectations|forecasts?|estimates?)|misses?|missed)\b/i;
+// « fell more than expected » est plus froid que prévu, « rose less than expected » aussi : le sens vient du verbe.
+const VS_EXPECTED = /\b(more|less) than (expected|forecast|anticipated|estimated)\b/i;
 const UP_STRONG = /^(jumps?|jumped|surges?|surged|accelerat\w*|heats? up|hotter|spikes?|spiked|soars?|soared|tops?|topped|exceeds?|exceeded)$/i;
 const UP_ANY = /^(jumps?|jumped|surges?|surged|accelerat\w*|heats? up|spikes?|spiked|soars?|soared|tops?|topped|exceeds?|exceeded|rises?|rose|climbs?|climbed|increases?|increased|ticks? up|edges? (up|higher)|rebounds?|rebounded|grows?|grew|hits?|reaches?|reached)$/i;
 const DOWN = /^(falls?|fell|drops?|dropped|dips?|dipped|slips?|slipped|sinks?|sank|declines?|declined|cools?|cooled|cooler|eases?|eased|slows?|slowed|tumbles?|tumbled|plunges?|plunged|ticks? down|edges? (down|lower))$/i;
@@ -253,13 +258,15 @@ const TARIFF = /\b(tariffs?|trade war|export controls?|trade deal|trade truce)\b
 const TARIFF_EASE = /\b(deal|truce|pause\w*|delay\w*|exempt\w*|lift\w*|remov\w*|cut|cuts|lower\w*|eases?|eased|suspend\w*)\b/i;
 const TARIFF_NEW = /\b(impos\w*|slaps?|announc\w*|raises?|hikes?|new (\w+ ){0,2}(tariffs?|duties|levies)|threat\w*|retaliat\w*|doubles?|triples?|takes? effect|took effect)\b/i;
 
-const RECAP = /\b(roundup|recap|weekly|this week|last week|this year|so far|in 20\d\d|since 20\d\d|report|reports|analysis|total|record year|h1|q[1-4]|first half|annual|monthly|in (january|february|march|april|may|june|july|august|september|october|november|december))\b/i;
-const FOLLOW_UP = /\b(recover\w*|refund\w*|reimburs\w*|compensat\w*|returns? (the )?(stolen )?funds|returned|bounty|ultimatum|identif\w*|arrest\w*|extradit\w*|sentenc\w*|indict\w*|pleads?|guilty|charged|launder\w*|post-?mortem|anniversary)\b/i;
+const RECAP = /\b(roundup|recap|weekly|this week|last week|this year|so far|in 20\d\d|since 20\d\d|report|reports|analysis|total|record year|h1|q[1-4]|first half|annual|monthly|quarterly|(this|last|past|first|second|third|fourth|monster|record|strong|weak|brutal|best|worst) quarter|in (january|february|march|april|may|june|july|august|september|october|november|december))\b/i;
+// Suite d'un piratage connu : remboursement, enquête, pirate qui déplace le butin (« Hacker turns to Zcash privacy pool »),
+// plan pour combler le trou.
+const FOLLOW_UP = /\b(recover\w*|refund\w*|reimburs\w*|compensat\w*|returns? (the )?(stolen )?funds|returned|bounty|ultimatum|identif\w*|arrest\w*|extradit\w*|sentenc\w*|indict\w*|pleads?|guilty|charged|launder\w*|post-?mortem|anniversary|privacy pools?|mixers?|tornado cash|(hacker|exploiter|attacker)s?\W+(turns?|moves?|moved|swaps?|swapped|bridges?|bridged|sends?|sent|sells?|sold|dumps?|dumped|converts?|converted|deposits?|deposited)|plugs?|plugged|plugging|shortfall|bad debt|hole left)\b/i;
 const HACK = /\b(hack|hacks|hacked|hacker|hackers|hacking|exploit|exploits|exploited|exploiter|drained|draining|stolen|heist|attacker|attackers)\b/i;
 
 const ETF = /\betfs?\b/i;
 const ETF_UP = /\b(inflows?|net (buying|inflows?)|attract\w*|record demand|approv\w*|launch\w*|debut\w*|green[- ]?light\w*|lists?|listed)\b/i;
-const ETF_DOWN = /\b(outflows?|bleed\w*|withdraw\w*|reject\w*|denied|denies|delay\w*|pulls?|redemptions?)\b/i;
+const ETF_DOWN = /\b(outflows?|exits?|exited|bleed\w*|withdraw\w*|reject\w*|denied|denies|delay\w*|pulls?|redemptions?)\b/i;
 const ETF_EVENT = /\b(approv\w*|reject\w*|denied|launch\w*|debut\w*|green[- ]?light\w*)\b/i;
 
 const REG = /\b(sec|cftc|regulat\w*|pardon\w*|lawsuit|sues?|sued|suing|charges?|charged|ban|bans|banned|banning|bill|legislation|congress|senate|law|laws|mica|genius act|clarity act|approv\w*|reject\w*|fines?|fined|settle\w*|crackdown|enforcement|license|licence|lawmakers|white house|executive order)\b/i;
@@ -373,10 +380,13 @@ const RULES = [
     const labor = /unemployment|jobless/.test(rel?.what ?? '');
     const jobs = labor || /payrolls|nfp|jobs|job /.test(rel?.what ?? '');
     const verb = rel?.verb ?? '';
+    const dir = UP_ANY.test(verb) ? 1 : DOWN.test(verb) ? -1 : 0;
+    const vs = t.match(VS_EXPECTED)?.[1].toLowerCase();
     // > 0 : économie ou inflation plus forte, la Fed baissera ses taux moins vite. Chômage en hausse : l'inverse.
-    const heat = labor ? (UP_ANY.test(verb) ? -1 : DOWN.test(verb) ? 1 : 0)
+    const heat = labor ? -dir
       : HOT_WORDS.test(t) !== COOL_WORDS.test(t) ? (HOT_WORDS.test(t) ? 1 : -1)
-        : UP_STRONG.test(verb) ? 1 : DOWN.test(verb) ? -1 : 0;
+        : vs && dir ? (vs === 'more' ? dir : -dir)
+          : UP_STRONG.test(verb) ? 1 : DOWN.test(verb) ? -1 : 0;
     const bearish = release && heat > 0, bullish = release && heat < 0;
     return {
       theme: 'cb', importance: release ? 'medium' : 'low', impacts: bullish ? up('BTC') : bearish ? down('BTC') : [],
@@ -441,12 +451,15 @@ const RULES = [
   ['regulation', t => {
     if (!(REG.test(t) && CRYPTO.test(t))) return null;
     const pos = REG_POS.test(t) && !REG_NEG.test(t), neg = REG_NEG.test(t) && !REG_POS.test(t);
-    const strong = REG_STRONG.test(t) && REGULATOR.test(t) && !UNCERTAIN.test(t);
+    const amt = amountUsd(t);
+    const small = neg && amt !== null && amt < NEWS.regCaseMediumUsd; // « SEC sues crypto AI platform over $12.5M »
+    const strong = REG_STRONG.test(t) && REGULATOR.test(t) && !UNCERTAIN.test(t) && !small;
     return {
       theme: 'reg', importance: strong ? 'medium' : 'low', impacts: strong && pos ? up('Crypto') : strong && neg ? down('Crypto') : [],
       why: pos ? 'Feu vert des autorités : bon signe pour l\'adoption des cryptos.'
-        : neg ? 'Action des autorités contre le secteur : peut faire peur aux investisseurs.'
-          : 'Les règles du jeu pour les cryptos évoluent.',
+        : small ? 'Poursuite contre une seule société : peu d\'effet sur le marché.'
+          : neg ? 'Action des autorités contre le secteur : peut faire peur aux investisseurs.'
+            : 'Les règles du jeu pour les cryptos évoluent.',
     };
   }],
   ['gros-detenteur', t => {
@@ -556,13 +569,19 @@ export function whaleNews(w, projects = []) {
   } else if (w.from && w.to) {
     const from = /^[aeiouyàâéèêîô]/i.test(w.from.name) ? `d'${w.from.name}` : `de ${w.from.name}`;
     title = `${what} envoyés ${from} vers ${w.to.name}`;
-    if (w.to.exchange && !w.from.exchange) {
+    // « de Binance vers Binance Beacon Deposit » : l'exchange déplace ses propres fonds (staking, portefeuille froid).
+    const firstWord = p => p.name.split(/\s+/)[0].toLowerCase();
+    if (w.from.known && w.to.known && firstWord(w.from) === firstWord(w.to)) why = 'Transfert interne à un exchange : ni achat ni vente.';
+    else if (w.to.exchange && !w.from.exchange) {
       if (stable) { impacts = up('Crypto'); why = 'Des stablecoins arrivent sur un exchange : souvent pour acheter des cryptos.'; } else { impacts = down(w.token); why = 'Gros dépôt sur un exchange : souvent le signe d\'une vente à venir.'; }
     } else if (w.from.exchange && !w.to.exchange) {
       if (!stable) { impacts = up(w.token); why = 'Gros retrait d\'un exchange : l\'acheteur garde ses tokens, moins d\'offre à vendre.'; } else why = 'Des stablecoins quittent un exchange.';
     } else why = 'Gros transfert entre deux portefeuilles.';
   } else return null;
-  const importance = w.usd >= (stable ? NEWS.whaleStableMediumUsd : NEWS.whaleMediumUsd) || top ? 'medium' : 'low';
+  // Sans sens clair (entre portefeuilles inconnus, interne à un exchange), un transfert n'apprend rien sur le marché
+  // en dessous de 1 Md$ : il en passe des dizaines par jour.
+  const bar = !impacts.length ? NEWS.whaleQuietMediumUsd : stable ? NEWS.whaleStableMediumUsd : NEWS.whaleMediumUsd;
+  const importance = w.usd >= bar || top ? 'medium' : 'low';
   return {
     theme: 'whale', importance, impacts: importance === 'low' ? [] : impacts, why, title,
     amountUsd: w.usd, projectId: top?.id ?? null, rule: 'baleine',

@@ -144,6 +144,17 @@ const CASES = [
   ['U.S. unemployment claims dip to the lowest since mid-July', {}, 'inflation', 'medium', [['BTC', -1]]],
   ['U.S. core PCE inflation falls to 3.0%; why do long-term interest rates remain elevated?', {}, 'inflation', 'medium', [['BTC', 1]]],
   ['Teachers strikes in France', {}, null],
+  ["Saudi-led coalition says Houthis attacked power station for Prophet's Mosque in Medina", {}, 'guerre', 'critical', [['Pétrole', 1], ['Or', 1], ['BTC', -1]]],
+  ['Crypto lost $1.26 billion in hacks while bitcoin bulls enjoyed a monster quarter', {}, 'hack', 'low', []],
+  ['Bitget Hacker Turns to Zcash Privacy Pool After Near Rejects $50M in Swaps', { crypto: true }, 'hack', 'medium', []],
+  ['Aave publishes plan to plug $246m hole left by Kelp DAO attackers', { crypto: true }, 'hack', 'medium', []],
+  ["Small business owners 'should be worried' after US slaps Canada with new tariffs, expert claims", {}, 'droits-de-douane', 'low', []],
+  ['India-US trade deal in ‘short strokes’ but nothing imminent, USTR Greer says', {}, 'droits-de-douane', 'low', []],
+  ['NZD/USD holds near $0.5574 support amid Federal Reserve October rate hike probability rise', {}, 'taux', 'low', []],
+  ['Fake signals, frozen accounts: SEC sues crypto AI platform over $12.5M', {}, 'regulation', 'low', []],
+  ['Bitcoin ETFs’ 9-day, $3 billion inflow streak comes to an end as $149 million exits the funds', {}, 'etf', 'medium', []],
+  ['Inflation fell more than expected in June as gas prices eased', {}, 'inflation', 'medium', [['BTC', 1]]],
+  ['US producer prices rose less than expected in August', {}, 'inflation', 'medium', [['BTC', 1]]],
 ];
 
 test('classify : thème, importance et impact probable sur des titres réels', () => {
@@ -192,6 +203,15 @@ test('baleines : dépôts, retraits, création de stablecoins, seuil de 10 M$', 
   assert.equal(sp(whaleNews(parseWhale('💵 💵 250,000,000 $USDC (250,022,874 USD) minted at USDC Treasury Details')).title), '250 M USDC créés par USDC Treasury');
   const top = whaleNews(parseWhale('9,000,000 #NBL (12,000,000 USD) transferred from unknown wallet to #Bybit'), [{ id: 'nebula-dex', symbol: 'NBL' }]);
   assert.deepEqual([top.importance, top.projectId, top.impacts], ['medium', 'nebula-dex', [['NBL', -1]]]);
+  // Sans sens clair, un transfert n'est moyen qu'au-delà de 1 Md$.
+  const quiet = whaleNews(parseWhale('🚨 2,044 $BTC (173,800,505 USD) transferred from unknown wallet to unknown wallet Details'));
+  assert.deepEqual([quiet.importance, quiet.impacts], ['low', []], 'entre portefeuilles inconnus');
+  const internal = whaleNews(parseWhale('🚨 50,000 $ETH (135,336,586 USD) transferred from #Binance to Binance Beacon Deposit Details'));
+  assert.deepEqual([internal.importance, internal.impacts], ['low', []], 'interne à un exchange (staking)');
+  assert.match(internal.why, /interne/);
+  const outflow = whaleNews(parseWhale('🚨 1,487 $BTC (124,581,057 USD) transferred from #Kraken to unknown wallet Details'));
+  assert.deepEqual([outflow.importance, outflow.impacts], ['medium', [['BTC', 1]]], 'retrait d\'un exchange');
+  assert.equal(whaleNews(parseWhale('1,200,000,000 $USDT (1,200,140,000 USD) transferred from unknown wallet to unknown wallet')).importance, 'medium');
 });
 
 const item = (id, titleEn, extra = {}) => ({ id, titleEn, title: null, time: NOW - HOUR, source: 'Reuters', link: `https://x/${id}`, rank: 2, kind: 'feed', importance: 'medium', theme: 'cb', impacts: [], why: '…', rule: 'taux', ...extra });
