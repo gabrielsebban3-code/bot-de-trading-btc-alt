@@ -63,6 +63,13 @@ test('swing : cassure du plus haut de 20 jours en tendance haussière = long', (
   assert.match(hit.why, /plus haut des 20 derniers jours \(181,0\)/);
   const inside = after(daily, [{ o: 179, h: 180.5, l: 179, c: 180.5 }]);
   assert.equal(detectSwing({ bars: inside, dc: dailyContext(daily) }, inside.length - 1), null, 'pas de cassure, pas de signal');
+  assert.match(hit.why, /Volume des dernières 24 h : 3,0× la moyenne/);
+});
+
+test('swing : une cassure sans volume est ignorée', () => {
+  const daily = days(1); // volume journalier moyen : 1000
+  const b = after(daily, [{ o: 179, h: 183, l: 179, c: 182 }]).map(x => ({ ...x, v: 150 })); // 6 × 150 = 900 sur 24 h
+  assert.equal(detectSwing({ bars: b, dc: dailyContext(daily) }, b.length - 1), null);
 });
 
 test('swing : pas de long contre la tendance, short sur cassure du plus bas en tendance baissière', () => {

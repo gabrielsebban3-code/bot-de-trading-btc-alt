@@ -10,6 +10,7 @@ export const RULES = {
   warmup: 1,              // il faut la bougie 4h précédente pour voir la cassure
   atrPeriod: 14,          // ATR journalier
   breakoutDays: 20,       // plus haut / plus bas des 20 derniers jours
+  minVolume: 1,           // volume des dernières 24 h ≥ volume journalier moyen des 20 jours précédents
   stopAtr: 1,             // stop = 1 ATR journalier
   targetsR: [2, 3, 4],    // TP1 à 2R, TP2 à 3R, TP3 à 4R
   minRR: 2,
@@ -56,7 +57,7 @@ function ema(values, period) {
 
 const TRENDS = ['baissière', 'neutre', 'haussière'];
 
-// Indicateurs journaliers calculés une fois : EMA 20/50, ATR, tendance de chaque journée clôturée.
+// Indicateurs journaliers calculés une fois : EMA 20/50, ATR, tendance et volume moyen des 20 jours précédents.
 export function dailyContext(daily) {
   const closes = daily.map(d => d.c);
   const e20 = ema(closes, 20), e50 = ema(closes, 50), A = atr(daily);
@@ -66,7 +67,8 @@ export function dailyContext(daily) {
     if (d.c < e50[j] && e20[j] < e50[j]) return 'baissière';
     return 'neutre';
   });
-  return { daily, atr: A, trend };
+  const volAvg = daily.map((_, j) => (j < 20 ? null : daily.slice(j - 20, j).reduce((t, d) => t + d.v, 0) / 20));
+  return { daily, atr: A, trend, volAvg };
 }
 
 // Indice de la dernière journée clôturée au temps t (-1 si aucune).
@@ -85,7 +87,7 @@ export function trend1d(daily, t) {
   return dc.trend.at(-1) ?? 'neutre';
 }
 
-// ---------- Détecteur : cassure du plus haut/bas de 20 jours dans le sens de la tendance 1D ----------
+// ---------- Détecteur : cassure du plus haut/bas de 20 jours dans le sens de la tendance 1D, avec du volume ----------
 
 export function detectSwing(ctx, i) {
   const { bars, dc } = ctx;
@@ -96,13 +98,17 @@ export function detectSwing(ctx, i) {
   let hi = -Infinity, lo = Infinity;
   for (let k = j - N + 1; k <= j; k++) { hi = Math.max(hi, dc.daily[k].h); lo = Math.min(lo, dc.daily[k].l); }
   const b = bars[i], pc = bars[i - 1].c, trend = dc.trend[j];
-  if (trend === 'haussière' && b.c > hi && pc <= hi) {
-    return { dir: 'long', ref: hi, atrD: dc.atr[j], why: `Clôture 4h au-dessus du plus haut des ${N} derniers jours (${fmtPx(hi)}), avec une tendance journalière haussière. Le prix sort de sa zone de range dans le sens de la tendance : c'est le départ typique d'un mouvement de plusieurs jours.` };
-  }
-  if (trend === 'baissière' && b.c < lo && pc >= lo) {
-    return { dir: 'short', ref: lo, atrD: dc.atr[j], why: `Clôture 4h sous le plus bas des ${N} derniers jours (${fmtPx(lo)}), avec une tendance journalière baissière. Le prix casse son support dans le sens de la tendance : c'est le départ typique d'une baisse de plusieurs jours.` };
-  }
-  return null;
+  const up = trend === 'haussière' && b.c > hi && pc <= hi;
+  const down = trend === 'baissière' && b.c < lo && pc >= lo;
+  if (!up && !down) return null;
+  // Une cassure sans volume est souvent un faux départ : on exige au moins le volume d'une journée normale sur 24 h.
+  let v24 = 0;
+  for (let k = Math.max(0, i - 5); k <= i; k++) v24 += bars[k].v;
+  const vr = dc.volAvg[j] ? v24 / dc.volAvg[j] : null;
+  if (vr === null || vr < RULES.minVolume) return null;
+  const vol = `Volume des dernières 24 h : ${fmtN(vr)}× la moyenne.`;
+  if (up) return { dir: 'long', ref: hi, atrD: dc.atr[j], why: `Clôture 4h au-dessus du plus haut des ${N} derniers jours (${fmtPx(hi)}), avec une tendance journalière haussière. Le prix sort de sa zone de range dans le sens de la tendance : c'est le départ typique d'un mouvement de plusieurs jours. ${vol}` };
+  return { dir: 'short', ref: lo, atrD: dc.atr[j], why: `Clôture 4h sous le plus bas des ${N} derniers jours (${fmtPx(lo)}), avec une tendance journalière baissière. Le prix casse son support dans le sens de la tendance : c'est le départ typique d'une baisse de plusieurs jours. ${vol}` };
 }
 
 // ---------- Plan de trade : stop à 1 ATR journalier, objectifs à 2R, 3R et 4R ----------
