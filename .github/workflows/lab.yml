@@ -11,7 +11,6 @@ jobs:
     steps:
       - run: |
           B=https://gabrielsebban3-code.github.io/bot-de-trading-btc-alt
-          curl -sSI "$B/data/setups.json" | grep -iE "last-modified|cache-control|age:|date:"
-          curl -sS "$B/data/setups.json" | jq -c '{generatedAt, assets: [.assets[].symbol], detectors, n: (.history|length), syms: ([.history[].symbol]|unique), live: (.live|length), stats: .stats.swing.winRate}'
-          curl -sS "$B/js/setups.js" | head -3
-          curl -sSI "$B/js/setups.js" | grep -iE "last-modified|cache-control"
+          curl -sS "$B/data/setups.json" > s.json
+          jq -c 'del(.history) | del(.assets)' s.json | head -c 4000; echo
+          jq -c '.history | sort_by(.time) | .[-15:][] | {symbol, dir, t: (.time/1000|todate), outcome, r}' s.json
