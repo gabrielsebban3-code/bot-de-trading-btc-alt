@@ -2,17 +2,16 @@ name: Lab données swing
 on:
   push:
     branches: [claude/swing-lab-data]
-    paths: [lab/fetch.mjs, .github/workflows/lab.yml]
+    paths: [.github/workflows/lab.yml]
 permissions:
-  contents: write
+  contents: read
 jobs:
-  fetch:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22 }
-      - run: node lab/fetch.mjs
       - run: |
-          git config user.name lab && git config user.email lab@users.noreply.github.com
-          git add -f lab/data && git commit -m "Données lab" && git push
+          B=https://gabrielsebban3-code.github.io/bot-de-trading-btc-alt
+          curl -sSI "$B/data/setups.json" | grep -iE "last-modified|cache-control|age:|date:"
+          curl -sS "$B/data/setups.json" | jq -c '{generatedAt, assets: [.assets[].symbol], detectors, n: (.history|length), syms: ([.history[].symbol]|unique), live: (.live|length), stats: .stats.swing.winRate}'
+          curl -sS "$B/js/setups.js" | head -3
+          curl -sSI "$B/js/setups.js" | grep -iE "last-modified|cache-control"
