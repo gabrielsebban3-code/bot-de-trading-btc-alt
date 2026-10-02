@@ -196,4 +196,4 @@ Supabase (offre gratuite, seulement si js/config.js est rempli)
 3. ✅ Onglet Setups + Historique
 4. ✅ Onglet Actu
 5. ✅ Comptes (Supabase)
-6. IA + alertes Discord
+6. ✅ Alertes Discord (nouveau setup confirmé, news critique) · IA à venir
