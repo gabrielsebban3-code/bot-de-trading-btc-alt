@@ -38,6 +38,12 @@ nav a.on, nav button.on { color: var(--fg); background: var(--panel2); }
 .menu { position: absolute; right: 0; top: calc(100% + 8px); background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); padding: 4px; display: flex; flex-direction: column; min-width: 160px; z-index: 20; }
 .menu a { border-radius: 8px; }
 .updated { margin-left: auto; font-size: 12px; color: var(--muted); }
+/* Bouton Connexion / Mon compte, en haut à droite */
+.me { display: flex; align-items: center; gap: 8px; font: 600 13px var(--sans); white-space: nowrap; padding: 7px 16px; border-radius: 999px; background: var(--accent); color: #1a0f00; border: 1px solid var(--accent); }
+.me:hover { text-decoration: none; filter: brightness(1.1); }
+.me.in { background: var(--panel); border-color: var(--line); color: var(--fg); font-weight: 500; padding: 4px 14px 4px 4px; }
+.me.in:hover, .me.in.on { border-color: var(--line2); filter: none; }
+.me .av { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, var(--accent), #ffb347); color: #1a0f00; font: 600 12px var(--sans); text-transform: uppercase; }
 .ticker { overflow: hidden; border-top: 1px solid var(--line); font: 12px var(--mono); white-space: nowrap; color: var(--muted); }
 .ticker > div { display: inline-block; padding: 6px 0; animation: run 45s linear infinite; }
 .ticker span.t { margin-right: 28px; }
@@ -248,5 +254,6 @@ footer b { color: var(--fg); }
   nav a, nav > .more > button { padding: 8px 10px; }
   .menu { top: auto; bottom: calc(100% + 8px); }
   footer { padding-block: 20px 90px; }
-  .updated { margin-left: 0; width: 100%; }
+  .updated { margin-left: 0; width: 100%; order: 2; }
+  .me { margin-left: auto; order: 1; }
 }

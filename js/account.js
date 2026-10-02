@@ -176,6 +176,16 @@ function renderAccount() {
   }
   $('admin').hidden = !admin;
   if (admin) renderAdmin();
+  renderMe();
+}
+
+// Bouton en haut à droite : « Connexion » tant qu'on n'est pas connecté, sinon l'initiale et « Mon compte ».
+function renderMe() {
+  const el = $('me');
+  el.classList.toggle('in', Boolean(user));
+  el.href = user ? '#compte' : '#compte/connexion';
+  el.title = user ? `Connecté : ${user.email}` : 'Se connecter';
+  el.innerHTML = user ? `<span class="av" aria-hidden="true">${esc((user.email || '?')[0])}</span>Mon compte` : 'Connexion';
 }
 
 function renderWatchlist() {
