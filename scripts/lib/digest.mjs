@@ -1,3 +1,5 @@
+import { similar, words } from './news.mjs';
+
 // Résumé du matin sur Discord : setups en cours, news du jour et point géopolitique, en un seul message.
 // Sans IA : tout est tiré des fichiers de données déjà publiés (setups.json, news.json), par règles.
 
@@ -43,9 +45,18 @@ const arrow = d => (d > 0 ? '▲' : d < 0 ? '▼' : '');
 // Lien Markdown de Discord ; les crochets du titre casseraient le lien.
 const line = i => {
   const title = clip(String(i.title || i.titleEn || '').replace(/[[\]]/g, ''), 150);
-  const move = i.reaction ? ` · ${i.reaction.asset} ${i.reaction.pct > 0 ? '+' : ''}${String(i.reaction.pct).replace('.', ',')} % en 1 h` : '';
+  const move = i.reaction?.strong ? ` · ${i.reaction.asset} ${i.reaction.pct > 0 ? '+' : ''}${String(i.reaction.pct).replace('.', ',')} % en 1 h` : '';
   return `• ${hhmm(i.time)} · ${i.link ? `[${title}](${i.link})` : title}${move}`;
 };
+// Même événement raconté par deux médias (« tanker attacked off Oman » / « tanker hit off Oman ») : un seul titre.
+function sameStory(a, b) {
+  if (!a.titleEn || !b.titleEn) return false;
+  if (similar(a, b)) return true;
+  const A = words(a.titleEn), B = words(b.titleEn);
+  const shared = [...A].filter(w => B.has(w)).length;
+  return shared >= 2 && shared / Math.min(A.size, B.size) >= 0.3 && Math.abs(a.time - b.time) < 12 * 3600e3;
+}
+const distinct = (items, n) => items.reduce((kept, i) => (kept.length < n && !kept.some(k => sameStory(k, i)) ? [...kept, i] : kept), []);
 const byWeight = (a, b) => LEVEL[b.importance] - LEVEL[a.importance] || (b.count || 1) - (a.count || 1) || b.time - a.time;
 
 // Les news qui comptent des dernières 24 h, sans les baleines (des transferts, pas des nouvelles) ni les non vérifiées.
@@ -84,7 +95,7 @@ export function geoSummary(news, now = Date.now()) {
     zones.map(c => `**${c.zone}** : ${mood(c)} (${c.n} news)`).join('\n'),
     netEffect(strong) && `Effet probable : ${netEffect(strong)}`,
     '',
-    ...(strong.length ? strong : all).sort(byWeight).slice(0, DIGEST.geo).sort((a, b) => b.time - a.time).map(line),
+    ...distinct((strong.length ? strong : all).sort(byWeight), DIGEST.geo).sort((a, b) => b.time - a.time).map(line),
   ].filter(s => s != null && s !== false).join('\n').trim();
   return { zones, text };
 }
@@ -96,8 +107,9 @@ export function buildDigest({ setups, news, siteUrl = '', now = Date.now() }) {
   const setupText = open.length
     ? open.slice(0, 8).map(s => `• **${s.symbol}** ${s.dir === 'long' ? 'Long' : 'Short'} · entrée ${num(s.entry)} · stop ${num(s.sl)}`).join('\n')
     : 'Aucun setup en cours : pas de trade à suivre aujourd\'hui.';
-  const top = recent(news, now).filter(i => i.theme !== 'geo' && i.importance !== 'low').sort(byWeight).slice(0, DIGEST.news);
-  const newsText = top.length ? top.map(i => `${line(i)}${(i.impacts || []).length ? ` · ${i.impacts.map(([a, d]) => `${a} ${arrow(d)}`).join(' ')}` : ''}`).join('\n')
+  const top = recent(news, now).filter(i => i.theme !== 'geo' && i.importance !== 'low').sort(byWeight);
+  const topNews = distinct(top, DIGEST.news);
+  const newsText = topNews.length ? topNews.map(i => `${line(i)}${(i.impacts || []).length ? ` · ${i.impacts.map(([a, d]) => `${a} ${arrow(d)}`).join(' ')}` : ''}`).join('\n')
     : 'Rien de marquant ces dernières 24 h.';
   const { day } = parisClock(now);
   const date = new Intl.DateTimeFormat('fr-FR', { timeZone: DIGEST.zone, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(now));

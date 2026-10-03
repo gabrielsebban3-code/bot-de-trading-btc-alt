@@ -69,3 +69,15 @@ test('jour sans rien : messages clairs', () => {
   assert.match(d.embeds[0].fields[0].value, /Aucun setup en cours/);
   assert.match(d.embeds[0].fields[1].value, /Rien de marquant/);
 });
+
+test('même événement par deux médias : un seul titre ; réaction du prix seulement si elle est nette', () => {
+  const news = { items: [
+    item('t1', { theme: 'geo', titleEn: 'Tanker attacked off Oman coast, says UK maritime agency', impacts: [['Pétrole', 1]], count: 3, reaction: { asset: 'Pétrole', pct: 1.4, strong: true } }),
+    item('t2', { theme: 'geo', titleEn: 'Tanker hit by unknown projectile off Oman, UKMTO says', impacts: [['Pétrole', 1]] }),
+    item('t3', { theme: 'geo', titleEn: 'Russian drones hit Kyiv overnight', reaction: { asset: 'Pétrole', pct: 0 } }),
+  ] };
+  const lines = geoSummary(news, now).text.split('\n').filter(l => l.startsWith('•'));
+  assert.equal(lines.length, 2);
+  assert.match(lines.join('\n'), /Titre t1\]\([^)]*\) · Pétrole \+1,4 % en 1 h/);
+  assert.doesNotMatch(lines.join('\n'), /Titre t2|0 % en 1 h/);
+});
