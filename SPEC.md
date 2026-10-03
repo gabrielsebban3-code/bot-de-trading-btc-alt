@@ -185,7 +185,7 @@ GitHub Actions (toutes les heures ; l'actu toutes les 15 minutes)
         └── data/setups.json
   └── scripts/build-news.mjs  → flux d'actu, classement, doublons, traduction
         └── data/news.json
-  └── scripts/send-alerts.mjs → Discord : nouveaux setups confirmés, news critiques
+  └── scripts/send-alerts.mjs → Discord : nouveaux setups confirmés, news critiques, résumé du matin
 GitHub Pages
   └── index.html + css/ + js/ → lit les fichiers JSON
 Supabase (offre gratuite, seulement si js/config.js est rempli)
@@ -195,6 +195,7 @@ Supabase (offre gratuite, seulement si js/config.js est rempli)
 - Les données sont récupérées **une fois pour tout le monde** par GitHub Actions. Le nombre de visiteurs ne change rien aux coûts ni aux limites des API.
 - Si une source tombe, le site garde la dernière version publiée de la partie concernée, sans bloquer les autres.
 - Alertes Discord (secret `DISCORD_WEBHOOK_URL`) : à chaque mise à jour, ce qui vient d'apparaître par rapport à la version déjà en ligne, 5 messages au plus. Au premier passage avec le lien, un message de bienvenue confirme le branchement ; `data/alerts.json` retient qu'il est parti.
+- Résumé du matin (`scripts/lib/digest.mjs`) : une fois par jour, au premier passage après 7 h (heure de Paris), un message avec les setups en cours, les 3 news du jour qui comptent (hors géopolitique, sans baleines) et la situation géopolitique : zones actives (Moyen-Orient, Russie et Ukraine, Chine et Taïwan, commerce mondial, OTAN), tension ou détente selon l'impact sur le pétrole et le BTC, effet probable cumulé et les titres marquants des dernières 24 h. Sans IA, par règles. `data/alerts.json` retient le jour envoyé.
 - Supabase : comptes et watchlists. Le schéma est dans [`supabase/schema.sql`](supabase/schema.sql), à coller une fois dans l'éditeur SQL (il peut être relancé). Chaque compte ne lit et ne modifie que sa ligne, et seulement sa watchlist (règles RLS et droits par colonne) ; l'admin lit toutes les lignes.
 - `js/config.js` contient l'adresse du projet Supabase et sa clé publique (« publishable » ou « anon »). Cette clé est faite pour être visible dans le site : ce sont les règles RLS qui protègent les données. La clé secrète (« secret » ou « service_role ») ne va jamais dans le dépôt.
 - Tant que `js/config.js` est vide, le site marche sans comptes : la watchlist reste sur l'appareil.

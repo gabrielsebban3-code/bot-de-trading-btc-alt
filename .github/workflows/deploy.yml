@@ -97,6 +97,7 @@ jobs:
 
       # Alertes Discord : nouveaux setups confirmés et news critiques, comparés à la version déjà en ligne.
       # Au premier passage avec le lien, un message de bienvenue ; data/alerts.json retient qu'il est parti.
+      # Chaque matin après 7 h (Paris), un résumé : setups en cours, news du jour, situation géopolitique.
       - name: Alertes Discord
         if: env.PUBLISH == 'true'
         continue-on-error: true
@@ -104,6 +105,12 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: node scripts/send-alerts.mjs --data _site/data --previous previous --site "${{ steps.pages.outputs.base_url }}"
+
+      # Sur une autre branche : aperçu du résumé du matin dans le journal, rien n'est envoyé.
+      - name: Aperçu du résumé Discord
+        if: env.PUBLISH != 'true'
+        continue-on-error: true
+        run: node scripts/send-alerts.mjs --data _site/data --previous previous --dry-run --digest-now | tail -1 | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{for(const e of JSON.parse(s)){console.log('## '+e.title);for(const f of e.fields||[])console.log('-- '+f.name+'\\n'+f.value);if(e.description)console.log(e.description)}})"
 
       - name: Assembler le site
         run: cp -r index.html css js mockup _site/
