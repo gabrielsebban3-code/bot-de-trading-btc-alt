@@ -66,7 +66,8 @@ async function main() {
     take('funding', await attempt('OKX funding', funding)),
     take('open interest', await attempt('OKX open interest', async () => {
       const rows = await okx('/rubik/stat/contracts/open-interest-volume?ccy=BTC&period=1D');
-      return toDaily(rows.map(r => [Number(r[0]), Number(r[1])]));
+      // La journée en cours arrive parfois à 0 : on l'ignore.
+      return toDaily(rows.map(r => [Number(r[0]), Number(r[1])]).filter(([, v]) => v > 0));
     })),
   ];
   const [fngR, stR, tvlR, dexR, perpR, feesR, globalR] = await Promise.all([

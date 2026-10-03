@@ -32,7 +32,7 @@ export function marcheRoutes(now = Date.now()) {
     stables: days(1600).map((d, i) => ({ date: String(d / 1000), totalCirculatingUSD: { peggedUSD: st[i] } })),
     tvl: days(1600).map((d, i) => ({ date: d / 1000, tvl: tvl[i] })),
     funding,
-    oi: days(180).map((d, i) => [String(d), String(oi[i]), String(oi[i] * 3)]).reverse(),
+    oi: days(180).map((d, i) => [String(d), i === 179 ? '0' : String(oi[i]), String(oi[i] * 3)]).reverse(), // OKX : jour en cours parfois à 0
   };
 }
 
