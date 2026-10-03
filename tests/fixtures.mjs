@@ -56,7 +56,7 @@ export function fixtures() {
     'www.binance.com/bapi': { data: [{ symbol: 'EMB' }] },
     'www.okx.com/api/v5/public/instruments': { data: [{ baseCcy: 'ORB' }, { baseCcy: 'TIDE' }, { baseCcy: 'BTC' }] },
     'api.coingecko.com/api/v3/coins/markets': P.filter(p => p[7]).map(p => ({
-      id: p[7], symbol: p[8].toLowerCase(), name: p[1], current_price: 1.23, price_change_percentage_24h: 2.5,
+      id: p[7], symbol: p[8].toLowerCase(), name: p[1], current_price: 1.23, price_change_percentage_24h: 2.5, price_change_percentage_7d_in_currency: -4.2,
       market_cap: p[9], fully_diluted_valuation: p[9] / p[10], total_volume: p[9] * 0.05,
       circulating_supply: 1e8 * p[10], total_supply: 1e8, max_supply: 1e8,
     })),
