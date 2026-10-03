@@ -6,9 +6,10 @@ import { focusNews, initNews, newsFocus, newsUnavailable } from './news.js';
 import { starTitle, watchlist } from './watchlist.js';
 import { initMarche, marcheUnavailable, renderIndicator } from './marche.js';
 import { alertSymbols, initAccount, refreshAccount, setFeed } from './account.js';
+import './heatmap.js';
 
 const $ = id => document.getElementById(id);
-const PAGES = ['resume', 'marche', 'projets', 'setups', 'actu', 'historique', 'compte'];
+const PAGES = ['resume', 'marche', 'projets', 'setups', 'actu', 'heatmap', 'historique', 'compte'];
 // Actifs connus du site, par symbole : projets, marchés des setups, setup en jeu. Servent au ticker et à Mon compte.
 const known = { projects: new Map(), assets: new Map(), live: new Map() };
 const quotes = new Map(); // derniers prix OKX du ticker

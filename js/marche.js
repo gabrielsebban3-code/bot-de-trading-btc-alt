@@ -122,7 +122,7 @@ export function initMarche(d) {
 }
 
 function tiles(t) {
-  const tile = (k, v, d, hero, href) => `<${href ? `a href="#indicateur/${href}"` : 'div'} class="tile${hero ? ' hero' : ''}"><span class="k">${k}${href ? ' <span class="go">→</span>' : ''}</span><span class="v num">${v}</span><span class="d">${d}</span></${href ? 'a' : 'div'}>`;
+  const tile = (k, v, d, hero, href) => `<${href ? `a href="#indicateur/${href}"` : 'div'} class="kpi${hero ? ' hero' : ''}"><span class="k">${k}${href ? ' <span class="go">→</span>' : ''}</span><span class="v num">${v}</span><span class="d">${d}</span></${href ? 'a' : 'div'}>`;
   const ch = (r, when) => (r == null ? '<span class="muted">—</span>' : `${pct(r)} <span class="muted">${when}</span>`);
   const fg = t.fearGreed;
   $('marche-tiles').innerHTML = [
@@ -144,7 +144,7 @@ function direction(d) {
   if (!v?.total) { $('marche-direction').hidden = true; return; }
   const cls = v.dir > 0 ? 'up' : v.dir < 0 ? 'down' : 'mid';
   $('marche-direction').innerHTML = `<div class="bh"><h2>Direction du marché</h2><span class="verdict ${cls}">${esc(v.label)}</span></div>
-    <p class="score">${v.up} signal${v.up > 1 ? 's' : ''} haussier${v.up > 1 ? 's' : ''}, ${v.down} baissier${v.down > 1 ? 's' : ''} sur ${v.total}</p>
+    <p class="tally">${v.up} signal${v.up > 1 ? 's' : ''} haussier${v.up > 1 ? 's' : ''}, ${v.down} baissier${v.down > 1 ? 's' : ''} sur ${v.total}</p>
     <ul class="signals">${d.signals.map(s => `<li><span class="sig ${s.dir > 0 ? 'up' : s.dir < 0 ? 'down' : 'flat'}">${s.dir > 0 ? '▲' : s.dir < 0 ? '▼' : '•'}</span><span><b>${esc(s.label)}.</b> ${esc(s.text)}</span></li>`).join('')}</ul>`;
 }
 
