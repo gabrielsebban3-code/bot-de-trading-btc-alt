@@ -1,0 +1,137 @@
+#!/usr/bin/env node
+// Onglet Marché : chiffres clés, historique quotidien des courbes du graphique et plus grosses cryptos.
+// Sources gratuites sans clé : OKX (prix, funding, open interest), DefiLlama (TVL, stablecoins, volumes),
+// alternative.me (Fear & Greed), CoinGecko (capitalisation globale, top cryptos).
+// Le funding et l'open interest n'ont que quelques mois d'historique chez OKX : on garde celui déjà publié.
+// Usage : node scripts/build-marche.mjs [--out data] [--previous ancien-marche.json]
+
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { attempt, fetchJson } from './lib/http.mjs';
+import { compact, mergePoints, realCoins, signals, toDaily, verdict } from '../js/marche-lib.js';
+
+const argv = process.argv.slice(2);
+const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
+const OUT = args.out || 'data';
+const OKX = 'https://www.okx.com/api/v5';
+const LLAMA = 'https://api.llama.fi';
+const CG = 'https://api.coingecko.com/api/v3';
+const cgHeaders = process.env.COINGECKO_API_KEY ? { 'x-cg-demo-api-key': process.env.COINGECKO_API_KEY } : {};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const DAYS = 1500; // ~4 ans
+
+async function okx(path) {
+  const r = await fetchJson(`${OKX}${path}`, { retries: 2 });
+  if (r.code !== '0') throw new Error(`OKX ${r.code} ${r.msg || ''}`);
+  await sleep(150);
+  return r.data;
+}
+
+// Clôtures quotidiennes (UTC) d'OKX, de la plus ancienne à la plus récente.
+async function closes(instId) {
+  const rows = await okx(`/market/candles?instId=${instId}&bar=1Dutc&limit=300`);
+  for (let i = 0; i < 12 && rows.length < DAYS; i++) {
+    const older = await okx(`/market/history-candles?instId=${instId}&bar=1Dutc&limit=100&after=${rows.at(-1)[0]}`);
+    if (!older.length) break;
+    rows.push(...older);
+  }
+  return toDaily(rows.map(r => [Number(r[0]), Number(r[4])]));
+}
+
+// Funding BTC : une valeur toutes les 8 h, moyenne par jour, en % par période.
+async function funding() {
+  const rows = await okx('/public/funding-rate-history?instId=BTC-USDT-SWAP&limit=100');
+  for (let i = 0; i < 4; i++) {
+    const older = (await okx(`/public/funding-rate-history?instId=BTC-USDT-SWAP&limit=100&after=${rows.at(-1).fundingTime}`))
+      .filter(r => Number(r.fundingTime) < Number(rows.at(-1).fundingTime));
+    if (!older.length) break;
+    rows.push(...older);
+  }
+  const unique = new Map(rows.map(r => [r.fundingTime, Number(r.realizedRate || r.fundingRate) * 100]));
+  return toDaily([...unique].map(([t, v]) => [Number(t), v]), { mean: true });
+}
+
+async function main() {
+  const now = new Date();
+  console.log(`Dinexo · onglet Marché · ${now.toISOString()}`);
+  const previous = args.previous ? await readFile(args.previous, 'utf8').then(JSON.parse).catch(() => null) : null;
+  const sources = {};
+  const take = (name, res) => { sources[name] = res.ok ? 'ok' : 'erreur'; return res.ok ? res.value : null; };
+
+  const [btc, eth, sol, fu, oi] = [
+    take('okx BTC', await attempt('OKX BTC', () => closes('BTC-USDT'))),
+    take('okx ETH', await attempt('OKX ETH', () => closes('ETH-USDT'))),
+    take('okx SOL', await attempt('OKX SOL', () => closes('SOL-USDT'))),
+    take('funding', await attempt('OKX funding', funding)),
+    take('open interest', await attempt('OKX open interest', async () => {
+      const rows = await okx('/rubik/stat/contracts/open-interest-volume?ccy=BTC&period=1D');
+      return toDaily(rows.map(r => [Number(r[0]), Number(r[1])]));
+    })),
+  ];
+  const [fngR, stR, tvlR, dexR, perpR, feesR, globalR] = await Promise.all([
+    attempt('Fear & Greed', () => fetchJson('https://api.alternative.me/fng/?limit=0')),
+    attempt('DefiLlama stablecoins', () => fetchJson('https://stablecoins.llama.fi/stablecoincharts/all')),
+    attempt('DefiLlama TVL', () => fetchJson(`${LLAMA}/v2/historicalChainTvl`)),
+    attempt('DefiLlama DEX', () => fetchJson(`${LLAMA}/overview/dexs?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`)),
+    attempt('DefiLlama perps', () => fetchJson(`${LLAMA}/overview/derivatives?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`)),
+    attempt('DefiLlama frais', () => fetchJson(`${LLAMA}/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`)),
+    attempt('CoinGecko global', () => fetchJson(`${CG}/global`, { headers: cgHeaders })),
+  ]);
+  const fng = take('fear & greed', fngR) && toDaily(fngR.value.data.map(x => [Number(x.timestamp) * 1000, Number(x.value)]));
+  const stables = take('stablecoins', stR) && toDaily(stR.value.map(x => [Number(x.date) * 1000, Number(x.totalCirculatingUSD?.peggedUSD)]));
+  const tvl = take('tvl', tvlR) && toDaily(tvlR.value.map(x => [Number(x.date) * 1000, Number(x.tvl)]));
+  const global = take('coingecko global', globalR)?.data;
+  await sleep(1500);
+  const coinsR = await attempt('CoinGecko top', () => fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=30&price_change_percentage=24h,7d,30d`, { headers: cgHeaders, retries: 4 }));
+  const coins = take('coingecko top', coinsR);
+
+  // Chaque courbe garde son historique déjà publié si la source ne répond pas, ou n'a que les derniers mois.
+  const old = previous?.series || {};
+  const serie = (key, label, unit, points) => ({ label, unit, points: compact(mergePoints(old[key]?.points, points || [], DAYS)) });
+  const series = {
+    btc: serie('btc', 'Prix BTC', '$', btc),
+    eth: serie('eth', 'Prix ETH', '$', eth),
+    sol: serie('sol', 'Prix SOL', '$', sol),
+    fng: serie('fng', 'Fear & Greed', '', fng?.slice(-DAYS)),
+    stables: serie('stables', 'Stablecoins en circulation', '$', stables?.slice(-DAYS)),
+    funding: serie('funding', 'Funding BTC', '% / 8 h', fu),
+    oi: serie('oi', 'Open interest BTC', '$', oi),
+  };
+  const list = signals(series);
+
+  const last = pts => pts?.at(-1)?.[1] ?? null;
+  const ago = (pts, d) => { const t = pts?.at(-1)?.[0] - d; const p = pts?.findLast(x => x[0] <= t); return p ? p[1] : null; };
+  const rel = (a, b) => (a != null && b ? a / b - 1 : null);
+  const overview = r => (r.ok ? { total24h: r.value.total24h ?? null, change1d: r.value.change_1d != null ? r.value.change_1d / 100 : null } : null);
+  const tiles = {
+    marketCap: global ? { value: global.total_market_cap?.usd ?? null, change24h: global.market_cap_change_percentage_24h_usd != null ? global.market_cap_change_percentage_24h_usd / 100 : null } : null,
+    volume24h: global?.total_volume?.usd ?? null,
+    btcDominance: global?.market_cap_percentage?.btc ?? null,
+    ethDominance: global?.market_cap_percentage?.eth ?? null,
+    fearGreed: fng ? { value: last(fng), change1d: last(fng) - (ago(fng, 1) ?? last(fng)) } : null,
+    tvl: tvl ? { value: last(tvl), change1d: rel(last(tvl), ago(tvl, 1)) } : null,
+    stables: stables ? { value: last(stables), change7d: rel(last(stables), ago(stables, 7)) } : null,
+    dex: overview(dexR), perps: overview(perpR), fees: overview(feesR),
+  };
+  sources.dex = dexR.ok ? 'ok' : 'erreur';
+
+  const top = coins ? realCoins(coins).slice(0, 12).map(c => ({
+    symbol: String(c.symbol).toUpperCase(), name: c.name, price: c.current_price, mcap: c.market_cap, volume: c.total_volume,
+    change24h: c.price_change_percentage_24h_in_currency / 100, change7d: c.price_change_percentage_7d_in_currency / 100,
+    change30d: c.price_change_percentage_30d_in_currency != null ? c.price_change_percentage_30d_in_currency / 100 : null,
+  })) : previous?.top || [];
+
+  await mkdir(OUT, { recursive: true });
+  const out = { generatedAt: now.toISOString(), sample: Boolean(args.sample), sources, tiles, signals: list, verdict: verdict(list), top, series };
+  await writeFile(join(OUT, 'marche.json'), JSON.stringify(out));
+  console.log('Sources :', sources);
+  for (const [k, s] of Object.entries(series)) console.log(`${k} : ${s.points.length} jours, dernier ${s.points.at(-1)?.[1] ?? '—'}`);
+  console.log(`Verdict : ${out.verdict.label} (${out.verdict.up} haussiers, ${out.verdict.down} baissiers sur ${out.verdict.total})`);
+  for (const s of list) console.log(` ${s.dir > 0 ? '▲' : s.dir < 0 ? '▼' : '•'} ${s.label} : ${s.text}`);
+  if (!series.btc.points.length) throw new Error('Aucun prix BTC : la version déjà en ligne est conservée.');
+}
+
+main().catch(err => {
+  console.error(`✖ ${err.message}`);
+  process.exit(1);
+});

@@ -4,10 +4,11 @@ import { initProjects, renderProject } from './projects.js';
 import { initSetups, renderSetup, setupsUnavailable } from './setups.js';
 import { focusNews, initNews, newsFocus, newsUnavailable } from './news.js';
 import { starTitle, watchlist } from './watchlist.js';
+import { initMarche, marcheUnavailable } from './marche.js';
 import { alertSymbols, initAccount, refreshAccount, setFeed } from './account.js';
 
 const $ = id => document.getElementById(id);
-const PAGES = ['resume', 'projets', 'setups', 'actu', 'historique', 'compte'];
+const PAGES = ['resume', 'marche', 'projets', 'setups', 'actu', 'historique', 'compte'];
 // Actifs connus du site, par symbole : projets, marchés des setups, setup en jeu. Servent au ticker et à Mon compte.
 const known = { projects: new Map(), assets: new Map(), live: new Map() };
 const quotes = new Map(); // derniers prix OKX du ticker
@@ -75,10 +76,12 @@ async function getJson(path) {
 }
 
 async function load() {
-  const [projects, setups, news, market] = await Promise.all(
-    ['projects', 'setups', 'news', 'market'].map(name => getJson(`data/${name}.json`).catch(() => null)),
+  const [projects, setups, news, market, marche] = await Promise.all(
+    ['projects', 'setups', 'news', 'market', 'marche'].map(name => getJson(`data/${name}.json`).catch(() => null)),
   );
   showProjects(projects);
+  if (marche) initMarche(marche);
+  else marcheUnavailable();
   // L'actu d'abord : les setups affichent la news liée à leur actif.
   if (news) {
     initNews(news, projects);

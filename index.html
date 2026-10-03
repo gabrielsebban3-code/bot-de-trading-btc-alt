@@ -17,6 +17,7 @@
       <a class="logo" href="#resume">Dinexo</a>
       <nav id="nav" aria-label="Pages">
         <a href="#resume" data-tab="resume">Résumé</a>
+        <a href="#marche" data-tab="marche">Marché</a>
         <a href="#projets" data-tab="projets">Projets</a>
         <a href="#setups" data-tab="setups">Setups</a>
         <a href="#actu" data-tab="actu">Actu</a>
@@ -53,6 +54,33 @@
         <div class="box"><h2>Setups <a href="#setups">Tous →</a></h2><div id="resume-setups"></div></div>
         <div class="box"><h2>Actu <a href="#actu">Fil complet →</a></h2><div id="resume-news"></div></div>
       </div>
+    </section>
+
+    <!-- Marché -->
+    <section class="page" id="page-marche">
+      <div class="intro" data-intro="marche"><span class="i">i</span>
+        <p>Le marché en entier, pour sentir sa <b>direction</b> avant de regarder les setups. <span>Le bloc Direction lit 6 indicateurs : la tendance de BTC (moyennes 50 et 200 jours), le sentiment (Fear &amp; Greed), l'argent frais (stablecoins) et le levier des traders (funding et open interest sur OKX). Dans le graphique, coche les courbes à afficher : chacune a son propre panneau, et le survol montre toutes les valeurs d'un même jour.</span></p>
+        <button type="button">Compris</button></div>
+      <h1>Le marché en un coup d'œil</h1>
+      <div class="tiles" id="marche-tiles"></div>
+      <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
+      <div class="box direction" id="marche-direction"></div>
+      <div class="box mk">
+        <div class="mk-tools">
+          <div class="tools" id="mk-assets" role="group" aria-label="Actif"></div>
+          <div class="tools" id="mk-periods" role="group" aria-label="Période"></div>
+        </div>
+        <div class="tools mk-toggles" id="mk-toggles" role="group" aria-label="Courbes affichées"></div>
+        <div class="mk-chart" id="mk-chart"></div>
+      </div>
+      <h2 class="section">Les plus grosses cryptos <span class="muted">hors stablecoins</span></h2>
+      <div class="wrap">
+        <table class="static">
+          <thead><tr><th class="l">#</th><th class="l">Actif</th><th>Prix</th><th>24 h</th><th>7 j</th><th>30 j</th><th>Market cap</th><th>Volume 24 h</th></tr></thead>
+          <tbody id="marche-top"></tbody>
+        </table>
+      </div>
+      <p class="fine">Sources gratuites : OKX (prix, funding, open interest), DefiLlama (TVL, stablecoins, volumes), alternative.me (Fear &amp; Greed), CoinGecko (capitalisation, classement). Le funding et l'open interest n'ont que quelques mois d'historique au départ : il s'allonge à chaque mise à jour.</p>
     </section>
 
     <!-- Projets -->
