@@ -53,7 +53,7 @@ jobs:
         if: env.PUBLISH == 'true'
         run: |
           mkdir -p previous
-          for f in projects market setups news alerts marche; do
+          for f in projects market setups news alerts marche outils; do
             curl -fsSL "${{ steps.pages.outputs.base_url }}/data/$f.json" -o "previous/$f.json" || echo "Pas encore de $f.json en ligne."
           done
 
@@ -91,10 +91,17 @@ jobs:
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
         run: node scripts/build-marche.mjs --out _site/data --previous previous/marche.json
 
+      - name: Outils
+        id: outils
+        if: env.NEWS_ONLY != 'true'
+        continue-on-error: true
+        timeout-minutes: 5
+        run: node scripts/build-outils.mjs --out _site/data --previous previous/outils.json
+
       - name: Compléter avec la version déjà en ligne
         run: |
           mkdir -p _site/data
-          for f in projects market setups news marche; do
+          for f in projects market setups news marche outils; do
             if [ ! -s "_site/data/$f.json" ] && [ -s "previous/$f.json" ]; then
               cp "previous/$f.json" "_site/data/$f.json"
               echo "$f.json : version déjà en ligne conservée."
@@ -104,6 +111,7 @@ jobs:
           if [ "${{ steps.projects.outcome }}" = failure ]; then echo "::warning::Projets non mis à jour à ce passage."; fi
           if [ "${{ steps.setups.outcome }}" = failure ]; then echo "::warning::Setups non mis à jour à ce passage."; fi
           if [ "${{ steps.marche.outcome }}" = failure ]; then echo "::warning::Marché non mis à jour à ce passage."; fi
+          if [ "${{ steps.outils.outcome }}" = failure ]; then echo "::warning::Outils non mis à jour à ce passage."; fi
 
       # Alertes Discord : nouveaux setups confirmés et news critiques, comparés à la version déjà en ligne.
       # Au premier passage avec le lien, un message de bienvenue ; data/alerts.json retient qu'il est parti.
