@@ -14,7 +14,7 @@ export const THEMES = {
 
 export const LEVEL = { critical: 3, medium: 2, low: 1 };
 // À changer quand les règles de classement changent : les news déjà dans le fil sont alors reclassées.
-export const RULES_VERSION = 2;
+export const RULES_VERSION = 3;
 
 export const NEWS = {
   keepHours: 72,          // une news reste 3 jours dans le fil
@@ -496,7 +496,8 @@ const RULES = [
     const small = neg && amt !== null && amt < NEWS.regCaseMediumUsd; // « SEC sues crypto AI platform over $12.5M »
     // « Bank group sues OCC over crypto charters » : c'est le régulateur qui est attaqué, la règle ne change pas.
     const againstRegulator = /\b(sues?|sued|suing|challeng\w*)\s+(the\s+)?(u\.?s\.?\s+)?(occ|sec|cftc|fdic|fed|irs|treasury|regulators?|government|agency)\b/i.test(t);
-    const strong = REG_STRONG.test(t) && REGULATOR.test(t) && !UNCERTAIN.test(t) && !small && !againstRegulator;
+    const leveraged = /\b(leveraged|[2-5]x)\b/i.test(t); // « SEC approves first-ever 3x leveraged Bitcoin an… » (titre coupé)
+    const strong = REG_STRONG.test(t) && REGULATOR.test(t) && !UNCERTAIN.test(t) && !small && !againstRegulator && !leveraged;
     return {
       theme: 'reg', importance: strong ? 'medium' : 'low', impacts: strong && pos ? up('Crypto') : strong && neg ? down('Crypto') : [],
       why: pos ? 'Feu vert des autorités : bon signe pour l\'adoption des cryptos.'
@@ -764,6 +765,8 @@ export function reactionAsset(item) {
 
 // bars : bougies { t, o, c } du plus ancien au plus récent. null tant que l'heure n'est pas écoulée.
 export function priceReaction(item, bars, now = Date.now()) {
+  // Seulement les news qui comptent : sur une news faible, un mouvement serait une coïncidence.
+  if (item.importance === 'low') return null;
   const asset = reactionAsset(item);
   const series = asset && bars?.[asset];
   const end = item.time + PRICE_REACTION.minutes * 60_000;

@@ -180,6 +180,7 @@ const CASES = [
   ['China slaps retaliatory tariffs on US farm goods', {}, 'droits-de-douane', 'medium', [['BTC', -1]]],
   ['Community Banks Sue OCC Over Expanding Trust Charters to Crypto', {}, 'regulation', 'low', []],
   ['SEC Approves Listing of 3x Leveraged ETFs on Bitcoin, Ether', {}, 'etf', 'low', []],
+  ['SEC approves first-ever 3x leveraged Bitcoin an...', {}, 'regulation', 'low', []],
   ['VolatilityShares Launches 3x Bitcoin ETP Amid SEC Approval', {}, 'etf', 'low', []],
   ["BlackRock's Bitcoin ETF Has Net Bought $1.57 Billion Worth of Bitcoin in the Past Month.", {}, 'etf', 'low', []],
   ['$BNB Chain becomes the first blockchain to surpass $1,000,000,000 in tokenized stocks and ETFs', {}, 'etf', 'low', []],
@@ -236,6 +237,7 @@ test('réaction du prix : mouvement de l\'actif concerné dans l\'heure qui suit
   assert.equal(reactionAsset({ theme: 'hack', impacts: [], titleEn: 'Solana DEX drained for $80M' }), 'SOL');
   assert.equal(reactionAsset({ theme: 'hack', impacts: [['DeFi', -1]], titleEn: 'x' }), 'BTC');
   assert.equal(priceReaction(fed, {}, t0 + 2 * 3600_000), null, 'pas de prix : pas de réaction');
+  assert.equal(priceReaction({ ...war, importance: 'low' }, series, t0 + 2 * 3600_000), null, 'news faible : pas mesurée');
 });
 
 test('classify : communiqués officiels et projets du top', () => {
