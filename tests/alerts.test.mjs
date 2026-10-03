@@ -63,7 +63,8 @@ test('message Discord : vert pour un long, rouge pour un short, lien vers le set
 });
 
 // Lance scripts/send-alerts.mjs contre un faux Discord qui répond `status`.
-async function sendAlerts({ status = 204, state, hook = true } = {}) {
+// Par défaut à 6 h, heure de Paris : avant le résumé du matin.
+async function sendAlerts({ status = 204, state, hook = true, at = Date.UTC(2026, 9, 3, 4) } = {}) {
   const got = [];
   const server = createServer((req, res) => {
     let body = '';
@@ -79,7 +80,7 @@ async function sendAlerts({ status = 204, state, hook = true } = {}) {
   if (state) await writeFile(join(dir, 'previous', 'alerts.json'), JSON.stringify(state));
   const env = { ...process.env, DISCORD_WEBHOOK_URL: hook ? `http://127.0.0.1:${server.address().port}/api/webhooks/1/abc` : '' };
   const script = fileURLToPath(new URL('../scripts/send-alerts.mjs', import.meta.url));
-  const log = await new Promise((resolve, reject) => execFile(process.execPath, [script, '--data', join(dir, 'site'), '--previous', join(dir, 'previous'), '--site', 'https://site.fr/dinexo'], { env }, (err, out) => (err ? reject(err) : resolve(out))));
+  const log = await new Promise((resolve, reject) => execFile(process.execPath, [script, '--data', join(dir, 'site'), '--previous', join(dir, 'previous'), '--site', 'https://site.fr/dinexo', '--now', String(at)], { env }, (err, out) => (err ? reject(err) : resolve(out))));
   server.close();
   const saved = await readFile(join(dir, 'site', 'alerts.json'), 'utf8').then(JSON.parse).catch(() => null);
   return { got, log, saved };
@@ -112,4 +113,17 @@ test('sans lien : aucun message, état gardé', async () => {
   assert.equal(got.length, 0);
   assert.match(log, /Pas de DISCORD_WEBHOOK_URL/);
   assert.deepEqual(saved, { connected: '2026-10-02T20:30:00.000Z' });
+});
+
+test('résumé du matin : une fois par jour après 7 h, retenu dans l\'état', async () => {
+  const state = { connected: '2026-10-02T20:30:00.000Z' };
+  const morning = await sendAlerts({ state, at: Date.UTC(2026, 9, 3, 6, 30) });
+  assert.equal(morning.got.length, 1);
+  assert.match(morning.got[0].embeds[0].title, /^Résumé du samedi 3 octobre/);
+  assert.equal(morning.got[0].embeds[1].title, 'Situation géopolitique');
+  assert.equal(morning.saved.digest, '2026-10-03');
+  assert.match(morning.log, /Résumé du 2026-10-03 envoyé/);
+
+  const later = await sendAlerts({ state: morning.saved, at: Date.UTC(2026, 9, 3, 9) });
+  assert.equal(later.got.length, 0);
 });

@@ -97,6 +97,7 @@ jobs:
 
       # Alertes Discord : nouveaux setups confirmés et news critiques, comparés à la version déjà en ligne.
       # Au premier passage avec le lien, un message de bienvenue ; data/alerts.json retient qu'il est parti.
+      # Chaque matin après 7 h (Paris), un résumé : setups en cours, news du jour, situation géopolitique.
       - name: Alertes Discord
         if: env.PUBLISH == 'true'
         continue-on-error: true
