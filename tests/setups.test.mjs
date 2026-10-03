@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
   BAR, RULES, atr, dailyContext, detectMacd, detectRange10, detectRange20, detectorStats, evaluate,
-  exitLevel, fmtPx, hasRoom, mergeHistory, plan, priorLevels, roundStep, scanAsset, trend1d,
+  exitLevel, fmtPx, hasRoom, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, trend1d,
 } from '../scripts/lib/setups.mjs';
 
 const DAY = 86_400_000;
@@ -150,6 +150,23 @@ test('scanAsset : signal seulement dans le sens de la tendance, un seul trade à
   assert.ok(Math.abs(sigs[0].entry - sigs[0].sl - RULES.stopAtr * dailyContext(up).atr.at(-1)) < 1e-9, 'stop à 0,75 ATR journalier');
   const down = trendDays(-0.6);
   assert.deepEqual(scanAsset({ symbol: 'TEST' }, { bars: b, daily: down }).filter(s => s.dir === 'long'), [], 'cassure haussière en tendance baissière : ignorée');
+});
+
+test('radar : prix de la prochaine cassure dans le sens de la tendance, rien en tendance neutre', () => {
+  const b = bars([], 80); // range 99–101 sur 80 bougies 4h, plus haut des 10 jours = 101
+  const up = radar(b, trendDays(0.01)); // journées presque plates : plus haut des 20 jours = 99,5 + petit pas
+  assert.equal(up.trend, 'haussière');
+  assert.equal(up.dir, 'long');
+  assert.equal(up.trigger.key, 'range10');
+  assert.equal(up.trigger.price, 101);
+  assert.ok(Math.abs(up.trigger.distance - 0.01) < 1e-9);
+  assert.ok(up.trigger.stop < 101);
+  const down = radar(b, trendDays(-0.6));
+  assert.equal(down.dir, 'short');
+  assert.equal(down.trigger.price, 99, 'plus bas des 10 jours, plus proche que celui des 20 jours');
+  const flat = radar(b, Array.from({ length: 80 }, (_, i) => ({ t: T0 - (80 - i) * DAY, o: 100, h: 101, l: 99, c: 100, closed: true })));
+  assert.equal(flat.trend, 'neutre');
+  assert.equal(flat.trigger, undefined);
 });
 
 test('detectorStats : gagnant = trade fini en gain, et mergeHistory retire les anciens détecteurs et actifs', () => {

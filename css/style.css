@@ -195,6 +195,15 @@ dd.txt { font-family: var(--sans); }
 .lv span { min-width: 0; overflow-wrap: anywhere; }
 .lv i { color: var(--muted); display: block; font: normal 11px var(--sans); }
 .wr { font-size: 12px; color: var(--muted); }
+.radar { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.radar .card { gap: 8px; }
+.radar .px { margin-left: auto; font: 13px var(--mono); font-variant-numeric: tabular-nums; }
+.radar .state { font-size: 14px; color: var(--fg); }
+.radar .state b.up { color: var(--up); }
+.radar .state b.down { color: var(--down); }
+.radar .meter { height: 4px; background: var(--bg); border-radius: 2px; overflow: hidden; }
+.radar .meter i { display: block; height: 100%; background: var(--accent); }
+.radar .sm { font-size: 12px; color: var(--muted); }
 .box > p.txt { margin: 0; padding: 0 14px 14px; font-size: 13px; color: var(--fg2); }
 .box > .link { display: block; padding: 0 14px 14px; font-size: 12px; color: var(--muted); }
 .box > .link b { color: var(--accent); font-weight: 500; }
