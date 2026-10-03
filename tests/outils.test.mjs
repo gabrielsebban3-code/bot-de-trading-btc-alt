@@ -1,7 +1,7 @@
 // Onglet Outils : calculateurs de trading.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { breakEven, compound, dca, liquidation, num, percentile, pnl, positionSize, riskReward, rng, streaks } from '../js/outils-lib.js';
+import { averageEntry, breakEven, compound, convert, dca, liquidation, num, percentile, pnl, positionSize, riskReward, rng, streaks } from '../js/outils-lib.js';
 
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps * Math.max(1, Math.abs(b)), `${a} ≠ ${b}`);
 
@@ -141,4 +141,26 @@ test('rng et percentile', () => {
   assert.ok(Math.abs(x.reduce((s, v) => s + v, 0) / 1000 - 0.5) < 0.05);
   assert.equal(percentile([1, 2, 3, 4, 5], 50), 3);
   assert.equal(percentile([], 50), null);
+});
+
+test('averageEntry : prix moyen pondéré et achat pour le ramener à un objectif', () => {
+  const r = averageEntry([{ price: 100, amount: 1000 }, { price: 50, amount: 1000 }, { price: 0, amount: 5 }], { current: 60, target: 60 });
+  assert.equal(r.count, 2);
+  near(r.units, 30);
+  near(r.avg, 2000 / 30);
+  near(r.value, 1800);
+  near(r.pnl, -200);
+  near(r.toBreakEvenPct, (2000 / 30 / 60 - 1) * 100);
+  assert.equal(r.toTarget, null); // l'objectif doit être entre le prix actuel et le prix moyen
+  const t = averageEntry([{ price: 100, amount: 1000 }], { current: 50, target: 75 });
+  near(t.toTarget, 500); // 500 $ à 50 $ : 20 unités pour 1 500 $ → 75 $
+  near((1000 + t.toTarget) / (10 + t.toTarget / 50), 75);
+  assert.equal(averageEntry([]), null);
+});
+
+test('convert : passe par le dollar', () => {
+  const rates = { USD: 1, EUR: 1.25, BTC: 50_000 };
+  near(convert(1, 'BTC', 'EUR', rates), 40_000);
+  near(convert(100, 'EUR', 'USD', rates), 125);
+  assert.equal(convert(1, 'BTC', 'XRP', rates), null);
 });

@@ -1,7 +1,7 @@
 // Onglet Outils : calculateurs de trading, tout est calculé dans le navigateur (calculs dans js/outils-lib.js).
 // Les champs communs (capital, risque, entrée, stop, frais…) sont partagés entre les outils et gardés sur l'appareil.
 import { esc, fmt, price } from './format.js';
-import { breakEven, compound, dca, liquidation, num, pnl, positionSize, riskReward, streaks } from './outils-lib.js';
+import { averageEntry, breakEven, compound, convert, dca, liquidation, num, pnl, positionSize, riskReward, streaks } from './outils-lib.js';
 
 const $ = id => document.getElementById(id);
 const KEY = 'dinexo-outils';
@@ -13,6 +13,8 @@ const DEFAULTS = {
   winrate: '32', winR: '5.8', side: 'long', leverage: '5', mmr: '0.4', size: '20000', funding: '0.01', hours: '72',
   asset: 'btc', amount: '100', every: '7', since: '730', spotFee: '0.1',
   rate: '2', months: '36', monthly: '0', goal: '50000', trades: '30',
+  p1: '100000', a1: '1000', p2: '90000', a2: '1000', p3: '80000', a3: '1000', p4: '', a4: '', now: '85000', avgTarget: '87000',
+  convAmount: '1', convFrom: 'BTC', convTo: 'EUR',
 };
 
 const F = {
@@ -41,6 +43,15 @@ const F = {
   monthly: { label: 'Ajout chaque mois', unit: '$' },
   goal: { label: 'Objectif de capital', unit: '$', optional: true },
   trades: { label: 'Nombre de trades', unit: 'trades', hint: 'Setups : environ 30 par an' },
+  ...Object.fromEntries([1, 2, 3, 4].flatMap(i => [
+    [`p${i}`, { label: `Achat ${i} : prix`, unit: '$', optional: i > 1 }],
+    [`a${i}`, { label: `Achat ${i} : montant`, unit: '$', optional: i > 1 }],
+  ])),
+  now: { label: 'Prix actuel', unit: '$', prices: true },
+  avgTarget: { label: 'Prix moyen visé', unit: '$', optional: true, hint: 'combien racheter maintenant pour y arriver' },
+  convAmount: { label: 'Montant', unit: '' },
+  convFrom: { label: 'De', choice: [['BTC', 'BTC'], ['ETH', 'ETH'], ['SOL', 'SOL'], ['USD', '$'], ['EUR', '€']] },
+  convTo: { label: 'Vers', choice: [['BTC', 'BTC'], ['ETH', 'ETH'], ['SOL', 'SOL'], ['USD', '$'], ['EUR', '€']] },
 };
 
 const TOOLS = [
@@ -60,6 +71,10 @@ const TOOLS = [
     intro: 'Ce que devient le compte si les gains restent investis chaque mois, et quand un objectif serait atteint.', calc: compose },
   { id: 'series', name: 'Séries de pertes', fields: ['winrate', 'winR', 'risk', 'trades'],
     intro: "2 000 parcours tirés au hasard avec ces chiffres : la plus longue série de pertes et le plus gros creux du compte auxquels s'attendre. Préréglé sur les Setups : 2 trades sur 3 finissent au stop, c'est normal.", calc: series },
+  { id: 'moyen', name: "Prix moyen d'entrée", fields: ['p1', 'a1', 'p2', 'a2', 'p3', 'a3', 'p4', 'a4', 'now', 'avgTarget', 'spotFee'],
+    intro: "Ton prix moyen après plusieurs achats du même actif, ce que vaut la position au prix actuel, et combien racheter maintenant pour faire baisser (ou monter) ce prix moyen.", calc: moyen },
+  { id: 'convertir', name: 'Convertisseur', fields: ['convAmount', 'convFrom', 'convTo'],
+    intro: "BTC, ETH, SOL, dollars et euros entre eux, au dernier prix connu. Prix OKX en direct, euro au taux de la BCE.", calc: convertir },
 ];
 
 const state = { tool: 'position', v: { ...DEFAULTS }, data: null };
@@ -266,6 +281,62 @@ function series() {
   ].join('');
 }
 
+// 9. Prix moyen d'entrée
+function moyen() {
+  const v = vals(['p1', 'a1', 'p2', 'a2', 'p3', 'a3', 'p4', 'a4', 'now', 'avgTarget', 'spotFee']);
+  const buys = [1, 2, 3, 4].map(i => ({ price: v[`p${i}`], amount: v[`a${i}`] }));
+  const r = averageEntry(buys, { current: v.now, target: v.avgTarget, feePct: v.spotFee ?? 0 });
+  if (!r) return missing();
+  const out = [
+    hero('Prix moyen d\'entrée', `${px(r.avg)} $`, `${r.count} achat${r.count > 1 ? 's' : ''} · ${usd(r.invested)} investis · frais compris`),
+  ];
+  if (r.value != null) {
+    out.push(rows([
+      ['Valeur au prix actuel', `${usd(r.value)} · ${signed(r.pnl)} (${spc(r.pnlPct, 1)})`],
+      ['Quantité', qty(r.units)],
+      ['Hausse nécessaire pour revenir à zéro', r.toBreakEvenPct > 0 ? `${spc(r.toBreakEvenPct, 1)}` : 'déjà en gain'],
+      v.avgTarget > 0 && [`Pour un prix moyen à ${px(v.avgTarget)} $`, r.toTarget != null ? `acheter ${usd(r.toTarget)} maintenant` : 'impossible : le prix visé doit être entre le prix actuel et ton prix moyen'],
+    ]));
+    if (r.toTarget != null && r.toTarget > r.invested) out.push(note(`Pour y arriver, il faut remettre plus que tout ce que tu as déjà investi. Moyenner à la baisse grossit la position sur un actif qui baisse : à faire avec un plan, pas pour se refaire.`, 'warn-inline'));
+  }
+  return out.join('');
+}
+
+// 10. Convertisseur
+// Valeur d'une unité en dollars. Prix des cryptos : données du site, puis OKX en direct ; euro : taux BCE (frankfurter.app).
+const rates = { USD: 1 };
+const rateSrc = {};
+let live = null;
+function seedRates() {
+  for (const a of ['btc', 'eth', 'sol']) {
+    const p = state.data?.series?.[a]?.points?.at(-1)?.[1];
+    if (p && !rateSrc[a.toUpperCase()]) { rates[a.toUpperCase()] = p; rateSrc[a.toUpperCase()] = 'clôture d\'hier'; }
+  }
+}
+function liveRates() {
+  if (live) return live;
+  live = Promise.all([
+    ...['BTC', 'ETH', 'SOL'].map(s => fetch(`https://www.okx.com/api/v5/market/ticker?instId=${s}-USDT`).then(r => r.json())
+      .then(j => { const p = Number(j.data?.[0]?.last); if (p > 0) { rates[s] = p; rateSrc[s] = 'OKX en direct'; } }).catch(() => {})),
+    fetch('https://api.frankfurter.app/latest?from=EUR&to=USD').then(r => r.json())
+      .then(j => { const p = Number(j.rates?.USD); if (p > 0) { rates.EUR = p; rateSrc.EUR = `BCE, ${j.date}`; } }).catch(() => {}),
+  ]).then(() => { if (page.classList.contains('on')) renderResult(); });
+  return live;
+}
+
+function convertir() {
+  liveRates();
+  const v = vals(['convAmount', 'convFrom', 'convTo']);
+  const r = convert(v.convAmount, v.convFrom, v.convTo, rates);
+  const sym = c => ({ USD: '$', EUR: '€' })[c] || c;
+  const shown = (n, c) => (['USD', 'EUR'].includes(c) ? `${fmt(n, n >= 1000 ? 0 : 2)} ${sym(c)}` : `${qty(n)} ${c}`);
+  if (r == null) return rates[v.convFrom] && rates[v.convTo] ? missing() : '<div class="empty">Ce cours n\'est pas encore disponible : réessaie dans un instant.</div>';
+  return [
+    hero(`${shown(v.convAmount, v.convFrom)} =`, shown(r, v.convTo)),
+    rows(['BTC', 'ETH', 'SOL', 'EUR'].filter(c => rates[c]).map(c => [`1 ${sym(c)}`, `${fmt(rates[c], rates[c] >= 100 ? 0 : 4)} $ <span class="muted">· ${rateSrc[c]}</span>`])),
+  ].join('');
+}
+
 // Petit graphique en lignes (SVG), axe des x partagé, survol pour lire les valeurs.
 let charts = [];
 function chart(lines, fmtr) {
@@ -322,11 +393,11 @@ function field(k) {
     return `<div class="t-field t-wide"><span class="lb">${f.label}</span><div class="tools" role="group" aria-label="${esc(f.label)}">${f.choice.map(([v, l]) =>
       `<button type="button" class="chip" data-k="${k}" data-v="${v}" aria-pressed="${state.v[k] === v}">${l}</button>`).join('')}</div></div>`;
   }
-  const prices = f.prices && state.data?.series ? ['btc', 'eth', 'sol'].map(a => [a, state.data.series[a]?.points?.at(-1)?.[1]]).filter(([, p]) => p) : [];
+  const prices = f.prices ? ['btc', 'eth', 'sol'].map(a => [a, rates[a.toUpperCase()]]).filter(([, p]) => p) : [];
   return `<label class="t-field"><span class="lb">${f.label}${f.optional ? ' <span class="muted">(facultatif)</span>' : ''}</span>
     <span class="t-in"><input id="t-${k}" data-k="${k}" inputmode="decimal" autocomplete="off" spellcheck="false" value="${esc(state.v[k])}"><span class="u">${f.unit}</span></span>
     ${f.hint ? `<span class="hint">${f.hint}</span>` : ''}
-    ${prices.length ? `<span class="t-quick">${prices.map(([a, p]) => `<button type="button" class="chip" data-price="${a}" data-p="${p}">${a.toUpperCase()} ${px(p)}</button>`).join('')}</span>` : ''}</label>`;
+    ${prices.length ? `<span class="t-quick">${prices.map(([a, p]) => `<button type="button" class="chip" data-price="${a}" data-for="${k}" data-p="${p}">${a.toUpperCase()} ${px(p)}</button>`).join('')}</span>` : ''}</label>`;
 }
 
 function renderResult() {
@@ -362,6 +433,7 @@ export function showTool(id) {
 
 export function setOutilsData(marche) {
   state.data = marche;
+  seedRates();
   if (location.hash.slice(1).split('/')[0] === 'outils') render();
 }
 
@@ -385,10 +457,10 @@ page.addEventListener('click', e => {
   }
   const p = e.target.closest('button[data-price]');
   if (p) {
-    const v = Number(p.dataset.p);
-    state.v.entry = String(Number(v.toPrecision(6)));
-    state.v.entryAsset = p.dataset.price;
-    $('t-entry').value = state.v.entry;
+    const v = Number(p.dataset.p), k = p.dataset.for;
+    state.v[k] = String(Number(v.toPrecision(6)));
+    if (k === 'entry') state.v.entryAsset = p.dataset.price;
+    $(`t-${k}`).value = state.v[k];
     save();
     renderResult();
     return;

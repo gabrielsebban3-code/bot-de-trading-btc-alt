@@ -211,3 +211,36 @@ export function streaks({ winRatePct, winR, riskPct, trades, runs = 2000, seed =
     curves: { p5: pick(5), median: pick(50), p95: pick(95) },
   };
 }
+
+// 9. Prix moyen d'entrée : plusieurs achats (prix, montant en $), comparés au prix actuel.
+// Avec `target`, montant à acheter au prix actuel pour ramener le prix moyen à `target`.
+export function averageEntry(buys, { current = null, target = null, feePct = 0 } = {}) {
+  const ok = (buys || []).filter(b => b.price > 0 && b.amount > 0);
+  if (!ok.length) return null;
+  const fee = feePct / 100;
+  const invested = ok.reduce((s, b) => s + b.amount, 0);
+  const units = ok.reduce((s, b) => s + b.amount * (1 - fee) / b.price, 0);
+  const avg = invested / units;
+  const out = { count: ok.length, invested, units, avg };
+  if (current > 0) {
+    out.value = units * current;
+    out.pnl = out.value - invested;
+    out.pnlPct = (out.value / invested - 1) * 100;
+    out.toBreakEvenPct = (avg / current - 1) * 100;
+    if (target > 0) {
+      // (invested + A) / (units + A·(1 − fee)/current) = target  →  A = (target·units − invested) / (1 − target·(1 − fee)/current)
+      const k = 1 - target * (1 - fee) / current;
+      const a = (target * units - invested) / k;
+      const between = (target - avg) * (target - current) < 0 || target === avg;
+      out.toTarget = between && Number.isFinite(a) && a >= 0 ? a : null;
+    }
+  }
+  return out;
+}
+
+// 10. Convertisseur : `rates` donne la valeur d'une unité en dollars ({ USD: 1, EUR: 1.08, BTC: 60000 }).
+export function convert(amount, from, to, rates) {
+  const a = rates?.[from], b = rates?.[to];
+  if (!(amount >= 0) || !(a > 0) || !(b > 0)) return null;
+  return amount * a / b;
+}
