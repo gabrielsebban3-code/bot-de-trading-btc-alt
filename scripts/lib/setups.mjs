@@ -271,6 +271,37 @@ export function evaluate(sig, bars, i, daily) {
   return { outcome: 'open', at: null, r: null, tpHit: half ? 1 : 0, stop, exitAt: (s > 0 ? lvl > stop : lvl < stop) ? lvl : null };
 }
 
+// ---------- Radar : où en est chaque paire quand aucun signal n'est en jeu ----------
+
+// Prix qui déclencheraient le prochain signal, dans le sens de la tendance, à partir des bougies fermées.
+// trigger = la cassure la plus proche (10 ou 20 jours), stop = celui qu'aurait le trade s'il partait de là.
+export function radar(bars, daily) {
+  const closed = bars.filter(b => b.closed !== false);
+  const i = closed.length - 1;
+  const dc = dailyContext(daily);
+  if (i < RULES.rangeBars) return null;
+  const j = lastDay(dc, closed[i].t + BAR);
+  if (j < RULES.rangeDays - 1 || !dc.atr[j]) return null;
+  const price = bars.at(-1).c;
+  const trend = dc.trend[j];
+  const out = { trend, price, atrD: dc.atr[j] };
+  if (trend === 'neutre') return out;
+  const dir = trend === 'haussière' ? 'long' : 'short';
+  const n = RULES.rangeDays, from = i - RULES.rangeBars + 1;
+  const levels = dir === 'long'
+    ? [{ key: 'range20', price: maxH(daily, j - n + 1, j + 1) }, { key: 'range10', price: maxH(closed, from, i + 1) }]
+    : [{ key: 'range20', price: minL(daily, j - n + 1, j + 1) }, { key: 'range10', price: minL(closed, from, i + 1) }];
+  const s = dir === 'long' ? 1 : -1;
+  const ahead = levels.filter(l => (l.price - price) * s > 0).sort((a, b) => (a.price - b.price) * s);
+  const next = ahead[0] ?? null;
+  const h = macdHist(closed).at(-1);
+  return {
+    ...out, dir,
+    trigger: next && { ...next, distance: next.price / price - 1, stop: next.price - s * RULES.stopAtr * dc.atr[j] },
+    macdReady: s * h < 0, // l'histogramme est du mauvais côté : son retour de l'autre côté de zéro donnerait un signal
+  };
+}
+
 // ---------- Balayage d'un actif ----------
 
 // Renvoie tous les signaux (passés et en cours) d'un actif, avec leur résultat.

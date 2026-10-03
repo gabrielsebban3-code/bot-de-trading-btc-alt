@@ -7,7 +7,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fetchJson, mapLimit } from './lib/http.mjs';
-import { BAR, DETECTORS, RULES, detectorStats, mergeHistory, scanAsset, trend1d } from './lib/setups.mjs';
+import { BAR, DETECTORS, RULES, detectorStats, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
@@ -85,6 +85,7 @@ async function main() {
           ...asset, instId, price: last,
           change24h: tk && Number(tk.open24h) ? last / Number(tk.open24h) - 1 : null,
           trend: trend1d(daily, now),
+          radar: radar(bars, daily),
         },
         signals, bars,
         start: bars[Math.max(RULES.warmup, bars.length - RULES.backtestBars - 1)]?.t,
@@ -139,6 +140,10 @@ async function main() {
   }
   for (const s of history.slice(0, 12)) console.log(`${new Date(s.time).toISOString().slice(0, 13)} ${s.symbol} ${s.dir} ${s.outcome} ${s.r ?? ''}`);
   for (const s of shown.slice(0, 10)) console.log(`${s.symbol} ${DETECTORS[s.detector]} ${s.dir} ${s.status} R:R ${s.rr} · ${s.outcome}`);
+  for (const a of ok.map(r => r.asset)) {
+    const r = a.radar;
+    console.log(`Radar ${a.symbol} ${a.price} · tendance ${r?.trend ?? '—'}${r?.trigger ? ` · ${r.dir} si clôture 4h ${r.dir === 'long' ? '>' : '<'} ${r.trigger.price} (${(r.trigger.distance * 100).toFixed(1)} %, ${r.trigger.key}), stop ${r.trigger.stop.toFixed(4)}` : ''}${r?.macdReady ? ' · MACD prêt' : ''}`);
+  }
   if (warnings.length) console.log('Avertissements :', warnings);
 }
 

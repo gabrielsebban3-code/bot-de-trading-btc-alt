@@ -76,6 +76,47 @@ function card(s) {
   </a>`;
 }
 
+// Radar : une carte par paire, même sans signal. Trade en jeu, sinon le prix qui déclencherait le prochain signal.
+const plainPct = x => `${x > 0 ? '+' : x < 0 ? '−' : ''}${fmt(Math.abs(x) * 100, 1)} %`;
+function radarCard(a) {
+  const r = a.radar;
+  const live = data.live.find(s => s.symbol === a.symbol && s.outcome === 'open');
+  const last = data.history.find(s => s.symbol === a.symbol && s.outcome !== 'open');
+  const head = `<span class="hd"><b class="mono">${esc(a.symbol)}</b><span class="muted">${esc(a.name)}</span>
+    ${r ? `<span class="tag ${TREND[r.trend]}">Tendance ${esc(r.trend)}</span>` : ''}<span class="px">${px(a.price)}</span></span>`;
+  const lastLine = last ? `<span class="sm">Dernier trade : ${esc(OUTCOME[last.outcome][0].toLowerCase())} le ${parisDay(last.at)} (${cap(last.r)})</span>` : '';
+  let body;
+  if (live) {
+    const move = (a.price - live.entry) / Math.abs(live.entry - live.sl) * (live.dir === 'long' ? 1 : -1);
+    const r0 = live.tpHit ? ((data.rules.partialR ?? 5) + move) / 2 : move; // moitié déjà prise à 5R
+    body = `<span class="state">${dirTag(live.dir)} <b>Trade en jeu</b> depuis le ${parisDay(live.time)}</span>
+      <span class="sm">Entrée ${px(live.entry)} · stop ${px(live.stop ?? live.sl)} · en ce moment <b class="${r0 >= 0 ? 'up' : 'down'}">${cap(r0)}</b> du capital</span>`;
+    return `<a class="card" href="#setup/${encodeURIComponent(live.id)}">${head}${body}${lastLine}</a>`;
+  }
+  if (!r) body = '<span class="state">Pas assez de données pour le moment.</span>';
+  else if (r.trend === 'neutre') body = `<span class="state">Pas de trade : la tendance journalière est neutre.</span>
+    <span class="sm">On attend qu'elle redevienne haussière (longs) ou baissière (shorts).</span>`;
+  else {
+    const up = r.dir === 'long';
+    const word = up ? 'au-dessus de' : 'sous';
+    const macd = `le MACD 4h repasse ${up ? 'au-dessus' : 'en dessous'} de zéro`;
+    if (r.trigger) {
+      const near = Math.max(0, 1 - Math.abs(r.trigger.distance) / 0.1); // plein à 0 %, vide à 10 % ou plus
+      body = `<span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Long' : 'Short'}</b> si une bougie 4h clôture ${word} <b>${px(r.trigger.price)}</b> (${plainPct(r.trigger.distance)})</span>
+        <span class="meter" title="Distance au déclenchement"><i style="width:${Math.round(near * 100)}%"></i></span>
+        <span class="sm">${esc(data.detectors[r.trigger.key])} · stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)})${r.macdReady ? `, ou plus tôt si ${macd}` : ''}</span>`;
+    } else {
+      body = `<span class="state">Prix déjà ${up ? 'au-dessus des plus hauts' : 'sous les plus bas'} de 10 et 20 jours.</span>
+        <span class="sm">Prochain signal ${r.macdReady ? `quand ${macd}` : 'sur le prochain repli puis reprise du MACD 4h'}, si la marge avant le prochain niveau est suffisante.</span>`;
+    }
+  }
+  return `<div class="card">${head}${body}${lastLine}</div>`;
+}
+
+function renderRadar() {
+  document.getElementById('setups-radar').innerHTML = data.assets.map(radarCard).join('');
+}
+
 function filtered() {
   return data.live.filter(s => state.detectors.includes(s.detector)
     && (state.dir === 'all' || s.dir === state.dir)
@@ -90,7 +131,7 @@ function renderList() {
     ? `${list.length} setup${list.length > 1 ? 's' : ''} affiché${list.length > 1 ? 's' : ''} sur ${total} · ${data.assets.length} marchés surveillés`
     : `${data.assets.length} marchés surveillés`;
   document.getElementById('setups-grid').innerHTML = list.length ? list.map(card).join('')
-    : `<div class="box"><div class="empty">${!total ? 'Aucun setup en jeu pour le moment. Le signal est rare exprès : environ deux par mois sur les 4 paires, et un trade dure en moyenne trois semaines.'
+    : `<div class="box"><div class="empty">${!total ? 'Aucun signal en jeu pour le moment : regarde au-dessus les prix qui déclencheraient le prochain. Le signal est rare exprès, environ deux par mois sur les 4 paires.'
       : state.watch ? 'Aucun setup en ce moment sur les actifs de ta watchlist.' : 'Aucun setup ne correspond à ces filtres.'} <a href="#historique">Voir l'historique →</a></div></div>`;
 }
 
@@ -127,6 +168,7 @@ export function initSetups(setupsData, projects) {
   watchlist.subscribe(() => { if (state.watch) renderList(); });
   document.getElementById('setups-warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
   chips();
+  renderRadar();
   renderList();
   renderHistory();
   renderResume();
