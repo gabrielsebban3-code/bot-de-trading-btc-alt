@@ -58,10 +58,11 @@ async function main() {
   const sources = {};
   const take = (name, res) => { sources[name] = res.ok ? 'ok' : 'erreur'; return res.ok ? res.value : null; };
 
-  const [btc, eth, sol, fu, oi] = [
+  const [btc, eth, sol, brent, fu, oi] = [
     take('okx BTC', await attempt('OKX BTC', () => closes('BTC-USDT'))),
     take('okx ETH', await attempt('OKX ETH', () => closes('ETH-USDT'))),
     take('okx SOL', await attempt('OKX SOL', () => closes('SOL-USDT'))),
+    take('okx Brent', await attempt('OKX Brent', () => closes('BZ-USDT-SWAP'))),
     take('funding', await attempt('OKX funding', funding)),
     take('open interest', await attempt('OKX open interest', async () => {
       const rows = await okx('/rubik/stat/contracts/open-interest-volume?ccy=BTC&period=1D');
@@ -92,6 +93,10 @@ async function main() {
     btc: serie('btc', 'Prix BTC', '$', btc),
     eth: serie('eth', 'Prix ETH', '$', eth),
     sol: serie('sol', 'Prix SOL', '$', sol),
+    brent: serie('brent', 'Pétrole Brent', '$', brent),
+    // CoinGecko ne donne pas l'historique de la dominance gratuitement : on ajoute un point par jour à chaque passage.
+    dominance: serie('dominance', 'Dominance BTC', '%', global?.market_cap_percentage?.btc != null ? [[Math.floor(now / 86_400_000), global.market_cap_percentage.btc]] : []),
+    tvl: serie('tvl', 'Argent bloqué en DeFi', '$', tvl?.slice(-DAYS)),
     fng: serie('fng', 'Fear & Greed', '', fng?.slice(-DAYS)),
     stables: serie('stables', 'Stablecoins en circulation', '$', stables?.slice(-DAYS)),
     funding: serie('funding', 'Funding BTC', '% / 8 h', fu),
