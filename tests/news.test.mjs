@@ -191,6 +191,9 @@ const CASES = [
   ['Iranian Oil Starts Flowing to Tajikistan Despite U.S. Sanctions Risk', {}, 'sanctions', 'low', []],
   ['Oil Heads for Weekly Decline as Hormuz Supply Concerns Ease', {}, 'cessez-le-feu', 'low', []],
   ['Euro-area Inflation: Headline pressures rise – Nordea', {}, 'inflation', 'low', []],
+  ['How Trump’s strikes against Houthis foreshadowed struggles in Iran war', {}, 'guerre', 'low', []],
+  ['In pictures: Inside a US warship, young sailors adapt to demands of war with Iran', {}, 'tensions', 'low', []],
+  ['US Equity Indexes Advance as Weak Jobs Report Cuts Hawkish Outlook for Fed Policy in October', {}, 'taux', 'low', []],
   ['Labor market faltered in September as jobs increased by just 29,000, unemployment rate rose to 4.2%', {}, 'inflation', 'medium', [['BTC', 1]]],
 ];
 
