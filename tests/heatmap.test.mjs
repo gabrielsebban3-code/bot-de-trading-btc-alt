@@ -24,13 +24,18 @@ test('coins : sans stablecoins, copies ni market cap inconnue, dans l\'ordre, `t
   assert.ok(isStableOrCopy({ symbol: 'pyusd', name: 'PayPal USD' }) && !isStableOrCopy({ symbol: 'sui', name: 'Sui' }));
 });
 
-test('tileColor : gris à 0, plus franc avec la variation, plafonné', () => {
-  assert.equal(tileColor(0, 8), 'rgb(42, 45, 53)');
-  assert.equal(tileColor(null, 8), 'rgb(42, 45, 53)');
-  assert.equal(tileColor(8, 8), 'rgb(22, 163, 74)');
-  assert.equal(tileColor(-50, 8), 'rgb(220, 38, 38)');
-  const g = s => Number(tileColor(s, 8).match(/\d+/g)[1]);
-  assert.ok(g(1) < g(4) && g(4) < g(8));
+test('tileColor : gris autour de 0, vert ou rouge net dès un petit mouvement, plus vif ensuite, plafonné', () => {
+  assert.equal(tileColor(0, 6), 'rgb(59, 63, 74)');
+  assert.equal(tileColor(null, 6), 'rgb(59, 63, 74)');
+  assert.equal(tileColor(-0.03, 6), 'rgb(59, 63, 74)', 'presque rien');
+  assert.equal(tileColor(6, 6), 'rgb(23, 207, 99)');
+  assert.equal(tileColor(50, 6), 'rgb(23, 207, 99)');
+  assert.equal(tileColor(-50, 6), 'rgb(238, 43, 59)');
+  const ch = (s, i) => Number(tileColor(s, 6).match(/\d+/g)[i]);
+  assert.ok(ch(0.2, 1) > ch(0.2, 0) + 50, '+0,2 % : déjà vert');
+  assert.ok(ch(-0.2, 0) > ch(-0.2, 1) + 60, '-0,2 % : déjà rouge');
+  assert.ok(ch(1, 1) < ch(3, 1) && ch(3, 1) < ch(6, 1), 'de plus en plus vif');
+  assert.ok(ch(-1, 0) < ch(-3, 0) && ch(-3, 0) < ch(-6, 0));
 });
 
 test('summary : moyenne pondérée par la market cap, hausses et baisses', () => {

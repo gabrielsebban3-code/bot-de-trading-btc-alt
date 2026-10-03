@@ -253,6 +253,10 @@ h2.section { margin: 28px 0 10px; }
 .tile:hover { filter: brightness(1.15); z-index: 1; }
 .tile.wl { box-shadow: inset 0 0 0 2px var(--accent); }
 .tile.on { box-shadow: inset 0 0 0 2px #fff; z-index: 2; }
+.hm-legend { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; font: 11px var(--mono); color: var(--muted); }
+.hm-legend i { width: 18px; height: 10px; border-radius: 2px; display: inline-block; }
+.hm-legend > span:first-child { margin-right: 4px; }
+.hm-legend > span:last-child { margin-left: 4px; }
 .hm-info { margin-top: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .hm-info .hd { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .hm-info .hd img { border-radius: 50%; }
@@ -309,8 +313,11 @@ footer b { color: var(--fg); }
   /* backdrop-filter ferait de l'en-tête le repère de la barre fixe : on le retire sur mobile */
   header { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }
   nav { position: fixed; bottom: 0; left: 0; right: 0; border-radius: 0; border-width: 1px 0 0; justify-content: space-around; padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--panel); z-index: 10; }
-  nav a, nav > .more > button { padding: 8px 10px; }
-  @media (max-width: 420px) { nav { gap: 0; } nav a, nav > .more > button { padding: 8px 6px; font-size: 12px; } }
+  /* 6 onglets + Plus : on resserre pour que tout tienne jusqu'aux petits iPhone */
+  nav { gap: 0; }
+  nav a, nav > .more > button { padding: 8px 5px; font-size: 12px; }
+  @media (max-width: 370px) { nav a, nav > .more > button { padding: 8px 3px; } }
+  @media (max-width: 340px) { nav a, nav > .more > button { font-size: 11px; } }
   .menu { top: auto; bottom: calc(100% + 8px); }
   footer { padding-block: 20px 90px; }
   .updated { margin-left: 0; width: 100%; order: 2; }
