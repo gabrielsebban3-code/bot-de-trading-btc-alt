@@ -140,6 +140,10 @@ async function main() {
   }
   for (const s of history.slice(0, 12)) console.log(`${new Date(s.time).toISOString().slice(0, 13)} ${s.symbol} ${s.dir} ${s.outcome} ${s.r ?? ''}`);
   for (const s of shown.slice(0, 10)) console.log(`${s.symbol} ${DETECTORS[s.detector]} ${s.dir} ${s.status} R:R ${s.rr} · ${s.outcome}`);
+  for (const a of ok.map(r => r.asset)) {
+    const r = a.radar;
+    console.log(`Radar ${a.symbol} ${a.price} · tendance ${r?.trend ?? '—'}${r?.trigger ? ` · ${r.dir} si clôture 4h ${r.dir === 'long' ? '>' : '<'} ${r.trigger.price} (${(r.trigger.distance * 100).toFixed(1)} %, ${r.trigger.key}), stop ${r.trigger.stop.toFixed(4)}` : ''}${r?.macdReady ? ' · MACD prêt' : ''}`);
+  }
   if (warnings.length) console.log('Avertissements :', warnings);
 }
 
