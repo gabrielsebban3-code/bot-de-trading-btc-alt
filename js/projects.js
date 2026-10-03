@@ -120,6 +120,7 @@ function renderTable() {
       <td class="l">${sparkline(p.series)}</td>
       <td class="n"><span class="score"><i style="--w:${p.score}%"></i>${p.score}</span></td>
       <td class="n">${money(p.mcap)}</td>
+      <td class="n">${pct(p.change7d ?? null, false)}</td>
       <td class="n">${money(p.revenue30d)}</td>
       <td class="n">${pct(p.revenueGrowth)}</td>
       <td class="n">${pct(p.tvlGrowth)}</td>
@@ -127,7 +128,7 @@ function renderTable() {
       <td class="n ${p.badges.lowFloat ? 'down' : ''}">${p.float === null ? '—' : `${fmt(p.float * 100, 0)} %`}</td>
       <td class="l"><span class="tags">${badges(p)}</span></td>
     </tr>`).join('')
-    : `<tr><td colspan="11"><div class="empty">${state.watch ? 'Aucun projet de ta watchlist ne passe ces filtres. Ajoute un projet avec l\'étoile, ou retire le filtre « Ma watchlist ».' : 'Aucun projet ne correspond à ces filtres. Retire un filtre pour élargir la recherche.'}</div></td></tr>`;
+    : `<tr><td colspan="12"><div class="empty">${state.watch ? 'Aucun projet de ta watchlist ne passe ces filtres. Ajoute un projet avec l\'étoile, ou retire le filtre « Ma watchlist ».' : 'Aucun projet ne correspond à ces filtres. Retire un filtre pour élargir la recherche.'}</div></td></tr>`;
 }
 
 function renderResume() {
@@ -189,6 +190,7 @@ export function renderProject(id) {
       <div class="stack">
         <div class="box"><h2>Chiffres clés</h2><dl>
           ${row('Prix', `${price(p.price)} $ ${p.change24h === null ? '' : pct(p.change24h, false)}`)}
+          ${row('Prix sur 7 jours', pct(p.change7d ?? null, false))}
           ${row('Market cap', money(p.mcap))}
           ${row('Valorisation diluée', money(p.fdv))}
           ${row('Volume 24h', money(p.volume24h))}
