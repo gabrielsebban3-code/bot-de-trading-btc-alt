@@ -82,7 +82,7 @@ async function main() {
   const cg = await attempt('CoinGecko marchés', async () => {
     for (let i = 0; i < geckoIds.length; i += 200) {
       const ids = geckoIds.slice(i, i + 200).join(',');
-      const page = await fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=250&price_change_percentage=24h&ids=${ids}`, { headers: cgHeaders, retries: 4 });
+      const page = await fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=250&price_change_percentage=24h,7d&ids=${ids}`, { headers: cgHeaders, retries: 4 });
       page.forEach(m => markets.set(m.id, m));
       if (i + 200 < geckoIds.length) await sleep(2500);
     }

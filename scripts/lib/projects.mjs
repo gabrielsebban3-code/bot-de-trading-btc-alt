@@ -214,6 +214,7 @@ export function buildProject({ group, token, market, holdersRevenue30d, daily, d
     chainsTotal: group.chains.length,
     price: num(market?.current_price),
     change24h: num(market?.price_change_percentage_24h),
+    change7d: num(market?.price_change_percentage_7d_in_currency),
     mcap,
     fdv: num(market?.fully_diluted_valuation),
     volume24h: num(market?.total_volume),

@@ -146,6 +146,7 @@ test('build-data.mjs produit des fichiers complets à partir des API simulées',
   assert.ok(names.includes('Nebula DEX'), 'parent regroupé');
   for (const excluded of ['Big Chain', 'Listed DEX', 'No Token App', 'Tiny Farm']) assert.ok(!names.includes(excluded), excluded);
   const tidal = data.projects.find(p => p.name === 'Tidal Perps');
+  assert.equal(tidal.change7d, -4.2, 'variation du prix sur 7 jours');
   assert.equal(tidal.badges.okx, true);
   assert.equal(tidal.badges.trending, true);
   assert.equal(tidal.badges.buyback, true);
