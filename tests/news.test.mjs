@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
-  NEWS, amountUsd, buildFeed, classify, reclassify, cluster, headline, matchProject, parseFeed, parseTelegram, parseWhale, similar,
+  NEWS, amountUsd, buildFeed, classify, priceReaction, reactionAsset, reclassify, cluster, headline, matchProject, parseFeed, parseTelegram, parseWhale, similar,
   splitSource, tidy, whaleNews,
 } from '../scripts/lib/news.mjs';
 
@@ -180,6 +180,7 @@ const CASES = [
   ['China slaps retaliatory tariffs on US farm goods', {}, 'droits-de-douane', 'medium', [['BTC', -1]]],
   ['Community Banks Sue OCC Over Expanding Trust Charters to Crypto', {}, 'regulation', 'low', []],
   ['SEC Approves Listing of 3x Leveraged ETFs on Bitcoin, Ether', {}, 'etf', 'low', []],
+  ['SEC approves first-ever 3x leveraged Bitcoin an...', {}, 'regulation', 'low', []],
   ['VolatilityShares Launches 3x Bitcoin ETP Amid SEC Approval', {}, 'etf', 'low', []],
   ["BlackRock's Bitcoin ETF Has Net Bought $1.57 Billion Worth of Bitcoin in the Past Month.", {}, 'etf', 'low', []],
   ['$BNB Chain becomes the first blockchain to surpass $1,000,000,000 in tokenized stocks and ETFs', {}, 'etf', 'low', []],
@@ -221,6 +222,22 @@ test('reclassify : les news déjà en ligne suivent les nouvelles règles', () =
   assert.deepEqual([a.importance, a.raw, a.impacts], ['low', 'low', []]);
   assert.deepEqual([b.importance, b.impacts, b.key], ['low', [], undefined], 'plus aucune règle : faible');
   assert.equal(c, old[2], 'baleine inchangée');
+});
+
+test('réaction du prix : mouvement de l\'actif concerné dans l\'heure qui suit', () => {
+  const t0 = Date.UTC(2026, 9, 3, 10, 0);
+  const bars = q => Array.from({ length: 8 }, (_, k) => ({ t: t0 - 30 * 60_000 + k * 15 * 60_000, o: q(k), c: q(k + 1) }));
+  const series = { BTC: bars(k => 100 + (k >= 2 ? (k - 2) * 0.5 : 0)), Pétrole: bars(() => 80) };
+  const fed = { time: t0 + 5 * 60_000, theme: 'cb', impacts: [['BTC', 1], ['Or', 1]], titleEn: 'Fed cuts rates' };
+  assert.equal(reactionAsset(fed), 'BTC');
+  assert.deepEqual(priceReaction(fed, series, t0 + 2 * 3600_000), { asset: 'BTC', pct: 2.5, minutes: 60, strong: true }, 'bougie de 10 h ouverte à 100, celle de 11 h (qui contient 11 h 05) fermée à 102,5');
+  assert.equal(priceReaction(fed, series, t0 + 30 * 60_000), null, 'heure pas encore écoulée');
+  const war = { time: t0, theme: 'geo', impacts: [], titleEn: 'Strikes' };
+  assert.deepEqual(priceReaction(war, series, t0 + 2 * 3600_000), { asset: 'Pétrole', pct: 0, minutes: 60 });
+  assert.equal(reactionAsset({ theme: 'hack', impacts: [], titleEn: 'Solana DEX drained for $80M' }), 'SOL');
+  assert.equal(reactionAsset({ theme: 'hack', impacts: [['DeFi', -1]], titleEn: 'x' }), 'BTC');
+  assert.equal(priceReaction(fed, {}, t0 + 2 * 3600_000), null, 'pas de prix : pas de réaction');
+  assert.equal(priceReaction({ ...war, importance: 'low' }, series, t0 + 2 * 3600_000), null, 'news faible : pas mesurée');
 });
 
 test('classify : communiqués officiels et projets du top', () => {
@@ -287,10 +304,14 @@ test('similar et cluster : une même info de plusieurs médias = une seule news'
   assert.equal(whales.length, 2, 'les baleines ne sont jamais regroupées');
 });
 
-test('une news critique d\'un seul petit média reste moyenne jusqu\'à confirmation', () => {
+test('une news critique d\'un seul petit média attend une confirmation', () => {
   const rumor = item('r', 'Iran launches missile attack on Israel', { rank: 1, source: 'Blog', importance: 'critical', theme: 'geo', rule: 'guerre' });
   const [alone] = cluster([rumor]);
-  assert.deepEqual([alone.importance, alone.raw], ['medium', 'critical']);
+  assert.deepEqual([alone.importance, alone.raw, alone.unverified, alone.impacts], ['low', 'critical', true, []], 'un blog seul : faible');
+  const [crypto] = cluster([{ ...rumor, source: 'The Block' }]);
+  assert.equal(crypto.importance, 'medium', 'un média sérieux mais pas une agence : moyenne');
+  const [whale] = cluster([{ ...rumor, kind: 'whale', source: 'Whale Alert', importance: 'medium' }]);
+  assert.equal(whale.importance, 'medium', 'les baleines ne sont pas concernées');
   const [confirmed] = cluster([alone, item('s', 'Iran launches missile attack against Israel', { rank: 1, source: 'Autre média', importance: 'critical', theme: 'geo', rule: 'guerre' })]);
   assert.equal(confirmed.importance, 'critical');
   const [mixed] = cluster([item('q', 'Hormuz oil exports return to pre-war levels, Iran says', { importance: 'medium', theme: 'geo', rule: 'cessez-le-feu', source: 'The Guardian' }),

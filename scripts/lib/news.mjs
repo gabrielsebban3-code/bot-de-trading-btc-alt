@@ -14,7 +14,7 @@ export const THEMES = {
 
 export const LEVEL = { critical: 3, medium: 2, low: 1 };
 // À changer quand les règles de classement changent : les news déjà dans le fil sont alors reclassées.
-export const RULES_VERSION = 2;
+export const RULES_VERSION = 3;
 
 export const NEWS = {
   keepHours: 72,          // une news reste 3 jours dans le fil
@@ -496,7 +496,8 @@ const RULES = [
     const small = neg && amt !== null && amt < NEWS.regCaseMediumUsd; // « SEC sues crypto AI platform over $12.5M »
     // « Bank group sues OCC over crypto charters » : c'est le régulateur qui est attaqué, la règle ne change pas.
     const againstRegulator = /\b(sues?|sued|suing|challeng\w*)\s+(the\s+)?(u\.?s\.?\s+)?(occ|sec|cftc|fdic|fed|irs|treasury|regulators?|government|agency)\b/i.test(t);
-    const strong = REG_STRONG.test(t) && REGULATOR.test(t) && !UNCERTAIN.test(t) && !small && !againstRegulator;
+    const leveraged = /\b(leveraged|[2-5]x)\b/i.test(t); // « SEC approves first-ever 3x leveraged Bitcoin an… » (titre coupé)
+    const strong = REG_STRONG.test(t) && REGULATOR.test(t) && !UNCERTAIN.test(t) && !small && !againstRegulator && !leveraged;
     return {
       theme: 'reg', importance: strong ? 'medium' : 'low', impacts: strong && pos ? up('Crypto') : strong && neg ? down('Crypto') : [],
       why: pos ? 'Feu vert des autorités : bon signe pour l\'adoption des cryptos.'
@@ -662,6 +663,12 @@ export function similar(a, b) {
 
 const rank = i => i.rank ?? 1;
 
+// Médias sérieux, en plus des agences et des sources officielles (rank ≥ 2) : grands titres de la finance et de
+// l'info, presse spécialisée crypto et pétrole, canaux Telegram rapides et fiables. Google News ramène aussi des
+// blogs, des télés locales et des sites de communiqués : seuls, ils ne suffisent pas pour une news moyenne ou critique.
+export const TRUSTED = /^(reuters|associated press|the associated press|ap news|ap|bloomberg|bloomberg law|bloomberg\.com|afp|financial times|ft|the wall street journal|wall street journal|wsj|cnbc|bbc|bbc news|the new york times|new york times|the guardian|al jazeera|nikkei|nikkei asia|axios|politico|barron'?s|marketwatch|yahoo|yahoo finance|yahoo news|investing\.com|fortune|the economist|business insider|fox business|cnn|nbc news|abc news|cbs news|npr|the hill|washington post|the washington post|usa today|sky news|the telegraph|the independent|the times|semafor|s&p global|argus|platts|lloyd'?s list|kitco|oilprice\.com|the times of israel|times of israel|haaretz|kyiv independent|south china morning post|scmp|japan times|the japan times|dw|france 24|euronews|le monde|les echos|coindesk|the block|cointelegraph|decrypt|dl news|blockworks|bitcoin magazine|cryptoslate|the defiant|unchained|wu blockchain|watcher\.guru|whale alert|federal reserve|bce|sec)\b/i;
+const trusted = (members, sources) => members.some(m => rank(m) >= 2) || sources.some(name => TRUSTED.test(name));
+
 // Une news critique venue d'un seul petit média reste « moyenne » tant qu'une agence, une source officielle
 // ou un deuxième média ne l'a pas confirmée : évite un bandeau rouge sur une rumeur.
 function confirmed(level, nSources, members) {
@@ -690,6 +697,10 @@ export function cluster(items) {
     for (const m of members) {
       for (const name of m.sources ?? [m.source]) if (name && !sources.includes(name)) sources.push(name);
     }
+    // Un seul média peu connu (blog, télé locale, communiqué) : gardée en faible importance tant qu'un média sérieux
+    // ou un deuxième média ne l'a pas reprise. Les baleines sont des données, pas des articles.
+    const unverified = top.kind !== 'whale' && sources.length < 2 && !trusted(members, sources);
+    const checked = unverified ? 'low' : confirmed(raw(top), sources.length, members);
     return {
       id: members[0].id,
       // Identifiants de toutes les news regroupées : elles ne sont plus rajoutées aux mises à jour suivantes.
@@ -698,7 +709,8 @@ export function cluster(items) {
       title: top.title ?? null, titleEn: top.titleEn, lang: top.lang ?? 'en',
       link: top.link, source: top.source ?? top.sources?.[0] ?? null,
       sources: sources.slice(0, 12), count: Math.max(sources.length, ...members.map(m => m.count ?? 0)),
-      theme: top.theme, raw: raw(top), importance: confirmed(raw(top), sources.length, members), impacts: top.impacts, why: top.why, rule: top.rule,
+      theme: top.theme, raw: raw(top), importance: checked, impacts: checked === 'low' ? [] : top.impacts, why: top.why, rule: top.rule,
+      ...(unverified && { unverified: true }),
       amountUsd: members.map(m => m.amountUsd).filter(v => v != null).sort((x, y) => y - x)[0] ?? null,
       projectId: members.map(m => m.projectId).find(Boolean) ?? null,
       kind: top.kind ?? 'feed', rank: Math.max(...members.map(rank)), src: top.src ?? null,
@@ -722,6 +734,48 @@ export function reclassify(items, ctxOf) {
     if (out.rule !== 'guerre') delete out.calm;
     return out;
   });
+}
+
+// ---------- Réaction du prix ----------
+// De combien l'actif concerné a bougé dans l'heure qui a suivi la news (bougies de 15 minutes d'OKX, gratuites).
+// Permet de voir d'un coup d'œil les news qui ont vraiment fait bouger le marché.
+
+export const PRICE_REACTION = {
+  minutes: 60,
+  barMs: 15 * 60_000,
+  // Mouvement net en 1 h à partir duquel on parle d'une vraie réaction (en %).
+  strong: { BTC: 1, ETH: 1.5, SOL: 2, Pétrole: 1 },
+  instruments: { BTC: 'BTC-USDT-SWAP', ETH: 'ETH-USDT-SWAP', SOL: 'SOL-USDT-SWAP', Pétrole: 'BZ-USDT-SWAP' },
+};
+
+const CRYPTO_THEMES = new Set(['hack', 'etf', 'reg', 'whale', 'project']);
+
+// L'actif à regarder : celui de l'impact probable, sinon celui du thème (BTC pour la crypto et les taux, pétrole
+// pour l'énergie et la géopolitique).
+export function reactionAsset(item) {
+  for (const [asset] of item.impacts || []) {
+    if (PRICE_REACTION.instruments[asset]) return asset;
+    if (asset === 'Crypto' || asset === 'DeFi') return 'BTC';
+  }
+  if (CRYPTO_THEMES.has(item.theme)) return tokensIn(item.titleEn || '').find(t => PRICE_REACTION.instruments[t]) ?? 'BTC';
+  if (item.theme === 'cb') return 'BTC';
+  if (item.theme === 'energy' || item.theme === 'geo') return 'Pétrole';
+  return null;
+}
+
+// bars : bougies { t, o, c } du plus ancien au plus récent. null tant que l'heure n'est pas écoulée.
+export function priceReaction(item, bars, now = Date.now()) {
+  // Seulement les news qui comptent : sur une news faible, un mouvement serait une coïncidence.
+  if (item.importance === 'low') return null;
+  const asset = reactionAsset(item);
+  const series = asset && bars?.[asset];
+  const end = item.time + PRICE_REACTION.minutes * 60_000;
+  if (!series?.length || end > now) return null;
+  const first = series.find(b => b.t <= item.time && item.time < b.t + PRICE_REACTION.barMs);
+  const last = series.filter(b => b.t < end).at(-1);
+  if (!first || !last || last.t + PRICE_REACTION.barMs < end || !(first.o > 0)) return null;
+  const pct = Math.round(((last.c - first.o) / first.o) * 1000) / 10;
+  return { asset, pct, minutes: PRICE_REACTION.minutes, ...(Math.abs(pct) >= PRICE_REACTION.strong[asset] && { strong: true }) };
 }
 
 // Identifiant court et stable (FNV-1a).

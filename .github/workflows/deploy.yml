@@ -1,6 +1,8 @@
 # Récupère les données et publie le site sur GitHub Pages.
 # Toutes les heures : projets, setups et actu. Toutes les 15 minutes entre les deux : l'actu seulement.
 # Sur une autre branche que la branche par défaut : tests + récupération des données seulement (pas de publication).
+# GitHub lance les tâches planifiées quand il veut (parfois des heures de retard) : un minuteur externe gratuit
+# (cron-job.org) peut appeler workflow_dispatch avec actu=true toutes les 5 minutes pour une actu vraiment fraîche.
 name: Données et site
 
 on:
@@ -9,6 +11,11 @@ on:
     - cron: '17 * * * *'
     - cron: '2,32,47 * * * *'
   workflow_dispatch:
+    inputs:
+      actu:
+        description: 'Actu seulement (rapide)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,7 +32,7 @@ jobs:
     timeout-minutes: 40
     env:
       PUBLISH: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-      NEWS_ONLY: ${{ github.event.schedule == '2,32,47 * * * *' }}
+      NEWS_ONLY: ${{ github.event.schedule == '2,32,47 * * * *' || inputs.actu == true }}
     steps:
       - uses: actions/checkout@v4
 
