@@ -29,6 +29,15 @@ function impacts(i) {
   return i.impacts.map(([a, d]) => `<span class="tag ${d > 0 ? 'up' : 'down'}">${esc(a)} ${arrow(d)}</span>`).join('');
 }
 
+// « BTC +1,2 % en 1 h » : ce que le marché a fait dans l'heure qui a suivi la news.
+function reaction(i) {
+  const r = i.reaction;
+  if (!r) return '';
+  const pct = `${r.pct > 0 ? '+' : ''}${r.pct.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+  const tone = r.strong ? (r.pct > 0 ? 'up strong' : 'down strong') : '';
+  return `<span class="tag ${tone}" title="Mouvement de ${esc(r.asset)} dans l'heure qui a suivi la news${r.strong ? ' : un vrai mouvement' : ''}">${esc(r.asset)} ${pct} en 1 h</span>`;
+}
+
 function sources(i) {
   const names = (i.sources || []).filter(Boolean);
   const extra = Math.max(0, (i.count || names.length) - 1);
@@ -46,7 +55,7 @@ function itemHtml(i) {
   return `<article class="item" id="n-${esc(i.id)}">${dot(i)}
     <h3>${head}${i.lang !== 'fr' ? ' <span class="tag" title="Pas encore traduit">EN</span>' : ''}</h3>
     ${i.why ? `<p>${esc(i.why)}</p>` : ''}
-    <div class="meta"><time class="num" datetime="${new Date(i.time).toISOString()}">${hour(i.time)}</time><span class="tag">${esc(data.themes[i.theme] || i.theme)}</span>${impacts(i)}${project(i)}${sources(i)}</div>
+    <div class="meta"><time class="num" datetime="${new Date(i.time).toISOString()}">${hour(i.time)}</time><span class="tag">${esc(data.themes[i.theme] || i.theme)}</span>${impacts(i)}${reaction(i)}${project(i)}${sources(i)}</div>
   </article>`;
 }
 
@@ -139,13 +148,46 @@ export function initNews(newsData, projects) {
   });
   $('news-more').addEventListener('click', () => { state.shown += PAGE; renderList(); });
   watchlist.subscribe(() => { if (state.theme === 'watch') renderList(); });
-  $('news-sub').textContent = `Titres traduits automatiquement en français. Mis à jour ${ago(data.generatedAt)}, toutes les 15 minutes.`;
+  renderAll();
+  watchNews();
+}
+
+function renderAll() {
+  $('news-sub').textContent = `Titres traduits automatiquement en français. Mis à jour ${ago(data.generatedAt)}. La page se met à jour toute seule.`;
   $('news-warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
   renderChips();
   renderList();
   renderSources();
   renderBanner();
   renderResume();
+}
+
+// La page reste ouverte : on relit news.json toutes les 2 minutes (et dès qu'on revient sur l'onglet) pour afficher
+// les nouvelles news sans recharger.
+const POLL = 2 * 60_000;
+let polling = false;
+function watchNews() {
+  if (polling) return;
+  polling = true;
+  let busy = false;
+  const check = async () => {
+    if (busy || document.hidden) return;
+    busy = true;
+    try {
+      const res = await fetch('data/news.json', { cache: 'no-cache' });
+      const next = res.ok ? await res.json() : null;
+      if (next?.generatedAt && next.generatedAt !== data.generatedAt) {
+        const shown = state.shown;
+        data = next;
+        renderAll();
+        state.shown = shown;
+        renderList();
+      }
+    } catch { /* réseau coupé : on réessaiera */ }
+    busy = false;
+  };
+  setInterval(check, POLL);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
 }
 
 // #actu/<id> : affiche la news demandée, même si un filtre la masquait, et la met en avant.

@@ -7,7 +7,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { attempt, fetchJson, fetchText, mapLimit } from './lib/http.mjs';
 import {
-  LEVEL, NEWS, RULES_VERSION, THEMES, buildFeed, classify, decode, hashId, headline, isCrypto, parseFeed, parseTelegram, parseWhale,
+  LEVEL, NEWS, PRICE_REACTION, RULES_VERSION, THEMES, buildFeed, priceReaction, classify, decode, hashId, headline, isCrypto, parseFeed, parseTelegram, parseWhale,
   reclassify, splitSource, tidy, whaleNews,
 } from './lib/news.mjs';
 
@@ -190,6 +190,21 @@ async function main() {
     console.log(`Règles de classement v${RULES_VERSION} : ${prevItems.length} news déjà en ligne reclassées.`);
   }
   const items = buildFeed(prevItems, fresh, now);
+
+  // Réaction du prix dans l'heure qui suit chaque news. Sans réponse d'OKX, le fil est publié sans.
+  const bars = {};
+  await Promise.all(Object.entries(PRICE_REACTION.instruments).map(async ([asset, instId]) => {
+    const r = await attempt(`OKX ${instId}`, () => fetchJson(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=300`, { retries: 1, timeout: 15_000 }));
+    if (r.ok && r.value?.code === '0') bars[asset] = r.value.data.map(row => ({ t: Number(row[0]), o: Number(row[1]), c: Number(row[4]) })).sort((a, b) => a.t - b.t);
+  }));
+  sources.prix = { name: 'OKX (prix)', status: Object.keys(bars).length ? 'ok' : 'erreur', read: Object.keys(bars).length };
+  for (const i of items) {
+    const r = priceReaction(i, bars, now);
+    if (r) i.reaction = r; else delete i.reaction;
+  }
+  const moved = items.filter(i => i.reaction?.strong);
+  console.log(`Réaction du prix : ${Object.keys(bars).join(', ') || 'aucun prix'} · ${items.filter(i => i.reaction).length} news mesurées, ${moved.length} avec un vrai mouvement`);
+  for (const i of moved.slice(0, 15)) console.log(`  ${i.reaction.asset} ${i.reaction.pct > 0 ? '+' : ''}${i.reaction.pct} % en 1 h · [${i.importance}] ${i.titleEn.slice(0, 100)}`);
 
   // Traduction : les titres déjà traduits sont repris, les autres sont traduits (les plus importants d'abord).
   const known = new Map((previous?.items || []).filter(i => i.lang === 'fr' && i.title && i.titleEn).map(i => [i.titleEn, i.title]));
