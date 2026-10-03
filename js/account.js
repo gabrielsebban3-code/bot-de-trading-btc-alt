@@ -16,6 +16,10 @@ const SYNCED = 'dinexo-watchlist-account';
 // si le navigateur recharge la page pendant qu'on va lire l'e-mail (fréquent sur iPhone).
 const PENDING = 'dinexo-login-pending';
 const PENDING_MS = 3_600_000;
+// Session gardée par la librairie Supabase dans ce navigateur, et dernière raison connue de sa fermeture :
+// si un membre doit se reconnecter sans s'être déconnecté, on lui dit pourquoi (et il peut nous l'envoyer).
+const TOKEN = SUPABASE.url ? `sb-${new URL(SUPABASE.url).hostname.split('.')[0]}-auth-token` : '';
+const LOST = 'dinexo-session-lost';
 
 let sb = null; // client Supabase, chargé seulement quand les comptes sont branchés
 let user = null;
@@ -111,11 +115,33 @@ export function refreshAccount(symbols) {
 // Actifs des alertes actives : le ticker demande aussi leur prix à OKX.
 export const alertSymbols = () => (alerts || []).filter(a => !a.hit).map(a => a.symbol);
 
+// Le serveur refuse de prolonger la session (jeton de renouvellement refusé) : on note sa réponse.
+async function watchToken(url, opts) {
+  const refresh = String(url).includes('/auth/v1/token') && String(url).includes('refresh_token');
+  const res = await fetch(url, opts);
+  if (refresh && !res.ok) {
+    let why = '';
+    try { const b = await res.clone().json(); why = b.error_code || b.code || b.error || ''; } catch { /* réponse illisible */ }
+    local.set(LOST, `le serveur a refusé de prolonger la session (${res.status}${why ? ` ${why}` : ''})`);
+  }
+  return res;
+}
+
+// Au chargement : y avait-il une session gardée, ou un membre connecté la dernière fois ?
+function storedSession() {
+  try { return JSON.parse(local.get(TOKEN)); } catch { return null; }
+}
+
 async function connect() {
+  const before = storedSession();
+  const wasIn = Boolean(local.get(SYNCED));
   try {
     // Version fixée : une nouvelle version de la librairie ne peut pas casser la connexion sans qu'on l'ait testée.
     const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm');
-    sb = createClient(SUPABASE.url, SUPABASE.key, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true } });
+    sb = createClient(SUPABASE.url, SUPABASE.key, {
+      auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+      global: { fetch: watchToken },
+    });
   } catch {
     notice = 'La connexion est indisponible pour le moment. Ta watchlist reste gardée sur cet appareil.';
     renderAccount();
@@ -133,7 +159,13 @@ async function connect() {
     else if (!data?.session) notice = 'La connexion n\'a pas abouti. Ouvre le lien sur l\'appareil et dans le navigateur où tu l\'as demandé, ou demandes-en un nouveau.';
     history.replaceState(null, '', `${location.pathname}#compte`);
     window.dispatchEvent(new HashChangeEvent('hashchange'));
+  } else if (!data?.session && (before || wasIn)) {
+    const why = local.get(LOST)
+      || (before ? `session gardée mais non reprise (expirait ${new Date((before.expires_at || 0) * 1000).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })})`
+        : 'la session a été effacée de ce navigateur');
+    notice = `Tu as été déconnecté : ${why}. Reconnecte-toi ; si ça revient à chaque visite, envoie-nous ce message.`;
   }
+  if (!data?.session) local.set(SYNCED, null); // message montré une seule fois
   renderAccount();
 }
 
@@ -147,7 +179,7 @@ async function onSession(session) {
   alerts = null;
   alertsUnseen = 0;
   badgeSeen = false;
-  if (user) setPending(null);
+  if (user) { setPending(null); local.set(LOST, null); }
   if (!user) {
     local.set(SYNCED, null);
     renderAccount();
