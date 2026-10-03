@@ -189,9 +189,10 @@ function chart() {
   if (state.on.includes('ma200')) main.lines.push({ key: 'ma200', label: 'Moy. 200 j', pts: cut(sma(prices, 200)), cls: 'l-ma200' });
   const panes = [main];
   for (const key of ['fng', 'stables', 'funding', 'oi']) {
-    if (!state.on.includes(key) || !S[key]?.points.length) continue;
+    const pts = state.on.includes(key) ? cut(S[key]?.points) : [];
+    if (!pts.length) continue; // pas de point sur la période : pas de panneau vide
     const ind = IND[key];
-    panes.push({ title: ind.pane || ind.title, h: 92, fmt: ind.fmt, lines: [{ key, label: ind.title, pts: cut(S[key].points), cls: 'l-ind' }], ...ind.extra });
+    panes.push({ title: ind.pane || ind.title, h: 92, fmt: ind.fmt, lines: [{ key, label: ind.title, pts, cls: 'l-ind' }], ...ind.extra });
   }
 
   drawPanes(box, panes, start, end);

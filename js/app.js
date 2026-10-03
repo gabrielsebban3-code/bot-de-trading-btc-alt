@@ -117,7 +117,7 @@ async function load() {
     ['Setups en jeu', setups ? String(setups.live.filter(s => s.outcome === 'open').length) : '—', '#setups'],
     ['News critiques 24 h', news ? String(news.items.filter(i => i.importance === 'critical' && Date.now() - i.time < 86_400_000).length) : '—', '#actu'],
   ];
-  $('macro').innerHTML = tiles.map(([k, v, href]) => `<a href="${href}">${k} <span class="go">→</span><b>${v}</b></a>`).join('');
+  $('macro').innerHTML = tiles.map(([k, v, href]) => `<a href="${href}"><span>${k} <span class="go">→</span></span><b>${v}</b></a>`).join('');
 }
 
 function showProjects(projects) {
