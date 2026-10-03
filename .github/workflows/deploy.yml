@@ -122,8 +122,16 @@ jobs:
         continue-on-error: true
         run: node scripts/send-alerts.mjs --data _site/data --previous previous --dry-run --digest-now | tail -1 | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{for(const e of JSON.parse(s)){console.log('## '+e.title);for(const f of e.fields||[])console.log('-- '+f.name+'\\n'+f.value);if(e.description)console.log(e.description)}})"
 
+      # Numéro de version dans les liens vers les scripts et le style : après une mise à jour, le navigateur
+      # ne mélange pas la nouvelle page avec les anciens scripts gardés en cache (10 minutes sur GitHub Pages).
       - name: Assembler le site
-        run: cp -r index.html css js mockup _site/
+        run: |
+          cp -r index.html css js mockup _site/
+          v="${GITHUB_SHA::8}"
+          sed -i -E "s#\"(css/style\.css|js/app\.js)\"#\"\1?v=$v\"#g" _site/index.html
+          sed -i -E "s#^(import .*'\./[a-z0-9-]+\.js)';#\1?v=$v';#" _site/js/*.js
+          grep -q "js/app.js?v=$v" _site/index.html
+          echo "Version des scripts : $v ($(grep -l "?v=$v" _site/js/*.js | wc -l) fichiers JS)"
 
       - uses: actions/upload-pages-artifact@v3
         if: env.PUBLISH == 'true'
