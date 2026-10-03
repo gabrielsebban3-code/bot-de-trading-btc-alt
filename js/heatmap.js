@@ -56,7 +56,14 @@ function chips() {
     group('top', [[50, 'Top 50'], [100, 'Top 100'], [200, 'Top 200']], state.top),
     '<span class="sep"></span>',
     group('size', [['mcap', 'Taille = market cap'], ['equal', 'Taille égale']], state.size),
+    legend(PERIODS[state.period].full),
   ].join('');
+}
+
+// Nuancier : de la plus forte baisse à la plus forte hausse colorées, pour la période choisie.
+function legend(full) {
+  const steps = [-1, -2 / 3, -1 / 3, 0, 1 / 3, 2 / 3, 1].map(k => `<i style="background:${tileColor(k * full, full)}"></i>`).join('');
+  return `<span class="hm-legend" aria-hidden="true"><span>−${full} %</span>${steps}<span>+${full} %</span></span>`;
 }
 
 function render() {

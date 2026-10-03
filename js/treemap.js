@@ -3,9 +3,9 @@
 
 // Périodes proposées, avec la variation qui donne la couleur la plus franche.
 export const PERIODS = {
-  '1h': { label: '1 h', key: 'price_change_percentage_1h_in_currency', full: 3 },
-  '24h': { label: '24 h', key: 'price_change_percentage_24h_in_currency', full: 8 },
-  '7d': { label: '7 j', key: 'price_change_percentage_7d_in_currency', full: 20 },
+  '1h': { label: '1 h', key: 'price_change_percentage_1h_in_currency', full: 2 },
+  '24h': { label: '24 h', key: 'price_change_percentage_24h_in_currency', full: 6 },
+  '7d': { label: '7 j', key: 'price_change_percentage_7d_in_currency', full: 15 },
 };
 
 // Stablecoins et versions « emballées » ou stakées d'un autre actif (WBTC, stETH…) : ils doublonneraient BTC et ETH
@@ -30,13 +30,19 @@ export function coins(raw, top = 100) {
 }
 const num = v => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-// Couleur d'une variation en % : gris à 0, vert ou rouge de plus en plus franc jusqu'à `full` %.
-const GREY = [42, 45, 53], GREEN = [22, 163, 74], RED = [220, 38, 38];
+// Couleur d'une variation en % : gris autour de 0, puis vert ou rouge déjà net pour un petit mouvement,
+// de plus en plus vif jusqu'à `full` % (même esprit que les heatmaps de Finviz ou Coin360).
+export const NEUTRAL = [59, 63, 74];
+const UP = [[28, 95, 57], [28, 156, 81], [23, 207, 99]]; // petit, moyen, fort
+const DOWN = [[119, 34, 41], [191, 34, 47], [238, 43, 59]];
+const rgb = c => `rgb(${c.join(', ')})`;
+const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
+
 export function tileColor(change, full) {
-  if (change === null || change === undefined) return `rgb(${GREY.join(', ')})`;
-  const t = Math.min(1, Math.abs(change) / full) ** 0.75;
-  const to = change >= 0 ? GREEN : RED;
-  return `rgb(${GREY.map((g, i) => Math.round(g + (to[i] - g) * t)).join(', ')})`;
+  if (change === null || change === undefined || Math.abs(change) < 0.05) return rgb(NEUTRAL);
+  const t = Math.min(1, Math.abs(change) / full) ** 0.7;
+  const [small, mid, strong] = change > 0 ? UP : DOWN;
+  return rgb(t < 0.5 ? mix(small, mid, t * 2) : mix(mid, strong, (t - 0.5) * 2));
 }
 
 // Moyenne pondérée par la market cap, et nombre de hausses et de baisses.
