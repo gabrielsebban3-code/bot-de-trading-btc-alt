@@ -215,7 +215,8 @@ async function main() {
   const rawCritical = fresh.filter(i => i.importance === 'critical');
   if (rawCritical.length) console.log(`Titres classés critiques à cette lecture :\n${rawCritical.slice(0, 15).map(i => `  · ${i.rule} · ${i.titleEn.slice(0, 120)} · ${i.source}`).join('\n')}`);
   console.log('\nMoyennes (les plus récentes) :');
-  items.filter(x => x.importance === 'medium').slice(0, 40).forEach(show);
+  items.filter(x => x.importance === 'medium').slice(0, process.env.PUBLISH === 'true' ? 40 : 200).forEach(show);
+  if (process.env.PUBLISH !== 'true') { console.log('\nFaibles :'); items.filter(x => x.importance === 'low' && x.kind !== 'whale').forEach(i => console.log(`[F] ${i.rule.padEnd(16)} ${i.titleEn.slice(0, 120)} · ${i.source}`)); }
   const missed = ctx.dropped.filter(d => d.startsWith('gn-'));
   if (missed.length) console.log(`\nExemples de titres Google News écartés (aucune règle) :\n${missed.slice(0, 20).join('\n')}`);
   if (warnings.length) console.log('Avertissements :', warnings);
