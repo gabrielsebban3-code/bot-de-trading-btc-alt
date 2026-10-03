@@ -20,6 +20,7 @@
         <a href="#projets" data-tab="projets">Projets</a>
         <a href="#setups" data-tab="setups">Setups</a>
         <a href="#actu" data-tab="actu">Actu</a>
+        <a href="#heatmap" data-tab="heatmap">Heatmap</a>
         <span class="more">
           <button id="more" aria-expanded="false" aria-controls="menu">Plus ▾</button>
           <span class="menu" id="menu" hidden>
@@ -155,6 +156,20 @@
       <div class="news" id="news-list"></div>
       <button type="button" class="more-btn" id="news-more" hidden>Afficher plus</button>
       <p class="fine" id="news-sources"></p>
+    </section>
+
+    <!-- Heatmap -->
+    <section class="page" id="page-heatmap">
+      <div class="intro" data-intro="heatmap"><span class="i">i</span>
+        <p>Les plus grosses cryptos d'un coup d'œil : <b>plus la tuile est grande, plus la market cap est grosse</b>, et <b>sa couleur donne la variation du prix</b> sur la période choisie. <span>Vert franc : forte hausse, rouge franc : forte baisse, gris : presque rien. Les stablecoins et les copies d'un autre actif (WBTC, stETH…) sont retirés. Touche une tuile pour voir le détail. Prix CoinGecko, mis à jour toutes les 2 minutes ; un contour orange signale un actif de ta watchlist.</span></p>
+        <button type="button">Compris</button></div>
+      <h1>Heatmap du marché crypto</h1>
+      <p class="sub" id="heatmap-sub"></p>
+      <div id="heatmap-warn"></div>
+      <div class="tools" id="heatmap-tools" role="group" aria-label="Réglages de la heatmap"></div>
+      <div class="heatmap" id="heatmap"></div>
+      <div class="box hm-info" id="heatmap-info" hidden></div>
+      <div class="cols two" id="heatmap-movers"></div>
     </section>
 
     <section class="page" id="page-historique">
