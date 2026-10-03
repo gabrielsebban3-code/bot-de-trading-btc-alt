@@ -13,6 +13,8 @@ export const THEMES = {
 };
 
 export const LEVEL = { critical: 3, medium: 2, low: 1 };
+// À changer quand les règles de classement changent : les news déjà dans le fil sont alors reclassées.
+export const RULES_VERSION = 2;
 
 export const NEWS = {
   keepHours: 72,          // une news reste 3 jours dans le fil
@@ -174,12 +176,18 @@ const RATE_HIKE = /\b(hike|hikes|hiking|raises?|raised|tightening)\b/i;
 const RATE_HOLD = /\b(holds?|keeps?|leaves|unchanged|steady|on hold|pauses?|paused)\b/i;
 // « further rate cuts », « two more cuts » : des baisses évoquées, pas la décision du jour.
 const RATE_NOUNS = /\b(rate|further|more|future|additional|deeper|faster|slower|two|three|several|fewer|aggressive|bigger|larger|jumbo|possible|next)\s+(?:rate\s+)?(cuts|hikes|increases|reductions)\b/gi;
-const UNCERTAIN = /\b(may|might|could|considers?|considering|weighs?|weighing|mulls?|likely|expected to|sources say|sources|reportedly|plans? to|talks|eyes|seeks?|would|ahead of|bets?|odds|probabilit\w*|chances?|traders)\b/i;
+const UNCERTAIN = /\b(may|might|could|planning|preparing|prepares|considers?|considering|weighs?|weighing|mulls?|likely|expected to|sources say|sources|reportedly|plans? to|talks|eyes|seeks?|would|ahead of|bets?|odds|probabilit\w*|chances?|traders)\b/i;
 // Avant-première : le chiffre ou la décision n'est pas encore tombé.
 const PREVIEW = /\b(ahead of|before|awaits?|awaited|awaiting|eyes|eyeing|braces? for|bracing for|in focus|on tap|preview\w*|what to (expect|watch|know)|expected to|seen (rising|falling|slowing|cooling|easing|at)|forecast to|set to|week ahead|looms?|looming)\b/i;
 // Prévisions, analyses, avis d'experts, fils en direct des marchés, commentaires de change (« NZD/USD holds… ») :
 // utiles à lire, mais pas une nouvelle en soi.
 const ANALYSIS = /\b(price predictions?|predictions? for|forecasts? for (today|tomorrow|next)|(price|oil|gas|gold|bitcoin|btc|crypto|weekly|daily) forecasts?|outlook:|technical analysis|price analysis|week ahead|what to (watch|expect|know)|explainer|explained|opinion|podcast|live markets?|markets? live|market wrap|stocks? to (watch|buy)|here[’']?s (why|what|how)|what comes next|away from|what (it|this|that) means|means for (you|your)|should (you )?(be )?worr(y|ied)|experts? (says?|claims?|warns?)|(eur|usd|gbp|jpy|aud|nzd|cad|chf|cny|xau|xag)\/(usd|jpy|chf|cad|eur|gbp|aud|nzd|cny))\b|\bforecasts?\s+[–—:-]|^why\b|\.\s+why\b/i;
+// Autres formes de commentaire : titre-question (« Can BTC's ETF rally match… ? »), sondage, bilan de la semaine
+// (« Oil heads for weekly decline »), note de banque reprise par FXStreet (« … – TD Securities »), décryptage.
+const COMMENTARY = /(?:^|:\s*)(?:can|will|is|are|does|do|did|should|could|would|why|what|how|where|who|when)\b[^:;]*\?\s*$|\b(polls?|survey|breaking down|fact[- ]check\w*|(heads?|set|poised|on track|headed|on course) for (a |its )?(\w+ )?(weekly|monthly|daily|quarterly|annual|yearly)|[\d,.]+[- ](day|week|month) (high|low|streak)|forecast at)\b|\s[–—-]\s(td securities|ing|commerzbank|mufg|uob|rabobank|scotiabank|danske bank|socgen|soci[ée]t[ée] g[ée]n[ée]rale|bbh|wells fargo|nomura|citi|hsbc|barclays|goldman sachs|morgan stanley|jp ?morgan|ubs|bofa|natwest|ocbc|standard chartered|maybank|credit agricole|cba|westpac|anz|nordea|deutsche bank|bnp paribas|lloyds|rbc|td|bmo|cibc|swissquote)\s*$/i;
+// Publi-rédactionnels et listes de « cryptos à surveiller » : écartés du fil.
+const PROMO = /\b(remittix|presales?|pre-sales?|\d{2,4}x (gains?|potential|returns?)|next (big|100x|1000x)|best (crypto|cryptos|altcoins?|coins?|tokens?) to (buy|watch)|(cryptos?|altcoins?|coins?|tokens?|memecoins?) to (watch|buy)|\d+ (cryptos|cryptocurrencies|altcoins|coins|tokens) (to|that|for|under|with))\b/i;
+const commentary = t => ANALYSIS.test(t) || COMMENTARY.test(t);
 const REQUEST = /\b(calls? for|call to|urges?|urging|asks?|asking|seeks?|seeking|lobb\w*|petition\w*|push(es)? for|wants?)\b/i;
 const NEGATED = /\b(no|not|nothing|won't|will not|never|rules? out|ruled out|refuses?|refused|rejects?|rejected|denies|denied)\b/i;
 const THREAT = /\b(threat\w*|warns?|warned|warning|vows?|vowed|if|ready to|prepared to|fears?|risk|risks|possible|potential|calls? for|urges?|denies|denied|rules? out)\b/i;
@@ -214,11 +222,24 @@ function dataRelease(t) {
   if (m) return { what: m[1].toLowerCase(), verb: m[2] };
   return JOBS_ADDED.test(t) ? { what: 'payrolls', verb: '' } : null;
 }
-const FOREIGN = /\b(uk|britain|british|euro ?zone|euro area|europe\w*|eu|german\w*|france|french|japan\w*|tokyo|asia\w*|china|chinese|canada|canadian|australia\w*|india\w*|turkey|turkish|brazil\w*|argentin\w*|russia\w*|mexic\w*|swiss|korea\w*|ftse|dax|nikkei)\b/i;
+const FOREIGN = /\b(uk|britain|british|euro[ -]?zone|euro[ -]area|europe\w*|eu|german\w*|france|french|japan\w*|tokyo|asia\w*|china|chinese|canada|canadian|australia\w*|india\w*|turkey|turkish|brazil\w*|argentin\w*|russia\w*|mexic\w*|swiss|korea\w*|ftse|dax|nikkei)\b/i;
+// Chiffre d'un seul État ou d'une ville américaine (« Jobless claims dip in Florida ») : pas le chiffre national.
+const US_LOCAL = /\b(in|for) (alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york state|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington state|west virginia|wisconsin|wyoming|the state|[a-z]+ county)\b|\bstate(wide)? (jobless|unemployment)\b/i;
 const USA = /(?<![\w.])(us|u\.s\.|usa|american|united states|fed)(?!\w)/i;
 // Droits de douane : ceux des États-Unis font bouger les cryptos, pas un accord Japon-Corée. « US » en majuscules
 // seulement (« us » est aussi un pronom).
-const usActor = t => /\b(trump|white house|washington|lutnick|bessent|greer|united states|america|american)\b/i.test(t) || /(?<![\w.])(US|U\.S\.|USA)(?!\w)/.test(t);
+const US_ACTOR = /\b(trump|white house|washington|lutnick|bessent|greer|united states|america|american)\b|(?<![\w.])(US|U\.S\.|USA)(?!\w)/;
+const firstAt = (t, re) => { const m = t.match(re); return m ? m.index : Infinity; };
+// Les États-Unis doivent être cités avant l'autre pays (« Canada imposes tariffs on U.S. farm goods » : c'est le Canada
+// qui agit), sauf la Chine, dont la riposte pèse aussi sur les marchés. « us » minuscule est un pronom.
+const TRADE_PARTNER = /\b(canad\w*|mexic\w*|japan\w*|south kore\w*|kore\w*|india\w*|eu|european|europe|brazil\w*|vietnam\w*|taiwan\w*|swiss|switzerland|uk|britain|british|australia\w*)\b/i;
+const usActor = t => {
+  const us = Math.min(firstAt(t, US_ACTOR), firstAt(t, /\b(trump|white house)\b/i));
+  return us < Infinity && (us < firstAt(t, TRADE_PARTNER) || /\b(china|chinese|beijing)\b/i.test(t));
+};
+// Un accord ou des droits de douane avec un petit partenaire (Corée du Sud, Inde…) ne font pas bouger les cryptos :
+// seuls la Chine, l'Europe, le Canada, le Mexique, le Japon ou des droits de douane sur tout le monde comptent.
+const MAJOR_TRADE = /\b(china|chinese|beijing|eu|european union|europe|canad\w*|mexic\w*|japan\w*|global|worldwide|universal|reciprocal|all (imports|countries|trading partners|nations)|every country|trading partners|semiconductors?|chips)\b/i;
 
 const OPEC = /\bopec\+?/i;
 const OUTPUT = /\b(output|production|supply|quotas?|bpd|barrels per day)\b/i;
@@ -242,7 +263,9 @@ const REACTION = /\b(condemns?|condemned|criticiz\w*|slams?|blasts?|denounc\w*|b
 const NOT_MILITARY = /\b(economic|financial|trade|tariff|cyber|verbal|political|legal|rhetorical|media)\s+(attacks?|war|warfare|strikes?)\b|\battacks? on (the )?(free )?(press|media|democracy|journalists)\b/gi;
 const OIL_SITE = /\b(refiner\w*|oil (facility|facilities|terminal|port|depot|field|infrastructure)|pipelines?|tankers?|oilfields?|aramco|export terminal)\b/i;
 // « Israel strikes Iran », « US hits Houthi targets » : un verbe d'attaque suivi d'un lieu (« strikes » seul = grèves).
-const HITS_PLACE = /\b(strikes?|struck|hits?|targets?|targeted|pounds?|pounded|bombs?|bombed)\s+(?:on\s+)?(?:the\s+)?(iran\w*|tehran|israel\w*|saudi\w*|houthis?|yemen\w*|taiwan\w*|syria\w*|lebanon|hezbollah|gaza|riyadh|gulf|ukrain\w*|kyiv|russia\w*|moscow)\b/i;
+const HITS_PLACE = /\b(strikes?|struck|hits?|targets?|targeted|pounds?|pounded|bombs?|bombed)\s+(?:on\s+)?(?:the\s+)?(iran\w*|tehran|israel\w*|saudi\w*|houthis?|yemen\w*|taiwan\w*|syria\w*|lebanon|hezbollah|gaza|riyadh|gulf|ukrain\w*|kyiv|russia\w*|moscow)\b(?!-)/i;
+// Justice, police, manifestations, réseaux financiers visés : pas une frappe militaire.
+const NOT_STRIKE = /\b(execut(es|ed|ion)|protest\w*|police|court|trial|sentenc\w*|financial network|money laundering|smuggling (ring|network))\b/i;
 const HOT_ZONE = /\b(iran\w*|hormuz|saudi\w*|houthis?|red sea|taiwan\w*|nato|nuclear|tehran|riyadh|gulf)\b/i;
 const NEW_WAR = /\b(declares? war|invades|invaded|invasion of|launch(es|ed)? (a )?(military|ground) (operation|offensive)|nuclear (strike|attack|test))\b/i;
 const ONGOING = /\b(ukrain\w*|russia\w*|kyiv|moscow|gaza|israel\w*|lebanon|hezbollah|hamas|syria\w*|yemen|sudan|kashmir|pakistan|india|north korea\w*|pyongyang)\b/i;
@@ -256,15 +279,22 @@ const SANCTIONS = /\bsanction(s|ed|ing)?\b/i;
 const OIL_SANCTION = /\b(oil|crude|tankers?|shadow fleet|rosneft|lukoil|gazprom|energy|lng|petroleum)\b/i;
 const TARIFF = /\b(tariffs?|trade war|export controls?|trade deal|trade truce)\b/i;
 const TARIFF_EASE = /\b(deal|truce|pause\w*|delay\w*|exempt\w*|lift\w*|remov\w*|cut|cuts|lower\w*|eases?|eased|suspend\w*)\b/i;
-const TARIFF_NEW = /\b(impos\w*|slaps?|announc\w*|raises?|hikes?|new (\w+ ){0,2}(tariffs?|duties|levies)|threat\w*|retaliat\w*|doubles?|triples?|takes? effect|took effect)\b/i;
+// Une menace de droits de douane (« Trump threatens to double tariffs ») : souvent sans suite, pas encore une mesure.
+const TARIFF_THREAT = /\b(threat\w*|warns?|warned|ready to|prepared to|if)\b/i;
+const TARIFF_NEW = /\b(impos\w*|slaps?|announc\w*|raises?|hikes?|new (\w+ ){0,2}(tariffs?|duties|levies)|retaliat\w*|doubles?|triples?|takes? effect|took effect)\b/i;
 
-const RECAP = /\b(roundup|recap|weekly|this week|last week|this year|so far|in 20\d\d|since 20\d\d|report|reports|analysis|total|record year|h1|q[1-4]|first half|annual|monthly|quarterly|(this|last|past|first|second|third|fourth|monster|record|strong|weak|brutal|best|worst) quarter|in (january|february|march|april|may|june|july|august|september|october|november|december))\b/i;
+const RECAP = /\b(roundup|recap|weekly|this week|last week|this year|so far|in 20\d\d|since 20\d\d|report|reports|analysis|total|record year|h1|q[1-4]|first half|annual|monthly|quarterly|(this|last|past|first|second|third|fourth|monster|record|strong|weak|brutal|best|worst) quarter|in (january|february|march|april|may|june|july|august|september|october|november|december)|(past|last) (week|month|year|\d+ (days|weeks|months)))\b/i;
 // Suite d'un piratage connu : remboursement, enquête, pirate qui déplace le butin (« Hacker turns to Zcash privacy pool »),
 // plan pour combler le trou.
-const FOLLOW_UP = /\b(recover\w*|refund\w*|reimburs\w*|compensat\w*|returns? (the )?(stolen )?funds|returned|bounty|ultimatum|identif\w*|arrest\w*|extradit\w*|sentenc\w*|indict\w*|pleads?|guilty|charged|launder\w*|post-?mortem|anniversary|privacy pools?|mixers?|tornado cash|(hacker|exploiter|attacker)s?\W+(turns?|moves?|moved|swaps?|swapped|bridges?|bridged|sends?|sent|sells?|sold|dumps?|dumped|converts?|converted|deposits?|deposited)|plugs?|plugged|plugging|shortfall|bad debt|hole left)\b/i;
+const FOLLOW_UP = /\b(recover\w*|refund\w*|reimburs\w*|compensat\w*|returns? (the )?(stolen )?funds|returned|bounty|ultimatum|identif\w*|arrest\w*|extradit\w*|sentenc\w*|indict\w*|pleads?|guilty|charged|launder\w*|post-?mortem|anniversary|privacy pools?|mixers?|tornado cash|(hacker|exploiter|attacker)s?\W+(turns?|moves?|moved|swaps?|swapped|bridges?|bridged|sends?|sent|sells?|sold|dumps?|dumped|converts?|converted|deposits?|deposited)|plugs?|plugged|plugging|shortfall|bad debt|hole left|trac(e|es|ed|ing)|attribut\w*|linked to|links? (\$[\d.,]+\w* )?\w* ?(hack|theft|exploit)|north korea\w*|dprk|lazarus|frozen|freez\w*|rollback|explains?|lessons?|pattern|where did|after (the |a |its )?(\$[\d.,]+\s?(m|b|bn|million|billion)?\s)?(hack|exploit|heist|theft))\b/i;
+const HACK_TARGET = /\b(protocol|exchange|bridge|wallets?|dex|vault|lending|funds|drained|stolen|users?|hackers?|attackers?|exploiters?|exploit)\b/i;
+const SOCIAL_HACK = /\b(x|twitter|instagram|youtube|discord|telegram|social media|facebook)\s+(accounts?|page|channel|server)\b.{0,20}\b(hack\w*|compromised)|\baccount (was |is )?(hacked|compromised)\b/i;
+const BIG_EXCHANGE = /\b(binance|coinbase|kraken|okx|bybit|bitget|upbit|bithumb|kucoin|gemini|bitfinex|htx|gate\.?io|mexc|crypto\.com|robinhood|hyperliquid)\b/i;
 const HACK = /\b(hack|hacks|hacked|hacker|hackers|hacking|exploit|exploits|exploited|exploiter|drained|draining|stolen|heist|attacker|attackers)\b/i;
 
-const ETF = /\betfs?\b/i;
+const ETF = /\bet[fp]s?\b/i;
+// Produits à levier ou à revenu : de nouveaux produits, sans argent frais pour le marché au comptant.
+const ETF_NICHE = /\b(leveraged|[2-5]x|inverse|covered[- ]call|income|tokeni[sz]ed)\b/i;
 const ETF_UP = /\b(inflows?|net (buying|inflows?)|attract\w*|record demand|approv\w*|launch\w*|debut\w*|green[- ]?light\w*|lists?|listed)\b/i;
 const ETF_DOWN = /\b(outflows?|exits?|exited|bleed\w*|withdraw\w*|reject\w*|denied|denies|delay\w*|pulls?|redemptions?)\b/i;
 const ETF_EVENT = /\b(approv\w*|reject\w*|denied|launch\w*|debut\w*|green[- ]?light\w*)\b/i;
@@ -296,7 +326,7 @@ function firstAction(t, actions) {
 // Chaque règle renvoie { theme, importance, impacts, why } ou null. La première qui répond l'emporte.
 const RULES = [
   ['guerre', t => {
-    if (CEASE.test(t) || CYBER.test(t) || REACTION.test(t)) return null;
+    if (CEASE.test(t) || CYBER.test(t) || REACTION.test(t) || NOT_STRIKE.test(t)) return null;
     const military = t.replace(NOT_MILITARY, ' ');
     if (SANCTIONS.test(t) && !WAR_ACT.test(military)) return null; // « US sanctions target Iran's auto sector »
     t = military;
@@ -317,7 +347,7 @@ const RULES = [
     };
   }],
   ['taux-surprise', t => {
-    if (!(MAJOR_CB.test(t) && SURPRISE.test(t) && RATEWORD.test(t))) return null;
+    if (!(MAJOR_CB.test(t) && SURPRISE.test(t) && RATEWORD.test(t)) || UNCERTAIN.test(t) || PREVIEW.test(t)) return null;
     const act = rateAction(t);
     return {
       theme: 'cb', importance: 'critical', impacts: act === 'cut' ? up('BTC', 'Or') : act === 'hike' ? down('BTC') : [],
@@ -339,16 +369,23 @@ const RULES = [
   ['hack', (t, ctx) => {
     if (!HACK.test(t) || !(CRYPTO.test(t) || ctx.crypto) || ETF.test(t) || /\b(inflows?|outflows?|liquidity)\b/i.test(t)) return null;
     const amt = amountUsd(t);
+    // Dans un média crypto, un titre sans mot crypto ni montant (« AI models that hacked their way out of a test »)
+    // ne parle pas d'un vol de fonds.
+    if (!CRYPTO.test(t) && amt === null && !HACK_TARGET.test(t)) return null;
+    const social = SOCIAL_HACK.test(t); // compte X ou Discord piraté : arnaque passagère, pas de fonds volés
     const tk = tokensIn(t);
     const recap = RECAP.test(t); // bilan des piratages, pas un nouveau piratage
     const followUp = FOLLOW_UP.test(t) || /\?\s*$/.test(t); // suite d'un piratage déjà connu : remboursement, pirate identifié, analyse…
-    let importance = recap ? 'low' : amt >= NEWS.hackCriticalUsd ? 'critical' : amt >= NEWS.hackMediumUsd || (amt === null && ctx.crypto) ? 'medium' : 'low';
-    if (followUp && !recap) importance = importance === 'critical' ? 'medium' : 'low';
+    // Sans montant, seul le piratage d'un grand exchange compte d'emblée (le montant arrive souvent plus tard).
+    let importance = recap || social ? 'low' : amt >= NEWS.hackCriticalUsd ? 'critical' : amt >= NEWS.hackMediumUsd || (amt === null && BIG_EXCHANGE.test(t)) ? 'medium' : 'low';
+    // La suite d'un piratage déjà connu (traque des fonds, auteur identifié, remboursement) : le marché a déjà réagi.
+    if (followUp) importance = 'low';
     const victim = tk.length ? tk : /\b(defi|protocol|lending|dex|bridge|vault|yield)\b/i.test(t) ? ['DeFi'] : ['Crypto'];
     return {
       theme: 'hack', importance, amountUsd: amt,
       impacts: importance === 'critical' ? down(...victim) : [],
       why: recap ? 'Bilan des piratages : le risque reste élevé dans la DeFi.'
+        : social ? 'Compte de réseau social piraté : méfie-toi des liens qu\'il publie, mais pas de fonds volés.'
         : followUp ? 'Suite d\'un piratage : à suivre si tu as des fonds sur ce protocole ou cet exchange.'
           : importance === 'critical' ? 'Gros piratage : les pirates revendent souvent le butin, et la confiance dans tout le secteur en prend un coup.'
             : 'Piratage : vérifie que tu n\'as pas de fonds sur ce protocole.',
@@ -356,7 +393,7 @@ const RULES = [
   }],
   ['taux', (t, ctx) => {
     // Tout ce qui touche la Fed est gardé (nominations, indépendance, discours), au moins en faible importance.
-    const official = Boolean(ctx.prefix) && /\bdecisions?\b/i.test(t); // communiqué « Monetary policy decisions » de la BCE
+    const official = Boolean(ctx.prefix) && /\bdecisions?\b/i.test(t) && !/\bin addition to\b/i.test(t); // communiqué « Monetary policy decisions » de la BCE
     if (!(CBANK.test(t) && (RATEWORD.test(t) || DECISION.test(t) || official)) && !FED.test(t)) return null;
     const decided = (DECISION.test(t) || official) && !UNCERTAIN.test(t) && !PREVIEW.test(t);
     const act = decided ? rateAction(t) : null;
@@ -375,7 +412,7 @@ const RULES = [
   ['inflation', t => {
     const rel = dataRelease(t);
     if (!rel && !INFLATION.test(t)) return null;
-    const us = !FOREIGN.test(t) || USA.test(t);
+    const us = (!FOREIGN.test(t) || USA.test(t)) && !US_LOCAL.test(t);
     const release = Boolean(rel) && us && !PREVIEW.test(t);
     const labor = /unemployment|jobless/.test(rel?.what ?? '');
     const jobs = labor || /payrolls|nfp|jobs|job /.test(rel?.what ?? '');
@@ -402,7 +439,7 @@ const RULES = [
     const ease = !negated && (/\b(deal|truce|agreement)\b/i.test(t) || (TARIFF_EASE.test(t) && !TARIFF_NEW.test(t)));
     const tough = !negated && !ease && TARIFF_NEW.test(t);
     return {
-      theme: 'geo', importance: usActor(t) && (ease || tough) && !UNCERTAIN.test(t) && !PREVIEW.test(t) && !REQUEST.test(t) ? 'medium' : 'low', impacts: ease ? up('BTC') : tough ? down('BTC') : [],
+      theme: 'geo', importance: usActor(t) && MAJOR_TRADE.test(t) && (ease || tough) && !UNCERTAIN.test(t) && !PREVIEW.test(t) && !REQUEST.test(t) && !TARIFF_THREAT.test(t) ? 'medium' : 'low', impacts: ease ? up('BTC') : tough ? down('BTC') : [],
       why: tough ? 'Nouveaux droits de douane : les marchés à risque, cryptos comprises, baissent souvent.'
         : ease ? 'Apaisement commercial : bon signe pour les marchés à risque, cryptos comprises.'
           : 'Les guerres commerciales font bouger tous les marchés à risque.',
@@ -411,8 +448,10 @@ const RULES = [
   ['sanctions', t => {
     if (!SANCTIONS.test(t)) return null;
     const oil = OIL_SANCTION.test(t);
+    const act = /\b(impos\w*|new|slaps?|announc\w*|targets?|targeted|expands?|tightens?|widens?|hits?|additional|fresh|lifts?|lifted|eases?|eased)\b/i.test(t)
+      && !/\b(despite|risks?|evad\w*|evasion|skirt\w*|circumvent\w*|bypass\w*|dodg\w*)\b/i.test(t);
     return {
-      theme: 'geo', importance: oil ? 'medium' : 'low', impacts: oil ? up('Pétrole') : [],
+      theme: 'geo', importance: oil && act ? 'medium' : 'low', impacts: oil ? up('Pétrole') : [],
       why: oil ? 'Des sanctions sur un pays producteur peuvent réduire l\'offre de pétrole.' : 'Nouvelles sanctions internationales.',
     };
   }],
@@ -427,7 +466,9 @@ const RULES = [
   }],
   ['tensions', t => {
     if (!HOT_ZONE.test(t) || !(POSTURE.test(t) || DIPLOMACY.test(t) || THREAT.test(t))) return null;
-    const posture = POSTURE.test(t) && !DIPLOMACY.test(t);
+    // Une déclaration (« Zelensky warns », « …: Donald Trump ») n'est pas un mouvement de troupes.
+    const said = /\b(says?|said|claims?|warns?|warned|vows?|accuses?)\b|:\s*[\w. ]{3,30}$/i.test(t);
+    const posture = POSTURE.test(t) && !DIPLOMACY.test(t) && !said && !REACTION.test(t);
     return {
       theme: 'geo', importance: posture ? 'medium' : 'low', impacts: [],
       why: posture ? "Tensions militaires dans une zone clé : une escalade ferait monter le pétrole et l'or."
@@ -441,7 +482,7 @@ const RULES = [
     const assets = tk.length ? tk : ['Crypto'];
     const isUp = ETF_UP.test(t) && !ETF_DOWN.test(t), isDown = ETF_DOWN.test(t) && !ETF_UP.test(t);
     return {
-      theme: 'etf', importance: (amt >= NEWS.etfMediumUsd && !RECAP.test(t)) || ETF_EVENT.test(t) ? 'medium' : 'low', amountUsd: amt,
+      theme: 'etf', importance: ((amt >= NEWS.etfMediumUsd && !RECAP.test(t)) || ETF_EVENT.test(t)) && !ETF_NICHE.test(t) ? 'medium' : 'low', amountUsd: amt,
       impacts: isUp ? up(...assets) : isDown ? down(...assets) : [],
       why: isUp ? 'Argent qui entre dans les ETF : les fonds doivent acheter les cryptos correspondantes.'
         : isDown ? 'Argent qui sort des ETF : les fonds revendent les cryptos correspondantes.'
@@ -453,7 +494,9 @@ const RULES = [
     const pos = REG_POS.test(t) && !REG_NEG.test(t), neg = REG_NEG.test(t) && !REG_POS.test(t);
     const amt = amountUsd(t);
     const small = neg && amt !== null && amt < NEWS.regCaseMediumUsd; // « SEC sues crypto AI platform over $12.5M »
-    const strong = REG_STRONG.test(t) && REGULATOR.test(t) && !UNCERTAIN.test(t) && !small;
+    // « Bank group sues OCC over crypto charters » : c'est le régulateur qui est attaqué, la règle ne change pas.
+    const againstRegulator = /\b(sues?|sued|suing|challeng\w*)\s+(the\s+)?(u\.?s\.?\s+)?(occ|sec|cftc|fdic|fed|irs|treasury|regulators?|government|agency)\b/i.test(t);
+    const strong = REG_STRONG.test(t) && REGULATOR.test(t) && !UNCERTAIN.test(t) && !small && !againstRegulator;
     return {
       theme: 'reg', importance: strong ? 'medium' : 'low', impacts: strong && pos ? up('Crypto') : strong && neg ? down('Crypto') : [],
       why: pos ? 'Feu vert des autorités : bon signe pour l\'adoption des cryptos.'
@@ -511,11 +554,12 @@ export function matchProject(text, projects, crypto) {
 // Classe un titre. `ctx.crypto` : la source est un média crypto. `ctx.prefix` : précise l'émetteur (ex. « ECB »).
 export function classify(title, ctx = {}) {
   const text = ctx.prefix ? `${ctx.prefix} ${title}` : title;
+  if (PROMO.test(text)) return null;
   const project = matchProject(title, ctx.projects, ctx.crypto);
   for (const [rule, fn] of RULES) {
     const hit = fn(text, ctx);
     if (!hit) continue;
-    if (ANALYSIS.test(text)) hit.importance = 'low'; // prévision, analyse, fil en direct : gardé mais en faible importance
+    if (commentary(text)) hit.importance = 'low'; // prévision, analyse, fil en direct : gardé mais en faible importance
     if (ctx.theme && hit.theme !== ctx.theme && hit.importance === 'low') continue;
     // Sur une news de faible importance, la flèche serait surtout du bruit.
     const impacts = hit.importance === 'low' && rule !== 'stocks-petrole' ? [] : hit.impacts;
@@ -523,7 +567,7 @@ export function classify(title, ctx = {}) {
   }
   if (project) {
     return {
-      rule: 'projet', theme: 'project', importance: ANALYSIS.test(text) ? 'low' : 'medium', impacts: [], projectId: project.id,
+      rule: 'projet', theme: 'project', importance: commentary(text) ? 'low' : 'medium', impacts: [], projectId: project.id,
       why: `${project.name} fait partie du top 25 de l'onglet Projets (n°${project.rank}).`,
     };
   }
@@ -657,10 +701,26 @@ export function cluster(items) {
       theme: top.theme, raw: raw(top), importance: confirmed(raw(top), sources.length, members), impacts: top.impacts, why: top.why, rule: top.rule,
       amountUsd: members.map(m => m.amountUsd).filter(v => v != null).sort((x, y) => y - x)[0] ?? null,
       projectId: members.map(m => m.projectId).find(Boolean) ?? null,
-      kind: top.kind ?? 'feed', rank: Math.max(...members.map(rank)),
+      kind: top.kind ?? 'feed', rank: Math.max(...members.map(rank)), src: top.src ?? null,
       ...(members.some(m => m.calm) && { calm: true }),
       ...(key && { key }),
     };
+  });
+}
+
+// Nouvelles règles : les news déjà dans le fil sont reclassées avec leur titre anglais. `ctxOf(item)` redonne le
+// contexte de leur source. Une news qu'aucune règle ne garde plus passe en faible importance (elle quitte le fil
+// au bout de 72 h). Les baleines ne changent pas.
+export function reclassify(items, ctxOf) {
+  return (items || []).map(i => {
+    if (i.kind === 'whale' || !i.titleEn) return i;
+    const hit = classify(i.titleEn, ctxOf(i));
+    const next = hit ? { theme: hit.theme, raw: hit.importance, importance: hit.importance, impacts: hit.impacts, why: hit.why || i.why, rule: hit.rule }
+      : { raw: 'low', importance: 'low', impacts: [] };
+    const out = { ...i, ...next };
+    if (hit?.key) out.key = hit.key; else delete out.key;
+    if (out.rule !== 'guerre') delete out.calm;
+    return out;
   });
 }
 

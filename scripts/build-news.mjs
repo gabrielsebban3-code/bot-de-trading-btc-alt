@@ -7,8 +7,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { attempt, fetchJson, fetchText, mapLimit } from './lib/http.mjs';
 import {
-  LEVEL, NEWS, THEMES, buildFeed, classify, decode, hashId, headline, isCrypto, parseFeed, parseTelegram, parseWhale,
-  splitSource, tidy, whaleNews,
+  LEVEL, NEWS, RULES_VERSION, THEMES, buildFeed, classify, decode, hashId, headline, isCrypto, parseFeed, parseTelegram, parseWhale,
+  reclassify, splitSource, tidy, whaleNews,
 } from './lib/news.mjs';
 
 const argv = process.argv.slice(2);
@@ -81,7 +81,7 @@ function entry(src, rawTitle, link, time, source, ctx) {
     ctx.dropped.push(`${src.id} · ${title}`);
     return null;
   }
-  return { id: hashId(link || title), time, titleEn: title, title: null, lang: 'en', link, source, rank: rankOf(src, source), kind: 'feed', ...hit };
+  return { id: hashId(link || title), time, titleEn: title, title: null, lang: 'en', link, source, rank: rankOf(src, source), kind: 'feed', src: src.id, ...hit };
 }
 
 async function collect(src, ctx) {
@@ -181,7 +181,15 @@ async function main() {
   const warnings = [];
   if (down.length >= SOURCES.length / 3) warnings.push(`${down.length} sources sur ${SOURCES.length} n'ont pas répondu à cette mise à jour : le fil peut être incomplet.`);
 
-  const items = buildFeed(previous?.items, fresh, now);
+  // Règles changées depuis la dernière mise à jour : le fil déjà en ligne est reclassé tout de suite.
+  const sourceCtx = src => ({ crypto: src?.crypto || src?.whale, prefix: src?.prefix, theme: src?.theme, why: src?.why, projects: top });
+  const byName = new Map(SOURCES.filter(s => !s.google).map(s => [s.name, s]));
+  let prevItems = previous?.items;
+  if (prevItems?.length && previous?.rules?.version !== RULES_VERSION) {
+    prevItems = reclassify(prevItems, i => sourceCtx(SOURCES.find(s => s.id === i.src) ?? byName.get(i.source)));
+    console.log(`Règles de classement v${RULES_VERSION} : ${prevItems.length} news déjà en ligne reclassées.`);
+  }
+  const items = buildFeed(prevItems, fresh, now);
 
   // Traduction : les titres déjà traduits sont repris, les autres sont traduits (les plus importants d'abord).
   const known = new Map((previous?.items || []).filter(i => i.lang === 'fr' && i.title && i.titleEn).map(i => [i.titleEn, i.title]));
@@ -199,7 +207,7 @@ async function main() {
   await mkdir(OUT, { recursive: true });
   await writeFile(join(OUT, 'news.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), sources, warnings, themes: THEMES,
-    rules: { keepHours: NEWS.keepHours, bannerHours: NEWS.bannerHours, whaleMinUsd: NEWS.whaleMinUsd, whaleMediumUsd: NEWS.whaleMediumUsd, hackCriticalUsd: NEWS.hackCriticalUsd },
+    rules: { version: RULES_VERSION, keepHours: NEWS.keepHours, bannerHours: NEWS.bannerHours, whaleMinUsd: NEWS.whaleMinUsd, whaleMediumUsd: NEWS.whaleMediumUsd, hackCriticalUsd: NEWS.hackCriticalUsd },
     items,
   }));
 

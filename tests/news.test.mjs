@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
-  NEWS, amountUsd, buildFeed, classify, cluster, headline, matchProject, parseFeed, parseTelegram, parseWhale, similar,
+  NEWS, amountUsd, buildFeed, classify, reclassify, cluster, headline, matchProject, parseFeed, parseTelegram, parseWhale, similar,
   splitSource, tidy, whaleNews,
 } from '../scripts/lib/news.mjs';
 
@@ -110,7 +110,7 @@ const CASES = [
   ['US employers added 254,000 jobs in September', {}, 'inflation', 'medium', []],
   ['US CPI rises 0.4% in September, hotter than expected', {}, 'inflation', 'medium', [['BTC', -1]]],
   ['Key US inflation data and Fed decision in October', {}, 'taux', 'low', []],
-  ['Bitget "doesn\'t expect to recover much" of $388 million hack, CEO tells CNBC', { crypto: true }, 'hack', 'medium', []],
+  ['Bitget "doesn\'t expect to recover much" of $388 million hack, CEO tells CNBC', { crypto: true }, 'hack', 'low', []],
   ['NEAR Intents says it identified the hacker, gives 48-hour ultimatum', { crypto: true }, 'hack', 'low', []],
   ['Pentagon announces combat pay raise amid war with Iran', {}, 'conflit', 'low', []],
   ['Trump says it is possible the war with Iran costs him the midterm elections', {}, 'tensions', 'low', []],
@@ -119,7 +119,7 @@ const CASES = [
   ['Natural Gas, WTI Oil, Brent Oil Forecasts – Oil Rebounds as Trump Signals More Strikes on Iran', {}, 'guerre', 'low', []],
   ['Tanker catches fire after first Hormuz attack in October', {}, 'guerre', 'critical', [['Pétrole', 1], ['Or', 1], ['BTC', -1]]],
   ['Hormuz oil exports back to pre-war levels despite Iran attacks', {}, 'guerre', 'medium', [['Pétrole', 1], ['Or', 1], ['BTC', -1]]],
-  ['Bitget hack: Where did the stolen $387M go?', { crypto: true }, 'hack', 'medium', []],
+  ['Bitget hack: Where did the stolen $387M go?', { crypto: true }, 'hack', 'low', []],
   ['Bitcoin ETFs are $5 billion away from a new flow record after a brutal 11-month reset', {}, 'etf', 'low', []],
   ['Japan and South Korea seal $900 billion deal that eases tariffs', {}, 'droits-de-douane', 'low', []],
   ['Costco says it used tariff refunds to cut prices', {}, 'droits-de-douane', 'low', []],
@@ -146,8 +146,8 @@ const CASES = [
   ['Teachers strikes in France', {}, null],
   ["Saudi-led coalition says Houthis attacked power station for Prophet's Mosque in Medina", {}, 'guerre', 'critical', [['Pétrole', 1], ['Or', 1], ['BTC', -1]]],
   ['Crypto lost $1.26 billion in hacks while bitcoin bulls enjoyed a monster quarter', {}, 'hack', 'low', []],
-  ['Bitget Hacker Turns to Zcash Privacy Pool After Near Rejects $50M in Swaps', { crypto: true }, 'hack', 'medium', []],
-  ['Aave publishes plan to plug $246m hole left by Kelp DAO attackers', { crypto: true }, 'hack', 'medium', []],
+  ['Bitget Hacker Turns to Zcash Privacy Pool After Near Rejects $50M in Swaps', { crypto: true }, 'hack', 'low', []],
+  ['Aave publishes plan to plug $246m hole left by Kelp DAO attackers', { crypto: true }, 'hack', 'low', []],
   ["Small business owners 'should be worried' after US slaps Canada with new tariffs, expert claims", {}, 'droits-de-douane', 'low', []],
   ['India-US trade deal in ‘short strokes’ but nothing imminent, USTR Greer says', {}, 'droits-de-douane', 'low', []],
   ['NZD/USD holds near $0.5574 support amid Federal Reserve October rate hike probability rise', {}, 'taux', 'low', []],
@@ -155,6 +155,43 @@ const CASES = [
   ['Bitcoin ETFs’ 9-day, $3 billion inflow streak comes to an end as $149 million exits the funds', {}, 'etf', 'medium', []],
   ['Inflation fell more than expected in June as gas prices eased', {}, 'inflation', 'medium', [['BTC', 1]]],
   ['US producer prices rose less than expected in August', {}, 'inflation', 'medium', [['BTC', 1]]],
+  // Essai du 3 octobre 2026 : 83 news moyennes, surtout du bruit. Suites de piratage, commentaires, petits partenaires
+  // commerciaux, procès contre un régulateur, produits à levier : faible importance. Publi-rédactionnels : écartés.
+  ['Chainalysis Attributes Bitget’s $387M Hack to DPRK Actors, Traces Funds Across Four Chains', { crypto: true }, 'hack', 'low', []],
+  ['Bitget $387M Hack Linked to North Korea', { crypto: true }, 'hack', 'low', []],
+  ['Bitget has frozen just $1.1 million of $388 million stolen in crypto hack', {}, 'hack', 'low', []],
+  ['‘Privacy working as intended’: Zano details 1-month rollback after $250M exploit', { crypto: true }, 'hack', 'low', []],
+  ["Microsoft's X Account Hacked, Posts Clippy Crypto Memes", {}, 'hack', 'low', []],
+  ['Crypto hackers exploit third-party Aave tool to steal 114 ETH', { crypto: true }, 'hack', 'low', []],
+  ['Hackers breach Coinbase hot wallet, withdrawals paused', { crypto: true }, 'hack', 'medium', []],
+  ['California Subpoenas OpenAI Over AI Models That Hacked Their Way Out of a Test', { crypto: true }, null],
+  ['Oil prices drop as G7 nations pledge to release diesel stocks; Saudis said planning attack on Houthis', {}, 'guerre', 'medium', [['Pétrole', 1], ['Or', 1], ['BTC', -1]]],
+  ['Iran Executes Man Detained During January Protests Over Alleged Attack on Police', {}, 'conflit', 'low', []],
+  ['US Further Targets Iran-Linked Russian A7 Financial Network', {}, null],
+  ['Crude oil tanker struck by unknown projectile off Oman, UKMTO says', {}, 'infra-petrole', 'medium', [['Pétrole', 1]]],
+  ['Breaking down Trump’s new ‘drug factories’ claim about Iranian nuclear sites', {}, 'tensions', 'low', []],
+  ['Oil prices will plummet once the war ends; Iran will not get nuclear weapons: Donald Trump.', {}, 'tensions', 'low', []],
+  ['Putin orders military leaders to target civilians and nuclear facilities, Zelensky warns: ‘No rules now’', {}, 'tensions', 'low', []],
+  ['Canada imposes new tariffs on U.S. farm goods, raising uncertainty for Kern farmers', {}, 'droits-de-douane', 'low', []],
+  ['Trump threatens to double South Korea tariffs, blasts New York AG Letitia James', {}, 'droits-de-douane', 'low', []],
+  ['Trump says South Korea trade deal adds $8.4B oil project', {}, 'droits-de-douane', 'low', []],
+  ['Canseco: Canadians look to Europe as 82% call U.S. tariffs a threat, poll finds', {}, 'droits-de-douane', 'low', []],
+  ['US leverage, India’s limited options: Why is the trade deal taking so long?', {}, 'droits-de-douane', 'low', []],
+  ['China slaps retaliatory tariffs on US farm goods', {}, 'droits-de-douane', 'medium', [['BTC', -1]]],
+  ['Community Banks Sue OCC Over Expanding Trust Charters to Crypto', {}, 'regulation', 'low', []],
+  ['SEC Approves Listing of 3x Leveraged ETFs on Bitcoin, Ether', {}, 'etf', 'low', []],
+  ['VolatilityShares Launches 3x Bitcoin ETP Amid SEC Approval', {}, 'etf', 'low', []],
+  ["BlackRock's Bitcoin ETF Has Net Bought $1.57 Billion Worth of Bitcoin in the Past Month.", {}, 'etf', 'low', []],
+  ['$BNB Chain becomes the first blockchain to surpass $1,000,000,000 in tokenized stocks and ETFs', {}, 'etf', 'low', []],
+  ['Remittix, Solana and XRP: 3 Cryptos to Watch as ETF Money Returns and RTX Launch Nears', {}, null],
+  ['Bitcoin vs Remittix: Can BTC’s ETF Rally Match the Attention Around a New PayFi Launch?', {}, null],
+  ['Dollar-Yen Forecast at 155.50–159.00 Next Week; Tokyo CPI Upside Surprise Could Reignite BOJ Rate Hike Bets', {}, 'taux', 'low', []],
+  ['US Dollar: FOMC minutes to offer limited fresh clues – TD Securities', {}, 'taux', 'low', []],
+  ['Jobless Claims Dip in Florida', {}, 'inflation', 'low', []],
+  ['Iranian Oil Starts Flowing to Tajikistan Despite U.S. Sanctions Risk', {}, 'sanctions', 'low', []],
+  ['Oil Heads for Weekly Decline as Hormuz Supply Concerns Ease', {}, 'cessez-le-feu', 'low', []],
+  ['Euro-area Inflation: Headline pressures rise – Nordea', {}, 'inflation', 'low', []],
+  ['Labor market faltered in September as jobs increased by just 29,000, unemployment rate rose to 4.2%', {}, 'inflation', 'medium', [['BTC', 1]]],
 ];
 
 test('classify : thème, importance et impact probable sur des titres réels', () => {
@@ -169,6 +206,18 @@ test('classify : thème, importance et impact probable sur des titres réels', (
     assert.deepEqual(hit.impacts, impacts, title);
     assert.ok(hit.why.length > 20, title);
   }
+});
+
+test('reclassify : les news déjà en ligne suivent les nouvelles règles', () => {
+  const old = [
+    { id: 'a', kind: 'feed', titleEn: 'Bitget $387M Hack Linked to North Korea', importance: 'critical', raw: 'critical', impacts: [['Crypto', -1]], rule: 'hack', theme: 'hack', why: 'x', src: 'theblock' },
+    { id: 'b', kind: 'feed', titleEn: 'Remittix, Solana and XRP: 3 Cryptos to Watch as ETF Money Returns', importance: 'medium', raw: 'medium', impacts: [['SOL', 1]], rule: 'etf', theme: 'etf', why: 'x', key: 'k' },
+    { id: 'c', kind: 'whale', titleEn: '604 $BTC transferred', importance: 'medium', impacts: [['BTC', 1]] },
+  ];
+  const [a, b, c] = reclassify(old, i => ({ crypto: i.src === 'theblock' }));
+  assert.deepEqual([a.importance, a.raw, a.impacts], ['low', 'low', []]);
+  assert.deepEqual([b.importance, b.impacts, b.key], ['low', [], undefined], 'plus aucune règle : faible');
+  assert.equal(c, old[2], 'baleine inchangée');
 });
 
 test('classify : communiqués officiels et projets du top', () => {
