@@ -37,6 +37,7 @@ nav a.on, nav button.on { color: var(--fg); background: var(--panel2); }
 .more { position: relative; display: flex; }
 .menu { position: absolute; right: 0; top: calc(100% + 8px); background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); padding: 4px; display: flex; flex-direction: column; min-width: 160px; z-index: 20; }
 .menu a { border-radius: 8px; }
+.menu a.menu-only { display: none; }
 .updated { margin-left: auto; font-size: 12px; color: var(--muted); }
 /* Bouton Connexion / Mon compte, en haut à droite */
 .me { display: flex; align-items: center; gap: 8px; font: 600 13px var(--sans); white-space: nowrap; padding: 7px 16px; border-radius: 999px; background: var(--accent); color: #1a0f00; border: 1px solid var(--accent); }
@@ -319,6 +320,9 @@ footer b { color: var(--fg); }
   @media (max-width: 370px) { nav a, nav > .more > button { padding: 8px 3px; } }
   @media (max-width: 340px) { nav a, nav > .more > button { font-size: 11px; } }
   .menu { top: auto; bottom: calc(100% + 8px); }
+  /* Outils passe dans le menu Plus : 6 onglets + Plus tiennent déjà tout juste */
+  nav > a.bar-only { display: none; }
+  .menu a.menu-only { display: block; }
   footer { padding-block: 20px 90px; }
   .updated { margin-left: 0; width: 100%; order: 2; }
   .me { margin-left: auto; order: 1; }
@@ -383,3 +387,65 @@ footer b { color: var(--fg); }
 @media (max-width: 900px) { .ind-text { grid-template-columns: 1fr; } }
 .ind-text .box > h2 { padding: 12px 14px 6px; }
 .ind-text p.txt + p.txt { margin-top: -4px; }
+
+/* Outils : calculateurs (formulaire à gauche, résultat à droite) */
+a.chip { display: inline-block; }
+a.chip:hover { text-decoration: none; }
+#outils-tabs { margin-bottom: 14px; }
+.outil { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-bottom: 16px; }
+@media (max-width: 900px) { .outil { grid-template-columns: 1fr; } }
+.t-form > p.txt { color: var(--muted); }
+.t-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 14px 14px; }
+@media (max-width: 520px) { .t-fields { grid-template-columns: 1fr; } }
+.t-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.t-field.t-wide { grid-column: 1 / -1; }
+.t-field .tools { margin: 0; }
+.t-field .lb { font-size: 12px; color: var(--muted); }
+.t-field .hint { font-size: 11px; color: var(--muted); opacity: .8; }
+.t-in { display: flex; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.t-in:focus-within { border-color: var(--accent); }
+/* 16 px : en dessous, Safari sur iPhone zoome sur le champ */
+.t-in input { flex: 1; min-width: 0; background: none; border: 0; color: var(--fg); padding: 7px 10px; font: 16px var(--mono); font-variant-numeric: tabular-nums; outline: none; }
+.t-in input.bad { color: var(--down); }
+.t-in .u { font-size: 12px; color: var(--muted); padding-right: 10px; white-space: nowrap; }
+.t-quick { display: flex; flex-wrap: wrap; gap: 4px; }
+.t-quick .chip { padding: 3px 8px; font: 11px var(--mono); }
+.t-res { align-self: stretch; }
+.t-res > h2 { color: var(--muted); font-weight: 500; font-size: 12px; padding-bottom: 0; }
+.t-out { display: flex; flex-direction: column; }
+.t-out dl { padding-top: 10px; }
+.t-hero { padding: 6px 14px 4px; display: flex; flex-direction: column; gap: 2px; }
+.t-hero .k { font-size: 12px; color: var(--accent); font-weight: 600; }
+.t-hero b { font-size: 26px; font-weight: 500; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.t-hero .s { font-size: 13px; color: var(--fg2); }
+.t-note { margin: 0; padding: 0 14px 14px; font-size: 12px; color: var(--muted); max-width: 70ch; }
+.t-note.warn-inline { color: var(--mid); }
+.t-sub { font-size: 12px; color: var(--muted); padding: 0 14px 6px; }
+.t-levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; padding: 0 14px 14px; }
+.t-levels span { background: var(--bg); border-radius: 8px; padding: 6px 8px; font: 13px var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.t-levels i { display: block; font: normal 11px var(--sans); color: var(--accent); }
+.t-chart { position: relative; margin: 4px 14px 0; min-height: 200px; }
+.t-chart svg { display: block; overflow: visible; touch-action: pan-y; }
+.t-chart .grid { stroke: var(--line); stroke-width: 1; }
+.t-chart .zero { stroke: var(--line2); stroke-width: 1; }
+.t-chart .tick { fill: var(--muted); font: 10px var(--mono); }
+.t-chart .tick.end { text-anchor: end; }
+.t-chart .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.t-chart .ln { fill: none; stroke-width: 1.8; stroke-linejoin: round; }
+.t-chart .mk-tip { top: 0; }
+.ln.c-main { stroke: var(--accent); } .key.c-main { background: var(--accent); }
+.ln.c-alt { stroke: var(--s-ma50); } .key.c-alt { background: var(--s-ma50); }
+.ln.c-paid { stroke: var(--muted); stroke-dasharray: 4 3; stroke-width: 1.4; } .key.c-paid { background: var(--muted); }
+.t-keys { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 14px 12px; font-size: 12px; color: var(--muted); }
+.outil-nfa { margin-top: 0; }
+@media (max-width: 700px) {
+  /* Une seule ligne d'outils qui défile au doigt, au lieu de 4 lignes de pilules */
+  #outils-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+  #outils-tabs::-webkit-scrollbar { display: none; }
+  #outils-tabs .chip { flex: none; }
+}
+@media (max-width: 520px) {
+  /* Résultats : libellé au-dessus de la valeur, pour que les longues valeurs ne se coupent pas */
+  .t-out dl { grid-template-columns: 1fr; gap: 0; }
+  .t-out dd { text-align: left; margin-bottom: 10px; }
+}

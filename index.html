@@ -22,9 +22,11 @@
         <a href="#setups" data-tab="setups">Setups</a>
         <a href="#actu" data-tab="actu">Actu</a>
         <a href="#heatmap" data-tab="heatmap">Heatmap</a>
+        <a href="#outils" data-tab="outils" class="bar-only">Outils</a>
         <span class="more">
           <button id="more" aria-expanded="false" aria-controls="menu">Plus ▾</button>
           <span class="menu" id="menu" hidden>
+            <a href="#outils" data-tab="outils" class="menu-only">Outils</a>
             <a href="#historique" data-tab="historique">Historique <span class="lock guest-only">membres</span></a>
           </span>
         </span>
@@ -204,6 +206,17 @@
       <div class="heatmap" id="heatmap"></div>
       <div class="box hm-info" id="heatmap-info" hidden></div>
       <div class="cols two" id="heatmap-movers"></div>
+    </section>
+
+    <!-- Outils -->
+    <section class="page" id="page-outils">
+      <div class="intro" data-intro="outils"><span class="i">i</span>
+        <p>Des calculateurs pour préparer un trade et tenir sur la durée : <b>taille de position</b>, <b>risque / rendement</b>, <b>liquidation</b>, <b>frais et funding</b>, <b>DCA</b> et <b>séries de pertes</b>. <span>Tout est calculé sur ton appareil, rien n'est envoyé. Les champs communs (capital, risque, prix d'entrée, stop, frais) passent d'un outil à l'autre et sont gardés pour ta prochaine visite. Les valeurs de départ reprennent la méthode des Setups : 1 % du compte risqué par trade, frais OKX.</span></p>
+        <button type="button">Compris</button></div>
+      <h1>Nos outils</h1>
+      <div class="tools" id="outils-tabs" role="group" aria-label="Outils"></div>
+      <div class="detail outil" id="outil"></div>
+      <div class="nfa outil-nfa">⚠ Ces calculs sont des estimations : les frais, le funding et la liquidation réels dépendent de ta plateforme. Ce n'est pas un conseil financier.</div>
     </section>
 
     <section class="page" id="page-historique">

@@ -1,0 +1,213 @@
+// Onglet Outils : calculs purs (sans page), testés dans tests/outils.test.mjs.
+// Les pourcentages sont passés en % (1 = 1 %) ; les frais sont par côté (entrée ou sortie), en % de la valeur.
+
+// Lit un nombre tapé en français ou en anglais : « 1 250,5 », « 1250.5 », « 0,05 % ».
+export function num(s) {
+  if (typeof s === 'number') return Number.isFinite(s) ? s : null;
+  const t = String(s ?? '').replace(/[\s  %$€]/g, '').replace(',', '.');
+  if (!/^-?\d*\.?\d+(e-?\d+)?$/i.test(t)) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+const sideOf = (entry, stop) => (stop < entry ? 'long' : 'short');
+
+// 1. Taille de position : combien acheter pour ne perdre que `riskPct` % du capital si le stop est touché, frais compris.
+export function positionSize({ capital, riskPct, entry, stop, feePct = 0 }) {
+  if (!(capital > 0 && riskPct > 0 && entry > 0 && stop > 0) || entry === stop) return null;
+  const side = sideOf(entry, stop);
+  const risk = capital * riskPct / 100;
+  const dist = Math.abs(entry - stop);
+  const fees = feePct / 100 * (entry + stop); // frais d'entrée + de sortie au stop, par unité
+  const qty = risk / (dist + fees);
+  const notional = qty * entry;
+  return {
+    side, risk, qty, notional,
+    stopPct: dist / entry * 100,
+    fees: qty * fees,
+    leverage: notional / capital, // levier minimum pour ouvrir la position avec tout le capital en marge
+  };
+}
+
+// 2. Risque / rendement : R:R, prix des objectifs en R et taux de réussite minimum pour ne pas perdre.
+export function riskReward({ entry, stop, target, feePct = 0, winRatePct = null }) {
+  if (!(entry > 0 && stop > 0 && target > 0) || entry === stop) return null;
+  const side = sideOf(entry, stop);
+  const dir = side === 'long' ? 1 : -1;
+  const r = Math.abs(entry - stop);
+  const fee = feePct / 100;
+  const loss = r + fee * (entry + stop); // perte réelle au stop, par unité
+  const gain = dir * (target - entry) - fee * (entry + target); // gain réel à l'objectif, par unité
+  const rr = gain / loss;
+  const out = {
+    side, rr,
+    rawRR: dir * (target - entry) / r,
+    targetPct: dir * (target - entry) / entry * 100,
+    stopPct: r / entry * 100,
+    breakEvenWinRate: rr > 0 ? 100 / (1 + rr) : null,
+    levels: [1, 2, 3, 5, 10].map(k => ({ k, price: entry + dir * k * r })).filter(l => l.price > 0),
+  };
+  if (winRatePct != null && winRatePct >= 0 && winRatePct <= 100) {
+    const w = winRatePct / 100;
+    out.expectancy = w * rr - (1 - w); // en R par trade
+  }
+  return out;
+}
+
+// 3. Prix de liquidation en marge isolée (contrat linéaire USDT, comme OKX), frais ignorés.
+// Liquidation quand la marge restante tombe à la marge de maintenance (mmrPct % de la valeur de la position).
+export function liquidation({ side, entry, leverage, mmrPct = 0.4, stop = null }) {
+  if (!(entry > 0 && leverage >= 1) || !['long', 'short'].includes(side)) return null;
+  const m = mmrPct / 100;
+  const price = side === 'long' ? entry * (1 - 1 / leverage) / (1 - m) : entry * (1 + 1 / leverage) / (1 + m);
+  const out = { price: Math.max(0, price), distPct: Math.abs(price - entry) / entry * 100 };
+  if (stop > 0 && stop !== entry) {
+    const wrongSide = side === 'long' ? stop > entry : stop < entry;
+    if (!wrongSide) {
+      out.stopFirst = side === 'long' ? stop > out.price : stop < out.price;
+      // Levier maximum pour que la liquidation reste au-delà du stop.
+      const k = side === 'long' ? 1 - stop * (1 - m) / entry : stop * (1 + m) / entry - 1;
+      out.maxLeverage = k > 0 ? 1 / k : Infinity;
+    }
+  }
+  return out;
+}
+
+// 4. PnL d'un trade fermé : brut, frais, funding, net, en $, en % de la marge et du capital.
+// fundingPct : taux par période de 8 h ; positif = les longs paient les shorts.
+export function pnl({ side, entry, exit, size, leverage = 1, feePct = 0, fundingPct = 0, hours = 0, capital = null }) {
+  if (!(entry > 0 && exit > 0 && size > 0 && leverage >= 1) || !['long', 'short'].includes(side)) return null;
+  const qty = size / entry; // size = valeur de la position à l'entrée, en $
+  const dir = side === 'long' ? 1 : -1;
+  const gross = dir * (exit - entry) * qty;
+  const fees = feePct / 100 * (entry + exit) * qty;
+  const funding = dir * fundingPct / 100 * size * (hours / 8);
+  const net = gross - fees - funding;
+  const margin = size / leverage;
+  return {
+    gross, fees, funding, net, margin,
+    movePct: dir * (exit - entry) / entry * 100,
+    roe: net / margin * 100,
+    capitalPct: capital > 0 ? net / capital * 100 : null,
+  };
+}
+
+// 5. Seuil de rentabilité : prix de sortie où le trade ne gagne ni ne perd, frais et funding compris.
+export function breakEven({ side, entry, feeInPct = 0, feeOutPct = 0, fundingPct = 0, hours = 0 }) {
+  if (!(entry > 0) || !['long', 'short'].includes(side)) return null;
+  const fi = feeInPct / 100, fo = feeOutPct / 100;
+  const fu = fundingPct / 100 * (hours / 8); // en fraction de la position ; payé par les longs s'il est positif
+  // Long : exit·(1 − fo) = entry·(1 + fi + fu) ; short : exit·(1 + fo) = entry·(1 − fi + fu).
+  const price = side === 'long' ? entry * (1 + fi + fu) / (1 - fo) : entry * (1 - fi + fu) / (1 + fo);
+  return { price, movePct: (side === 'long' ? price - entry : entry - price) / entry * 100 };
+}
+
+// 6. DCA : `amount` $ investis tous les `every` jours depuis `startDay`, sur des clôtures quotidiennes [jour, prix].
+// Comparé à la même somme totale investie d'un coup au premier achat.
+export function dca(points, { amount, every, startDay, feePct = 0 }) {
+  const rows = (points || []).filter(([d, p]) => d >= startDay && p > 0);
+  if (!(amount > 0 && every >= 1) || rows.length < 2) return null;
+  const fee = feePct / 100;
+  let units = 0, invested = 0, next = rows[0][0], buys = 0;
+  const series = [];
+  for (const [d, p] of rows) {
+    if (d >= next) {
+      units += amount * (1 - fee) / p;
+      invested += amount;
+      buys++;
+      next += every * Math.ceil((d - next + 1) / every);
+    }
+    series.push([d, invested, units * p]);
+  }
+  const first = rows[0][1], last = rows.at(-1)[1];
+  const lumpUnits = invested * (1 - fee) / first;
+  const value = units * last;
+  // Pire moment : plus grosse perte latente par rapport à l'argent déjà investi.
+  const worst = series.reduce((w, s) => (s[2] / s[1] - 1 < w.pct ? { day: s[0], pct: s[2] / s[1] - 1 } : w), { day: null, pct: 0 });
+  return {
+    buys, invested, units, value,
+    avgPrice: invested * (1 - fee) / units,
+    lastPrice: last,
+    returnPct: (value / invested - 1) * 100,
+    lump: { value: lumpUnits * last, returnPct: (lumpUnits * last / invested - 1) * 100, price: first },
+    worst: { day: worst.day, pct: worst.pct * 100 },
+    series: series.map(([d, inv, v], i) => [d, inv, v, lumpUnits * rows[i][1]]),
+  };
+}
+
+// 7. Intérêts composés : capital de départ, gain moyen par mois (en %), versement mensuel, objectif facultatif.
+export function compound({ capital, ratePct, months, monthly = 0, target = null }) {
+  if (!(capital >= 0 && months >= 1 && months <= 600) || ratePct == null || ratePct <= -100) return null;
+  if (!(capital > 0 || monthly > 0)) return null;
+  const r = ratePct / 100;
+  const series = [[0, capital, capital]];
+  let v = capital, paid = capital, reach = target > 0 && capital >= target ? 0 : null;
+  for (let m = 1; m <= Math.max(months, 1); m++) {
+    v = v * (1 + r) + monthly;
+    paid += monthly;
+    series.push([m, paid, v]);
+    if (reach == null && target > 0 && v >= target) reach = m;
+  }
+  // Objectif au-delà de la durée choisie : on continue le calcul (jusqu'à 100 ans) pour dire quand il serait atteint.
+  if (reach == null && target > 0) {
+    let w = v;
+    for (let m = months + 1; m <= 1200; m++) {
+      w = w * (1 + r) + monthly;
+      if (w >= target) { reach = m; break; }
+    }
+  }
+  return { final: v, paid, gains: v - paid, multiple: capital > 0 ? v / capital : null, reach, series };
+}
+
+// Générateur pseudo-aléatoire reproductible (mulberry32) : même graine = mêmes tirages.
+export function rng(seed = 1) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function percentile(sorted, p) {
+  if (!sorted.length) return null;
+  const i = Math.min(sorted.length - 1, Math.max(0, Math.round(p / 100 * (sorted.length - 1))));
+  return sorted[i];
+}
+
+// 8. Séries de pertes (Monte-Carlo) : `runs` parcours de `trades` trades, chaque trade risquant `riskPct` %
+// du capital du moment. Un gagnant rapporte `winR` fois le risque, un perdant coûte 1 fois le risque.
+export function streaks({ winRatePct, winR, riskPct, trades, runs = 2000, seed = 42 }) {
+  if (!(winRatePct >= 0 && winRatePct <= 100 && winR > 0 && riskPct > 0 && riskPct < 100 && trades >= 1 && trades <= 2000)) return null;
+  const rand = rng(seed);
+  const w = winRatePct / 100, risk = riskPct / 100;
+  const maxLoss = [], maxDD = [], finals = [];
+  const curves = [];
+  for (let k = 0; k < runs; k++) {
+    let eq = 1, peak = 1, dd = 0, run = 0, longest = 0;
+    const curve = [1];
+    for (let t = 0; t < trades; t++) {
+      if (rand() < w) { eq *= 1 + winR * risk; run = 0; } else { eq *= 1 - risk; run++; if (run > longest) longest = run; }
+      if (eq > peak) peak = eq;
+      if (1 - eq / peak > dd) dd = 1 - eq / peak;
+      curve.push(eq);
+    }
+    maxLoss.push(longest); maxDD.push(dd * 100); finals.push((eq - 1) * 100);
+    curves.push(curve);
+  }
+  const s = a => [...a].sort((x, y) => x - y);
+  const L = s(maxLoss), D = s(maxDD), F = s(finals);
+  // Courbes de capital des parcours médian, pire 5 % et meilleur 5 % (classés par résultat final).
+  const order = finals.map((f, i) => [f, i]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  const pick = p => curves[order[Math.min(runs - 1, Math.round(p / 100 * (runs - 1)))]].map(v => (v - 1) * 100);
+  return {
+    expectancyR: w * winR - (1 - w),
+    losingStreak: { median: percentile(L, 50), p95: percentile(L, 95), max: L.at(-1) },
+    drawdown: { median: percentile(D, 50), p95: percentile(D, 95), max: D.at(-1) },
+    final: { p5: percentile(F, 5), median: percentile(F, 50), p95: percentile(F, 95) },
+    lossOdds: finals.filter(f => f < 0).length / runs * 100,
+    curves: { p5: pick(5), median: pick(50), p95: pick(95) },
+  };
+}

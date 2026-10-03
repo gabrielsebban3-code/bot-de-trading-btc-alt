@@ -7,9 +7,10 @@ import { starTitle, watchlist } from './watchlist.js';
 import { initMarche, marcheUnavailable, renderIndicator } from './marche.js';
 import { alertSymbols, initAccount, refreshAccount, setFeed } from './account.js';
 import './heatmap.js';
+import { setOutilsData, showTool } from './outils.js';
 
 const $ = id => document.getElementById(id);
-const PAGES = ['resume', 'marche', 'projets', 'setups', 'actu', 'heatmap', 'historique', 'compte'];
+const PAGES = ['resume', 'marche', 'projets', 'setups', 'actu', 'heatmap', 'outils', 'historique', 'compte'];
 // Actifs connus du site, par symbole : projets, marchés des setups, setup en jeu. Servent au ticker et à Mon compte.
 const known = { projects: new Map(), assets: new Map(), live: new Map() };
 const quotes = new Map(); // derniers prix OKX du ticker
@@ -28,7 +29,8 @@ function route() {
   if (['resume', 'marche'].includes(target)) $('ind-back').href = `#${target}`;
   const tab = { projet: 'projets', setup: 'setups', indicateur: $('ind-back').hash.slice(1) }[target] || target;
   document.querySelectorAll('#nav [data-tab]').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
-  $('more').classList.toggle('on', tab === 'historique');
+  // Sur mobile, Outils est rangé dans Plus pour que la barre du bas tienne.
+  $('more').classList.toggle('on', tab === 'historique' || (tab === 'outils' && matchMedia('(max-width: 700px)').matches));
   $('me').classList.toggle('on', tab === 'compte');
   $('menu').hidden = true;
   $('more').setAttribute('aria-expanded', 'false');
@@ -39,6 +41,7 @@ function route() {
   // Bouton Connexion en haut à droite : sur mobile, le bloc de connexion est sous la watchlist, on l'amène à l'écran.
   if (target === 'compte' && id === 'connexion') $('account').scrollIntoView({ block: 'center' });
   if (target === 'actu' && id && newsReady) focusNews(decodeURIComponent(id));
+  if (target === 'outils') showTool(decodeURIComponent(id || ''));
 }
 
 $('more').addEventListener('click', () => {
@@ -85,6 +88,7 @@ async function load() {
     ['projects', 'setups', 'news', 'market', 'marche'].map(name => getJson(`data/${name}.json`).catch(() => null)),
   );
   showProjects(projects);
+  setOutilsData(marche);
   if (marche) initMarche(marche);
   else marcheUnavailable();
   marcheReady = true;
