@@ -12,23 +12,6 @@ export function num(s) {
 
 const sideOf = (entry, stop) => (stop < entry ? 'long' : 'short');
 
-// 1. Taille de position : combien acheter pour ne perdre que `riskPct` % du capital si le stop est touché, frais compris.
-export function positionSize({ capital, riskPct, entry, stop, feePct = 0 }) {
-  if (!(capital > 0 && riskPct > 0 && entry > 0 && stop > 0) || entry === stop) return null;
-  const side = sideOf(entry, stop);
-  const risk = capital * riskPct / 100;
-  const dist = Math.abs(entry - stop);
-  const fees = feePct / 100 * (entry + stop); // frais d'entrée + de sortie au stop, par unité
-  const qty = risk / (dist + fees);
-  const notional = qty * entry;
-  return {
-    side, risk, qty, notional,
-    stopPct: dist / entry * 100,
-    fees: qty * fees,
-    leverage: notional / capital, // levier minimum pour ouvrir la position avec tout le capital en marge
-  };
-}
-
 // 2. Risque / rendement : R:R, prix des objectifs en R et taux de réussite minimum pour ne pas perdre.
 export function riskReward({ entry, stop, target, feePct = 0, winRatePct = null }) {
   if (!(entry > 0 && stop > 0 && target > 0) || entry === stop) return null;
@@ -52,54 +35,6 @@ export function riskReward({ entry, stop, target, feePct = 0, winRatePct = null 
     out.expectancy = w * rr - (1 - w); // en R par trade
   }
   return out;
-}
-
-// 3. Prix de liquidation en marge isolée (contrat linéaire USDT, comme OKX), frais ignorés.
-// Liquidation quand la marge restante tombe à la marge de maintenance (mmrPct % de la valeur de la position).
-export function liquidation({ side, entry, leverage, mmrPct = 0.4, stop = null }) {
-  if (!(entry > 0 && leverage >= 1) || !['long', 'short'].includes(side)) return null;
-  const m = mmrPct / 100;
-  const price = side === 'long' ? entry * (1 - 1 / leverage) / (1 - m) : entry * (1 + 1 / leverage) / (1 + m);
-  const out = { price: Math.max(0, price), distPct: Math.abs(price - entry) / entry * 100 };
-  if (stop > 0 && stop !== entry) {
-    const wrongSide = side === 'long' ? stop > entry : stop < entry;
-    if (!wrongSide) {
-      out.stopFirst = side === 'long' ? stop > out.price : stop < out.price;
-      // Levier maximum pour que la liquidation reste au-delà du stop.
-      const k = side === 'long' ? 1 - stop * (1 - m) / entry : stop * (1 + m) / entry - 1;
-      out.maxLeverage = k > 0 ? 1 / k : Infinity;
-    }
-  }
-  return out;
-}
-
-// 4. PnL d'un trade fermé : brut, frais, funding, net, en $, en % de la marge et du capital.
-// fundingPct : taux par période de 8 h ; positif = les longs paient les shorts.
-export function pnl({ side, entry, exit, size, leverage = 1, feePct = 0, fundingPct = 0, hours = 0, capital = null }) {
-  if (!(entry > 0 && exit > 0 && size > 0 && leverage >= 1) || !['long', 'short'].includes(side)) return null;
-  const qty = size / entry; // size = valeur de la position à l'entrée, en $
-  const dir = side === 'long' ? 1 : -1;
-  const gross = dir * (exit - entry) * qty;
-  const fees = feePct / 100 * (entry + exit) * qty;
-  const funding = dir * fundingPct / 100 * size * (hours / 8);
-  const net = gross - fees - funding;
-  const margin = size / leverage;
-  return {
-    gross, fees, funding, net, margin,
-    movePct: dir * (exit - entry) / entry * 100,
-    roe: net / margin * 100,
-    capitalPct: capital > 0 ? net / capital * 100 : null,
-  };
-}
-
-// 5. Seuil de rentabilité : prix de sortie où le trade ne gagne ni ne perd, frais et funding compris.
-export function breakEven({ side, entry, feeInPct = 0, feeOutPct = 0, fundingPct = 0, hours = 0 }) {
-  if (!(entry > 0) || !['long', 'short'].includes(side)) return null;
-  const fi = feeInPct / 100, fo = feeOutPct / 100;
-  const fu = fundingPct / 100 * (hours / 8); // en fraction de la position ; payé par les longs s'il est positif
-  // Long : exit·(1 − fo) = entry·(1 + fi + fu) ; short : exit·(1 + fo) = entry·(1 − fi + fu).
-  const price = side === 'long' ? entry * (1 + fi + fu) / (1 - fo) : entry * (1 - fi + fu) / (1 + fo);
-  return { price, movePct: (side === 'long' ? price - entry : entry - price) / entry * 100 };
 }
 
 // 6. DCA : `amount` $ investis tous les `every` jours depuis `startDay`, sur des clôtures quotidiennes [jour, prix].
@@ -243,4 +178,45 @@ export function convert(amount, from, to, rates) {
   const a = rates?.[from], b = rates?.[to];
   if (!(amount >= 0) || !(a > 0) || !(b > 0)) return null;
   return amount * a / b;
+}
+
+// DCA vers l'avenir : rejoue au hasard des tranches de 30 jours du passé (même hausses, mêmes krachs, dans un
+// autre ordre) pour `years` années d'achats réguliers. Renvoie les parcours pessimiste (10 %), médian et
+// optimiste (90 %) de la valeur du portefeuille, mois par mois.
+export function dcaProjection(points, { amount, every, years, runs = 1000, seed = 7, feePct = 0, block = 30 }) {
+  const closes = (points || []).map(p => p[1]).filter(p => p > 0);
+  if (!(amount > 0 && every >= 1 && years > 0 && years <= 30) || closes.length < block * 4) return null;
+  const rets = closes.slice(1).map((p, i) => Math.log(p / closes[i]));
+  const days = Math.round(years * 365);
+  const step = 30;
+  const n = Math.floor(days / step);
+  const fee = feePct / 100;
+  const rand = rng(seed);
+  const at = Array.from({ length: n + 1 }, () => []);
+  const finals = [];
+  for (let k = 0; k < runs; k++) {
+    let lp = 0, units = 0, start = 0;
+    for (let d = 0; d <= days; d++) {
+      if (d > 0) {
+        if ((d - 1) % block === 0) start = Math.floor(rand() * (rets.length - block));
+        lp += rets[start + ((d - 1) % block)];
+      }
+      if (d % every === 0 && d < days) units += amount * (1 - fee) / Math.exp(lp);
+      if (d % step === 0 && d / step <= n) at[d / step].push(units * Math.exp(lp));
+    }
+    finals.push(units * Math.exp(lp));
+  }
+  const buys = Math.ceil(days / every);
+  const invested = buys * amount;
+  const pick = (a, p) => percentile([...a].sort((x, y) => x - y), p);
+  const checkpoints = at.map((vals, i) => [i, Math.min(Math.ceil(i * step / every), buys) * amount, pick(vals, 10), pick(vals, 50), pick(vals, 90)]);
+  const histYears = (closes.length - 1) / 365;
+  return {
+    invested, buys,
+    final: { p10: pick(finals, 10), p50: pick(finals, 50), p90: pick(finals, 90) },
+    lossOdds: finals.filter(f => f < invested).length / runs * 100,
+    histCagr: ((closes.at(-1) / closes[0]) ** (1 / histYears) - 1) * 100,
+    histYears,
+    checkpoints,
+  };
 }

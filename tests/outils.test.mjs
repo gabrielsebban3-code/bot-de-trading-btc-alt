@@ -1,7 +1,8 @@
 // Onglet Outils : calculateurs de trading.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { averageEntry, breakEven, compound, convert, dca, liquidation, num, percentile, pnl, positionSize, riskReward, rng, streaks } from '../js/outils-lib.js';
+import { averageEntry, compound, convert, dca, dcaProjection, num, percentile, riskReward, rng, streaks } from '../js/outils-lib.js';
+import { flowNum, flowSummary, farsideDay, mergeFlows, parseFarside } from '../js/outils-data.js';
 
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps * Math.max(1, Math.abs(b)), `${a} ≠ ${b}`);
 
@@ -13,27 +14,6 @@ test('num : virgule, espaces, symboles', () => {
   assert.equal(num(''), null);
   assert.equal(num('abc'), null);
   assert.equal(num('1.2.3'), null);
-});
-
-test('positionSize : 1 % de 10 000 $ avec un stop à 2 %', () => {
-  const r = positionSize({ capital: 10_000, riskPct: 1, entry: 100, stop: 98 });
-  assert.equal(r.side, 'long');
-  near(r.risk, 100);
-  near(r.qty, 50);
-  near(r.notional, 5000);
-  near(r.leverage, 0.5);
-  near(r.stopPct, 2);
-  const s = positionSize({ capital: 10_000, riskPct: 1, entry: 100, stop: 105 });
-  assert.equal(s.side, 'short');
-  near(s.qty, 20);
-});
-
-test('positionSize : les frais réduisent la taille pour que la perte totale reste 1 %', () => {
-  const r = positionSize({ capital: 10_000, riskPct: 1, entry: 100, stop: 98, feePct: 0.05 });
-  near(r.qty * 2 + r.fees, 100);
-  assert.ok(r.qty < 50);
-  assert.equal(positionSize({ capital: 10_000, riskPct: 1, entry: 100, stop: 100 }), null);
-  assert.equal(positionSize({ capital: 0, riskPct: 1, entry: 100, stop: 90 }), null);
 });
 
 test('riskReward : 3R, seuil de réussite 25 %, objectifs en R', () => {
@@ -48,46 +28,6 @@ test('riskReward : 3R, seuil de réussite 25 %, objectifs en R', () => {
   near(s.rr, 2);
   assert.deepEqual(s.levels.map(l => l.price), [90, 80, 70, 50]); // 10R = 0 $ : retiré
   assert.ok(riskReward({ entry: 100, stop: 95, target: 101, feePct: 0.5 }).rr < 0.2);
-});
-
-test('liquidation : marge isolée, sans frais ni maintenance = entrée × (1 ∓ 1/levier)', () => {
-  near(liquidation({ side: 'long', entry: 100, leverage: 10, mmrPct: 0 }).price, 90);
-  near(liquidation({ side: 'short', entry: 100, leverage: 10, mmrPct: 0 }).price, 110);
-  near(liquidation({ side: 'long', entry: 100, leverage: 1, mmrPct: 0 }).price, 0);
-  const l = liquidation({ side: 'long', entry: 100, leverage: 10, mmrPct: 0.4, stop: 95 });
-  assert.ok(l.price > 90 && l.price < 91);
-  assert.equal(l.stopFirst, true);
-  // Au levier maximum, la liquidation tombe pile sur le stop.
-  near(liquidation({ side: 'long', entry: 100, leverage: l.maxLeverage, mmrPct: 0.4 }).price, 95);
-  const s = liquidation({ side: 'short', entry: 100, leverage: 50, mmrPct: 0.4, stop: 103 });
-  assert.equal(s.stopFirst, false);
-  near(liquidation({ side: 'short', entry: 100, leverage: s.maxLeverage, mmrPct: 0.4 }).price, 103);
-});
-
-test('pnl : brut, frais, funding, % de marge et de capital', () => {
-  const r = pnl({ side: 'long', entry: 100, exit: 110, size: 1000, leverage: 5, feePct: 0.05, fundingPct: 0.01, hours: 24, capital: 10_000 });
-  near(r.gross, 100);
-  near(r.fees, 0.0005 * 210 * 10);
-  near(r.funding, 0.0001 * 1000 * 3);
-  near(r.net, 100 - 1.05 - 0.3);
-  near(r.margin, 200);
-  near(r.roe, r.net / 2);
-  near(r.capitalPct, r.net / 100);
-  const s = pnl({ side: 'short', entry: 100, exit: 110, size: 1000, fundingPct: 0.01, hours: 8 });
-  near(s.gross, -100);
-  near(s.funding, -0.1); // funding positif : le short le reçoit
-});
-
-test('breakEven : la sortie à ce prix donne un PnL nul', () => {
-  for (const side of ['long', 'short']) {
-    const b = breakEven({ side, entry: 100, feeInPct: 0.05, feeOutPct: 0.05, fundingPct: 0.01, hours: 48 });
-    const r = pnl({ side, entry: 100, exit: b.price, size: 1000, feePct: 0, fundingPct: 0.01, hours: 48 });
-    // Frais calculés sur la valeur réelle à chaque côté.
-    const fees = 0.0005 * 1000 + 0.0005 * 10 * b.price;
-    near(r.net - fees, 0, 1e-9);
-  }
-  assert.ok(breakEven({ side: 'long', entry: 100, feeInPct: 0.1, feeOutPct: 0.1 }).price > 100);
-  assert.ok(breakEven({ side: 'short', entry: 100, feeInPct: 0.1, feeOutPct: 0.1 }).price < 100);
 });
 
 test('dca : achats réguliers, prix moyen, comparaison avec un achat unique', () => {
@@ -163,4 +103,54 @@ test('convert : passe par le dollar', () => {
   near(convert(1, 'BTC', 'EUR', rates), 40_000);
   near(convert(100, 'EUR', 'USD', rates), 125);
   assert.equal(convert(1, 'BTC', 'XRP', rates), null);
+});
+
+test('dcaProjection : prix qui monte de 1 % tous les 30 jours, sans hasard possible', () => {
+  const pts = Array.from({ length: 400 }, (_, i) => [i, 100 * 1.01 ** (i / 30)]);
+  const r = dcaProjection(pts, { amount: 100, every: 30, years: 1, runs: 50 });
+  assert.equal(r.buys, 13);
+  near(r.invested, 1300);
+  near(r.final.p10, r.final.p90, 1e-6); // toutes les tranches se ressemblent
+  assert.ok(r.final.p50 > r.invested);
+  assert.equal(r.lossOdds, 0);
+  near(r.histCagr, (1.01 ** (365 / 30) - 1) * 100, 1e-3);
+  assert.equal(r.checkpoints.length, 13);
+  assert.equal(dcaProjection(pts.slice(0, 50), { amount: 100, every: 7, years: 1 }), null);
+});
+
+test('flowNum et farsideDay', () => {
+  assert.equal(flowNum('(12.5)'), -12.5);
+  assert.equal(flowNum('1,234.5'), 1234.5);
+  assert.equal(flowNum('-'), 0);
+  assert.equal(flowNum('abc'), null);
+  assert.equal(farsideDay('11 Jan 2024') * 86_400_000, Date.UTC(2024, 0, 11));
+  assert.equal(farsideDay('Total'), null);
+});
+
+test('parseFarside : codes boursiers, jours, négatifs entre parenthèses, lignes de total ignorées', () => {
+  const html = `<table><tr><th></th><th>Blackrock</th><th>Fidelity</th><th></th></tr>
+    <tr><th></th><th>IBIT</th><th>FBTC</th><th>Total</th></tr>
+    <tr><td>Fee</td><td>0.25%</td><td>0.25%</td><td></td></tr>
+    <tr><td><span>11 Jan 2024</span></td><td>111.7</td><td>227.0</td><td>338.7</td></tr>
+    <tr><td>12 Jan 2024</td><td>(10.0)</td><td>-</td><td>(10.0)</td></tr>
+    <tr><td>15 Jan 2024</td><td></td><td></td><td></td></tr>
+    <tr><td>Total</td><td>101.7</td><td>227.0</td><td>328.7</td></tr></table>`;
+  const r = parseFarside(html);
+  assert.deepEqual(r.issuers, ['IBIT', 'FBTC']);
+  assert.equal(r.days.length, 2);
+  assert.deepEqual(r.days[1].slice(1), [-10, [-10, 0]]);
+  assert.deepEqual(parseFarside('<p>rien</p>'), { issuers: [], days: [] });
+});
+
+test('flowSummary et mergeFlows', () => {
+  const a = { issuers: ['A', 'B'], days: [[1, 10, [10, 0]], [2, -5, [-5, 0]], [3, -2, [0, -2]]] };
+  const s = flowSummary(a);
+  assert.equal(s.last.total, -2);
+  assert.equal(s.d5, 3);
+  assert.equal(s.streak, -2);
+  assert.deepEqual(s.cumulative.map(c => c[1]), [10, 5, 3]);
+  assert.equal(s.byIssuer[0].name, 'A');
+  const m = mergeFlows(a, { issuers: ['A', 'B'], days: [[3, 4, [4, 0]], [4, 1, [1, 0]]] });
+  assert.deepEqual(m.days.map(d => d[1]), [10, -5, 4, 1]);
+  assert.equal(mergeFlows(a, { issuers: ['A'], days: [[9, 1, [1]]] }).days.length, 1);
 });

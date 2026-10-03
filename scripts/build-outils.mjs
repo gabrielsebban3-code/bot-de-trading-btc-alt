@@ -21,18 +21,42 @@ async function okx(path) {
   return r.data;
 }
 
-// Flux quotidiens des ETF au comptant, en millions de dollars, par émetteur (tableau de farside.co.uk).
+// Flux quotidiens des ETF au comptant, en millions de dollars, par émetteur (tableaux de farside.co.uk).
+// La page « all data » donne tout l'historique ; la page courte sert de secours.
+const BROWSER = { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36', 'Accept-Language': 'en-GB,en;q=0.9', Accept: 'text/html,application/xhtml+xml' };
+const FARSIDE = { btc: ['bitcoin-etf-flow-all-data', 'btc'], eth: ['ethereum-etf-flow-all-data', 'eth'] };
 async function etf(kind) {
-  const html = await fetchText(`https://farside.co.uk/${kind}/`, { retries: 2, headers: { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36', 'Accept-Language': 'en' } });
-  const t = parseFarside(html);
-  if (!t.days.length) throw new Error(`tableau Farside ${kind} introuvable (${html.length} octets)`);
-  return t;
+  const errors = [];
+  for (const page of FARSIDE[kind]) {
+    try {
+      const html = await fetchText(`https://farside.co.uk/${page}/`, { retries: 1, headers: BROWSER });
+      const t = parseFarside(html);
+      if (t.days.length) { console.log(`Farside ${page} : ${t.days.length} jours`); return t; }
+      errors.push(`${page} : tableau introuvable (${html.length} octets)`);
+    } catch (e) { errors.push(`${page} : ${e.message}`); }
+    await sleep(1500);
+  }
+  throw new Error(errors.join(' ; '));
 }
+
+// Sur une branche de test : essaie d'autres sources gratuites et montre ce qu'elles renvoient.
+async function probe() {
+  for (const url of ['https://etfs.llama.fi/flows', 'https://etfs.llama.fi/snapshot', 'https://api.llama.fi/etfs/flows', 'https://api.llama.fi/etfs/overview']) {
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': 'Dinexo/1.0' } });
+      const txt = await res.text();
+      console.log(`SONDE ${url} : ${res.status}, ${txt.length} octets : ${txt.slice(0, 400).replace(/\s+/g, ' ')}`);
+    } catch (e) { console.log(`SONDE ${url} : ${e.message}`); }
+  }
+}
+
+// Or, argent, actions : pas des cryptos, on les laisse de côté.
+const TRADFI = new Set(['XAU', 'XAG', 'XPT', 'XPD', 'CL', 'BZ', 'NG', 'SPX', 'NDX', 'TSLA', 'NVDA', 'AAPL', 'MSTR', 'COIN']);
 
 // Funding des 20 perpétuels USDT les plus échangés sur OKX, et des mêmes actifs sur Hyperliquid.
 async function funding() {
   const tickers = await okx('/market/tickers?instType=SWAP');
-  const top = tickers.filter(t => t.instId.endsWith('-USDT-SWAP'))
+  const top = tickers.filter(t => t.instId.endsWith('-USDT-SWAP') && !TRADFI.has(t.instId.split('-')[0]))
     .map(t => ({ instId: t.instId, sym: t.instId.split('-')[0], vol: Number(t.volCcy24h) * Number(t.last), last: Number(t.last) }))
     .sort((a, b) => b.vol - a.vol).slice(0, 20);
   const rates = await mapLimit(top, 4, async t => {
@@ -62,6 +86,7 @@ async function main() {
   const sources = {};
   const take = (name, res) => { sources[name] = res.ok ? 'ok' : `erreur : ${res.error?.message || res.error}`; return res.ok ? res.value : null; };
 
+  if (process.env.PUBLISH === 'false') await probe();
   const btcEtf = take('ETF bitcoin (Farside)', await attempt('Farside BTC', () => etf('btc')));
   const ethEtf = take('ETF ether (Farside)', await attempt('Farside ETH', () => etf('eth')));
   const fund = take('funding (OKX, Hyperliquid)', await attempt('Funding', funding));
