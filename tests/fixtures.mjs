@@ -61,7 +61,7 @@ export function fixtures() {
       circulating_supply: 1e8 * p[10], total_supply: 1e8, max_supply: 1e8,
     })),
     'api.coingecko.com/api/v3/search/trending': { coins: [{ item: { id: 'tidal-perps' } }] },
-    'api.coingecko.com/api/v3/global': { data: { market_cap_percentage: { btc: 57.8 } } },
+    'api.coingecko.com/api/v3/global': { data: { market_cap_percentage: { btc: 57.8, eth: 10.9 }, total_market_cap: { usd: 3.01e12 }, total_volume: { usd: 1.64e11 }, market_cap_change_percentage_24h_usd: -1.54 } },
     'api.alternative.me/fng': { data: [{ value: '68', value_classification: 'Greed' }] },
   };
   for (const [slug, s] of Object.entries(charts)) routes[`api.llama.fi/summary/fees/${slug}`] = { totalDataChart: s };

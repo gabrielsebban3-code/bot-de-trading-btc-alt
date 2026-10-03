@@ -4,11 +4,12 @@ import { initProjects, renderProject } from './projects.js';
 import { initSetups, renderSetup, setupsUnavailable } from './setups.js';
 import { focusNews, initNews, newsFocus, newsUnavailable } from './news.js';
 import { starTitle, watchlist } from './watchlist.js';
+import { initMarche, marcheUnavailable, renderIndicator } from './marche.js';
 import { alertSymbols, initAccount, refreshAccount, setFeed } from './account.js';
 import './heatmap.js';
 
 const $ = id => document.getElementById(id);
-const PAGES = ['resume', 'projets', 'setups', 'actu', 'heatmap', 'historique', 'compte'];
+const PAGES = ['resume', 'marche', 'projets', 'setups', 'actu', 'heatmap', 'historique', 'compte'];
 // Actifs connus du site, par symbole : projets, marchés des setups, setup en jeu. Servent au ticker et à Mon compte.
 const known = { projects: new Map(), assets: new Map(), live: new Map() };
 const quotes = new Map(); // derniers prix OKX du ticker
@@ -16,13 +17,16 @@ const asked = new Map(); // heure de la dernière demande à OKX, par symbole
 let ready = false;
 let setupsReady = false;
 let newsReady = false;
+let marcheReady = false;
 
 // Navigation par ancre : #resume, #projets, #projet/<id>…
 function route() {
   const [page, id] = location.hash.slice(1).split('/');
-  const target = ['projet', 'setup'].includes(page) ? page : PAGES.includes(page) ? page : 'resume';
+  const target = ['projet', 'setup', 'indicateur'].includes(page) ? page : PAGES.includes(page) ? page : 'resume';
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === `page-${target}`));
-  const tab = { projet: 'projets', setup: 'setups' }[target] || target;
+  // Une fiche indicateur garde l'onglet d'où on vient (Résumé ou Marché) et y ramène.
+  if (['resume', 'marche'].includes(target)) $('ind-back').href = `#${target}`;
+  const tab = { projet: 'projets', setup: 'setups', indicateur: $('ind-back').hash.slice(1) }[target] || target;
   document.querySelectorAll('#nav [data-tab]').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   $('more').classList.toggle('on', tab === 'historique');
   $('me').classList.toggle('on', tab === 'compte');
@@ -30,6 +34,7 @@ function route() {
   $('more').setAttribute('aria-expanded', 'false');
   if (target === 'projet' && ready) renderProject(decodeURIComponent(id || ''));
   if (target === 'setup' && setupsReady) renderSetup(decodeURIComponent(id || ''));
+  if (target === 'indicateur') { $('ind-back').textContent = $('ind-back').hash === '#marche' ? '← Marché' : '← Résumé'; if (marcheReady) renderIndicator(decodeURIComponent(id || '')); }
   window.scrollTo(0, 0);
   // Bouton Connexion en haut à droite : sur mobile, le bloc de connexion est sous la watchlist, on l'amène à l'écran.
   if (target === 'compte' && id === 'connexion') $('account').scrollIntoView({ block: 'center' });
@@ -76,10 +81,13 @@ async function getJson(path) {
 }
 
 async function load() {
-  const [projects, setups, news, market] = await Promise.all(
-    ['projects', 'setups', 'news', 'market'].map(name => getJson(`data/${name}.json`).catch(() => null)),
+  const [projects, setups, news, market, marche] = await Promise.all(
+    ['projects', 'setups', 'news', 'market', 'marche'].map(name => getJson(`data/${name}.json`).catch(() => null)),
   );
   showProjects(projects);
+  if (marche) initMarche(marche);
+  else marcheUnavailable();
+  marcheReady = true;
   // L'actu d'abord : les setups affichent la news liée à leur actif.
   if (news) {
     initNews(news, projects);
@@ -101,15 +109,16 @@ async function load() {
   route();
 
   const brent = setups?.assets.find(a => a.symbol === 'BZ');
+  // Chaque tuile ouvre la fiche de l'indicateur avec son graphique, ou l'onglet correspondant.
   const tiles = [
-    ['Dominance BTC', market?.btcDominance != null ? `${fmt(market.btcDominance, 1)} %` : '—'],
-    ['Fear & Greed', market?.fearGreed ? `${market.fearGreed.value} · ${esc(market.fearGreed.label)}` : '—'],
-    ['Pétrole Brent', brent ? `${price(brent.price)} ${pct(brent.change24h)}` : '—'],
-    ['Projets suivis', projects ? String(projects.projects.length) : '—'],
-    ['Setups en jeu', setups ? String(setups.live.filter(s => s.outcome === 'open').length) : '—'],
-    ['News critiques 24 h', news ? String(news.items.filter(i => i.importance === 'critical' && Date.now() - i.time < 86_400_000).length) : '—'],
+    ['Dominance BTC', market?.btcDominance != null ? `${fmt(market.btcDominance, 1)} %` : '—', '#indicateur/dominance'],
+    ['Fear & Greed', market?.fearGreed ? `${market.fearGreed.value} · ${esc(market.fearGreed.label)}` : '—', '#indicateur/fng'],
+    ['Pétrole Brent', brent ? `${price(brent.price)} ${pct(brent.change24h)}` : '—', '#indicateur/brent'],
+    ['Projets suivis', projects ? String(projects.projects.length) : '—', '#projets'],
+    ['Setups en jeu', setups ? String(setups.live.filter(s => s.outcome === 'open').length) : '—', '#setups'],
+    ['News critiques 24 h', news ? String(news.items.filter(i => i.importance === 'critical' && Date.now() - i.time < 86_400_000).length) : '—', '#actu'],
   ];
-  $('macro').innerHTML = tiles.map(([k, v]) => `<div>${k}<b>${v}</b></div>`).join('');
+  $('macro').innerHTML = tiles.map(([k, v, href]) => `<a href="${href}"><span>${k} <span class="go">→</span></span><b>${v}</b></a>`).join('');
 }
 
 function showProjects(projects) {
