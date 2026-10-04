@@ -7,13 +7,13 @@ import { star, watchlist } from './watchlist.js';
 const BAR = 4 * 3600_000;
 // 0.75 → « 0,75 », 2 → « 2 »
 const num = n => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
-const OUTCOME = {
+export const OUTCOME = {
   sl: ['Stop touché', 'down'],
   be: ['Moitié prise, reste à l\'entrée', 'up'],
   exit: ['Sortie de tendance', ''],
   open: ['En jeu', 'acc'],
 };
-const TREND = { haussière: 'up', baissière: 'down', neutre: '' };
+export const TREND = { haussière: 'up', baissière: 'down', neutre: '' };
 
 let data = null;
 let projectsBySymbol = new Map();
@@ -31,17 +31,17 @@ export function px(n) {
   return fmt(n, d);
 }
 
-const dirTag = d => `<span class="tag ${d === 'long' ? 'up' : 'down'}">${d === 'long' ? '▲ Long' : '▼ Short'}</span>`;
+export const dirTag = d => `<span class="tag ${d === 'long' ? 'up' : 'down'}">${d === 'long' ? '▲ Long' : '▼ Short'}</span>`;
 const statusTag = s => `<span class="tag ${s.status === 'confirmé' ? 'acc' : 'mid'}">${s.status === 'confirmé' ? 'Confirmé' : 'En cours'}</span>`;
 const outcomeTag = s => (s.status === 'confirmé' && s.outcome !== 'open' ? `<span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span>` : '');
 const asset = sym => data.assets.find(a => a.symbol === sym) || { symbol: sym, name: sym };
-const okxUrl = sym => `https://www.okx.com/trade-swap/${sym.toLowerCase()}-usdt-swap`;
+export const okxUrl = sym => `https://www.okx.com/trade-swap/${sym.toLowerCase()}-usdt-swap`;
 const parisTime = t => new Date(t).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
-const parisDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+export const parisDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 // Résultat en % du capital : chaque trade risque data.rules.riskPct % du compte (1 % par défaut), donc 1R = 1 %.
-const cap = r => `${r > 0 ? '+' : ''}${fmt(r * (data.rules.riskPct ?? 1), r * (data.rules.riskPct ?? 1) >= 10 || r * (data.rules.riskPct ?? 1) <= -10 ? 0 : 1)} %`;
-const outcomeCls = s => (s.outcome === 'exit' ? (s.r > 0 ? 'up' : s.r < 0 ? 'down' : '') : OUTCOME[s.outcome][1]);
+export const cap = r => `${r > 0 ? '+' : ''}${fmt(r * (data.rules.riskPct ?? 1), r * (data.rules.riskPct ?? 1) >= 10 || r * (data.rules.riskPct ?? 1) <= -10 ? 0 : 1)} %`;
+export const outcomeCls = s => (s.outcome === 'exit' ? (s.r > 0 ? 'up' : s.r < 0 ? 'down' : '') : OUTCOME[s.outcome][1]);
 
 function winLine(key) {
   const s = data.stats[key];
@@ -77,40 +77,45 @@ function card(s) {
 }
 
 // Radar : une carte par paire, même sans signal. Trade en jeu, sinon le prix qui déclencherait le prochain signal.
-const plainPct = x => `${x > 0 ? '+' : x < 0 ? '−' : ''}${fmt(Math.abs(x) * 100, 1)} %`;
-function radarCard(a) {
+// Chaque carte ouvre la fiche de la paire (#paire/<symbole>).
+export const plainPct = x => `${x > 0 ? '+' : x < 0 ? '−' : ''}${fmt(Math.abs(x) * 100, 1)} %`;
+export const liveOf = sym => data?.live.find(s => s.symbol === sym && s.outcome === 'open') || null;
+export const lastTradeOf = sym => data?.history.find(s => s.symbol === sym && s.outcome !== 'open') || null;
+export const setupsData = () => data;
+
+// Où en est la paire : trade en jeu, prix de déclenchement, ou attente d'une tendance.
+export function radarBody(a) {
   const r = a.radar;
-  const live = data.live.find(s => s.symbol === a.symbol && s.outcome === 'open');
-  const last = data.history.find(s => s.symbol === a.symbol && s.outcome !== 'open');
-  const head = `<span class="hd"><b class="mono">${esc(a.symbol)}</b><span class="muted">${esc(a.name)}</span>
-    ${r ? `<span class="tag ${TREND[r.trend]}">Tendance ${esc(r.trend)}</span>` : ''}<span class="px">${px(a.price)}</span></span>`;
-  const lastLine = last ? `<span class="sm">Dernier trade : ${esc(OUTCOME[last.outcome][0].toLowerCase())} le ${parisDay(last.at)} (${cap(last.r)})</span>` : '';
-  let body;
+  const live = liveOf(a.symbol);
   if (live) {
     const move = (a.price - live.entry) / Math.abs(live.entry - live.sl) * (live.dir === 'long' ? 1 : -1);
     const r0 = live.tpHit ? ((data.rules.partialR ?? 5) + move) / 2 : move; // moitié déjà prise à 5R
-    body = `<span class="state">${dirTag(live.dir)} <b>Trade en jeu</b> depuis le ${parisDay(live.time)}</span>
+    return `<span class="state">${dirTag(live.dir)} <b>Trade en jeu</b> depuis le ${parisDay(live.time)}</span>
       <span class="sm">Entrée ${px(live.entry)} · stop ${px(live.stop ?? live.sl)} · en ce moment <b class="${r0 >= 0 ? 'up' : 'down'}">${cap(r0)}</b> du capital</span>`;
-    return `<a class="card" href="#setup/${encodeURIComponent(live.id)}">${head}${body}${lastLine}</a>`;
   }
-  if (!r) body = '<span class="state">Pas assez de données pour le moment.</span>';
-  else if (r.trend === 'neutre') body = `<span class="state">Pas de trade : la tendance journalière est neutre.</span>
+  if (!r) return '<span class="state">Pas assez de données pour le moment.</span>';
+  if (r.trend === 'neutre') return `<span class="state">Pas de trade : la tendance journalière est neutre.</span>
     <span class="sm">On attend qu'elle redevienne haussière (longs) ou baissière (shorts).</span>`;
-  else {
-    const up = r.dir === 'long';
-    const word = up ? 'au-dessus de' : 'sous';
-    const macd = `le MACD 4h repasse ${up ? 'au-dessus' : 'en dessous'} de zéro`;
-    if (r.trigger) {
-      const near = Math.max(0, 1 - Math.abs(r.trigger.distance) / 0.1); // plein à 0 %, vide à 10 % ou plus
-      body = `<span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Long' : 'Short'}</b> si une bougie 4h clôture ${word} <b>${px(r.trigger.price)}</b> (${plainPct(r.trigger.distance)})</span>
-        <span class="meter" title="Distance au déclenchement"><i style="width:${Math.round(near * 100)}%"></i></span>
-        <span class="sm">${esc(data.detectors[r.trigger.key])} · stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)})${r.macdReady ? `, ou plus tôt si ${macd}` : ''}</span>`;
-    } else {
-      body = `<span class="state">Prix déjà ${up ? 'au-dessus des plus hauts' : 'sous les plus bas'} de 10 et 20 jours.</span>
-        <span class="sm">Prochain signal ${r.macdReady ? `quand ${macd}` : 'sur le prochain repli puis reprise du MACD 4h'}, si la marge avant le prochain niveau est suffisante.</span>`;
-    }
+  const up = r.dir === 'long';
+  const word = up ? 'au-dessus de' : 'sous';
+  const macd = `le MACD 4h repasse ${up ? 'au-dessus' : 'en dessous'} de zéro`;
+  if (r.trigger) {
+    const near = Math.max(0, 1 - Math.abs(r.trigger.distance) / 0.1); // plein à 0 %, vide à 10 % ou plus
+    return `<span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Long' : 'Short'}</b> si une bougie 4h clôture ${word} <b>${px(r.trigger.price)}</b> (${plainPct(r.trigger.distance)})</span>
+      <span class="meter" title="Distance au déclenchement"><i style="width:${Math.round(near * 100)}%"></i></span>
+      <span class="sm">${esc(data.detectors[r.trigger.key])} · stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)})${r.macdReady ? `, ou plus tôt si ${macd}` : ''}</span>`;
   }
-  return `<div class="card">${head}${body}${lastLine}</div>`;
+  return `<span class="state">Prix déjà ${up ? 'au-dessus des plus hauts' : 'sous les plus bas'} de 10 et 20 jours.</span>
+    <span class="sm">Prochain signal ${r.macdReady ? `quand ${macd}` : 'sur le prochain repli puis reprise du MACD 4h'}, si la marge avant le prochain niveau est suffisante.</span>`;
+}
+
+function radarCard(a) {
+  const r = a.radar;
+  const last = lastTradeOf(a.symbol);
+  const head = `<span class="hd"><b class="mono">${esc(a.symbol)}</b><span class="muted">${esc(a.name)}</span>
+    ${r ? `<span class="tag ${TREND[r.trend]}">Tendance ${esc(r.trend)}</span>` : ''}<span class="px">${px(a.price)}</span></span>`;
+  const lastLine = last ? `<span class="sm">Dernier trade : ${esc(OUTCOME[last.outcome][0].toLowerCase())} le ${parisDay(last.at)} (${cap(last.r)})</span>` : '';
+  return `<a class="card" href="#paire/${encodeURIComponent(a.symbol)}">${head}${radarBody(a)}${lastLine}<span class="go">Voir la fiche ${esc(a.symbol)} →</span></a>`;
 }
 
 function renderRadar() {

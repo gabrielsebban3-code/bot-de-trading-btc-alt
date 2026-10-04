@@ -56,6 +56,11 @@ jobs:
           for f in projects market setups news alerts marche; do
             curl -fsSL "${{ steps.pages.outputs.base_url }}/data/$f.json" -o "previous/$f.json" || echo "Pas encore de $f.json en ligne."
           done
+          # Fiches paire déjà en ligne (onglet Setups) : reprises si les setups échouent à ce passage.
+          mkdir -p previous/paire
+          for s in BTC ETH SOL BZ; do
+            curl -fsSL "${{ steps.pages.outputs.base_url }}/data/paire/$s.json" -o "previous/paire/$s.json" || echo "Pas encore de paire/$s.json en ligne."
+          done
           # Fiches crypto déjà en ligne : celles des cryptos du tableau de l'onglet Marché.
           mkdir -p previous/crypto
           for id in $(jq -r '.top[]?.id // empty' previous/marche.json 2>/dev/null); do
@@ -123,6 +128,12 @@ jobs:
           for p in previous/crypto/*.json; do
             [ -s "$p" ] || continue
             f="_site/data/crypto/$(basename "$p")"
+            [ -s "$f" ] || cp "$p" "$f"
+          done
+          mkdir -p _site/data/paire
+          for p in previous/paire/*.json; do
+            [ -s "$p" ] || continue
+            f="_site/data/paire/$(basename "$p")"
             [ -s "$f" ] || cp "$p" "$f"
           done
           if [ "${{ steps.cryptos.outcome }}" = failure ]; then echo "::warning::Fiches crypto non mises à jour à ce passage."; fi

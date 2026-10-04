@@ -30,7 +30,8 @@ export function niceTicks(lo, hi, count = 4) {
 // spec : {
 //   bars : [[temps, o, h, l, c, volume]], line : true pour une courbe des clôtures,
 //   label(i) : date longue de la bougie i (survol), ticks : [[i, texte]] pour l'axe du temps,
-//   price : { title, h, fmt, overlays : [{ key, label, cls, vals }] },
+//   price : { title, h, fmt, overlays : [{ key, label, cls, vals }],
+//             levels : [{ v, label, cls }] (lignes horizontales du plan), marks : [{ i, dir : 'long' | 'short', cls }] (flèches sous ou sur les bougies) },
 //   panes : [{ title, h, fmt, kind : 'volume' | 'line' | 'bars' | 'macd', series : [{ key, label, cls, vals }],
 //              lo, hi, ticks, refs, bands }],
 // }
@@ -60,7 +61,7 @@ export function drawCandles(box, spec) {
       // restent lisibles (une moyenne 200 jours très loin du prix écraserait tout).
       const pv = p.kind === 'candles' ? bars.flatMap(b => [b[2], b[3]]) : bars.map(b => b[4]);
       const cLo = Math.min(...pv), cHi = Math.max(...pv), room = (cHi - cLo) * 0.35;
-      vals = [cLo, cHi, ...own.map(v => clamp(v, cLo - room, cHi + room))];
+      vals = [cLo, cHi, ...own.concat((p.levels || []).map(l => l.v)).map(v => clamp(v, cLo - room, cHi + room))];
     }
     if (p.kind === 'volume') vals = [0, ...bars.map(b => b[5])];
     if (p.kind === 'bars' || p.kind === 'macd') vals = vals.concat(0);
@@ -140,6 +141,21 @@ export function drawCandles(box, spec) {
       svg.append(el('path', { d, class: `ln ${s.cls}`, 'clip-path': `url(#${clip})` }));
     });
 
+    // Niveaux du plan (déclenchement, stop, objectif) : ligne pointillée, nom et prix au-dessus, à gauche.
+    for (const lv of p.levels || []) {
+      const yy = y(lv.v);
+      if (yy < top - 2 || yy > bottom + 2) continue;
+      svg.append(el('line', { x1: L, x2: W - R, y1: yy, y2: yy, class: `lvl ${lv.cls || ''}` }),
+        el('text', { x: L + 4, y: yy - 4, class: `lvl-t ${lv.cls || ''}` }, `${lv.label} ${p.fmt(lv.v)}`));
+    }
+    // Signaux passés : flèche sous la bougie (long) ou au-dessus (short).
+    for (const m of p.marks || []) {
+      const b = bars[m.i];
+      if (!b) continue;
+      const cx = x(m.i), long = m.dir === 'long';
+      const yy = long ? y(b[3]) + 5 : y(b[2]) - 5, s = long ? 1 : -1;
+      svg.append(el('path', { d: `M${cx.toFixed(1)},${yy.toFixed(1)}l4.5,${8 * s}h-9Z`, class: `mark ${m.cls || ''}` }));
+    }
     // Dernier prix : ligne pointillée et étiquette sur l'axe de droite.
     if (p.kind === 'candles' || p.kind === 'close') {
       const b = bars.at(-1), yy = y(b[4]);

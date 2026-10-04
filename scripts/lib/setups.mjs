@@ -296,7 +296,7 @@ export function radar(bars, daily) {
   const next = ahead[0] ?? null;
   const h = macdHist(closed).at(-1);
   return {
-    ...out, dir,
+    ...out, dir, levels,
     trigger: next && { ...next, distance: next.price / price - 1, stop: next.price - s * RULES.stopAtr * dc.atr[j] },
     macdReady: s * h < 0, // l'histogramme est du mauvais côté : son retour de l'autre côté de zéro donnerait un signal
   };

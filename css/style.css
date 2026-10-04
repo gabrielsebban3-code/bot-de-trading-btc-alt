@@ -458,3 +458,36 @@ table.cx-table { margin-bottom: 10px; font-size: 13px; }
   .cx-table th:first-child, .cx-table td:first-child { padding-left: 14px; }
   .cx-table th { white-space: normal; }
 }
+
+/* Fiche paire (#paire/<symbole>) : cartes du radar cliquables, niveaux et trades passés sur le graphique */
+.radar a.card { color: var(--fg); }
+.radar a.card:hover { border-color: var(--line2); text-decoration: none; }
+.radar .go { margin-top: auto; font-size: 12px; color: var(--muted); }
+.radar a.card:hover .go { color: var(--accent); }
+.pa-now { margin-bottom: 16px; }
+.pa-state { display: flex; flex-direction: column; gap: 8px; padding: 0 14px 14px; max-width: 70ch; }
+.pa-state .state { font-size: 15px; }
+.pa-state .state b.up { color: var(--up); } .pa-state .state b.down { color: var(--down); }
+.pa-state .meter { height: 4px; background: var(--bg); border-radius: 2px; overflow: hidden; max-width: 360px; }
+.pa-state .meter i { display: block; height: 100%; background: var(--accent); }
+.pa-state .sm { font-size: 13px; color: var(--muted); }
+.pa-state .chip { align-self: flex-start; color: var(--fg); }
+.pa-legend { margin: 8px 0 0; }
+.pa-rules { list-style: none; margin: 0; padding: 0 14px 4px; display: grid; gap: 12px; font-size: 13px; }
+.pa-rules > li { display: flex; gap: 10px; align-items: flex-start; }
+.pa-rules > li > div { display: grid; gap: 2px; min-width: 0; }
+.pa-rules > li span:not(.pa-ck) { color: var(--fg2); }
+.pa-rules ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; color: var(--fg2); }
+.pa-ck { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; margin-top: 1px; }
+.pa-ck.yes { color: var(--up); background: var(--up-soft); } .pa-ck.no { color: var(--muted); background: var(--panel2); }
+.pa-others { padding-top: 0; }
+.cx-chart .lvl { stroke-width: 1; stroke-dasharray: 5 4; stroke: var(--fg2); }
+.cx-chart .lvl-t { font: 10px var(--mono); fill: var(--fg2); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
+.cx-chart .lvl.acc, .cx-chart .mark.acc { stroke: var(--accent); fill: var(--accent); } .cx-chart .lvl-t.acc { fill: var(--accent); }
+.cx-chart .lvl.down { stroke: var(--down); } .cx-chart .lvl-t.down { fill: var(--down); }
+.cx-chart .lvl.up { stroke: var(--up); } .cx-chart .lvl-t.up { fill: var(--up); }
+.cx-chart .lvl.mute { stroke: var(--muted); } .cx-chart .lvl-t.mute { fill: var(--muted); }
+.cx-chart .lvl.fg { stroke: var(--fg); } .cx-chart .lvl-t.fg { fill: var(--fg); }
+.cx-chart .mark { fill: var(--fg2); stroke: none; }
+.cx-chart .mark.up { fill: var(--up); } .cx-chart .mark.down { fill: var(--down); } .cx-chart .mark.mute { fill: var(--muted); }
+.cx-chart .mark.acc { stroke: none; }

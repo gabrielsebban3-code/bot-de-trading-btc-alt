@@ -161,6 +161,7 @@ test('radar : prix de la prochaine cassure dans le sens de la tendance, rien en 
   assert.equal(up.trigger.price, 101);
   assert.ok(Math.abs(up.trigger.distance - 0.01) < 1e-9);
   assert.ok(up.trigger.stop < 101);
+  assert.deepEqual(up.levels.map(l => l.key), ['range20', 'range10'], 'les deux cassures, pour la fiche de la paire');
   const down = radar(b, trendDays(-0.6));
   assert.equal(down.dir, 'short');
   assert.equal(down.trigger.price, 99, 'plus bas des 10 jours, plus proche que celui des 20 jours');

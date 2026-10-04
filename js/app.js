@@ -6,6 +6,7 @@ import { focusNews, initNews, newsFocus, newsUnavailable } from './news.js';
 import { starTitle, watchlist } from './watchlist.js';
 import { initMarche, marcheUnavailable, renderIndicator } from './marche.js';
 import { renderCrypto, setCryptoContext } from './crypto.js';
+import { renderPaire } from './paire.js';
 import { alertSymbols, initAccount, refreshAccount, setFeed } from './account.js';
 import './heatmap.js';
 
@@ -24,11 +25,11 @@ let marcheReady = false;
 let shown = null; // page affichée avant ce changement d'ancre
 function route() {
   const [page, id] = location.hash.slice(1).split('/');
-  const target = ['projet', 'setup', 'indicateur', 'crypto'].includes(page) ? page : PAGES.includes(page) ? page : 'resume';
+  const target = ['projet', 'setup', 'paire', 'indicateur', 'crypto'].includes(page) ? page : PAGES.includes(page) ? page : 'resume';
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === `page-${target}`));
   // Une fiche indicateur garde l'onglet d'où on vient (Résumé ou Marché) et y ramène.
   if (['resume', 'marche'].includes(target)) $('ind-back').href = `#${target}`;
-  const tab = { projet: 'projets', setup: 'setups', indicateur: $('ind-back').hash.slice(1), crypto: 'marche' }[target] || target;
+  const tab = { projet: 'projets', setup: 'setups', paire: 'setups', indicateur: $('ind-back').hash.slice(1), crypto: 'marche' }[target] || target;
   document.querySelectorAll('#nav [data-tab]').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   $('more').classList.toggle('on', tab === 'historique');
   $('me').classList.toggle('on', tab === 'compte');
@@ -36,10 +37,12 @@ function route() {
   $('more').setAttribute('aria-expanded', 'false');
   if (target === 'projet' && ready) renderProject(decodeURIComponent(id || ''));
   if (target === 'setup' && setupsReady) renderSetup(decodeURIComponent(id || ''));
+  if (target === 'paire' && setupsReady) renderPaire(decodeURIComponent(id || '').toUpperCase());
   if (target === 'crypto') renderCrypto(decodeURIComponent(id || ''));
   if (target === 'indicateur') { $('ind-back').textContent = $('ind-back').hash === '#marche' ? '← Marché' : '← Résumé'; if (marcheReady) renderIndicator(decodeURIComponent(id || '')); }
   // Retour d'une fiche crypto : on retrouve le tableau des cryptos plutôt que le haut de l'onglet Marché.
   if (target === 'marche' && shown === 'crypto') $('marche-top').closest('.wrap').scrollIntoView({ block: 'center' });
+  else if (target === 'setups' && shown === 'paire') $('setups-radar').scrollIntoView({ block: 'center' });
   else window.scrollTo(0, 0);
   shown = target;
   // Bouton Connexion en haut à droite : sur mobile, le bloc de connexion est sous la watchlist, on l'amène à l'écran.
