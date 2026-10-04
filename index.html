@@ -28,6 +28,7 @@
           <span class="menu" id="menu" hidden>
             <a href="#outils" data-tab="outils" class="menu-only">Outils</a>
             <a href="#historique" data-tab="historique">Historique <span class="lock guest-only">membres</span></a>
+            <a href="#scanner" data-tab="scanner">Scanner <span class="ptag free-only">✦</span></a>
             <a href="#impots" data-tab="impots">Impôts crypto <span class="ptag free-only">✦</span></a>
             <a href="#premium" data-tab="premium">Premium <span class="ptag free-only">✦</span></a>
           </span>
@@ -172,6 +173,7 @@
       <div id="setups-warnings"></div>
       <h2 class="section">Les 4 paires en ce moment <span class="muted">clique sur une paire pour ouvrir sa fiche</span></h2>
       <div class="radar" id="setups-radar"></div>
+      <a class="sc-link" href="#scanner"><span class="ptag">Premium</span> La même méthode sur les 80 cryptos les plus échangées : <b>ouvrir le scanner →</b></a>
       <h2 class="section">Signaux en jeu</h2>
       <div class="tools" id="setups-detectors" role="group" aria-label="Détecteurs"></div>
       <div class="tools" id="setups-filters" role="group" aria-label="Filtres"></div>
@@ -266,6 +268,15 @@
       </div>
       </div>
     </section>
+    <!-- Scanner : la méthode des Setups sur les cryptos les plus échangées (Premium) -->
+    <section class="page" id="page-scanner">
+      <div class="intro" data-intro="scanner"><span class="i">i</span>
+        <p>Le scanner applique la méthode des Setups (cassures et MACD, seulement dans le sens de la tendance) aux <b>80 cryptos les plus échangées sur OKX</b>, toutes les heures. <span>Attention : la méthode a été testée sur 3 ans seulement pour BTC, ETH et SOL. Sur les autres cryptos, un signal est une piste à vérifier sur le graphique, pas une garantie. Les petites cryptos bougent plus fort : le stop est plus loin et le risque plus grand.</span></p>
+        <button type="button">Compris</button></div>
+      <h1>Scanner Dinexo</h1>
+      <p class="sub">Quelles cryptos sont en tendance, lesquelles viennent de donner un signal, lesquelles en sont proches.</p>
+      <div id="scanner"></div>
+    </section>
     <!-- Impôts : calculateur de l'impôt sur les ventes de cryptos (Premium) -->
     <section class="page" id="page-impots">
       <div class="intro" data-intro="impots"><span class="i">i</span>
@@ -278,7 +289,7 @@
     <!-- Premium : les deux formules -->
     <section class="page" id="page-premium">
       <h1>Gratuit ou Premium</h1>
-      <p class="sub">Dinexo reste gratuit. Premium ajoute le direct sur toutes les paires, un historique plus long et des outils en plus.</p>
+      <p class="sub">Dinexo reste gratuit. Premium ajoute le direct sur toutes les paires, le scanner sur 80 cryptos, le calculateur d'impôts et un historique plus long.</p>
       <div id="premium-plans"></div>
     </section>
 

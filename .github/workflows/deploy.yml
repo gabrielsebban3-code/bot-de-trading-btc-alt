@@ -53,7 +53,7 @@ jobs:
         if: env.PUBLISH == 'true'
         run: |
           mkdir -p previous
-          for f in projects market setups news alerts marche outils; do
+          for f in projects market setups news alerts marche outils scanner; do
             curl -fsSL "${{ steps.pages.outputs.base_url }}/data/$f.json" -o "previous/$f.json" || echo "Pas encore de $f.json en ligne."
           done
           # Fiches paire déjà en ligne (onglet Setups) : reprises si les setups échouent à ce passage.
@@ -133,11 +133,18 @@ jobs:
         continue-on-error: true
         timeout-minutes: 8
         run: node scripts/build-prix.mjs --out _site/data --marche _site/data/marche.json,previous/marche.json --previous previous/prix
+      # Scanner (onglet Scanner) : la méthode des Setups sur les 80 cryptos les plus échangées d'OKX.
+      - name: Scanner
+        id: scanner
+        if: env.NEWS_ONLY != 'true'
+        continue-on-error: true
+        timeout-minutes: 6
+        run: node scripts/build-scanner.mjs --out _site/data --marche _site/data/marche.json,previous/marche.json
 
       - name: Compléter avec la version déjà en ligne
         run: |
           mkdir -p _site/data
-          for f in projects market setups news marche outils; do
+          for f in projects market setups news marche outils scanner; do
             if [ ! -s "_site/data/$f.json" ] && [ -s "previous/$f.json" ]; then
               cp "previous/$f.json" "_site/data/$f.json"
               echo "$f.json : version déjà en ligne conservée."
@@ -168,6 +175,7 @@ jobs:
             [ -s "$f" ] || cp "$p" "$f"
           done
           if [ "${{ steps.prix.outcome }}" = failure ]; then echo "::warning::Prix pour les impôts non mis à jour à ce passage."; fi
+          if [ "${{ steps.scanner.outcome }}" = failure ]; then echo "::warning::Scanner non mis à jour à ce passage."; fi
 
       # Alertes Discord : nouveaux setups confirmés et news critiques, comparés à la version déjà en ligne.
       # Au premier passage avec le lien, un message de bienvenue ; data/alerts.json retient qu'il est parti.
@@ -196,6 +204,11 @@ jobs:
         if: env.PUBLISH != 'true'
         continue-on-error: true
         run: cat prix-gz.txt
+
+      - name: Données du scanner
+        if: env.PUBLISH != 'true'
+        continue-on-error: true
+        run: cat scanner-gz.txt
 
       # Numéro de version dans les liens vers les scripts et le style : après une mise à jour, le navigateur
       # ne mélange pas la nouvelle page avec les anciens scripts gardés en cache (10 minutes sur GitHub Pages).
