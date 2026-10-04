@@ -122,5 +122,6 @@ export function verdict(list) {
 }
 
 // Stablecoins, versions « wrapped » ou « staked » : dupliquent BTC ou ETH, ou ne bougent pas.
-const NOT_COINS = /usd|^dai$|^wbtc$|^weth$|^steth$|^wsteth$|^weeth$|^wbeth$|^cbbtc$|^lbtc$|^susde$|^bsc-usd$|^buidl$/i;
-export const realCoins = list => list.filter(c => !NOT_COINS.test(c.symbol) && !/wrapped|staked|bridged/i.test(c.name));
+// Actifs du monde réel mis sur la blockchain (prêts immobiliers, bons du Trésor…) : pas des cryptos qu'on trade.
+const NOT_COINS = /usd|_|^dai$|^wbtc$|^weth$|^steth$|^wsteth$|^weeth$|^wbeth$|^cbbtc$|^lbtc$|^susde$|^bsc-usd$|^buidl$/i;
+export const realCoins = list => list.filter(c => !NOT_COINS.test(c.symbol) && !/wrapped|staked|bridged|tokenized|treasury|heloc/i.test(c.name));

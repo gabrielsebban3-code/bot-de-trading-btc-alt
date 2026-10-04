@@ -293,7 +293,9 @@ export function drawPanes(box, panes, start, end) {
 }
 
 function top(list) {
-  $('marche-top').innerHTML = list.length ? list.map((c, i) => `<tr><td class="l num">${i + 1}</td><td class="l"><b>${esc(c.symbol)}</b> <span class="muted">${esc(c.name)}</span></td>
+  // Chaque ligne ouvre la fiche de sa crypto (#crypto/<id>, js/crypto.js).
+  const name = c => `<b>${esc(c.symbol)}</b> <span class="muted">${esc(c.name)}</span>`;
+  $('marche-top').innerHTML = list.length ? list.map((c, i) => `<tr${c.id ? ` data-id="${esc(c.id)}"` : ''}><td class="l num">${i + 1}</td><td class="l name">${c.id ? `<a href="#crypto/${esc(c.id)}">${name(c)}</a>` : name(c)}</td>
     <td class="num">${price(c.price)} $</td><td class="num">${pct(c.change24h)}</td><td class="num">${pct(c.change7d)}</td><td class="num">${pct(c.change30d)}</td>
     <td class="num">${money(c.mcap)}</td><td class="num">${money(c.volume)}</td></tr>`).join('')
     : '<tr><td colspan="8"><div class="empty">Classement indisponible à cette mise à jour.</div></td></tr>';

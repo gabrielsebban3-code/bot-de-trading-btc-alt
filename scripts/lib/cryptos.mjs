@@ -1,0 +1,40 @@
+// Fiches crypto : mise en forme des réponses d'OKX et de CoinGecko (fonctions pures, testées dans tests/crypto.test.mjs).
+import { toDaily } from '../../js/marche-lib.js';
+import { per8h } from '../../js/crypto-lib.js';
+
+const HOUR = 3_600_000;
+export const sig = (n, d = 6) => (Number.isFinite(n) ? Number(n.toPrecision(d)) : null);
+
+// Bougies OKX (les plus récentes d'abord) → [temps, o, h, l, c, volume en dollars] de la plus ancienne à la plus récente.
+// `unit` : durée d'une unité de temps en ms (un jour, une heure). Le volume en dollars est la colonne volCcyQuote.
+export function candlesFromOkx(rows, unit) {
+  const byTime = new Map();
+  for (const r of rows) {
+    const c = [Math.floor(Number(r[0]) / unit), ...[1, 2, 3, 4].map(k => sig(Number(r[k]))), sig(Number(r[7] ?? r[6]), 4) ?? 0];
+    if (c.slice(1, 5).every(v => v > 0)) byTime.set(c[0], c);
+  }
+  return [...byTime.values()].sort((a, b) => a[0] - b[0]);
+}
+
+// Historique du funding OKX (les plus récents d'abord) → moyenne par jour en % par 8 h.
+// Chaque taux est ramené à 8 h d'après l'écart avec le paiement précédent : OKX passe parfois à 4 h ou 1 h.
+export function fundingHistory(rows, everyHours = 8) {
+  const pts = rows.map((r, i) => {
+    const gap = rows[i + 1] ? (Number(r.fundingTime) - Number(rows[i + 1].fundingTime)) / HOUR : everyHours;
+    return [Number(r.fundingTime), per8h(Number(r.realizedRate || r.fundingRate) * 100, Math.min(8, Math.max(1, gap || 8)))];
+  });
+  return toDaily(pts, { mean: true }).map(([d, v]) => [d, sig(v, 4)]);
+}
+
+// Début de la présentation CoinGecko : texte brut, trois phrases au plus (on s'arrête après 280 caractères).
+export function excerpt(html, max = 480) {
+  const text = String(html || '').replace(/<\/?(p|br|div|li|ul|ol|h\d)\b[^>]*>/gi, ' ').replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&rsquo;/g, "'").replace(/\s+/g, ' ').trim();
+  if (!text) return null;
+  let out = '';
+  for (const [i, s] of text.split(/(?<=[.!?])\s+(?=[A-ZÀ-Ý0-9])/).entries()) {
+    if (out && (i >= 3 || out.length > 280 || out.length + s.length > max)) break;
+    out += (out ? ' ' : '') + s;
+  }
+  return out.length > max ? `${out.slice(0, max - 1).replace(/\s+\S*$/, '')}…` : out;
+}
