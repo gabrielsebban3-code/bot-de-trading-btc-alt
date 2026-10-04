@@ -4,6 +4,7 @@ import { ago, esc, fmt, pct } from './format.js';
 import { drawCandles } from './candles.js';
 import { macdOf } from './crypto-lib.js';
 import { star } from './watchlist.js';
+import { delayed, historyDays } from './premium.js';
 import { OUTCOME, TREND, cap, dirTag, lastTradeOf, liveOf, okxUrl, outcomeCls, parisDay, plainPct, px, radarBody, setupsData } from './setups.js';
 
 const $ = id => document.getElementById(id);
@@ -147,14 +148,17 @@ function manageBox(a, d, live) {
 }
 
 // Trades terminés de la paire sur 12 mois (historique réservé aux membres, comme l'onglet Historique).
-const doneTrades = sym => setupsData().history.filter(s => s.symbol === sym && s.outcome !== 'open' && s.at && Date.now() - s.at < 365 * DAY);
+// Sans Premium : 3 mois au lieu de 12, et sans les signaux des dernières 24 h sur SOL et le pétrole.
+const shownTrades = sym => setupsData().history.filter(s => s.symbol === sym && Date.now() - s.time < historyDays() * DAY && !delayed(s));
+const doneTrades = sym => shownTrades(sym).filter(s => s.outcome !== 'open' && s.at);
+const periodText = () => (historyDays() > 100 ? '12 mois' : '3 mois');
 
 function statsBox(a) {
   const list = doneTrades(a.symbol);
   const wins = list.filter(s => s.r > 0).length;
   const total = list.reduce((t, s) => t + s.r, 0);
   const last = lastTradeOf(a.symbol);
-  return `<div class="box"><h2>Bilan sur ${esc(a.symbol)} · 12 mois</h2>
+  return `<div class="box"><h2>Bilan sur ${esc(a.symbol)} · ${periodText()}</h2>
     <div class="guest-only"><p class="txt">Le bilan de la paire et ses trades passés sont réservés aux membres. Le compte est gratuit et sans mot de passe.</p>
       <div class="links"><a class="buy" href="#compte/connexion">Se connecter</a></div></div>
     <dl class="members-only">
@@ -162,12 +166,13 @@ function statsBox(a) {
       ${row('Trades gagnants', list.length ? `${fmt(wins / list.length * 100, 0)} %` : '—')}
       ${row('Gain du capital', list.length ? cap(total) : '—', total > 0 ? 'up' : total < 0 ? 'down' : '')}
       ${row('Dernier trade', last ? `${esc(OUTCOME[last.outcome][0])} le ${parisDay(last.at)}` : '—', last ? outcomeCls(last) : '')}
-    </dl></div>`;
+    </dl>
+    <div class="members-only free-only"><p class="txt muted">12 mois de bilan avec <a href="#premium">Premium</a>.</p></div></div>`;
 }
 
 function tradesBox(a) {
   const data = setupsData();
-  const list = data.history.filter(s => s.symbol === a.symbol).slice(0, 40);
+  const list = shownTrades(a.symbol).slice(0, 40);
   const rows = list.map(s => `<tr data-trade="${esc(s.id)}" title="Voir l'explication du trade">
       <td class="l"><a href="#setup/${encodeURIComponent(s.id)}">${parisDay(s.time)}</a></td>
       <td class="l">${esc(data.detectors[s.detector])}</td>
@@ -212,7 +217,9 @@ function chart() {
   const live = liveOf(a.symbol);
   const r = a.radar;
   const levels = [];
-  if (live) {
+  if (live && delayed(live)) {
+    // Signal encore réservé à Premium : pas de niveaux sur le graphique.
+  } else if (live) {
     levels.push({ v: live.entry, label: 'Entrée', cls: 'fg' }, { v: live.stop ?? live.sl, label: 'Stop', cls: 'down' });
     if (!live.tpHit) levels.push({ v: live.tp[0], label: 'Moitié', cls: 'up' });
     if (live.exitAt) levels.push({ v: live.exitAt, label: 'Sortie', cls: 'mute' });
@@ -226,7 +233,7 @@ function chart() {
   }
   // Trades passés : flèche sur la bougie du signal (en journalier, la journée qui le contient).
   const at = t => { const k = bars.findIndex(b => b[0] <= t && t < b[0] + unit); return k; };
-  const marks = data.history.filter(s => s.symbol === a.symbol).map(s => ({ i: at(s.time), dir: s.dir, cls: s.outcome === 'open' ? 'acc' : s.r > 0 ? 'up' : s.r < 0 ? 'down' : 'mute' })).filter(m => m.i >= 0);
+  const marks = data.history.filter(s => s.symbol === a.symbol && !delayed(s)).map(s => ({ i: at(s.time), dir: s.dir, cls: s.outcome === 'open' ? 'acc' : s.r > 0 ? 'up' : s.r < 0 ? 'down' : 'mute' })).filter(m => m.i >= 0);
 
   const panes = [];
   if (h4) {

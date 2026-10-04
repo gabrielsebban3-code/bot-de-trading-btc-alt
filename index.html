@@ -28,6 +28,7 @@
           <span class="menu" id="menu" hidden>
             <a href="#outils" data-tab="outils" class="menu-only">Outils</a>
             <a href="#historique" data-tab="historique">Historique <span class="lock guest-only">membres</span></a>
+            <a href="#premium" data-tab="premium">Premium <span class="ptag free-only">✦</span></a>
           </span>
         </span>
       </nav>
@@ -46,8 +47,8 @@
         <p>Dinexo surveille trois choses : <b>des petits projets crypto qui gagnent de l'argent</b>, <b>des setups dans le sens de la tendance, gardés plusieurs semaines</b> sur BTC, ETH, SOL et le pétrole, et <b>l'actu qui fait bouger les marchés</b>. <span>Le bloc orange te dit quoi regarder en priorité. Tout ce qui est cliquable ouvre une fiche détaillée.</span></p>
         <button type="button">Compris</button></div>
       <div class="box new" id="new-resume" hidden></div>
-      <div class="box join guest-only"><p class="txt"><b>Membres :</b> quoi de neuf sur tes actifs depuis ta dernière visite, historique complet des setups et alertes sur Discord. Gratuit, sans mot de passe.</p>
-        <div class="links"><a class="buy" href="#compte/connexion">Créer mon compte</a></div></div>
+      <div class="box join guest-only"><p class="txt"><b>Membres :</b> quoi de neuf sur tes actifs depuis ta dernière visite, historique des setups sur 3 mois et 3 alertes de prix. Gratuit, sans mot de passe.</p>
+        <div class="links"><a class="buy" href="#compte/connexion">Créer mon compte</a><a class="chip" href="#premium">Voir Premium</a></div></div>
       <div class="macro" id="macro"></div>
       <h2>À regarder maintenant</h2>
       <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
@@ -238,13 +239,16 @@
 
     <section class="page" id="page-historique">
       <div class="intro" data-intro="historique"><span class="i">i</span>
-        <p>Le bilan des setups sur 12 mois, indicateur par indicateur. <span>Il sert à savoir si on peut faire confiance aux signaux. Les gains sont en % du capital, avec 1 % du compte risqué par trade : un stop touché coûte 1 %, un trade qui va à 5 fois le risque rapporte 5 %. Les trades gagnants rapportent souvent plus : c'est ce qui paie les stops.</span></p>
+        <p>Le bilan des setups, indicateur par indicateur : 3 mois avec le compte gratuit, 12 mois avec Premium. <span>Il sert à savoir si on peut faire confiance aux signaux. Les gains sont en % du capital, avec 1 % du compte risqué par trade : un stop touché coûte 1 %, un trade qui va à 5 fois le risque rapporte 5 %. Les trades gagnants rapportent souvent plus : c'est ce qui paie les stops.</span></p>
         <button type="button">Compris</button></div>
       <h1>Bilan des setups</h1>
       <div class="box join guest-only"><h2>Réservé aux membres</h2>
-        <p class="txt">Le bilan des setups sur 12 mois et la liste des signaux terminés sont réservés aux membres. Le compte est gratuit et sans mot de passe.</p>
+        <p class="txt">Le bilan des setups et la liste des signaux terminés sont réservés aux membres. Le compte est gratuit et sans mot de passe.</p>
         <div class="links"><a class="buy" href="#compte/connexion">Se connecter</a></div></div>
       <div class="members-only">
+      <p class="period">Sur les <b id="history-period">3 derniers mois</b></p>
+      <div class="box join prem" id="history-more"><p class="txt"><span class="ptag">Premium</span> Le bilan sur 12 mois et tous les trades de l'année.</p>
+        <div class="links"><a class="buy" href="#premium">Voir Premium</a></div></div>
       <p class="sub" id="history-sub"></p>
       <div class="wrap">
         <table>
@@ -261,6 +265,13 @@
       </div>
       </div>
     </section>
+    <!-- Premium : les deux formules -->
+    <section class="page" id="page-premium">
+      <h1>Gratuit ou Premium</h1>
+      <p class="sub">Dinexo reste gratuit. Premium ajoute le direct sur toutes les paires, un historique plus long et des outils en plus.</p>
+      <div id="premium-plans"></div>
+    </section>
+
     <section class="page" id="page-compte">
       <div class="intro" data-intro="compte"><span class="i">i</span>
         <p>Ta <b>watchlist</b> rassemble les actifs que tu suis : leurs prix défilent en haut du site, et le filtre <b>Ma watchlist</b> les isole dans Projets, Setups et Actu. <span>Ajoute un actif avec l'étoile, sur un projet ou un setup. Elle est gardée sur cet appareil ; connecte-toi pour la retrouver sur tous tes appareils.</span></p>

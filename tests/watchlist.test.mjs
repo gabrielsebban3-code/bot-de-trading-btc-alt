@@ -73,3 +73,11 @@ test('schéma Supabase : chaque compte ne touche que sa ligne, l\'admin lit tout
   assert.match(sql, /'\^\[A-Z0-9\]\{1,15\}\$'/, 'mêmes règles de symbole que le site');
   assert.ok(!/@/.test(sql), 'aucune adresse e-mail dans le dépôt public');
 });
+
+test('schéma Supabase : Premium donné seulement depuis Supabase, chaque membre sait s\'il l\'est', async () => {
+  const sql = await readFile(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
+  assert.match(sql, /alter table public\.premium enable row level security/);
+  assert.match(sql, /revoke all on public\.premium from anon, authenticated;\ngrant select on public\.premium to authenticated;/, 'le site ne peut pas se donner Premium');
+  assert.match(sql, /create policy "premium : admin" on public\.premium for select to authenticated using \(\(select public\.is_admin\(\)\)\)/);
+  assert.match(sql, /grant execute on function public\.is_premium\(\) to authenticated/);
+});

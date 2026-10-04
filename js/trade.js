@@ -5,6 +5,7 @@ import { drawCandles } from './candles.js';
 import { star } from './watchlist.js';
 import { loadPaire } from './paire.js';
 import { deSym } from './crypto-lib.js';
+import { delayed, hoursText, premiumBox, tooOld, visibleIn } from './premium.js';
 import { OUTCOME, cap, dirTag, liveOf, newsLink, okxUrl, outcomeTag, plainPct, projectLink, px, setupsData, statusTag } from './setups.js';
 
 const $ = id => document.getElementById(id);
@@ -25,6 +26,15 @@ export async function renderSetup(id) {
   const s = find(id);
   if (!s) {
     el.innerHTML = '<div class="box"><div class="empty">Ce trade n\'est plus dans l\'historique (il a plus d\'un an). Les autres trades sont dans l\'<a href="#historique">historique</a>.</div></div>';
+    return;
+  }
+  // Sans Premium : signaux récents sur SOL et le pétrole cachés 24 h, trades de plus de 3 mois fermés.
+  if (delayed(s) || tooOld(s)) {
+    current = null;
+    el.innerHTML = `<div class="ph"><h1>${esc(s.symbol)} · trade ${delayed(s) ? 'tout récent' : `du ${dayOf(s.time)}`}</h1></div>
+      ${premiumBox(delayed(s) ? `Ce signal sera visible pour tout le monde dans ${hoursText(visibleIn(s))}. Avec Premium, tu le vois tout de suite, avec le prix d'entrée et le stop.`
+        : 'Ce trade a plus de 3 mois. Avec Premium, tu retrouves toutes les fiches trade des 12 derniers mois.')}
+      <div class="links"><a class="chip" href="#paire/${encodeURIComponent(s.symbol)}">Fiche ${esc(s.symbol)} →</a><a class="chip" href="#historique">Trades des 3 derniers mois →</a></div>`;
     return;
   }
   current = { s, d: null };
