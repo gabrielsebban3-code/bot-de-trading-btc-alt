@@ -2,6 +2,7 @@
 import { ago, esc, fmt } from './format.js';
 import { linkedNews, linkedText } from './news.js';
 import { watchlist } from './watchlist.js';
+import { delayed, historyDays, hoursText, isPremium, onTier, visibleIn } from './premium.js';
 
 const BAR = 4 * 3600_000;
 export const OUTCOME = {
@@ -59,7 +60,19 @@ export function newsLink(s, tag = 'a') {
   return `<${tag} class="link"${href}><b>News liée</b> · ${esc(linkedText(n, s.dir))}</${tag}>`;
 }
 
+// Signal pas encore visible sans Premium (SOL et pétrole : 24 h de retard) : carte fermée, sans entrée ni stop.
+function lockedCard(s) {
+  const a = asset(s.symbol);
+  return `<a class="card setup locked" href="#premium">
+    <span class="hd"><b class="mono">${esc(s.symbol)}</b><span class="muted">${esc(a.name)}</span><span class="ptag">Premium</span></span>
+    <span class="why">Nouveau signal sur ${esc(a.name)}. Il sera visible pour tout le monde dans ${hoursText(visibleIn(s))}.</span>
+    <span class="wr">Avec Premium, tu le vois tout de suite, avec le prix d'entrée et le stop.</span>
+    <span class="go">Voir Premium →</span>
+  </a>`;
+}
+
 function card(s) {
+  if (delayed(s)) return lockedCard(s);
   const a = asset(s.symbol);
   return `<a class="card setup" href="#setup/${encodeURIComponent(s.id)}">
     <span class="hd"><b class="mono">${esc(s.symbol)}</b><span class="muted">${esc(a.name)}</span>${dirTag(s.dir)}${statusTag(s)}${outcomeTag(s)}</span>
@@ -76,13 +89,17 @@ function card(s) {
 // Chaque carte ouvre la fiche de la paire (#paire/<symbole>).
 export const plainPct = x => `${x > 0 ? '+' : x < 0 ? '−' : ''}${fmt(Math.abs(x) * 100, 1)} %`;
 export const liveOf = sym => data?.live.find(s => s.symbol === sym && s.outcome === 'open') || null;
-export const lastTradeOf = sym => data?.history.find(s => s.symbol === sym && s.outcome !== 'open') || null;
+export const lastTradeOf = sym => data?.history.find(s => s.symbol === sym && s.outcome !== 'open' && !delayed(s)) || null;
 export const setupsData = () => data;
 
 // Où en est la paire : trade en jeu, prix de déclenchement, ou attente d'une tendance.
 export function radarBody(a) {
   const r = a.radar;
   const live = liveOf(a.symbol);
+  if (live && delayed(live)) {
+    return `<span class="state"><span class="ptag">Premium</span> <b>Nouveau signal</b> sur ${esc(a.name)}</span>
+      <span class="sm">Il sera visible pour tout le monde dans ${hoursText(visibleIn(live))}. Avec Premium, tu le vois tout de suite.</span>`;
+  }
   if (live) {
     const move = (a.price - live.entry) / Math.abs(live.entry - live.sl) * (live.dir === 'long' ? 1 : -1);
     const r0 = live.tpHit ? ((data.rules.partialR ?? 5) + move) / 2 : move; // moitié déjà prise à 5R
@@ -174,19 +191,25 @@ export function initSetups(setupsData, projects) {
   renderList();
   renderHistory();
   renderResume();
+  // Statut Premium connu après la connexion : on redessine ce qui en dépend.
+  onTier(() => { renderRadar(); renderList(); renderHistory(); renderResume(); });
 }
 
 function renderResume() {
-  const live = data.live.filter(s => s.outcome === 'open');
-  document.getElementById('resume-setups').innerHTML = live.slice(0, 5).map(s => `
-    <a class="row" href="#setup/${encodeURIComponent(s.id)}"><span class="t">${esc(s.symbol)}</span><span class="d">${esc(data.detectors[s.detector])} · ${s.status}</span><span class="r ${s.dir === 'long' ? 'up' : 'down'}">${s.dir === 'long' ? '▲' : '▼'} 1:${fmt(s.rr, 1)}</span></a>`).join('')
+  const open = data.live.filter(s => s.outcome === 'open');
+  const live = open.filter(s => !delayed(s));
+  const locked = open.filter(s => delayed(s)).map(s => `
+    <a class="row" href="#premium"><span class="t">${esc(s.symbol)}</span><span class="d">Nouveau signal · visible dans ${hoursText(visibleIn(s))}</span><span class="r"><span class="ptag">Premium</span></span></a>`);
+  document.getElementById('resume-setups').innerHTML = [...live.slice(0, 5).map(s => `
+    <a class="row" href="#setup/${encodeURIComponent(s.id)}"><span class="t">${esc(s.symbol)}</span><span class="d">${esc(data.detectors[s.detector])} · ${s.status}</span><span class="r ${s.dir === 'long' ? 'up' : 'down'}">${s.dir === 'long' ? '▲' : '▼'} 1:${fmt(s.rr, 1)}</span></a>`), ...locked].join('')
     || '<div class="soon">Aucun setup en jeu pour le moment.</div>';
   // Bloc « À regarder maintenant » : le setup confirmé du détecteur le plus fiable.
   const rate = s => data.stats[s.detector]?.winRate ?? 0;
   const best = live.filter(s => s.status === 'confirmé').sort((a, b) => rate(b) - rate(a) || b.rr - a.rr)[0];
   const focus = document.getElementById('focus');
+  focus?.querySelector('[data-sfocus]')?.remove();
   if (best && focus) {
-    const html = `<a class="card" href="#setup/${encodeURIComponent(best.id)}"><span class="k">SETUP DANS LE SENS DE LA TENDANCE</span>
+    const html = `<a class="card" data-sfocus href=""#setup/${encodeURIComponent(best.id)}"><span class="k">SETUP DANS LE SENS DE LA TENDANCE</span>
       <span class="hd"><b class="mono">${esc(best.symbol)}</b><span class="tag">${esc(data.detectors[best.detector])}</span>${dirTag(best.dir)}</span>
       <span class="why">${esc(best.why)} R:R 1:${fmt(best.rr, 1)}.</span></a>`;
     if (focus.querySelector('.card .why')?.textContent.startsWith('Rien de particulier')) focus.innerHTML = html;
@@ -195,13 +218,47 @@ function renderResume() {
   }
 }
 
+// Bilan par détecteur sur une période plus courte que celle du serveur (formule gratuite : 3 mois).
+// Mêmes règles que detectorStats dans scripts/lib/setups.mjs.
+export function statsOf(history, detectors, from) {
+  const stats = {};
+  for (const key of Object.keys(detectors)) {
+    const list = history.filter(s => s.detector === key && s.status === 'confirmé' && s.time >= from);
+    const done = list.filter(s => s.outcome !== 'open');
+    const wins = done.filter(s => s.r > 0).length;
+    const bySymbol = {};
+    for (const s of done) (bySymbol[s.symbol] ??= []).push(s);
+    const best = Object.entries(bySymbol)
+      .filter(([, l]) => l.length >= 3)
+      .map(([sym, l]) => ({ symbol: sym, n: l.length, winRate: l.filter(s => s.r > 0).length / l.length }))
+      .sort((x, y) => y.winRate - x.winRate || y.n - x.n)[0] || null;
+    stats[key] = {
+      signals: list.length, resolved: done.length, wins,
+      losses: done.filter(s => s.outcome === 'sl').length,
+      tp1: done.filter(s => s.tpHit > 0).length,
+      winRate: done.length ? wins / done.length : null,
+      avgR: done.length ? done.reduce((t, s) => t + s.r, 0) / done.length : null,
+      totalR: Math.round(done.reduce((t, s) => t + s.r, 0) * 10) / 10,
+      best,
+    };
+  }
+  return stats;
+}
+
 function renderHistory() {
   const keys = Object.keys(data.detectors);
   const since = Math.min(...Object.values(data.freshStart || {}).filter(Boolean));
+  const days = historyDays();
+  const from = Date.now() - days * 86_400_000;
+  // Les signaux encore cachés sans Premium (moins de 24 h sur SOL et le pétrole) ne comptent pas encore.
+  const shown = data.history.filter(s => s.time >= from && !delayed(s));
+  const stats = isPremium() ? data.stats : statsOf(shown, data.detectors, from);
+  document.getElementById('history-period').textContent = days > 100 ? '12 derniers mois' : '3 derniers mois';
+  document.getElementById('history-more').hidden = isPremium();
   document.getElementById('history-sub').textContent = `Un trade est gagnant s'il finit en gain. La moitié est prise à ${data.rules.partialR ?? 5}R, le reste sort quand une journée clôture au-delà du plus bas (ou du plus haut pour un short) des ${data.rules.exitDays ?? 7} derniers jours. `
     + (Number.isFinite(since) ? `Calculé sur les bougies OKX depuis le ${new Date(since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' })}.` : '');
   document.getElementById('history-body').innerHTML = keys.map(k => {
-    const s = data.stats[k];
+    const s = stats[k];
     const w = s.winRate === null ? null : Math.round(s.winRate * 100);
     return `<tr>
       <td class="l"><b>${esc(data.detectors[k])}</b><br><span class="muted" style="font-size:12px">dans le sens de la tendance 1D</span></td>
@@ -212,7 +269,7 @@ function renderHistory() {
       <td class="l">${s.best ? `${esc(s.best.symbol)} <span class="muted">${fmt(s.best.winRate * 100, 0)} % sur ${s.best.n}</span>` : '<span class="muted">—</span>'}</td>
     </tr>`;
   }).join('');
-  const done = data.history.filter(s => s.outcome !== 'open').slice(0, 60);
+  const done = shown.filter(s => s.outcome !== 'open').slice(0, 60);
   document.getElementById('history-list').innerHTML = done.length ? done.map(s => `<tr data-trade="${esc(s.id)}" title="Voir l'explication du trade">
       <td class="l"><a href="#setup/${encodeURIComponent(s.id)}">${parisDay(s.time)}</a></td>
       <td class="l"><b class="mono">${esc(s.symbol)}</b></td>

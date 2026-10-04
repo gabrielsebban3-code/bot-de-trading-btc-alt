@@ -6,6 +6,7 @@ import { SUPABASE } from './config.js';
 import { clean, MAX, merge, normalize, star, valid, watchlist } from './watchlist.js';
 import { since, whatsNew } from './whatsnew.js';
 import { MAX_ALERTS, checkAlerts, guessDir, normalizeAlerts, parsePrice } from './pricealerts.js';
+import { ALERTS, alertLimit, delayed, isPremium, setPremium } from './premium.js';
 
 const $ = id => document.getElementById(id);
 export const accountsOn = Boolean(SUPABASE.url && SUPABASE.key);
@@ -20,6 +21,8 @@ const PENDING_MS = 3_600_000;
 // si un membre doit se reconnecter sans s'être déconnecté, on lui dit pourquoi (et il peut nous l'envoyer).
 const TOKEN = SUPABASE.url ? `sb-${new URL(SUPABASE.url).hostname.split('.')[0]}-auth-token` : '';
 const LOST = 'dinexo-session-lost';
+// L'admin est Premium d'office ; ce réglage lui montre le site comme un membre gratuit.
+const VIEW_FREE = 'dinexo-voir-gratuit';
 
 let sb = null; // client Supabase, chargé seulement quand les comptes sont branchés
 let user = null;
@@ -33,6 +36,7 @@ let feed = null; // setups, actu et projets chargés par js/app.js
 let badgeSeen = false; // le membre a ouvert Résumé ou Mon compte : plus de pastille
 let alerts = null; // alertes de prix du compte ; null tant qu'elles ne sont pas lues (ou colonne absente dans Supabase)
 let alertsUnseen = 0; // alertes déclenchées depuis le dernier passage sur Mon compte
+let premium = false; // compte Premium (table premium dans Supabase, ou admin)
 
 const local = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -50,10 +54,11 @@ const discordUrl = u => (/^https:\/\/(discord\.gg|(www\.)?discord\.com\/invite)\
 const setPending = email => local.set(PENDING, email ? JSON.stringify({ email, at: Date.now() }) : null);
 const PERKS = `<ul class="perks">
   <li><b>Quoi de neuf pour toi</b> : ce qui a bougé sur tes actifs depuis ta dernière visite</li>
-  <li><b>Historique</b> complet des setups, avec leur bilan</li>
+  <li><b>Historique</b> des setups sur 3 mois, avec leur bilan</li>
   <li><b>Discord</b> : les nouveaux setups et les news critiques en notification</li>
-  <li><b>Alertes de prix</b> sur n'importe quel actif</li>
-  <li>Ta <b>watchlist</b> sur tous tes appareils</li></ul>`;
+  <li><b>${ALERTS.free} alertes de prix</b> sur n'importe quel actif</li>
+  <li>Ta <b>watchlist</b> sur tous tes appareils</li></ul>
+  <p class="txt muted">Tu veux tout en direct et 12 mois d'historique ? <a href="#premium">Découvre Premium</a>.</p>`;
 const row = (k, v) => `<dt>${k}</dt><dd class="txt">${v}</dd>`;
 const day = iso => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Paris' });
 
@@ -75,6 +80,7 @@ export function initAccount(assetInfo) {
     else if (e.target.id === 'login-code') verifyCode(e);
   });
   $('account').addEventListener('click', onAction);
+  $('admin').addEventListener('click', onAction);
   $('alerts').addEventListener('submit', addAlert);
   $('alerts').addEventListener('input', e => { if (e.target.name === 'target' || e.target.name === 'symbol') suggestDir(); });
   $('alerts').addEventListener('click', onAlertAction);
@@ -179,6 +185,8 @@ async function onSession(session) {
   alerts = null;
   alertsUnseen = 0;
   badgeSeen = false;
+  premium = false;
+  applyTier();
   if (user) { setPending(null); local.set(LOST, null); }
   if (!user) {
     local.set(SYNCED, null);
@@ -198,6 +206,9 @@ async function onSession(session) {
     local.set(SYNCED, user.id);
     if (list.join() !== saved.join()) await save();
     admin = Boolean((await sb.rpc('is_admin')).data);
+    // Fonction absente (schema.sql pas relancé) : le compte reste en gratuit.
+    premium = Boolean((await sb.rpc('is_premium')).data);
+    applyTier();
   } catch {
     notice = 'Ta watchlist n\'a pas pu être lue dans ton compte. Celle de cet appareil reste affichée.';
   }
@@ -221,6 +232,10 @@ async function memberData() {
   alerts = alErr ? null : normalizeAlerts(al?.alerts);
   const { data: links } = await sb.from('member_links').select('name, url');
   discord = discordUrl(links?.find(l => l.name === 'discord')?.url);
+}
+
+function applyTier() {
+  setPremium(premium && !(admin && local.get(VIEW_FREE)));
 }
 
 function queueSave() {
@@ -285,6 +300,10 @@ async function onAction(e) {
   } else if (act === 'logout') {
     notice = '';
     await sb.auth.signOut();
+  } else if (act === 'view-free') {
+    local.set(VIEW_FREE, local.get(VIEW_FREE) ? null : '1');
+    applyTier();
+    renderAccount();
   } else if (act === 'delete') {
     if (!confirm('Supprimer ton compte ? Ta watchlist restera sur cet appareil, mais ne sera plus synchronisée.')) return;
     const { error } = await sb.rpc('delete_my_account');
@@ -302,7 +321,8 @@ function renderAccount() {
   } else if (!sb) {
     el.innerHTML = `<h2>Connexion</h2>${note || '<p class="txt muted">Chargement…</p>'}`;
   } else if (user) {
-    el.innerHTML = `<h2>Connecté</h2><dl>${row('Adresse', esc(user.email))}${row('Watchlist', 'la même sur tous tes appareils')}</dl>${note}
+    const plan = isPremium() ? '<span class="ptag">Premium</span>' : premium ? 'Gratuit (vue admin)' : 'Gratuit · <a href="#premium">voir Premium</a>';
+    el.innerHTML = `<h2>Connecté</h2><dl>${row('Adresse', esc(user.email))}${row('Formule', plan)}${row('Watchlist', 'la même sur tous tes appareils')}</dl>${note}
       <div class="links"><button type="button" class="btn" data-act="logout">Se déconnecter</button><button type="button" class="btn danger" data-act="delete">Supprimer mon compte</button></div>`;
   } else if (pending()) {
     el.innerHTML = `<h2>Connexion</h2>
@@ -352,7 +372,8 @@ function addAlert(e) {
   const target = parsePrice(f.target.value);
   const msg = !valid(symbol) ? 'Symbole invalide : des lettres et des chiffres, comme BTC.'
     : !target ? 'Prix invalide : par exemple 90 000 ou 0,45.'
-      : alerts.filter(a => !a.hit).length >= MAX_ALERTS ? `${MAX_ALERTS} alertes actives au maximum.` : '';
+      : alerts.filter(a => !a.hit).length >= alertLimit()
+        ? (isPremium() ? `${alertLimit()} alertes actives au maximum.` : `${alertLimit()} alertes actives au maximum avec le compte gratuit, ${ALERTS.premium} avec Premium.`) : '';
   $('alert-msg').textContent = msg;
   if (msg) return;
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -409,7 +430,7 @@ function renderAlerts() {
   };
   const keep = id => $(id)?.value ?? '';
   const [sym, target, dir] = [keep('alert-symbol'), keep('alert-target'), $('alert-form')?.dir.value || 'above'];
-  el.innerHTML = `<h2>Alertes de prix <span class="muted">${alerts.filter(a => !a.hit).length} / ${MAX_ALERTS}</span></h2>
+  el.innerHTML = `<h2>Alertes de prix <span class="muted">${alerts.filter(a => !a.hit).length} / ${alertLimit()}</span></h2>
     <form class="login" id="alert-form"><label for="alert-symbol">Préviens-moi quand</label>
       <span class="field"><input id="alert-symbol" name="symbol" list="wl-symbols" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="16" placeholder="BTC" class="sym">
         <select name="dir" aria-label="Sens"><option value="above">passe au-dessus de</option><option value="below">passe sous</option></select></span>
@@ -436,7 +457,7 @@ function renderDiscord() {
 }
 
 function newItems() {
-  return user && feed && from ? whatsNew({ ...feed, list: watchlist.get(), from }) : [];
+  return user && feed && from ? whatsNew({ ...feed, list: watchlist.get(), from, hide: s => delayed(s) }) : [];
 }
 
 function renderNew() {
@@ -483,10 +504,16 @@ async function renderAdmin() {
   const counts = new Map();
   for (const p of data) for (const s of p.watchlist) counts.set(s, (counts.get(s) || 0) + 1);
   const top = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 10);
-  el.innerHTML = `<h2>Admin <span class="muted">${data.length} inscrit${data.length > 1 ? 's' : ''}</span></h2>
+  // Comptes Premium : ajoutés à la main dans Supabase (table premium), comme dans le guide.
+  const { data: prem } = await sb.from('premium').select('email');
+  const premSet = new Set((prem || []).map(p => p.email.toLowerCase()));
+  const nPrem = data.filter(p => premSet.has((p.email || '').toLowerCase())).length;
+  el.innerHTML = `<h2>Admin <span class="muted">${data.length} inscrit${data.length > 1 ? 's' : ''} · ${nPrem} Premium</span></h2>
+    <p class="txt">Tu es Premium d'office. Pour voir le site comme un membre gratuit :</p>
+    <div class="links"><button type="button" class="btn" data-act="view-free" aria-pressed="${Boolean(local.get(VIEW_FREE))}">${local.get(VIEW_FREE) ? 'Revenir à la vue Premium' : 'Voir comme un membre gratuit'}</button></div>
     ${top.length ? `<p class="txt">Les plus suivis : ${top.map(([s, n]) => `<b class="mono">${esc(s)}</b> ${n}`).join(' · ')}</p>` : ''}
     <div class="wrap flat"><table class="static">
       <thead><tr><th class="l">Adresse</th><th class="l">Inscrit le</th><th>Actifs suivis</th></tr></thead>
-      <tbody>${data.map(p => `<tr><td class="l">${esc(p.email || '—')}</td><td class="l muted">${day(p.created_at)}</td><td class="n">${p.watchlist.length}</td></tr>`).join('')}</tbody>
+      <tbody>${data.map(p => `<tr><td class="l">${esc(p.email || '—')}${premSet.has((p.email || '').toLowerCase()) ? ' <span class="ptag">Premium</span>' : ''}</td><td class="l muted">${day(p.created_at)}</td><td class="n">${p.watchlist.length}</td></tr>`).join('')}</tbody>
     </table></div>`;
 }

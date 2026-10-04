@@ -66,6 +66,30 @@ create policy "liens : membres" on public.member_links for select to authenticat
 revoke all on public.member_links from anon, authenticated;
 grant select on public.member_links to authenticated;
 
+-- Comptes Premium : une adresse par ligne, ajoutée à la main tant que le paiement en ligne n'existe pas.
+-- « until » vide = sans fin ; sinon Premium jusqu'à ce jour inclus. Exemple :
+--   insert into public.premium (email, until) values ('adresse-du-membre', '2026-12-31')
+--   on conflict (email) do update set until = excluded.until;
+-- Pour retirer Premium : delete from public.premium where email = 'adresse-du-membre';
+-- Le site ne peut rien y écrire. Chaque membre peut seulement savoir s'il est Premium ; l'admin voit la liste.
+create table if not exists public.premium (email text primary key, until date, note text, created_at timestamptz not null default now());
+alter table public.premium enable row level security;
+drop policy if exists "premium : admin" on public.premium;
+create policy "premium : admin" on public.premium for select to authenticated using ((select public.is_admin()));
+revoke all on public.premium from anon, authenticated;
+grant select on public.premium to authenticated;
+
+-- Premium si l'adresse du compte est dans la table (et pas expirée), ou si c'est l'admin.
+create or replace function public.is_premium() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select public.is_admin() or exists (
+    select 1 from public.premium p
+    where lower(p.email) = lower(auth.jwt() ->> 'email') and (p.until is null or p.until >= current_date)
+  )
+$$;
+revoke all on function public.is_premium() from public, anon;
+grant execute on function public.is_premium() to authenticated;
+
 -- Bouton « Supprimer mon compte » : efface le compte de la personne connectée (et sa ligne, par cascade).
 create or replace function public.delete_my_account() returns void
 language sql security definer set search_path = '' as $$
