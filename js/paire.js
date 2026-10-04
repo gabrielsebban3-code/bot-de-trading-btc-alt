@@ -19,7 +19,6 @@ let current = null;
 // Même moyenne exponentielle que le calcul des signaux (amorcée sur la première clôture).
 const ema = (values, n) => { const k = 2 / (n + 1); let e = null; return values.map(v => (e = e === null ? v : v * k + e * (1 - k))); };
 const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
-const num = n => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
 
 export async function loadPaire(sym) {
   const hit = cache.get(sym);
@@ -90,45 +89,46 @@ function page(a, d) {
 }
 
 function legend(a, live) {
-  if (live) return 'Pointillés : entrée, stop, objectif de la moitié et niveau de sortie du trade en jeu. Flèches : trades passés (vert = gain, rouge = perte).';
-  if (a.radar?.trend === 'neutre' || !a.radar) return 'Courbes : moyennes 20 et 50 jours qui donnent la tendance. Flèches : trades passés (vert = gain, rouge = perte).';
-  return 'Pointillés : les prix qui déclencheraient le prochain signal et le stop prévu. Courbes : moyennes 20 et 50 jours qui donnent la tendance. Flèches : trades passés (vert = gain, rouge = perte).';
+  const past = 'Les flèches montrent les trades passés : vertes s\'ils ont gagné, rouges s\'ils ont perdu.';
+  if (live) return `Les pointillés montrent l'entrée, le stop et l'objectif du trade en cours. ${past}`;
+  if (a.radar?.trend === 'neutre' || !a.radar) return `Les deux courbes sont les moyennes des 20 et 50 derniers jours : elles montrent si le marché monte ou baisse. ${past}`;
+  return `Les pointillés orange montrent le prix à dépasser pour le prochain signal, le rouge le stop prévu. Les deux courbes sont les moyennes des 20 et 50 derniers jours. ${past}`;
 }
 
-// Les règles du signal, avec les chiffres de la paire en ce moment.
+// Les règles du signal, dites simplement, avec les chiffres de la paire en ce moment.
 function rulesBox(a, d) {
-  const data = setupsData();
   const r = a.radar;
   const days = d ? d.d1.filter(b => b[6] !== 0) : [];
   const closes = days.map(b => b[4]);
-  const e20 = ema(closes, 20).at(-1), e50 = ema(closes, 50).at(-1), last = closes.at(-1);
-  // ✓ / ✗ : condition remplie ou non en ce moment ; • : règle vérifiée au moment du signal.
+  const e50 = ema(closes, 50).at(-1), last = closes.at(-1);
+  // ✓ / ✗ : condition remplie ou non en ce moment ; • : vérifiée au moment du signal.
   const ok = v => `<span class="pa-ck ${v === null ? 'info' : v ? 'yes' : 'no'}" aria-hidden="true">${v === null ? '•' : v ? '✓' : '✗'}</span>`;
   const trendOn = r && r.trend !== 'neutre';
   const up = r?.dir === 'long';
-  const trendLine = `<li>${ok(trendOn)}<div><b>Tendance journalière ${r ? esc(r.trend) : '—'}</b>
-    <span>${days.length >= 50 ? `Clôture d'hier ${px(last)}, moyenne 20 jours ${px(e20)}, moyenne 50 jours ${px(e50)}. ` : ''}Haussière quand la clôture et la moyenne 20 jours sont au-dessus de la moyenne 50 jours (baissière : l'inverse).
-    ${trendOn ? `On ne cherche donc que des <b>${up ? 'longs' : 'shorts'}</b>.` : 'Sinon, pas de trade.'}</span></div></li>`;
-  const word = up ? 'au-dessus du plus haut' : 'sous le plus bas';
+  const live = liveOf(a.symbol);
+  const trendText = !r ? '' : trendOn
+    ? `${days.length >= 50 ? `Hier, le prix a clôturé à ${px(last)}, ${up ? 'au-dessus' : 'en dessous'} de sa moyenne des 50 derniers jours (${px(e50)}). ` : ''}Le marché ${up ? 'monte' : 'baisse'} : on ne cherche que des <b>${up ? 'achats' : 'ventes'}</b>.`
+    : 'Le marché n\'a pas de direction claire : pas de trade tant que ça dure.';
   const lv = key => r?.levels?.find(l => l.key === key);
   const levelText = l => {
     if (!l) return '';
     const dist = l.price / a.price - 1;
     const passed = up ? dist <= 0 : dist >= 0;
-    return passed ? ` Le prix est déjà ${up ? 'au-dessus' : 'en dessous'} (${px(l.price)}) : il faudra un nouveau ${up ? 'plus haut' : 'plus bas'}.` : ` En ce moment : <b>${px(l.price)}</b> (${plainPct(dist)}).`;
+    return passed ? ` Déjà dépassé : il faudra un nouveau ${up ? 'plus haut' : 'plus bas'}.` : ` Aujourd'hui : <b>${px(l.price)}</b> (${plainPct(dist)}).`;
   };
+  const word = up ? 'dépasse son plus haut' : 'passe sous son plus bas';
   const triggers = trendOn ? `
-      <li><b>${esc(data.detectors.range20)}</b> : une bougie 4h clôture ${word} des 20 derniers jours.${levelText(lv('range20'))}</li>
-      <li><b>${esc(data.detectors.range10)}</b> : une bougie 4h clôture ${word} des 60 dernières bougies 4h.${levelText(lv('range10'))}</li>
-      <li><b>${esc(data.detectors.macd)}</b> : l'histogramme MACD 4h (12, 26, 9) repasse ${up ? 'au-dessus' : 'en dessous'} de zéro.
-        ${r.macdReady ? `En ce moment il est ${up ? 'sous' : 'au-dessus de'} zéro : son retour de l'autre côté donnerait le signal.` : `En ce moment il est déjà ${up ? 'au-dessus' : 'en dessous'} de zéro : il doit d'abord repasser de l'autre côté.`}</li>`
-    : `<li>Cassure 20 jours, cassure 10 jours ou MACD 4h, dans le sens de la tendance : rien à surveiller tant qu'elle est neutre.</li>`;
+      <li>Le prix ${word} du dernier mois.${levelText(lv('range20'))}</li>
+      <li>Le prix ${word} des 10 derniers jours.${levelText(lv('range10'))}</li>
+      <li>Après une petite ${up ? 'baisse' : 'hausse'}, le prix repart ${up ? 'à la hausse' : 'à la baisse'} (indicateur MACD).
+        ${r.macdReady ? `C'est le moment : la petite ${up ? 'baisse' : 'hausse'} a eu lieu.` : `Pas encore : il faut d'abord une petite ${up ? 'baisse' : 'hausse'}.`}</li>`
+    : '<li>Rien à surveiller tant que le marché n\'a pas de direction.</li>';
   return `<div class="box"><h2>Comment le signal se déclenche</h2><ol class="pa-rules">
-    ${trendLine}
-    <li>${ok(trendOn ? null : false)}<div><b>Un des 3 déclencheurs, sur une bougie 4h fermée</b><ul>${triggers}</ul></div></li>
-    <li>${ok(null)}<div><b>De la place devant</b><span>Le signal est ignoré si un niveau important (plus haut ou plus bas récent, chiffre rond, zone de gros volume) est à moins de 2 × ${num(data.rules.roomAtr ?? 1.5)} ATR 4h du prix d'entrée.</span></div></li>
-    <li>${ok(!liveOf(a.symbol))}<div><b>Un seul trade à la fois sur ${esc(a.symbol)}</b><span>${liveOf(a.symbol) ? 'Un trade est déjà en jeu : pas de nouveau signal avant sa sortie.' : 'Aucun trade en jeu : la paire est libre.'}</span></div></li>
-  </ol><p class="txt muted">Environ deux signaux par mois sur les 4 paires : c'est rare exprès.</p></div>`;
+    <li>${ok(trendOn)}<div><b>1. Le marché doit ${up || !trendOn ? 'monter' : 'baisser'}${trendOn ? '' : ' ou baisser'}</b><span>${trendText}</span></div></li>
+    <li>${ok(trendOn ? null : false)}<div><b>2. Un signal parmi ces trois</b><span>Vérifié à la clôture de chaque bougie de 4 heures.</span><ul>${triggers}</ul></div></li>
+    <li>${ok(null)}<div><b>3. Pas d'obstacle proche</b><span>Le signal est ignoré si un ancien ${up ? 'sommet' : 'creux'} ou un chiffre rond est juste ${up ? 'au-dessus' : 'en dessous'} du prix.</span></div></li>
+    <li>${ok(!live)}<div><b>4. Un seul trade à la fois sur ${esc(a.symbol)}</b><span>${live ? 'Un trade est déjà en cours : pas de nouveau signal avant sa fin.' : 'Aucun trade en cours : la paire est libre.'}</span></div></li>
+  </ol><p class="txt muted">Il faut les 4 en même temps : c'est rare exprès, environ deux signaux par mois sur les 4 paires.</p></div>`;
 }
 
 function manageBox(a, d, live) {
@@ -138,10 +138,11 @@ function manageBox(a, d, live) {
   const short = (live?.dir ?? r?.dir) === 'short';
   const days = d ? d.d1.filter(b => b[6] !== 0).slice(-(data.rules.exitDays ?? 7)) : [];
   const exitNow = days.length ? (short ? Math.max(...days.map(b => b[2])) : Math.min(...days.map(b => b[3]))) : null;
+  const risk = data.rules.riskPct ?? 1, P = data.rules.partialR ?? 5;
   return `<div class="box"><h2>Gestion du trade</h2><ol class="txt">
-    <li>On risque ${fmt(data.rules.riskPct ?? 1, 0)} % du capital : le stop de départ est à ${num(data.rules.stopAtr)} ATR journalier${stopPct ? `, soit environ <b>${fmt(stopPct * 100, 1)} %</b> du prix sur ${esc(a.symbol)} en ce moment` : ''}.</li>
-    <li>À ${fmt(data.rules.partialR ?? 5, 0)} fois le risque (+${fmt((data.rules.partialR ?? 5) * (data.rules.riskPct ?? 1), 0)} % du capital), on prend la moitié et on remonte le stop au prix d'entrée.</li>
-    <li>Le reste est gardé tant que la tendance tient : sortie quand une journée clôture ${short ? 'au-dessus du plus haut' : 'sous le plus bas'} des ${data.rules.exitDays ?? 7} derniers jours${exitNow ? ` (${px(exitNow)} en ce moment)` : ''}.</li>
+    <li><b>Stop</b> : ${stopPct ? `environ ${fmt(stopPct * 100, 1)} % sous le prix d'entrée en ce moment` : 'placé selon l\'agitation habituelle du prix'}. Si le prix y arrive, on coupe : on perd ${fmt(risk, 0)} % du capital, pas plus.</li>
+    <li><b>Objectif</b> : quand le gain atteint ${fmt(P, 0)} fois cette distance, on vend la moitié (+${fmt(P * risk / 2, 1).replace(',0', '')} % du capital assuré) et le stop remonte au prix d'entrée.</li>
+    <li><b>Le reste</b> : on le garde tant que le marché ${short ? 'baisse' : 'monte'}. On vend quand une journée clôture ${short ? 'au-dessus de son plus haut' : 'sous son plus bas'} des ${data.rules.exitDays ?? 7} derniers jours${exitNow ? ` (${px(exitNow)} en ce moment)` : ''}.</li>
   </ol></div>`;
 }
 

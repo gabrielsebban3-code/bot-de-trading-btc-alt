@@ -86,23 +86,24 @@ export function radarBody(a) {
   if (live) {
     const move = (a.price - live.entry) / Math.abs(live.entry - live.sl) * (live.dir === 'long' ? 1 : -1);
     const r0 = live.tpHit ? ((data.rules.partialR ?? 5) + move) / 2 : move; // moitié déjà prise à 5R
-    return `<span class="state">${dirTag(live.dir)} <b>Trade en jeu</b> depuis le ${parisDay(live.time)}</span>
-      <span class="sm">Entrée ${px(live.entry)} · stop ${px(live.stop ?? live.sl)} · en ce moment <b class="${r0 >= 0 ? 'up' : 'down'}">${cap(r0)}</b> du capital</span>`;
+    return `<span class="state">${dirTag(live.dir)} <b>Trade en cours</b> depuis le ${parisDay(live.time)}</span>
+      <span class="sm">Entrée ${px(live.entry)}, stop ${px(live.stop ?? live.sl)}. En ce moment <b class="${r0 >= 0 ? 'up' : 'down'}">${cap(r0)}</b> du capital</span>`;
   }
   if (!r) return '<span class="state">Pas assez de données pour le moment.</span>';
-  if (r.trend === 'neutre') return `<span class="state">Pas de trade : la tendance journalière est neutre.</span>
-    <span class="sm">On attend qu'elle redevienne haussière (longs) ou baissière (shorts).</span>`;
+  if (r.trend === 'neutre') return `<span class="state">Pas de trade : le marché n'a pas de direction claire.</span>
+    <span class="sm">On attend qu'il reparte nettement à la hausse (achats) ou à la baisse (ventes).</span>`;
   const up = r.dir === 'long';
   const word = up ? 'au-dessus de' : 'sous';
-  const macd = `le MACD 4h repasse ${up ? 'au-dessus' : 'en dessous'} de zéro`;
+  const macd = `le prix repart ${up ? 'à la hausse après une petite baisse' : 'à la baisse après une petite hausse'}`;
+  const NAMES = { range20: `${up ? 'plus haut' : 'plus bas'} du dernier mois`, range10: `${up ? 'plus haut' : 'plus bas'} des 10 derniers jours` };
   if (r.trigger) {
     const near = Math.max(0, 1 - Math.abs(r.trigger.distance) / 0.1); // plein à 0 %, vide à 10 % ou plus
-    return `<span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Long' : 'Short'}</b> si une bougie 4h clôture ${word} <b>${px(r.trigger.price)}</b> (${plainPct(r.trigger.distance)})</span>
+    return `<span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Achat' : 'Vente'}</b> si le prix clôture une bougie de 4 h ${word} <b>${px(r.trigger.price)}</b> (${plainPct(r.trigger.distance)})</span>
       <span class="meter" title="Distance au déclenchement"><i style="width:${Math.round(near * 100)}%"></i></span>
-      <span class="sm">${esc(data.detectors[r.trigger.key])} · stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)})${r.macdReady ? `, ou plus tôt si ${macd}` : ''}</span>`;
+      <span class="sm">C'est son ${NAMES[r.trigger.key] || esc(data.detectors[r.trigger.key])}. Stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)}).${r.macdReady ? ` Le signal peut aussi venir plus tôt si ${macd}.` : ''}</span>`;
   }
-  return `<span class="state">Prix déjà ${up ? 'au-dessus des plus hauts' : 'sous les plus bas'} de 10 et 20 jours.</span>
-    <span class="sm">Prochain signal ${r.macdReady ? `quand ${macd}` : 'sur le prochain repli puis reprise du MACD 4h'}, si la marge avant le prochain niveau est suffisante.</span>`;
+  return `<span class="state">Le prix est déjà ${up ? 'au-dessus de ses plus hauts' : 'sous ses plus bas'} du mois.</span>
+    <span class="sm">Prochain signal quand ${r.macdReady ? macd : `il fera une petite ${up ? 'baisse' : 'hausse'} puis repartira`}, s'il n'y a pas d'obstacle juste devant.</span>`;
 }
 
 function radarCard(a) {
