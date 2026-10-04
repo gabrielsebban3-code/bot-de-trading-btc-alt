@@ -2,10 +2,10 @@
 // Le graphique empile des panneaux qui partagent l'axe du temps (comme les indicateurs sous un graphique de trading) :
 // chaque courbe garde sa propre échelle, sans double axe.
 import { esc, fmt, money, pct, price } from './format.js';
-import { DAY, sma, tallyText } from './marche-lib.js';
+import { sma, tallyText } from './marche-lib.js';
+import { drawPanes } from './chart.js';
 
 const $ = id => document.getElementById(id);
-const NS = 'http://www.w3.org/2000/svg';
 const PERIODS = [['3 mois', 91], ['6 mois', 182], ['1 an', 365], ['3 ans', 1095]];
 const ASSETS = [['btc', 'BTC'], ['eth', 'ETH'], ['sol', 'SOL']];
 // Courbes qu'on peut cocher, dans l'ordre d'affichage. Le prix est toujours affiché.
@@ -19,7 +19,6 @@ let state = { asset: 'btc', days: 365, on: TOGGLES.map(t => t[0]) };
 try { state = { ...state, ...JSON.parse(localStorage.getItem(STORE) || '{}') }; } catch { /* stockage indisponible */ }
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch { /* stockage indisponible */ } };
 
-const dateFr = d => new Date(d * DAY).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' });
 // Gros montants des tuiles : 3 010 Md$, 95,2 Md$, 84,9 M$.
 const big = n => (n == null ? '—' : Math.abs(n) >= 1e11 ? `${fmt(n / 1e9, 0)} Md$` : Math.abs(n) >= 1e9 ? `${fmt(n / 1e9, 1)} Md$` : money(n));
 const fundingFmt = v => `${v >= 0 ? '+' : ''}${fmt(v, 4)} %`;
@@ -167,13 +166,6 @@ document.addEventListener('click', e => {
   chart();
 });
 
-const el = (tag, attrs = {}, text) => {
-  const n = document.createElementNS(NS, tag);
-  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
-  if (text != null) n.textContent = text;
-  return n;
-};
-
 function chart() {
   const box = $('mk-chart');
   const W = box.clientWidth;
@@ -196,100 +188,6 @@ function chart() {
   }
 
   drawPanes(box, panes, start, end);
-}
-
-// Dessine des panneaux empilés qui partagent l'axe du temps, avec survol au doigt, à la souris ou au clavier.
-export function drawPanes(box, panes, start, end) {
-  const W = box.clientWidth;
-  if (!W) return;
-  const days = end - start;
-  const L = 8, R = 72, GAP = 26, TOP = 4, AX = 22;
-  const H = TOP + panes.reduce((s, p) => s + p.h + GAP, 0) - GAP + AX;
-  const x = d => L + ((d - start) / (end - start)) * (W - L - R);
-  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': `Graphique ${panes.map(p => p.title).join(', ')}` });
-  let y0 = TOP;
-  for (const p of panes) {
-    const vals = p.lines.flatMap(l => l.pts.map(q => q[1]));
-    let lo = p.lo ?? Math.min(...vals), hi = p.hi ?? Math.max(...vals);
-    if (p.bars) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
-    if (p.lo == null) { const pad = (hi - lo) * 0.06 || Math.abs(hi) * 0.05 || 1; lo -= p.bars ? 0 : pad; hi += pad; }
-    const top = y0 + 18, bottom = y0 + p.h;
-    const y = v => bottom - ((v - lo) / (hi - lo || 1)) * (bottom - top);
-    Object.assign(p, { y, top, bottom });
-    svg.append(el('text', { x: L, y: y0 + 11, class: 'pt' }, p.title));
-    for (const [a, b, cls] of p.bands || []) svg.append(el('rect', { x: L, width: W - L - R, y: y(b), height: y(a) - y(b), class: cls }));
-    const ticks = p.ticks || [lo + (hi - lo) * 0.1, (lo + hi) / 2, hi - (hi - lo) * 0.1];
-    for (const t of ticks) {
-      svg.append(el('line', { x1: L, x2: W - R, y1: y(t), y2: y(t), class: 'grid' }));
-      svg.append(el('text', { x: W - R + 6, y: y(t) + 4, class: 'tick' }, p.fmt(t)));
-    }
-    for (const l of p.lines) {
-      if (!l.pts.length) continue;
-      if (p.bars) {
-        const bw = Math.max(1, (W - L - R) / days - 1);
-        for (const [d, v] of l.pts) svg.append(el('rect', { x: x(d) - bw / 2, width: bw, y: Math.min(y(v), y(0)), height: Math.max(1, Math.abs(y(v) - y(0))), class: v >= 0 ? 'bar-up' : 'bar-down' }));
-        svg.append(el('line', { x1: L, x2: W - R, y1: y(0), y2: y(0), class: 'zero' }));
-        continue;
-      }
-      const d = l.pts.map((q, i) => `${i ? 'L' : 'M'}${x(q[0]).toFixed(1)},${y(q[1]).toFixed(1)}`).join('');
-      if (l.key === 'price' || p.lines.length === 1) {
-        svg.append(el('path', { d: `${d}L${x(l.pts.at(-1)[0]).toFixed(1)},${bottom}L${x(l.pts[0][0]).toFixed(1)},${bottom}Z`, class: 'area' }));
-      }
-      svg.append(el('path', { d, class: `ln ${l.cls}` }));
-      const [ld, lv] = l.pts.at(-1);
-      svg.append(el('circle', { cx: x(ld), cy: y(lv), r: 3, class: `dot-end ${l.cls}` }));
-    }
-    y0 = bottom + GAP;
-  }
-  // Axe du temps sous le dernier panneau.
-  const months = [];
-  for (let d = start; d <= end; d++) {
-    const dt = new Date(d * DAY);
-    if (dt.getUTCDate() === 1) months.push(d);
-  }
-  const every = Math.ceil(months.length / Math.max(2, Math.floor((W - L - R) / 70)));
-  months.filter((_, i) => i % every === 0).forEach(d => {
-    svg.append(el('text', { x: x(d), y: H - 6, class: 'tick mid' }, new Date(d * DAY).toLocaleDateString('fr-FR', { month: 'short', year: days > 365 ? '2-digit' : undefined, timeZone: 'UTC' })));
-  });
-
-  // Survol : une ligne verticale sur tous les panneaux et une bulle avec toutes les valeurs du jour.
-  const cross = el('line', { y1: TOP, y2: H - AX, class: 'cross', visibility: 'hidden' });
-  const hit = el('rect', { x: L, y: 0, width: W - L - R, height: H, fill: 'transparent', tabindex: 0 });
-  svg.append(cross, hit);
-  box.replaceChildren(svg);
-  const tip = document.createElement('div');
-  tip.className = 'mk-tip';
-  tip.hidden = true;
-  box.append(tip);
-  const valueAt = (pts, d) => { for (let i = pts.length - 1; i >= 0; i--) if (pts[i][0] <= d) return pts[i][0] >= d - 3 ? pts[i][1] : null; return null; };
-  const show = d => {
-    d = Math.max(start, Math.min(end, d));
-    cross.setAttribute('x1', x(d)); cross.setAttribute('x2', x(d)); cross.setAttribute('visibility', 'visible');
-    const rows = panes.flatMap(p => p.lines.map(l => [l, p.fmt, valueAt(l.pts, d)])).filter(r => r[2] != null);
-    tip.replaceChildren();
-    const h = document.createElement('b'); h.textContent = dateFr(d); tip.append(h);
-    for (const [l, f, v] of rows) {
-      const r = document.createElement('div');
-      const k = document.createElement('i'); k.className = `key k-${l.key}`;
-      const n = document.createElement('span'); n.textContent = l.label;
-      const val = document.createElement('span'); val.className = 'num'; val.textContent = f(v);
-      r.append(k, n, val); tip.append(r);
-    }
-    tip.hidden = false;
-    const left = x(d) + 14;
-    tip.style.left = `${left + tip.offsetWidth > W ? x(d) - 14 - tip.offsetWidth : left}px`;
-  };
-  let cursor = end;
-  hit.addEventListener('pointermove', e => { const r = svg.getBoundingClientRect(); cursor = Math.round(start + ((e.clientX - r.left - L) / (W - L - R)) * (end - start)); show(cursor); });
-  hit.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); tip.hidden = true; });
-  hit.addEventListener('focus', () => show(cursor));
-  hit.addEventListener('blur', () => { cross.setAttribute('visibility', 'hidden'); tip.hidden = true; });
-  hit.addEventListener('keydown', e => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-    e.preventDefault();
-    cursor += e.key === 'ArrowLeft' ? -1 : 1;
-    show(cursor);
-  });
 }
 
 function top(list) {

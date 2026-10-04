@@ -37,6 +37,7 @@ nav a.on, nav button.on { color: var(--fg); background: var(--panel2); }
 .more { position: relative; display: flex; }
 .menu { position: absolute; right: 0; top: calc(100% + 8px); background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); padding: 4px; display: flex; flex-direction: column; min-width: 160px; z-index: 20; }
 .menu a { border-radius: 8px; }
+.menu a.menu-only { display: none; }
 .updated { margin-left: auto; font-size: 12px; color: var(--muted); }
 /* Bouton Connexion / Mon compte, en haut à droite */
 .me { display: flex; align-items: center; gap: 8px; font: 600 13px var(--sans); white-space: nowrap; padding: 7px 16px; border-radius: 999px; background: var(--accent); color: #1a0f00; border: 1px solid var(--accent); }
@@ -319,6 +320,9 @@ footer b { color: var(--fg); }
   @media (max-width: 370px) { nav a, nav > .more > button { padding: 8px 3px; } }
   @media (max-width: 340px) { nav a, nav > .more > button { font-size: 11px; } }
   .menu { top: auto; bottom: calc(100% + 8px); }
+  /* Outils passe dans le menu Plus : 6 onglets + Plus tiennent déjà tout juste */
+  nav > a.bar-only { display: none; }
+  .menu a.menu-only { display: block; }
   footer { padding-block: 20px 90px; }
   .updated { margin-left: 0; width: 100%; order: 2; }
   .me { margin-left: auto; order: 1; }
@@ -370,10 +374,30 @@ footer b { color: var(--fg); }
 .mk-chart .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 .mk-chart rect[tabindex]:focus { outline: none; }
 .mk-chart svg:has(rect[tabindex]:focus-visible) { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
-.mk-tip { position: absolute; top: 24px; pointer-events: none; background: var(--panel2); border: 1px solid var(--line2); border-radius: 8px; padding: 8px 10px; font-size: 12px; display: grid; gap: 3px; min-width: 190px; box-shadow: 0 8px 24px rgba(0, 0, 0, .4); z-index: 2; }
-.mk-tip b { font-weight: 500; color: var(--muted); }
-.mk-tip div { display: flex; align-items: center; gap: 0; }
-.mk-tip div .num { margin-left: auto; padding-left: 12px; color: var(--fg); }
+.mk-chart .tick.end { text-anchor: end; }
+/* Survol : les valeurs s'affichent dans une ligne au-dessus du graphique (jamais sur les courbes), la croix montre
+   sa valeur sur l'axe de droite et la date sur l'axe du bas. Chaque valeur a une largeur fixe (calculée par
+   js/chart.js) : la ligne ne saute pas pendant qu'on déplace le curseur ou le doigt. */
+.ch-read { display: flex; flex-wrap: wrap; gap: 2px 16px; padding-bottom: 8px; font-size: 12px; color: var(--muted); }
+.ch-read .ch-x { display: inline-block; font: 500 12px var(--mono); color: var(--fg2); white-space: nowrap; }
+.ch-read.live .ch-x { color: var(--accent); }
+.ch-v { display: inline-flex; align-items: baseline; white-space: nowrap; }
+.ch-v .key { align-self: center; }
+.ch-v .num { display: inline-block; margin-left: 6px; color: var(--fg); }
+.ch-v .num.up { color: var(--up); } .ch-v .num.down { color: var(--down); }
+.mk-chart .pill { fill: var(--fg2); }
+.mk-chart .pill-t { fill: var(--bg); font: 500 10px var(--mono); }
+.mk-chart .pill-t.mid { text-anchor: middle; }
+.mk-chart .hov-dot { stroke: var(--panel); stroke-width: 2; }
+/* Courbes des outils */
+.mk-chart .c-main { stroke: var(--accent); fill: var(--accent); } .key.c-main { background: var(--accent); }
+.mk-chart .c-alt { stroke: var(--s-ma50); fill: var(--s-ma50); } .key.c-alt { background: var(--s-ma50); }
+.mk-chart .c-high { stroke: var(--up); fill: var(--up); } .key.c-high { background: var(--up); }
+.mk-chart .c-low { stroke: var(--down); fill: var(--down); } .key.c-low { background: var(--down); }
+.mk-chart .c-paid { stroke: var(--muted); fill: var(--muted); } .key.c-paid { background: var(--muted); }
+.mk-chart .ln.c-paid { stroke-dasharray: 4 3; stroke-width: 1.4; }
+.mk-chart .c-price { stroke: var(--fg); fill: var(--fg); } .key.c-price { background: var(--fg); }
+.mk-chart .mark { stroke: var(--line2); stroke-width: 1; stroke-dasharray: 2 3; }
 /* Fiche indicateur */
 .ind-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; margin-bottom: 16px; }
 .ind-head .v { font-size: 30px; font-weight: 500; letter-spacing: -.03em; }
@@ -384,6 +408,86 @@ footer b { color: var(--fg); }
 .ind-text .box > h2 { padding: 12px 14px 6px; }
 .ind-text p.txt + p.txt { margin-top: -4px; }
 
+/* Outils : calculateurs (formulaire à gauche, résultat à droite) */
+a.chip { display: inline-block; }
+a.chip:hover { text-decoration: none; }
+/* Deux catégories d'outils, une ligne de pilules chacune */
+#outils-tabs { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 16px; }
+.t-cat { display: flex; align-items: center; gap: 6px 12px; min-width: 0; }
+.t-cat > .lb { flex: none; width: 130px; font-size: 12px; color: var(--muted); }
+.t-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.outil { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-bottom: 16px; }
+@media (max-width: 900px) { .outil { grid-template-columns: 1fr; } }
+.t-form > p.txt { color: var(--muted); }
+/* Mode d'un outil (DCA : passé ou avenir) : deux gros boutons sous le titre */
+.t-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 0 14px 12px; padding: 4px; background: var(--bg); border-radius: 10px; }
+.t-modes button { display: flex; flex-direction: column; gap: 1px; text-align: left; padding: 8px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
+.t-modes button:hover { color: var(--fg); }
+.t-modes button[aria-pressed="true"] { color: var(--fg); background: var(--accent-soft); border-color: var(--accent); }
+.t-modes b { font-size: 14px; font-weight: 600; }
+.t-modes span { font-size: 12px; }
+.t-modes button[aria-pressed="true"] span { color: var(--fg2); }
+.t-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 14px 14px; }
+@media (max-width: 520px) { .t-fields { grid-template-columns: 1fr; } }
+.t-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.t-field.t-wide { grid-column: 1 / -1; }
+.t-field .tools { margin: 0; }
+.t-field .lb { font-size: 12px; color: var(--muted); }
+.t-field .hint { font-size: 11px; color: var(--muted); opacity: .8; }
+.t-in { display: flex; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.t-in:focus-within { border-color: var(--accent); }
+/* 16 px : en dessous, Safari sur iPhone zoome sur le champ */
+.t-in input { flex: 1; min-width: 0; background: none; border: 0; color: var(--fg); padding: 7px 10px; font: 16px var(--mono); font-variant-numeric: tabular-nums; outline: none; }
+.t-in input.bad { color: var(--down); }
+.t-in .u { font-size: 12px; color: var(--muted); padding-right: 10px; white-space: nowrap; }
+.t-quick { display: flex; flex-wrap: wrap; gap: 4px; }
+.t-quick .chip { padding: 3px 8px; font: 11px var(--mono); }
+.t-res { align-self: stretch; }
+.t-res > h2 { color: var(--muted); font-weight: 500; font-size: 12px; padding-bottom: 0; }
+/* Résultat / Comment c'est calculé : deux petits onglets en haut du résultat */
+.t-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px 4px; }
+.t-steps { margin: 0; padding: 10px 14px 14px 34px; display: grid; gap: 10px; font-size: 13px; color: var(--fg2); max-width: 70ch; }
+.t-steps b { display: block; color: var(--fg); font-weight: 600; }
+.t-steps li::marker { color: var(--accent); font-weight: 600; }
+.t-h3 { margin: 6px 0 0; padding: 14px 14px 0; border-top: 1px solid var(--line); font: 600 14px var(--sans); }
+.t-field .chip .num { color: var(--muted); font-size: 11px; margin-left: 2px; }
+.t-out { display: flex; flex-direction: column; }
+.t-out dl { padding-top: 10px; }
+.t-hero { padding: 6px 14px 4px; display: flex; flex-direction: column; gap: 2px; }
+.t-hero .k { font-size: 12px; color: var(--accent); font-weight: 600; }
+.t-hero b { font-size: 26px; font-weight: 500; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.t-hero .s { font-size: 13px; color: var(--fg2); }
+.t-note { margin: 0; padding: 0 14px 14px; font-size: 12px; color: var(--muted); max-width: 70ch; }
+.t-note.warn-inline { color: var(--mid); }
+.t-sub { font-size: 12px; color: var(--muted); padding: 0 14px 6px; }
+.t-levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; padding: 0 14px 14px; }
+.t-levels span { background: var(--bg); border-radius: 8px; padding: 6px 8px; font: 13px var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.t-levels i { display: block; font: normal 11px var(--sans); color: var(--accent); }
+.t-chart { margin: 4px 14px 12px; min-height: 0; }
+.t-chart .ln { stroke-width: 1.8; }
+.t-how { margin: 0 14px 14px; padding: 10px 12px; background: var(--bg); border-radius: 8px; font-size: 12px; color: var(--fg2); }
+.t-how b { display: block; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
+.t-how ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+/* Prix moyen : autant de lignes d'achat que voulu */
+.t-buys { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px; gap: 6px; align-items: center; }
+.t-buys > .lb { font-size: 11px; }
+.t-del { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.t-del:hover:not(:disabled) { color: var(--down); border-color: var(--line2); }
+.t-del:disabled { opacity: .35; cursor: default; }
+.t-add { align-self: flex-start; margin-top: 4px; }
+.outil-nfa { margin-top: 0; }
+@media (max-width: 700px) {
+  /* Chaque catégorie : son nom au-dessus, puis une ligne d'outils qui défile au doigt */
+  .t-cat { flex-direction: column; align-items: stretch; gap: 6px; }
+  .t-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+  .t-chips::-webkit-scrollbar { display: none; }
+  .t-chips .chip { flex: none; }
+}
+@media (max-width: 520px) {
+  /* Résultats : libellé au-dessus de la valeur, pour que les longues valeurs ne se coupent pas */
+  .t-out dl { grid-template-columns: 1fr; gap: 0; }
+  .t-out dd { text-align: left; margin-bottom: 10px; }
+}
 /* Fiche crypto (#crypto/<id>) : bougies, moyennes et panneaux empilés, tendance, levier OKX */
 :root { --s-ma20: #b07cf0; }
 #marche-top tr[data-id] { cursor: pointer; }

@@ -1,0 +1,267 @@
+// Graphiques du site : panneaux empilés qui partagent l'axe horizontal (comme les indicateurs sous un graphique
+// de trading), chacun avec sa propre échelle à droite, sans double axe.
+// Au survol, les valeurs s'affichent dans une ligne au-dessus du graphique, jamais sur les courbes. Une croix suit
+// le curseur : sa valeur s'affiche sur l'axe de droite et la date sur l'axe du bas. Au repos, la ligne du haut
+// montre les dernières valeurs.
+
+const DAY = 86_400_000;
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}, text) => {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (text != null) n.textContent = text;
+  return n;
+};
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// « 1er oct. 26 » : le premier du mois s'écrit 1er en français.
+export const dateFr = d => new Date(d * DAY).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' }).replace(/^1 /, '1er ');
+
+// Graduations du temps : le 1er de chaque mois, ou une date par semaine sur une courte période.
+function timeTicks(start, end, width) {
+  const span = end - start;
+  const room = Math.max(2, Math.floor(width / 70));
+  const months = [];
+  for (let d = Math.ceil(start); d <= end; d++) if (new Date(d * DAY).getUTCDate() === 1) months.push(d);
+  if (months.length >= 2) {
+    const every = Math.ceil(months.length / room);
+    return months.filter((_, i) => i % every === 0)
+      .map(d => [d, new Date(d * DAY).toLocaleDateString('fr-FR', { month: 'short', year: span > 365 ? '2-digit' : undefined, timeZone: 'UTC' })]);
+  }
+  const step = Math.max(1, Math.ceil(span / room));
+  const out = [];
+  for (let d = Math.ceil(start); d <= end; d += step) out.push([d, new Date(d * DAY).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(/^1 /, '1er ')]);
+  return out;
+}
+
+// Graduations rondes (1, 2, 2,5 ou 5 × 10ⁿ), environ `target` dans [lo, hi].
+function niceTicks(lo, hi, target) {
+  const range = hi - lo;
+  if (!(range > 0)) return [lo];
+  const k0 = Math.floor(Math.log10(range));
+  let best = null;
+  for (let k = k0 - 2; k <= k0; k++) {
+    for (const m of [1, 2, 2.5, 5]) {
+      const step = m * 10 ** k;
+      const first = Math.ceil(lo / step - 1e-9);
+      const n = Math.floor(hi / step + 1e-9) - first + 1;
+      if (n < 2) continue;
+      const score = Math.abs(n - target);
+      if (!best || score < best.score || (score === best.score && n < best.n)) best = { score, n, step, first };
+    }
+  }
+  if (!best) return [lo + range * 0.1, (lo + hi) / 2, hi - range * 0.1];
+  return Array.from({ length: best.n }, (_, i) => Number(((best.first + i) * best.step).toPrecision(12)));
+}
+
+// Graduations d'une échelle logarithmique (valeurs réelles, lo > 0) : 1, 3 ou 1, 2, 5 × 10ⁿ selon la place.
+// Sur moins d'une décade, des graduations rondes ordinaires.
+function logTicks(lo, hi, target) {
+  let best = null;
+  for (const ms of [[1], [1, 3], [1, 2, 5]]) {
+    const out = [];
+    for (let k = Math.floor(Math.log10(lo)); k <= Math.ceil(Math.log10(hi)); k++) {
+      for (const m of ms) {
+        const v = Number((m * 10 ** k).toPrecision(12));
+        if (v >= lo && v <= hi) out.push(v);
+      }
+    }
+    if (out.length < 2) continue;
+    const score = Math.abs(out.length - target);
+    if (!best || score < best.score) best = { score, out };
+  }
+  if (!best) return niceTicks(lo, hi, target);
+  const every = Math.ceil(best.out.length / (target + 1));
+  return best.out.filter((_, i) => i % every === 0);
+}
+
+// Nombre de caractères du texte le plus long (sur un échantillon) : la ligne des valeurs garde la même largeur au survol.
+function widest(list, text) {
+  if (!list.length) return 1;
+  const step = Math.max(1, Math.floor(list.length / 150));
+  let w = text(list.at(-1)).length;
+  for (let i = 0; i < list.length; i += step) w = Math.max(w, text(list[i]).length);
+  return w;
+}
+
+// Dessine les panneaux dans `box`. Un panneau : { title, h, fmt, axis, lines: [{ key, label, pts, cls, keyCls }], bars,
+// ref, lo, hi, ticks, bands, reverse, log } ; `axis` (facultatif) écrit les valeurs de l'axe en plus court que `fmt`,
+// `log` passe l'échelle en logarithmique (pour des prix qui se multiplient par 10 ou 100).
+// Options : xLabel (date ou valeur affichée au survol), xTicks (graduations), snap (positions où se cale le curseur,
+// par défaut les points de la première courbe), tolerance (écart accepté entre le curseur et un point), marks
+// (positions d'un trait vertical pointillé, par exemple « aujourd'hui »).
+export function drawPanes(box, panes, start, end, opts = {}) {
+  const W = box.clientWidth;
+  if (!W) return;
+  const span = end - start || 1;
+  const L = 8, R = 72, GAP = 26, TOP = 4, AX = 22;
+  const H = TOP + panes.reduce((s, p) => s + p.h + GAP, 0) - GAP + AX;
+  const x = d => L + ((d - start) / span) * (W - L - R);
+  const xLabel = opts.xLabel || dateFr;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': `Graphique ${panes.map(p => p.title).join(', ')}` });
+  let y0 = TOP;
+  for (const p of panes) {
+    // En logarithmique, les calculs de l'échelle se font sur log10 des valeurs (strictement positives).
+    const tf = p.log ? v => Math.log10(Math.max(v, 1e-12)) : v => v;
+    const vals = p.lines.flatMap(l => l.pts.map(q => q[1])).concat(p.ref != null ? [p.ref] : []).map(tf);
+    let lo = p.lo != null ? tf(p.lo) : Math.min(...vals), hi = p.hi != null ? tf(p.hi) : Math.max(...vals);
+    if (p.bars) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+    if (p.lo == null) {
+      const pad = (hi - lo) * 0.06 || Math.abs(hi) * 0.05 || 1;
+      const floor = lo >= 0 && !p.log ? 0 : -Infinity; // une courbe toujours positive ne descend pas sous zéro
+      lo = p.bars ? lo : Math.max(floor, lo - pad);
+      hi += pad;
+    }
+    const top = y0 + 18, bottom = y0 + p.h;
+    const y = v => bottom - ((tf(v) - lo) / (hi - lo || 1)) * (bottom - top);
+    const inv = py => {
+      const v = lo + ((bottom - py) / (bottom - top)) * (hi - lo);
+      return p.log ? 10 ** v : v;
+    };
+    Object.assign(p, { y, inv, top, bottom });
+    if (p.title) svg.append(el('text', { x: L, y: y0 + 11, class: 'pt' }, p.title));
+    for (const [a, b, cls] of p.bands || []) svg.append(el('rect', { x: L, width: W - L - R, y: y(b), height: y(a) - y(b), class: cls }));
+    const target = clamp(Math.round((bottom - top) / 50), 2, 5);
+    const ticks = p.ticks || (p.log ? logTicks(10 ** lo, 10 ** hi, target) : niceTicks(lo, hi, target));
+    p.axis ||= p.fmt;
+    for (const t of ticks) {
+      svg.append(el('line', { x1: L, x2: W - R, y1: y(t), y2: y(t), class: 'grid' }));
+      svg.append(el('text', { x: W - R + 6, y: y(t) + 4, class: 'tick' }, p.axis(t)));
+    }
+    if (p.ref != null && !p.bars) svg.append(el('line', { x1: L, x2: W - R, y1: y(p.ref), y2: y(p.ref), class: 'zero' }));
+    for (const l of p.reverse ? [...p.lines].reverse() : p.lines) {
+      if (!l.pts.length) continue;
+      if (p.bars) {
+        const bw = Math.max(1, (W - L - R) / span - 1);
+        for (const [d, v] of l.pts) svg.append(el('rect', { x: x(d) - bw / 2, width: bw, y: Math.min(y(v), y(0)), height: Math.max(1, Math.abs(y(v) - y(0))), class: v >= 0 ? 'bar-up' : 'bar-down' }));
+        svg.append(el('line', { x1: L, x2: W - R, y1: y(0), y2: y(0), class: 'zero' }));
+        continue;
+      }
+      const d = l.pts.map((q, i) => `${i ? 'L' : 'M'}${x(q[0]).toFixed(1)},${y(q[1]).toFixed(1)}`).join('');
+      if (l.key === 'price' || p.lines.length === 1) {
+        svg.append(el('path', { d: `${d}L${x(l.pts.at(-1)[0]).toFixed(1)},${bottom}L${x(l.pts[0][0]).toFixed(1)},${bottom}Z`, class: 'area' }));
+      }
+      svg.append(el('path', { d, class: `ln ${l.cls}` }));
+      const [ld, lv] = l.pts.at(-1);
+      svg.append(el('circle', { cx: x(ld), cy: y(lv), r: 3, class: `dot-end ${l.cls}` }));
+    }
+    y0 = bottom + GAP;
+  }
+  for (const d of opts.marks || []) svg.append(el('line', { x1: x(d), x2: x(d), y1: TOP, y2: H - AX, class: 'mark' }));
+  // Axe horizontal sous le dernier panneau ; les graduations du bord restent dans le cadre.
+  for (const [d, label] of (opts.xTicks || timeTicks)(start, end, W - L - R)) {
+    const tx = x(d);
+    svg.append(el('text', { x: tx, y: H - 6, class: `tick ${tx < L + 24 ? '' : tx > W - R - 24 ? 'end' : 'mid'}` }, label));
+  }
+
+  // Croix du survol : ligne verticale sur tous les panneaux, ligne horizontale dans le panneau survolé,
+  // valeur sur l'axe de droite, date sur l'axe du bas, un point sur chaque courbe.
+  const cross = el('g', { visibility: 'hidden' });
+  const vline = el('line', { y1: TOP, y2: H - AX, class: 'cross' });
+  const across = el('g', { visibility: 'hidden' });
+  const hline = el('line', { x1: L, x2: W - R, class: 'cross' });
+  const yRect = el('rect', { height: 17, rx: 4, class: 'pill' });
+  const yText = el('text', { class: 'pill-t' });
+  across.append(hline, yRect, yText);
+  const xRect = el('rect', { y: H - AX + 2, height: 17, rx: 4, class: 'pill' });
+  const xText = el('text', { y: H - AX + 14.5, class: 'pill-t mid' });
+  const lines = panes.flatMap(p => (p.bars ? [] : p.lines.map(l => ({ p, l }))));
+  const dots = lines.map(({ l }) => el('circle', { r: 3.5, class: `hov-dot ${l.cls}` }));
+  cross.append(vline, across, ...dots, xRect, xText);
+  const hit = el('rect', { x: 0, y: 0, width: W, height: H, fill: 'transparent', tabindex: 0 });
+  svg.append(cross, hit);
+
+  // Ligne des valeurs, au-dessus du graphique.
+  const read = document.createElement('div');
+  read.className = 'ch-read';
+  read.setAttribute('aria-live', 'polite');
+  box.replaceChildren(read, svg);
+
+  // Le curseur se cale sur les points de la première courbe (les jours sans cotation sont sautés), ou sur `snap`.
+  const base = opts.snap ? opts.snap.map(d => [d]) : panes.flatMap(p => p.lines).find(l => l.pts.length)?.pts || [];
+  const xw = widest(base, q => xLabel(q[0]));
+  for (const p of panes) {
+    for (const l of p.lines) {
+      const ys = l.pts.map(q => q[1]);
+      l.w = Math.max(widest(ys, p.fmt), ys.length ? Math.max(p.fmt(Math.min(...ys)).length, p.fmt(Math.max(...ys)).length) : 1);
+    }
+  }
+  const near = raw => {
+    if (!base.length) return { i: -1, d: clamp(Math.round(raw), start, end) };
+    let a = 0, b = base.length - 1;
+    while (b - a > 1) { const m = (a + b) >> 1; if (base[m][0] < raw) a = m; else b = m; }
+    const i = Math.abs(base[a][0] - raw) <= Math.abs(base[b][0] - raw) ? a : b;
+    return { i, d: base[i][0] };
+  };
+  const tol = opts.tolerance ?? 3;
+  const valueAt = (pts, d) => {
+    for (let i = pts.length - 1; i >= 0; i--) if (pts[i][0] <= d) return pts[i][0] >= d - tol ? pts[i][1] : null;
+    return null;
+  };
+  const fill = (d, live) => {
+    read.classList.toggle('live', live);
+    const parts = [`<b class="ch-x" style="min-width:${xw}ch">${esc(xLabel(d))}</b>`];
+    for (const p of panes) {
+      for (const l of p.lines) {
+        const v = valueAt(l.pts, d);
+        const cls = p.bars && v != null ? (v >= 0 ? ' up' : ' down') : '';
+        parts.push(`<span class="ch-v">${p.bars ? '' : `<i class="key ${esc(l.keyCls ?? `k-${l.key}`)}"></i>`}<span class="ch-l">${esc(l.label)}</span><span class="num${cls}" style="min-width:${l.w}ch">${v == null ? '—' : esc(p.fmt(v))}</span></span>`);
+      }
+    }
+    read.innerHTML = parts.join('');
+  };
+  const last = base.length ? base.at(-1)[0] : end;
+  let cursor = base.length - 1;
+  const show = (raw, py) => {
+    const { i, d } = near(clamp(raw, start, end));
+    cursor = i;
+    const cx = x(d);
+    cross.setAttribute('visibility', 'visible');
+    vline.setAttribute('x1', cx); vline.setAttribute('x2', cx);
+    lines.forEach(({ p, l }, k) => {
+      const v = valueAt(l.pts, d);
+      dots[k].setAttribute('visibility', v == null ? 'hidden' : 'inherit');
+      if (v != null) { dots[k].setAttribute('cx', cx); dots[k].setAttribute('cy', p.y(v)); }
+    });
+    xText.textContent = xLabel(d);
+    const tw = xText.getComputedTextLength() + 14;
+    const left = clamp(cx - tw / 2, L, W - R - tw);
+    xRect.setAttribute('x', left); xRect.setAttribute('width', tw);
+    xText.setAttribute('x', left + tw / 2);
+    const p = py == null ? null : panes.find(q => py >= q.top - 8 && py <= q.bottom + 8);
+    if (p) {
+      const yy = clamp(py, p.top, p.bottom);
+      hline.setAttribute('y1', yy); hline.setAttribute('y2', yy);
+      yText.textContent = p.axis(p.inv(yy));
+      // L'étiquette tient dans la marge de droite ; une valeur plus longue déborde un peu sur le graphique.
+      const yw = Math.max(R - 4, yText.getComputedTextLength() + 10);
+      yRect.setAttribute('x', W - 2 - yw); yRect.setAttribute('width', yw); yRect.setAttribute('y', yy - 8.5);
+      yText.setAttribute('x', W - 2 - yw + 5); yText.setAttribute('y', yy + 3.5);
+      across.setAttribute('visibility', 'inherit');
+    } else across.setAttribute('visibility', 'hidden');
+    fill(d, true);
+  };
+  const hide = () => { cross.setAttribute('visibility', 'hidden'); fill(last, false); };
+  const at = e => {
+    const r = svg.getBoundingClientRect();
+    const k = W / (r.width || W);
+    return [start + (((e.clientX - r.left) * k - L) / (W - L - R)) * span, (e.clientY - r.top) * k];
+  };
+  hit.addEventListener('pointermove', e => show(...at(e)));
+  hit.addEventListener('pointerdown', e => show(...at(e)));
+  // Au doigt, la croix reste après avoir levé le doigt pour qu'on puisse lire les valeurs ; elle part si on fait défiler la page.
+  hit.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hide(); });
+  hit.addEventListener('pointercancel', hide);
+  // Au clavier (touche Tab), la croix part du dernier point ; un clic ou un appui l'a déjà placée.
+  hit.addEventListener('focus', () => { if (base.length && cross.getAttribute('visibility') !== 'visible') show(base[clamp(cursor, 0, base.length - 1)][0]); });
+  hit.addEventListener('blur', hide);
+  hit.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' || !base.length) return;
+    e.preventDefault();
+    cursor = clamp(cursor + (e.key === 'ArrowLeft' ? -1 : 1), 0, base.length - 1);
+    show(base[cursor][0]);
+  });
+  fill(last, false);
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
