@@ -21,7 +21,7 @@ const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); }
 
 const dateFr = d => new Date(d * DAY).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' });
 // Gros montants des tuiles : 3 010 Md$, 95,2 Md$, 84,9 M$.
-const big = n => (n == null ? '—' : Math.abs(n) >= 1e11 ? `${fmt(n / 1e9, 0)} Md$` : Math.abs(n) >= 1e9 ? `${fmt(n / 1e9, 1)} Md$` : money(n));
+const big = n => (n == null ? '—' : Math.abs(n) >= 1e11 ? `${fmt(n / 1e9, 0)}\u00a0Md$` : Math.abs(n) >= 1e9 ? `${fmt(n / 1e9, 1)}\u00a0Md$` : money(n));
 const fundingFmt = v => `${v >= 0 ? '+' : ''}${fmt(v, 4)} %`;
 
 // Fiches indicateur (#indicateur/<clé>) : titre, format, panneau et comment le lire.
@@ -133,7 +133,7 @@ function tiles(t) {
     tile('Argent bloqué en DeFi', big(t.tvl?.value), ch(t.tvl?.change1d, 'sur 24 h'), false, 'tvl'),
     tile('Stablecoins', big(t.stables?.value), ch(t.stables?.change7d, 'sur 7 j'), false, 'stables'),
     tile('Volume DEX 24 h', big(t.dex?.total24h), ch(t.dex?.change1d, 'vs hier')),
-    tile('Volume dérivés 24 h', big(t.derivs?.volume24h), t.derivs ? `<span class="muted">open interest ${big(t.derivs.openInterest)}</span>` : ''),
+    tile('Volume des dérivés 24 h', big(t.derivs?.volume24h), t.derivs ? `<span class="muted">open interest ${big(t.derivs.openInterest)}</span>` : ''),
   ].join('');
 }
 
