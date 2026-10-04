@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // Onglet Marché : chiffres clés, historique quotidien des courbes du graphique et plus grosses cryptos.
-// Sources gratuites sans clé : OKX (prix, funding, open interest), DefiLlama (TVL, stablecoins, volumes),
-// alternative.me (Fear & Greed), CoinGecko (capitalisation globale, top cryptos).
+// Sources gratuites sans clé : OKX (prix, funding, open interest), DefiLlama (TVL, stablecoins, volume DEX),
+// alternative.me (Fear & Greed), CoinGecko (capitalisation globale, dérivés, top cryptos).
 // Le funding et l'open interest n'ont que quelques mois d'historique chez OKX : on garde celui déjà publié.
 // Usage : node scripts/build-marche.mjs [--out data] [--previous ancien-marche.json]
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { attempt, fetchJson } from './lib/http.mjs';
+import { liveOpenInterest, withLive } from './lib/cryptos.mjs';
 import { compact, mergePoints, realCoins, signals, toDaily, verdict } from '../js/marche-lib.js';
 
 const argv = process.argv.slice(2);
@@ -51,6 +52,17 @@ async function funding() {
   return toDaily([...unique].map(([t, v]) => [Number(t), v]), { mean: true });
 }
 
+// Tuile Dérivés : volume sur 24 h et open interest de toutes les plateformes, en dollars au dernier prix BTC.
+function derivTile(list, btcPrice) {
+  if (!Array.isArray(list) || !btcPrice) return null;
+  const rows = list.map(x => ({ name: x.name, vol: Number(x.trade_volume_24h_btc), oi: Number(x.open_interest_btc) }))
+    .filter(x => x.vol > 0 || x.oi > 0);
+  if (!rows.length) return null;
+  const sum = k => rows.reduce((s, x) => s + (x[k] > 0 ? x[k] : 0), 0);
+  console.log(`Dérivés : ${rows.length} plateformes · ${rows.slice(0, 6).map(x => `${x.name} ${Math.round(x.oi)} BTC`).join(' · ')}`);
+  return { volume24h: sum('vol') * btcPrice, openInterest: sum('oi') * btcPrice, exchanges: rows.length };
+}
+
 async function main() {
   const now = new Date();
   console.log(`Dinexo · onglet Marché · ${now.toISOString()}`);
@@ -67,16 +79,20 @@ async function main() {
     take('open interest', await attempt('OKX open interest', async () => {
       const rows = await okx('/rubik/stat/contracts/open-interest-volume?ccy=BTC&period=1D');
       // La journée en cours arrive parfois à 0 : on l'ignore.
-      return toDaily(rows.map(r => [Number(r[0]), Number(r[1])]).filter(([, v]) => v > 0));
+      const daily = toDaily(rows.map(r => [Number(r[0]), Number(r[1])]).filter(([, v]) => v > 0));
+      // Les valeurs quotidiennes ont 2 à 3 jours de retard : le jour en cours prend la valeur en direct, gardée
+      // d'un passage à l'autre, ce qui remplit les jours manquants au fil des mises à jour.
+      const live = (await attempt('OKX open interest en direct', () => liveOpenInterest(okx))).value?.get('BTC');
+      const withToday = withLive(daily, live, Math.floor(now / 86_400_000));
+      console.log(`Open interest BTC en direct : ${live ? `${(live / 1e9).toFixed(2)} Md$` : '—'} (dernière valeur quotidienne ${(daily.at(-1)?.[1] / 1e9).toFixed(2)} Md$)${live && !withToday ? ' : écart trop grand, pas utilisée' : ''}`);
+      return withToday || daily;
     })),
   ];
-  const [fngR, stR, tvlR, dexR, perpR, feesR, globalR] = await Promise.all([
+  const [fngR, stR, tvlR, dexR, globalR] = await Promise.all([
     attempt('Fear & Greed', () => fetchJson('https://api.alternative.me/fng/?limit=0')),
     attempt('DefiLlama stablecoins', () => fetchJson('https://stablecoins.llama.fi/stablecoincharts/all')),
     attempt('DefiLlama TVL', () => fetchJson(`${LLAMA}/v2/historicalChainTvl`)),
     attempt('DefiLlama DEX', () => fetchJson(`${LLAMA}/overview/dexs?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`)),
-    attempt('DefiLlama perps', () => fetchJson(`${LLAMA}/overview/derivatives?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`)),
-    attempt('DefiLlama frais', () => fetchJson(`${LLAMA}/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`)),
     attempt('CoinGecko global', () => fetchJson(`${CG}/global`, { headers: cgHeaders })),
   ]);
   const fng = take('fear & greed', fngR) && toDaily(fngR.value.data.map(x => [Number(x.timestamp) * 1000, Number(x.value)]));
@@ -86,6 +102,10 @@ async function main() {
   await sleep(1500);
   const coinsR = await attempt('CoinGecko top', () => fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=30&price_change_percentage=24h,7d,30d`, { headers: cgHeaders, retries: 4 }));
   const coins = take('coingecko top', coinsR);
+  // Dérivés (perpétuels et contrats à terme) de toutes les plateformes suivies par CoinGecko, en BTC.
+  await sleep(1500);
+  const derivR = await attempt('CoinGecko dérivés', () => fetchJson(`${CG}/derivatives/exchanges?order=open_interest_btc_desc&per_page=100`, { headers: cgHeaders, retries: 3 }));
+  const derivs = take('dérivés', derivR);
 
   // Chaque courbe garde son historique déjà publié si la source ne répond pas, ou n'a que les derniers mois.
   const old = previous?.series || {};
@@ -117,7 +137,8 @@ async function main() {
     fearGreed: fng ? { value: last(fng), change1d: last(fng) - (ago(fng, 1) ?? last(fng)) } : null,
     tvl: tvl ? { value: last(tvl), change1d: rel(last(tvl), ago(tvl, 1)) } : null,
     stables: stables ? { value: last(stables), change7d: rel(last(stables), ago(stables, 7)) } : null,
-    dex: overview(dexR), perps: overview(perpR), fees: overview(feesR),
+    dex: overview(dexR),
+    derivs: derivTile(derivs, last(btc)),
   };
   sources.dex = dexR.ok ? 'ok' : 'erreur';
 

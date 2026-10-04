@@ -63,8 +63,12 @@ export function routeMarche(data, url) {
   if (p === 'stablecoins.llama.fi/stablecoincharts/all') return data.stables;
   if (p === 'api.llama.fi/v2/historicalChainTvl') return data.tvl;
   if (p === 'api.llama.fi/overview/dexs') return { total24h: 7.7e9, change_1d: -4.2 };
-  if (p === 'api.llama.fi/overview/derivatives') return { total24h: 26.6e9, change_1d: 3.1 };
-  if (p === 'api.llama.fi/overview/fees' && !q('dataType')) return { total24h: 84.9e6, change_1d: 1.2 };
+  // Dérivés de toutes les plateformes chez CoinGecko (volumes et open interest en BTC, parfois en texte ou absents).
+  if (p === 'api.coingecko.com/api/v3/derivatives/exchanges') {
+    return [{ id: 'binance_futures', name: 'Binance (Futures)', open_interest_btc: 300_000, trade_volume_24h_btc: '900000.5' },
+      { id: 'okex_swap', name: 'OKX (Futures)', open_interest_btc: 120_000, trade_volume_24h_btc: '400000' },
+      { id: 'petite', name: 'Petite plateforme', open_interest_btc: null, trade_volume_24h_btc: null }];
+  }
   if (p === 'api.coingecko.com/api/v3/coins/markets' && !q('ids')) {
     return COINS.map(([id, symbol, name, price], i) => ({ id, symbol, name, current_price: price, market_cap: 1.7e12 / (i + 1), total_volume: 2e10 / (i + 1),
       price_change_percentage_24h_in_currency: -2.5 + i * 0.4, price_change_percentage_7d_in_currency: 1 - i, price_change_percentage_30d_in_currency: 4 - i * 1.5 }));

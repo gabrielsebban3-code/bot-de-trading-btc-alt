@@ -1,6 +1,11 @@
 // Onglet Marché : séries quotidiennes, moyennes mobiles et lecture de la direction.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { DAY, mergePoints, realCoins, signals, sma, tallyText, toDaily, verdict } from '../js/marche-lib.js';
 
 const T0 = Date.parse('2026-01-01T00:00:00Z');
@@ -69,4 +74,21 @@ test('realCoins : retire stablecoins et versions wrapped ou staked', () => {
   const list = [['BTC', 'Bitcoin'], ['USDT', 'Tether'], ['STETH', 'Lido Staked Ether'], ['WBTC', 'Wrapped Bitcoin'], ['USDE', 'Ethena USDe'], ['SOL', 'Solana']]
     .map(([symbol, name]) => ({ symbol, name }));
   assert.deepEqual(realCoins(list).map(c => c.symbol), ['BTC', 'SOL']);
+});
+
+test('script Marché : open interest du jour en direct, dérivés de toutes les plateformes', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'dinexo-marche-'));
+  await promisify(execFile)(process.execPath, ['--import', './tests/mock-fetch.mjs', 'scripts/build-marche.mjs', '--out', dir]);
+  const m = JSON.parse(await readFile(join(dir, 'marche.json'), 'utf8'));
+  const today = Math.floor(Date.now() / DAY);
+  // Les valeurs quotidiennes d'OKX s'arrêtent avant aujourd'hui : le jour en cours prend la valeur en direct.
+  assert.ok(m.series.oi.points.at(-2)[0] < today);
+  assert.deepEqual(m.series.oi.points.at(-1), [today, 13.5e9]);
+  // Volume et open interest des dérivés (en BTC chez CoinGecko) convertis en dollars au dernier prix BTC.
+  const btc = m.series.btc.points.at(-1)[1];
+  assert.ok(Math.abs(m.tiles.derivs.volume24h / (1_300_000.5 * btc) - 1) < 1e-4);
+  assert.ok(Math.abs(m.tiles.derivs.openInterest / (420_000 * btc) - 1) < 1e-4);
+  assert.equal(m.tiles.derivs.exchanges, 2);
+  assert.equal(m.sources['dérivés'], 'ok');
+  assert.equal(m.tiles.perps, undefined);
 });

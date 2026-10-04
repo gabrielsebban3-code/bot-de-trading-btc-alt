@@ -11,7 +11,7 @@ import {
   atrOf, changeOver, coinSignals, emaOf, fundingYear, GROUPS, groupCandles, keyLevels, liquidation, macdOf, mentions,
   BTC_EDGE, deSym, per8h, perfVsBtc, pickGroup, priceText, ratioToBtc, rsiOf, smaOf,
 } from '../js/crypto-lib.js';
-import { candlesFromOkx, cleanLink, excerpt, fundingHistory } from '../scripts/lib/cryptos.mjs';
+import { candlesFromOkx, cleanLink, excerpt, fundingHistory, liveOpenInterest, withLive } from '../scripts/lib/cryptos.mjs';
 import { realCoins } from '../js/marche-lib.js';
 
 const D0 = 20_003; // un lundi (7 octobre 2024)
@@ -179,6 +179,26 @@ test('coinSignals : tendance baissière sous la zone du mois', () => {
   assert.doesNotMatch(r.signals[0].text, /-\d/);
 });
 
+test('liveOpenInterest : perpétuels et contrats à terme réunis par crypto, en dollars', async () => {
+  const rows = {
+    SWAP: [{ instId: 'BTC-USDT-SWAP', oiUsd: '6100000000' }, { instId: 'BTC-USD-SWAP', oiUsd: '2200000000' }, { instId: 'ETH-USDT-SWAP', oiUsd: '3e9' }, { instId: 'DOGE-USDT-SWAP', oiUsd: '0' }, { instId: 'SOL-USDT-SWAP', oiUsd: '' }],
+    FUTURES: [{ instId: 'BTC-USD-261225', oiUsd: '400000000' }],
+  };
+  const asked = [];
+  const oi = await liveOpenInterest(async path => { asked.push(path); return rows[new URL(path, 'https://x').searchParams.get('instType')]; });
+  assert.deepEqual(asked, ['/public/open-interest?instType=SWAP', '/public/open-interest?instType=FUTURES']);
+  assert.deepEqual([...oi], [['BTC', 8.7e9], ['ETH', 3e9]]);
+});
+
+test('withLive : la valeur en direct prend le jour en cours, sauf écart de plus de 25 %', () => {
+  const pts = [[10, 100], [11, 104]];
+  assert.deepEqual(withLive(pts, 110, 13), [[10, 100], [11, 104], [13, 110]]);
+  assert.deepEqual(withLive([...pts, [13, 90]], 110, 13), [[10, 100], [11, 104], [13, 110]]); // remplace la valeur du jour
+  assert.equal(withLive(pts, 140, 13), null); // autre périmètre de contrats : on garde la série telle quelle
+  assert.equal(withLive(pts, 0, 13), null);
+  assert.deepEqual(withLive([], 5, 13), [[13, 5]]);
+});
+
 test('candlesFromOkx : du plus ancien au plus récent, sans doublon ni bougie vide, volume en dollars', () => {
   const row = (t, c, q = '0') => [String(t * 86_400_000), String(c), String(c * 1.01), String(c * 0.99), String(c), '5', '6', String(c * 10), q];
   const out = candlesFromOkx([row(D0 + 2, 12), row(D0 + 1, 11), row(D0 + 1, 11), ['0', '0', '0', '0', '0', '0', '0', '0', '1'], row(D0, 10)], 86_400_000);
@@ -239,7 +259,7 @@ test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, t
   assert.equal(btc.funding.rate, 0.01);
   assert.ok(btc.funding.history.length > 30);
   assert.ok(btc.oi.length > 30 && btc.longShort.length > 30);
-  assert.deepEqual(btc.oi.at(-1), [Math.floor(Date.now() / 86_400_000), 8.4e9]); // jour en cours : valeur horaire
+  assert.deepEqual(btc.oi.at(-1), [Math.floor(Date.now() / 86_400_000), 13.5e9]); // jour en cours : valeur en direct (perpétuels et contrats à terme)
   assert.match(btc.about.text, /^Le Bitcoin est la première cryptomonnaie/);
   assert.deepEqual(btc.about.categories, ['Cryptocurrency', 'Layer 1 (L1)', 'Proof of Work (PoW)', 'Smart Contract Platform']);
   assert.equal(btc.about.links.explorer, 'https://explorer.bitcoin.org');

@@ -99,6 +99,14 @@ export function routeCrypto(data, url) {
         if (inst !== 'XRP-USDT-SWAP') return undefined;
         return ok(Array.from({ length: 100 }, (_, k) => ({ fundingTime: String(Math.floor(Date.now() / (4 * 3_600_000)) * 4 * 3_600_000 - k * 4 * 3_600_000), realizedRate: '0.00005' }))
           .filter(f => !q('after') || Number(f.fundingTime) < Number(q('after'))));
+      // Open interest en direct, contrat par contrat (en dollars) : BTC = 9,1 + 4 + 0,4 = 13,5 Md$.
+      case '/api/v5/public/open-interest':
+        if (q('instType') === 'SWAP') {
+          return ok([['BTC-USDT-SWAP', '9100000000'], ['BTC-USD-SWAP', '4000000000'], ['ETH-USDT-SWAP', '3000000000'], ['XRP-USDT-SWAP', '400000000'], ['DOGE-USDT-SWAP', '0'], ['SOL-USDT-SWAP', '']]
+            .map(([instId, oiUsd]) => ({ instType: 'SWAP', instId, oi: '1', oiCcy: '1', oiUsd, ts: String(Date.now()) })));
+        }
+        if (q('instType') === 'FUTURES') return ok([{ instType: 'FUTURES', instId: 'BTC-USD-261225', oi: '1', oiCcy: '1', oiUsd: '400000000', ts: String(Date.now()) }]);
+        return undefined;
       // Open interest heure par heure sur les 3 derniers jours (les valeurs quotidiennes viennent de marche-fixtures.mjs).
       case '/api/v5/rubik/stat/contracts/open-interest-volume': {
         if (q('period') !== '1H') return undefined;

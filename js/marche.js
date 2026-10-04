@@ -133,7 +133,7 @@ function tiles(t) {
     tile('Argent bloqué en DeFi', big(t.tvl?.value), ch(t.tvl?.change1d, 'sur 24 h'), false, 'tvl'),
     tile('Stablecoins', big(t.stables?.value), ch(t.stables?.change7d, 'sur 7 j'), false, 'stables'),
     tile('Volume DEX 24 h', big(t.dex?.total24h), ch(t.dex?.change1d, 'vs hier')),
-    tile('Volume perps 24 h', big(t.perps?.total24h), t.fees?.total24h != null ? `<span class="muted">frais payés ${big(t.fees.total24h)}</span>` : ''),
+    tile('Volume dérivés 24 h', big(t.derivs?.volume24h), t.derivs ? `<span class="muted">open interest ${big(t.derivs.openInterest)}</span>` : ''),
   ].join('');
 }
 

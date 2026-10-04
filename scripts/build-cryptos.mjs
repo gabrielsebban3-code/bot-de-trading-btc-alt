@@ -9,9 +9,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { attempt, fetchJson } from './lib/http.mjs';
-import { candlesFromOkx, cleanLink, excerpt, fundingHistory, sentences, sig } from './lib/cryptos.mjs';
+import { candlesFromOkx, cleanLink, excerpt, fundingHistory, liveOpenInterest, sentences, sig, withLive } from './lib/cryptos.mjs';
 import { decode } from './lib/news.mjs';
-import { DAY, realCoins, toDaily } from '../js/marche-lib.js';
+import { DAY, mergePoints, realCoins, toDaily } from '../js/marche-lib.js';
 import { coinSignals, per8h } from '../js/crypto-lib.js';
 
 const argv = process.argv.slice(2);
@@ -106,7 +106,7 @@ async function geckoLine(id) {
 }
 
 // Levier sur OKX : funding (en cours et moyenne par jour, ramené à 8 h), open interest et part des comptes à l'achat.
-async function derivatives(sym, swapId) {
+async function derivatives(sym, swapId, liveOi, prevOi = []) {
   const out = { funding: null, oi: [], longShort: [] };
   const sources = {};
   const f = await attempt(`${sym} funding`, async () => {
@@ -135,7 +135,11 @@ async function derivatives(sym, swapId) {
     const daily = pts(await okx(`/rubik/stat/contracts/open-interest-volume?ccy=${sym}&period=1D`));
     const hourly = pts(await okx(`/rubik/stat/contracts/open-interest-volume?ccy=${sym}&period=1H`));
     const last = daily.at(-1)?.[0] ?? -Infinity;
-    return [...daily, ...hourly.filter(([d]) => d > last)].map(([d, v]) => [d, sig(v, 4)]);
+    // Jour en cours : la valeur en direct (même périmètre). Les jours déjà publiés que la série n'a plus sont gardés.
+    const today = Math.floor(Date.now() / DAY);
+    const known = [...daily, ...hourly.filter(([d]) => d > last)];
+    const fresh = withLive(known, liveOi, today) || known;
+    return mergePoints(prevOi, fresh.map(([d, v]) => [d, sig(v, 4)]), 1000);
   });
   sources.oi = oi.ok ? 'ok' : 'erreur';
   if (oi.ok) out.oi = oi.value;
@@ -203,6 +207,7 @@ async function main() {
   const previous = new Map(await Promise.all(list.map(async c => [c.id, await readPrevious(c.id)])));
   const mk = await attempt('CoinGecko chiffres clés', () => markets(list.map(c => c.id)));
   const inst = await attempt('OKX marchés', instruments);
+  const liveOi = await attempt('OKX open interest en direct', () => liveOpenInterest(okx));
   // Présentations à rafraîchir : celles qui manquent, puis les plus anciennes au-delà de 3 jours.
   const age = id => { const t = previous.get(id)?.about?.fetchedAt; return t ? now - new Date(t) : Infinity; };
   const stale = list.filter(c => age(c.id) > ABOUT_DAYS * DAY).sort((a, b) => age(b.id) - age(a.id));
@@ -226,7 +231,7 @@ async function main() {
       : inst.ok ? await attempt(`${sym} CoinGecko`, () => geckoLine(coin.id)) : { ok: false };
     const h4R = src ? await attempt(`${sym} bougies 4 h`, () => okxCandles(src, '4H', 0, HOUR)) : { ok: false };
     sources.bougies = d1R.ok ? (src ? 'okx' : 'coingecko') : 'erreur';
-    const deriv = swap ? await derivatives(sym, swap) : null;
+    const deriv = swap ? await derivatives(sym, swap, liveOi.ok ? liveOi.value.get(sym) : null, prev?.oi) : null;
     Object.assign(sources, deriv?.sources);
     let info = prev?.about ?? null;
     if (refresh.has(coin.id)) {

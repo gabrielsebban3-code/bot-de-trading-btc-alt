@@ -55,3 +55,27 @@ export function cleanLink(url) {
     return drop.length ? u.href : url;
   } catch { return null; }
 }
+
+// Open interest en direct d'OKX, en dollars, par crypto : perpétuels et contrats à terme réunis, comme les séries
+// quotidiennes d'OKX (rubik), qui ont 2 à 3 jours de retard. `okx(path)` renvoie le champ data de la réponse.
+export async function liveOpenInterest(okx) {
+  const out = new Map();
+  for (const type of ['SWAP', 'FUTURES']) {
+    for (const r of await okx(`/public/open-interest?instType=${type}`)) {
+      const usd = Number(r.oiUsd);
+      if (!r.oiUsd || !(usd > 0)) continue;
+      const sym = String(r.instId).split('-')[0];
+      out.set(sym, (out.get(sym) || 0) + usd);
+    }
+  }
+  return out;
+}
+
+// Jour en cours d'une série quotidienne en retard : la valeur en direct, sauf si elle s'écarte de plus de 25 % de la
+// dernière valeur connue (un tel saut viendrait d'un autre périmètre de contrats, pas du marché).
+export function withLive(points, live, today) {
+  const before = points.filter(([d]) => d < today);
+  const ref = before.at(-1)?.[1];
+  if (!(live > 0) || (ref && Math.abs(live / ref - 1) > 0.25)) return null;
+  return [...before, [today, live]];
+}
