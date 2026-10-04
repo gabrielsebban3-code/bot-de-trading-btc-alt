@@ -752,6 +752,7 @@ body:not(.premium) .premium-only, body.premium .free-only { display: none !impor
 .sc-table .sc-more a { font-size: 13px; }
 @media (max-width: 700px) {
   .sc-table .sc-name { display: none; }
-  .sc-table th:nth-child(7), .sc-table td:nth-child(7), .sc-table th:nth-child(3), .sc-table td:nth-child(3) { display: none; }
-  .sc-table td:nth-child(5) { white-space: normal; min-width: 130px; }
+  .sc-table th:nth-child(3), .sc-table td:nth-child(3), .sc-table th:nth-child(4), .sc-table td:nth-child(4), .sc-table th:nth-child(7), .sc-table td:nth-child(7) { display: none; }
+  .sc-table th, .sc-table td { padding-left: 6px; padding-right: 6px; font-size: 12px; }
+  .sc-table td:nth-child(5) { white-space: normal; }
 }

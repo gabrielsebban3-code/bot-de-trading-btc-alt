@@ -29,8 +29,9 @@ const near = c => c.trigger && Math.abs(c.trigger.distance) < NEAR;
 const link = c => (c.tested ? `#paire/${encodeURIComponent(c.symbol)}` : okxUrl(c.symbol));
 const linkText = c => (c.tested ? `Voir la fiche ${esc(c.symbol)} →` : `Voir le graphique sur OKX ↗`);
 const ext = c => (c.tested ? '' : ' target="_blank" rel="noopener"');
-const head = c => `<span class="hd"><b class="mono">${esc(c.symbol)}</b>${nameOf(c) ? `<span class="muted">${esc(nameOf(c))}</span>` : ''}
-  ${c.trend ? `<span class="tag ${TREND[c.trend]}">Tendance ${esc(c.trend)}</span>` : ''}<span class="px">${px(c.price)}</span></span>`;
+// En-tête des cartes : la tendance se lit dans le sens du signal (achat ou vente), pas besoin de la répéter.
+const head = (c, price = true) => `<span class="hd"><b class="mono">${esc(c.symbol)}</b>${nameOf(c) ? `<span class="muted">${esc(nameOf(c))}</span>` : ''}
+  ${price ? `<span class="px">${px(c.price)} $</span>` : ''}</span>`;
 const untested = c => (c.tested ? '<span class="sm">Méthode testée sur 3 ans sur cette crypto.</span>'
   : '<span class="sm warn-inline">Méthode pas encore testée sur cette crypto : une piste à vérifier.</span>');
 
@@ -54,12 +55,14 @@ function draw() {
   const coins = data.coins;
   const count = t => coins.filter(c => c.trend === t).length;
   const signals = coins.filter(c => c.signal).sort((a, b) => b.signal.time - a.signal.time);
+  const fresh = signals.filter(c => c.signal.confirmedAt >= Date.parse(data.generatedAt) - data.rules.recentDays * 86_400_000);
   const ready = coins.filter(c => near(c) && !(c.signal?.outcome === 'open')).sort((a, b) => Math.abs(a.trigger.distance) - Math.abs(b.trigger.distance));
   const tiles = [
     ['Tendance haussière', count('haussière')],
     ['Tendance baissière', count('baissière')],
     ['Sans direction claire', count('neutre')],
-    [`Signaux des ${data.rules.recentDays} derniers jours`, signals.length],
+    [`Nouveaux signaux (${data.rules.recentDays} jours)`, fresh.length],
+    ['Trades en jeu', signals.filter(c => c.signal.outcome === 'open').length],
     ['Proches du déclenchement', ready.length],
   ];
   $('scanner').innerHTML = `
@@ -91,10 +94,10 @@ function signalCard(c) {
   if (s.outcome === 'open') {
     const move = (c.price - s.entry) / Math.abs(s.entry - s.sl) * (s.dir === 'long' ? 1 : -1);
     const r = s.tpHit ? ((data.rules.partialR ?? 5) + move) / 2 : move; // moitié déjà prise à 5R
-    now = `<span class="sm">En ce moment <b class="${r >= 0 ? 'up' : 'down'}">${capital(r)}</b> du capital (1 % risqué par trade).</span>`;
+    now = `<span class="sm">En ce moment <b class="${r >= 0 ? 'up' : 'down'}">${capital(r)}</b> du capital (1 % risqué par trade).${s.tpHit ? ' Moitié déjà prise, stop remonté au prix d\'entrée.' : ''}</span>`;
   } else if (s.r != null) now = `<span class="sm">Résultat : <b class="${s.r >= 0 ? 'up' : 'down'}">${capital(s.r)}</b> du capital.</span>`;
-  return `<a class="card" href="${link(c)}"${ext(c)}>${head(c)}
-    <span class="state">${dirTag(s.dir)} <b>${esc(data.detectors[s.detector] || s.detector)}</b> ${ago(new Date(s.confirmedAt).toISOString())} <span class="tag ${cls}">${label}</span></span>
+  return `<a class="card" href="${link(c)}"${ext(c)}>${head(c, false)}
+    <span class="state">${dirTag(s.dir)} <b>${esc(data.detectors[s.detector] || s.detector)}</b> · ${ago(new Date(s.confirmedAt).toISOString())} <span class="tag ${cls}">${label}</span></span>
     <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(s.stop ?? s.sl)}</span><span><i>Moitié à ${fmt(data.rules.partialR ?? 5, 0)}R</i>${px(s.tp1)}</span><span><i>Prix actuel</i>${px(c.price)}</span></span>
     ${now}${untested(c)}<span class="go">${linkText(c)}</span></a>`;
 }
@@ -103,7 +106,7 @@ function readyCard(c) {
   const up = c.dir === 'long';
   const fill = Math.max(0, 1 - Math.abs(c.trigger.distance) / 0.1); // plein à 0 %, vide à 10 %
   return `<a class="card" href="${link(c)}"${ext(c)}>${head(c)}
-    <span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Achat' : 'Vente'}</b> si le prix clôture une bougie de 4 h ${up ? 'au-dessus de' : 'sous'} <b>${px(c.trigger.price)}</b> (${plainPct(c.trigger.distance)})</span>
+    <span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Achat' : 'Vente'}</b> si le prix clôture une bougie de 4 h ${up ? 'au-dessus de' : 'sous'} <b>${px(c.trigger.price)} $</b> (${plainPct(c.trigger.distance)})</span>
     <span class="meter" title="Distance au déclenchement"><i style="width:${Math.round(fill * 100)}%"></i></span>
     <span class="sm">C'est son ${up ? 'plus haut' : 'plus bas'} ${c.trigger.key === 'range20' ? 'du dernier mois' : 'des 10 derniers jours'}. Stop prévu vers ${px(c.trigger.stop)} (${plainPct((c.trigger.stop - c.trigger.price) / c.trigger.price)}).</span>
     ${untested(c)}<span class="go">${linkText(c)}</span></a>`;
@@ -131,7 +134,7 @@ function table() {
   const more = list.length - shown.length;
   return `<div class="tools" role="group" aria-label="Filtrer">${FILTERS.map(([k, l]) => `<button type="button" class="chip" data-sf="${k}" aria-pressed="${state.filter === k}">${l}</button>`).join('')}
       <span class="sep"></span><button type="button" class="chip" data-ss="${state.sort === 'volume' ? 'distance' : 'volume'}">Trier par ${state.sort === 'volume' ? 'distance' : 'volume'}</button></div>
-    <div class="wrap"><table class="sc-table"><thead><tr><th class="l">Crypto</th><th>Prix</th><th>24 h</th><th class="l">Tendance</th><th class="l">Prochain signal</th><th>Distance</th><th>Volume 24 h</th></tr></thead>
+    <div class="wrap"><table class="sc-table"><thead><tr><th class="l">Crypto</th><th>Prix ($)</th><th>24 h</th><th class="l">Tendance</th><th class="l">Prochain signal</th><th>Distance</th><th>Volume 24 h</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="7"><div class="empty">Aucune crypto ne correspond à ce filtre.</div></td></tr>'}
       ${more > 0 ? `<tr class="sc-more"><td colspan="7"><a href="#premium"><span class="ptag">Premium</span> Et ${more} autre${more > 1 ? 's' : ''} : tout le tableau avec Premium →</a></td></tr>` : ''}</tbody></table></div>`;
 }
