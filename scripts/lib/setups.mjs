@@ -150,7 +150,7 @@ export function dailyContext(daily) {
     if (d.c < e50[j] && e20[j] < e50[j]) return 'baissière';
     return 'neutre';
   });
-  return { daily, atr: A, trend };
+  return { daily, atr: A, trend, e20, e50 };
 }
 
 // Indice de la dernière journée clôturée au temps t (-1 si aucune).
@@ -247,28 +247,29 @@ export function evaluate(sig, bars, i, daily) {
   const R = Math.abs(sig.entry - sig.sl);
   const P = RULES.partialR;
   const dayIndex = new Map(daily.map((d, k) => [d.t, k]));
-  let stop = sig.sl, half = false;
+  let stop = sig.sl, half = false, halfAt = null;
   const rOf = px => Math.round((s * (px - sig.entry) / R) * 100) / 100;
-  const done = (outcome, at, rest) => ({ outcome, at, r: Math.round((half ? (P + rest) / 2 : rest) * 100) / 100, tpHit: half ? 1 : 0 });
+  // exitPx : prix de sortie du reste ; exitLvl : niveau des 7 jours franchi (sortie de tendance) ; halfAt : moitié prise.
+  const done = (outcome, at, rest, exitPx, exitLvl = null) => ({ outcome, at, r: Math.round((half ? (P + rest) / 2 : rest) * 100) / 100, tpHit: half ? 1 : 0, halfAt, exitPx, exitLvl });
   for (let k = i + 1; k < bars.length; k++) {
     const b = bars[k];
     if (!b.closed) break;
     const hitStop = s > 0 ? b.l <= stop : b.h >= stop;   // le stop compte en premier si tout arrive dans la même bougie
-    if (hitStop) return done(half ? 'be' : 'sl', b.t, half ? 0 : -1);
-    if (!half && (s > 0 ? b.h >= sig.tp[0] : b.l <= sig.tp[0])) { half = true; stop = sig.entry; }
+    if (hitStop) return done(half ? 'be' : 'sl', b.t, half ? 0 : -1, stop);
+    if (!half && (s > 0 ? b.h >= sig.tp[0] : b.l <= sig.tp[0])) { half = true; halfAt = b.t; stop = sig.entry; }
     // Dernière bougie 4h de la journée UTC : on juge la clôture journalière.
     if ((b.t + BAR) % DAY === 0) {
       const jd = dayIndex.get(b.t + BAR - DAY);
       if (jd !== undefined && jd >= RULES.exitDays) {
         const lvl = exitLevel(daily, jd, sig.dir);
-        if (s > 0 ? b.c < lvl : b.c > lvl) return done('exit', b.t, rOf(b.c));
+        if (s > 0 ? b.c < lvl : b.c > lvl) return done('exit', b.t, rOf(b.c), b.c, lvl);
       }
     }
   }
   // Niveau de sortie du reste, affiché seulement quand il est plus serré que le stop.
   const closedDays = daily.filter(d => d.closed !== false).length;
   const lvl = exitLevel(daily, closedDays, sig.dir);
-  return { outcome: 'open', at: null, r: null, tpHit: half ? 1 : 0, stop, exitAt: (s > 0 ? lvl > stop : lvl < stop) ? lvl : null };
+  return { outcome: 'open', at: null, r: null, tpHit: half ? 1 : 0, halfAt, stop, exitAt: (s > 0 ? lvl > stop : lvl < stop) ? lvl : null };
 }
 
 // ---------- Radar : où en est chaque paire quand aucun signal n'est en jeu ----------
@@ -296,7 +297,7 @@ export function radar(bars, daily) {
   const next = ahead[0] ?? null;
   const h = macdHist(closed).at(-1);
   return {
-    ...out, dir,
+    ...out, dir, levels,
     trigger: next && { ...next, distance: next.price / price - 1, stop: next.price - s * RULES.stopAtr * dc.atr[j] },
     macdReady: s * h < 0, // l'histogramme est du mauvais côté : son retour de l'autre côté de zéro donnerait un signal
   };
@@ -332,6 +333,8 @@ export function scanAsset(asset, { bars, daily }) {
       status: bars[i].closed ? 'confirmé' : 'en cours',
       time: bars[i].t, confirmedAt: bars[i].t + BAR, entry, sl: p.sl, tp: p.tp, tpLabels: p.tpLabels, rr: p.rr, atr: dc.atr[j],
       why: `${hit.why} Signal pris car la tendance journalière est ${trend}.`, trend,
+      // Pour la fiche du trade : niveau cassé, clôture et moyennes de la dernière journée fermée, ATR 4h.
+      ref: hit.ref, day: { t: daily[j].t, c: daily[j].c, e20: dc.e20[j], e50: dc.e50[j] }, atr4h: A[i],
     };
     Object.assign(sig, bars[i].closed ? evaluate(sig, bars, i, daily) : { outcome: 'open', at: null, r: null, tpHit: 0 });
     signals.push(sig);

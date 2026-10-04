@@ -163,13 +163,19 @@
       <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
       <h1>Setups dans le sens de la tendance · BTC, ETH, SOL, pétrole</h1>
       <div id="setups-warnings"></div>
-      <h2 class="section">Les 4 paires en ce moment</h2>
+      <h2 class="section">Les 4 paires en ce moment <span class="muted">clique sur une paire pour ouvrir sa fiche</span></h2>
       <div class="radar" id="setups-radar"></div>
       <h2 class="section">Signaux en jeu</h2>
       <div class="tools" id="setups-detectors" role="group" aria-label="Détecteurs"></div>
       <div class="tools" id="setups-filters" role="group" aria-label="Filtres"></div>
       <p class="count" id="setups-count"></p>
       <div class="grid" id="setups-grid"></div>
+    </section>
+
+    <!-- Fiche paire (cartes « Les 4 paires en ce moment ») -->
+    <section class="page" id="page-paire">
+      <a class="back" href="#setups">← Setups</a>
+      <div id="paire"></div>
     </section>
 
     <!-- Fiche setup -->
@@ -241,7 +247,7 @@
           <tbody id="history-body"></tbody>
         </table>
       </div>
-      <h2 class="section">Derniers signaux terminés</h2>
+      <h2 class="section">Derniers signaux terminés <span class="muted">clique sur un trade pour son explication complète</span></h2>
       <div class="wrap">
         <table class="static">
           <thead><tr><th class="l">Signal</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>R:R</th><th class="l">Résultat</th><th>Capital</th></tr></thead>

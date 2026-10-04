@@ -56,6 +56,11 @@ jobs:
           for f in projects market setups news alerts marche outils; do
             curl -fsSL "${{ steps.pages.outputs.base_url }}/data/$f.json" -o "previous/$f.json" || echo "Pas encore de $f.json en ligne."
           done
+          # Fiches paire déjà en ligne (onglet Setups) : reprises si les setups échouent à ce passage.
+          mkdir -p previous/paire
+          for s in BTC ETH SOL BZ; do
+            curl -fsSL "${{ steps.pages.outputs.base_url }}/data/paire/$s.json" -o "previous/paire/$s.json" || echo "Pas encore de paire/$s.json en ligne."
+          done
           # Fiches crypto déjà en ligne : celles des cryptos du tableau de l'onglet Marché.
           mkdir -p previous/crypto
           for id in $(jq -r '.top[]?.id // empty' previous/marche.json 2>/dev/null); do
@@ -132,6 +137,12 @@ jobs:
             f="_site/data/crypto/$(basename "$p")"
             [ -s "$f" ] || cp "$p" "$f"
           done
+          mkdir -p _site/data/paire
+          for p in previous/paire/*.json; do
+            [ -s "$p" ] || continue
+            f="_site/data/paire/$(basename "$p")"
+            [ -s "$f" ] || cp "$p" "$f"
+          done
           if [ "${{ steps.cryptos.outcome }}" = failure ]; then echo "::warning::Fiches crypto non mises à jour à ce passage."; fi
 
       # Alertes Discord : nouveaux setups confirmés et news critiques, comparés à la version déjà en ligne.
@@ -150,6 +161,12 @@ jobs:
         if: env.PUBLISH != 'true'
         continue-on-error: true
         run: node scripts/send-alerts.mjs --data _site/data --previous previous --dry-run --digest-now | tail -1 | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{for(const e of JSON.parse(s)){console.log('## '+e.title);for(const f of e.fields||[])console.log('-- '+f.name+'\\n'+f.value);if(e.description)console.log(e.description)}})"
+
+      # Sur une autre branche : données des fiches paire en fin de journal, pour construire un aperçu.
+      - name: Données des fiches paire
+        if: env.PUBLISH != 'true'
+        continue-on-error: true
+        run: cat paire-gz.txt
 
       # Numéro de version dans les liens vers les scripts et le style : après une mise à jour, le navigateur
       # ne mélange pas la nouvelle page avec les anciens scripts gardés en cache (10 minutes sur GitHub Pages).
