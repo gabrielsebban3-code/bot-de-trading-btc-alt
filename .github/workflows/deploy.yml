@@ -63,7 +63,7 @@ jobs:
           done
           # Fiches crypto déjà en ligne : celles des cryptos du tableau de l'onglet Marché.
           mkdir -p previous/crypto
-          for id in $(jq -r '.top[]?.id // empty' previous/marche.json 2>/dev/null); do
+          for id in $(jq -r '.top[]?.id // empty' previous/marche.json 2>/dev/null) index; do
             curl -fsSL "${{ steps.pages.outputs.base_url }}/data/crypto/$id.json" -o "previous/crypto/$id.json" || echo "Pas encore de fiche $id en ligne."
           done
 

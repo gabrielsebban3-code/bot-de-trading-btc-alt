@@ -156,6 +156,11 @@ table { border-collapse: collapse; width: 100%; font-size: 13px; }
 th { font-weight: 500; font-size: 12px; color: var(--muted); text-align: right; padding: 12px 14px; white-space: nowrap; }
 td { padding: 11px 14px; border-top: 1px solid var(--line); text-align: right; white-space: nowrap; }
 th.l, td.l { text-align: left; }
+th button.sort { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
+th button.sort:hover, th[aria-sort] button.sort { color: var(--fg); }
+th button.sort:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+th button.sort .arr { font-size: 9px; color: var(--accent); }
+th button.sort .arr:empty { display: none; }
 tbody tr { cursor: pointer; }
 tbody tr:hover { background: var(--panel2); }
 td.name a { color: var(--fg); font-weight: 500; }
@@ -494,6 +499,12 @@ a.chip:hover { text-decoration: none; }
 #marche-top tr[data-id]:hover { background: var(--panel2); }
 #marche-top td.name a { color: var(--fg); }
 #marche-top td.name a:hover { text-decoration: none; }
+@media (max-width: 520px) {
+  /* Téléphone : rang, ticker, tendance, prix et 24 h sur le premier écran ; le reste défile au doigt */
+  #marche-top td.name .muted { display: none; }
+  #marche-head th, #marche-top td { padding-inline: 8px; }
+  #marche-head th:first-child, #marche-top td:first-child { padding-left: 14px; }
+}
 .cx-ph { align-items: center; }
 .cx-logo { width: 32px; height: 32px; border-radius: 50%; background: var(--panel2); }
 .cx-when { font-size: 12px; }

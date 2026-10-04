@@ -11,7 +11,7 @@ import {
   atrOf, changeOver, coinSignals, emaOf, fundingYear, GROUPS, groupCandles, keyLevels, liquidation, macdOf, mentions,
   BTC_EDGE, deSym, per8h, perfVsBtc, pickGroup, priceText, ratioToBtc, rsiOf, smaOf,
 } from '../js/crypto-lib.js';
-import { candlesFromOkx, cleanLink, excerpt, fundingHistory } from '../scripts/lib/cryptos.mjs';
+import { candlesFromOkx, cleanLink, excerpt, fundingHistory, liveOpenInterest, withLive } from '../scripts/lib/cryptos.mjs';
 import { realCoins } from '../js/marche-lib.js';
 
 const D0 = 20_003; // un lundi (7 octobre 2024)
@@ -179,6 +179,26 @@ test('coinSignals : tendance baissière sous la zone du mois', () => {
   assert.doesNotMatch(r.signals[0].text, /-\d/);
 });
 
+test('liveOpenInterest : perpétuels et contrats à terme réunis par crypto, en dollars', async () => {
+  const rows = {
+    SWAP: [{ instId: 'BTC-USDT-SWAP', oiUsd: '6100000000' }, { instId: 'BTC-USD-SWAP', oiUsd: '2200000000' }, { instId: 'ETH-USDT-SWAP', oiUsd: '3e9' }, { instId: 'DOGE-USDT-SWAP', oiUsd: '0' }, { instId: 'SOL-USDT-SWAP', oiUsd: '' }],
+    FUTURES: [{ instId: 'BTC-USD-261225', oiUsd: '400000000' }],
+  };
+  const asked = [];
+  const oi = await liveOpenInterest(async path => { asked.push(path); return rows[new URL(path, 'https://x').searchParams.get('instType')]; });
+  assert.deepEqual(asked, ['/public/open-interest?instType=SWAP', '/public/open-interest?instType=FUTURES']);
+  assert.deepEqual([...oi], [['BTC', 8.7e9], ['ETH', 3e9]]);
+});
+
+test('withLive : la valeur en direct prend le jour en cours, sauf écart de plus de 25 %', () => {
+  const pts = [[10, 100], [11, 104]];
+  assert.deepEqual(withLive(pts, 110, 13), [[10, 100], [11, 104], [13, 110]]);
+  assert.deepEqual(withLive([...pts, [13, 90]], 110, 13), [[10, 100], [11, 104], [13, 110]]); // remplace la valeur du jour
+  assert.equal(withLive(pts, 140, 13), null); // autre périmètre de contrats : on garde la série telle quelle
+  assert.equal(withLive(pts, 0, 13), null);
+  assert.deepEqual(withLive([], 5, 13), [[13, 5]]);
+});
+
 test('candlesFromOkx : du plus ancien au plus récent, sans doublon ni bougie vide, volume en dollars', () => {
   const row = (t, c, q = '0') => [String(t * 86_400_000), String(c), String(c * 1.01), String(c * 0.99), String(c), '5', '6', String(c * 10), q];
   const out = candlesFromOkx([row(D0 + 2, 12), row(D0 + 1, 11), row(D0 + 1, 11), ['0', '0', '0', '0', '0', '0', '0', '0', '1'], row(D0, 10)], 86_400_000);
@@ -239,7 +259,7 @@ test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, t
   assert.equal(btc.funding.rate, 0.01);
   assert.ok(btc.funding.history.length > 30);
   assert.ok(btc.oi.length > 30 && btc.longShort.length > 30);
-  assert.deepEqual(btc.oi.at(-1), [Math.floor(Date.now() / 86_400_000), 8.4e9]); // jour en cours : valeur horaire
+  assert.deepEqual(btc.oi.at(-1), [Math.floor(Date.now() / 86_400_000), 13.5e9]); // jour en cours : valeur en direct (perpétuels et contrats à terme)
   assert.match(btc.about.text, /^Le Bitcoin est la première cryptomonnaie/);
   assert.deepEqual(btc.about.categories, ['Cryptocurrency', 'Layer 1 (L1)', 'Proof of Work (PoW)', 'Smart Contract Platform']);
   assert.equal(btc.about.links.explorer, 'https://explorer.bitcoin.org');
@@ -266,9 +286,19 @@ test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, t
   assert.deepEqual(leo.sources, { bougies: 'coingecko', presentation: 'ok' });
   assert.deepEqual([leo.about.text, leo.about.lang], ['LEO Token is a cryptocurrency.', 'en']); // aucune traduction possible
 
+  // Résumé pour le tableau de l'onglet Marché : la tendance de chaque fiche, calculée comme sur la fiche.
+  const index = JSON.parse(await readFile(join(dir, 'crypto', 'index.json'), 'utf8'));
+  assert.deepEqual(index.coins.map(c => c.id), ['bitcoin', 'ethereum', 'ripple', 'dogecoin', 'leo-token']);
+  for (const c of index.coins) {
+    const f = await read(c.id);
+    const v = coinSignals({ symbol: f.symbol, d1: f.candles.d1, h4: f.candles.h4, funding: f.funding?.history || [], oi: f.oi }).verdict;
+    assert.deepEqual(c.trend, { dir: v.dir, label: v.label, up: v.up, down: v.down, total: v.total });
+  }
+
   // Journal : une ligne par fiche, et les fiches compressées pour les aperçus hors branche principale.
   assert.match(first.stdout, /BTC \(bitcoin\) : 1000 j \+ 300 × 4 h · BTC-USDT · levier max 100×/);
   assert.match(first.stdout, /CRYPTO_GZ leo-token 1\/\d+ /);
+  assert.match(first.stdout, /CRYPTO_GZ index 1\/\d+ /);
 
   // Deuxième passage avec les fiches déjà en ligne : présentation reprise, le reste à jour.
   const second = await run('--previous', join(dir, 'crypto'));
@@ -278,8 +308,9 @@ test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, t
   assert.deepEqual((await read('leo-token')).about.text, 'FR LEO Token is a cryptocurrency.');
   assert.match(second.stdout, /LEO \(leo-token\).*présentation fr \(traduite\)/);
 
-  // Plus de temps : les fiches déjà en ligne sont gardées telles quelles.
+  // Plus de temps : les fiches déjà en ligne sont gardées telles quelles, et le résumé reste complet.
   const before = await read('ripple');
   await assert.rejects(run('--previous', join(dir, 'crypto'), '--budget', '0'), /Aucune fiche à jour/);
   assert.deepEqual(await read('ripple'), before);
+  assert.equal(JSON.parse(await readFile(join(dir, 'crypto', 'index.json'), 'utf8')).coins.length, 5);
 });
