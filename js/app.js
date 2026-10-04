@@ -12,10 +12,11 @@ import { alertSymbols, initAccount, refreshAccount, setFeed } from './account.js
 import './heatmap.js';
 import { setOutilsData, showTool } from './outils.js';
 import { renderPlans } from './plans.js';
+import { renderImpots } from './fiscal.js';
 import { onTier } from './premium.js';
 
 const $ = id => document.getElementById(id);
-const PAGES = ['resume', 'marche', 'projets', 'setups', 'actu', 'heatmap', 'outils', 'historique', 'premium', 'compte'];
+const PAGES = ['resume', 'marche', 'projets', 'setups', 'actu', 'heatmap', 'outils', 'historique', 'impots', 'premium', 'compte'];
 // Actifs connus du site, par symbole : projets, marchés des setups, setup en jeu. Servent au ticker et à Mon compte.
 const known = { projects: new Map(), assets: new Map(), live: new Map() };
 const quotes = new Map(); // derniers prix OKX du ticker
@@ -36,7 +37,7 @@ function route() {
   const tab = { projet: 'projets', setup: 'setups', paire: 'setups', indicateur: $('ind-back').hash.slice(1), crypto: 'marche' }[target] || target;
   document.querySelectorAll('#nav [data-tab]').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   // Sur mobile, Outils est rangé dans Plus pour que la barre du bas tienne.
-  $('more').classList.toggle('on', tab === 'historique' || tab === 'premium' || (tab === 'outils' && matchMedia('(max-width: 700px)').matches));
+  $('more').classList.toggle('on', ['historique', 'impots', 'premium'].includes(tab) || (tab === 'outils' && matchMedia('(max-width: 700px)').matches));
   $('me').classList.toggle('on', tab === 'compte');
   $('menu').hidden = true;
   $('more').setAttribute('aria-expanded', 'false');
@@ -54,6 +55,7 @@ function route() {
   if (target === 'compte' && id === 'connexion') $('account').scrollIntoView({ block: 'center' });
   if (target === 'actu' && id && newsReady) focusNews(decodeURIComponent(id));
   if (target === 'outils') showTool(decodeURIComponent(id || ''));
+  if (target === 'impots') renderImpots();
 }
 
 $('more').addEventListener('click', () => {
