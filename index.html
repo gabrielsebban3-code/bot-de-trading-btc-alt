@@ -41,6 +41,9 @@
           <span class="menu" id="menu" hidden>
             <a href="#outils" data-tab="outils" class="menu-only">Outils</a>
             <a href="#historique" data-tab="historique">Historique <span class="lock guest-only">membres</span></a>
+            <a href="#scanner" data-tab="scanner">Scanner <span class="ptag free-only">✦</span></a>
+            <a href="#impots" data-tab="impots">Impôts crypto <span class="ptag free-only">✦</span></a>
+            <a href="#premium" data-tab="premium">Premium <span class="ptag free-only">✦</span></a>
           </span>
         </span>
       </nav>
@@ -60,8 +63,8 @@
         <p>Dinexo surveille trois choses : <b>des petits projets crypto qui gagnent de l'argent</b>, <b>des setups dans le sens de la tendance, gardés plusieurs semaines</b> sur BTC, ETH, SOL et le pétrole, et <b>l'actu qui fait bouger les marchés</b>. <span>Le bloc orange te dit quoi regarder en priorité. Tout ce qui est cliquable ouvre une fiche détaillée.</span></p>
         <button type="button">Compris</button></div>
       <div class="box new" id="new-resume" hidden></div>
-      <div class="box join guest-only"><p class="txt"><b>Membres :</b> quoi de neuf sur tes actifs depuis ta dernière visite, historique complet des setups et alertes sur Discord. Gratuit, sans mot de passe.</p>
-        <div class="links"><a class="buy" href="#compte/connexion">Créer mon compte</a></div></div>
+      <div class="box join guest-only"><p class="txt"><b>Membres :</b> quoi de neuf sur tes actifs depuis ta dernière visite, historique des setups sur 3 mois et 3 alertes de prix. Gratuit, sans mot de passe.</p>
+        <div class="links"><a class="buy" href="#compte/connexion">Créer mon compte</a><a class="chip" href="#premium">Voir Premium</a></div></div>
       <div class="macro" id="macro"></div>
       <h2>À regarder maintenant</h2>
       <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
@@ -184,6 +187,7 @@
       <div id="setups-warnings"></div>
       <h2 class="section">Les 4 paires en ce moment <span class="muted">clique sur une paire pour ouvrir sa fiche</span></h2>
       <div class="radar" id="setups-radar"></div>
+      <a class="sc-link" href="#scanner"><span class="ptag free-only">Premium</span> La même méthode sur les 80 cryptos les plus échangées : <b>ouvrir le scanner →</b></a>
       <h2 class="section">Signaux en jeu</h2>
       <div class="tools" id="setups-detectors" role="group" aria-label="Détecteurs"></div>
       <div class="tools" id="setups-filters" role="group" aria-label="Filtres"></div>
@@ -253,13 +257,16 @@
 
     <section class="page" id="page-historique">
       <div class="intro" data-intro="historique"><span class="i">i</span>
-        <p>Le bilan des setups sur 12 mois, indicateur par indicateur. <span>Il sert à savoir si on peut faire confiance aux signaux. Les gains sont en % du capital, avec 1 % du compte risqué par trade : un stop touché coûte 1 %, un trade qui va à 5 fois le risque rapporte 5 %. Les trades gagnants rapportent souvent plus : c'est ce qui paie les stops.</span></p>
+        <p>Le bilan des setups, indicateur par indicateur : 3 mois avec le compte gratuit, 12 mois avec Premium. <span>Il sert à savoir si on peut faire confiance aux signaux. Les gains sont en % du capital, avec 1 % du compte risqué par trade : un stop touché coûte 1 %, un trade qui va à 5 fois le risque rapporte 5 %. Les trades gagnants rapportent souvent plus : c'est ce qui paie les stops.</span></p>
         <button type="button">Compris</button></div>
       <h1>Bilan des setups</h1>
       <div class="box join guest-only"><h2>Réservé aux membres</h2>
-        <p class="txt">Le bilan des setups sur 12 mois et la liste des signaux terminés sont réservés aux membres. Le compte est gratuit et sans mot de passe.</p>
+        <p class="txt">Le bilan des setups et la liste des signaux terminés sont réservés aux membres. Le compte est gratuit et sans mot de passe.</p>
         <div class="links"><a class="buy" href="#compte/connexion">Se connecter</a></div></div>
       <div class="members-only">
+      <p class="period">Sur les <b id="history-period">3 derniers mois</b></p>
+      <div class="box join prem" id="history-more"><p class="txt"><span class="ptag">Premium</span> Le bilan sur 12 mois et tous les trades de l'année.</p>
+        <div class="links"><a class="buy" href="#premium">Voir Premium</a></div></div>
       <p class="sub" id="history-sub"></p>
       <div class="wrap" tabindex="0" role="region" aria-label="Bilan par détecteur">
         <table>
@@ -276,6 +283,31 @@
       </div>
       </div>
     </section>
+    <!-- Scanner : la méthode des Setups sur les cryptos les plus échangées (Premium) -->
+    <section class="page" id="page-scanner">
+      <div class="intro" data-intro="scanner"><span class="i">i</span>
+        <p>Le scanner applique la méthode des Setups (cassures et MACD, seulement dans le sens de la tendance) aux <b>80 cryptos les plus échangées sur OKX</b>, toutes les heures. <span>Attention : la méthode a été testée sur 3 ans seulement pour BTC, ETH et SOL. Sur les autres cryptos, un signal est une piste à vérifier sur le graphique, pas une garantie. Les petites cryptos bougent plus fort : le stop est plus loin et le risque plus grand.</span></p>
+        <button type="button">Compris</button></div>
+      <h1>Scanner Dinexo</h1>
+      <p class="sub">Quelles cryptos sont en tendance, lesquelles viennent de donner un signal, lesquelles en sont proches.</p>
+      <div id="scanner"></div>
+    </section>
+    <!-- Impôts : calculateur de l'impôt sur les ventes de cryptos (Premium) -->
+    <section class="page" id="page-impots">
+      <div class="intro" data-intro="impots"><span class="i">i</span>
+        <p>Entre tes achats et tes ventes de cryptos, sur toutes tes plateformes : le site calcule ce que vaut ton portefeuille, ton gain et l'impôt à payer pour chaque année, avec les chiffres à recopier sur ta déclaration. <span>Tes opérations restent sur ton appareil : rien n'est envoyé. Elles ne sont pas encore partagées entre ton téléphone et ton ordinateur.</span></p>
+        <button type="button">Compris</button></div>
+      <h1>Calculateur d'impôts crypto</h1>
+      <p class="sub">Règles françaises pour les particuliers : seules les ventes contre des euros sont imposées.</p>
+      <div id="impots"></div>
+    </section>
+    <!-- Premium : les deux formules -->
+    <section class="page" id="page-premium">
+      <h1>Gratuit ou Premium</h1>
+      <p class="sub">Dinexo reste gratuit. Premium ajoute le direct sur toutes les paires, le scanner sur 80 cryptos, le calculateur d'impôts et un historique plus long.</p>
+      <div id="premium-plans"></div>
+    </section>
+
     <section class="page" id="page-compte">
       <div class="intro" data-intro="compte"><span class="i">i</span>
         <p>Ta <b>watchlist</b> rassemble les actifs que tu suis : leurs prix défilent en haut du site, et le filtre <b>Ma watchlist</b> les isole dans Projets, Setups et Actu. <span>Ajoute un actif avec l'étoile, sur un projet ou un setup. Elle est gardée sur cet appareil ; connecte-toi pour la retrouver sur tous tes appareils.</span></p>

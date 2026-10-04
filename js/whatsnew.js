@@ -14,12 +14,13 @@ export function since(lastSeen, now = Date.now()) {
 }
 
 // Retourne les nouveautés, la plus récente d'abord : { time, kind, title, detail, href, tone }.
-export function whatsNew({ setups, news, list, from, projectSymbol = () => null, limit = 12 }) {
+// hide : signaux encore cachés à ce membre (sans Premium, 24 h de retard sur SOL et le pétrole).
+export function whatsNew({ setups, news, list, from, projectSymbol = () => null, limit = 12, hide = () => false }) {
   const out = [];
   const watched = new Set(list);
   const seen = new Set();
   for (const s of [...(setups?.live || []), ...(setups?.history || [])]) {
-    if (!watched.has(s.symbol) || s.status !== 'confirmé' || seen.has(s.id)) continue;
+    if (!watched.has(s.symbol) || s.status !== 'confirmé' || seen.has(s.id) || hide(s)) continue;
     seen.add(s.id);
     const dir = s.dir === 'long' ? 'long ▲' : 'short ▼';
     if (s.outcome !== 'open' && s.at > from) {
