@@ -172,12 +172,23 @@ jobs:
       # ne mélange pas la nouvelle page avec les anciens scripts gardés en cache (10 minutes sur GitHub Pages).
       - name: Assembler le site
         run: |
-          cp -r index.html css js mockup _site/
+          cp -r index.html css js mockup icon.svg apple-touch-icon.png og-image.png _site/
           v="${GITHUB_SHA::8}"
           sed -i -E "s#\"(css/style\.css|js/app\.js)\"#\"\1?v=$v\"#g" _site/index.html
           sed -i -E "s#^(import .*'\./[a-z0-9-]+\.js)';#\1?v=$v';#" _site/js/*.js
           grep -q "js/app.js?v=$v" _site/index.html
           echo "Version des scripts : $v ($(grep -l "?v=$v" _site/js/*.js | wc -l) fichiers JS)"
+
+      # Référencement : une page fixe par crypto (/crypto/<id>/) que Google peut lire, sitemap.xml et robots.txt,
+      # et l'adresse du site dans les balises de partage d'index.html. Suit tout seul le futur nom de domaine.
+      - name: Référencement
+        env:
+          SITE: ${{ steps.pages.outputs.base_url || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
+        run: |
+          node scripts/build-seo.mjs --dir _site --site "$SITE" || {
+            echo "::warning::Pages de référencement non générées à ce passage."
+            sed -i "s#%SITE%#$SITE#g; s#<!-- seo:fiches -->##" _site/index.html
+          }
 
       - uses: actions/upload-pages-artifact@v3
         if: env.PUBLISH == 'true'
