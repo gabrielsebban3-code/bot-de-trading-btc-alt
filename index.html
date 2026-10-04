@@ -22,9 +22,11 @@
         <a href="#setups" data-tab="setups">Setups</a>
         <a href="#actu" data-tab="actu">Actu</a>
         <a href="#heatmap" data-tab="heatmap">Heatmap</a>
+        <a href="#outils" data-tab="outils" class="bar-only">Outils</a>
         <span class="more">
           <button id="more" aria-expanded="false" aria-controls="menu">Plus ▾</button>
           <span class="menu" id="menu" hidden>
+            <a href="#outils" data-tab="outils" class="menu-only">Outils</a>
             <a href="#historique" data-tab="historique">Historique <span class="lock guest-only">membres</span></a>
           </span>
         </span>
@@ -161,13 +163,19 @@
       <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
       <h1>Setups dans le sens de la tendance · BTC, ETH, SOL, pétrole</h1>
       <div id="setups-warnings"></div>
-      <h2 class="section">Les 4 paires en ce moment</h2>
+      <h2 class="section">Les 4 paires en ce moment <span class="muted">clique sur une paire pour ouvrir sa fiche</span></h2>
       <div class="radar" id="setups-radar"></div>
       <h2 class="section">Signaux en jeu</h2>
       <div class="tools" id="setups-detectors" role="group" aria-label="Détecteurs"></div>
       <div class="tools" id="setups-filters" role="group" aria-label="Filtres"></div>
       <p class="count" id="setups-count"></p>
       <div class="grid" id="setups-grid"></div>
+    </section>
+
+    <!-- Fiche paire (cartes « Les 4 paires en ce moment ») -->
+    <section class="page" id="page-paire">
+      <a class="back" href="#setups">← Setups</a>
+      <div id="paire"></div>
     </section>
 
     <!-- Fiche setup -->
@@ -212,6 +220,17 @@
       <div class="cols two" id="heatmap-movers"></div>
     </section>
 
+    <!-- Outils -->
+    <section class="page" id="page-outils">
+      <div class="intro" data-intro="outils"><span class="i">i</span>
+        <p>Deux familles d'outils. <b>Simulateurs</b> : DCA (rejouer le passé ou projeter l'avenir), intérêts composés, séries de pertes, prix moyen, risque / rendement et convertisseur. <b>Données du marché</b> : flux des ETF bitcoin et ether, funding des perpétuels et ratio long / short, mis à jour toutes les heures. <span>Les simulations sont calculées sur ton appareil, rien n'est envoyé, et tes valeurs sont gardées pour ta prochaine visite. Les valeurs de départ reprennent la méthode des Setups : 1 % du compte risqué par trade, 32 % de trades gagnants.</span></p>
+        <button type="button">Compris</button></div>
+      <h1>Nos outils</h1>
+      <div id="outils-tabs" role="group" aria-label="Outils"></div>
+      <div class="detail outil" id="outil"></div>
+      <div class="nfa outil-nfa">⚠ Ces simulations sont des estimations : le passé ne garantit pas l'avenir et les frais réels dépendent de ta plateforme. Ce n'est pas un conseil financier.</div>
+    </section>
+
     <section class="page" id="page-historique">
       <div class="intro" data-intro="historique"><span class="i">i</span>
         <p>Le bilan des setups sur 12 mois, indicateur par indicateur. <span>Il sert à savoir si on peut faire confiance aux signaux. Les gains sont en % du capital, avec 1 % du compte risqué par trade : un stop touché coûte 1 %, un trade qui va à 5 fois le risque rapporte 5 %. Les trades gagnants rapportent souvent plus : c'est ce qui paie les stops.</span></p>
@@ -228,7 +247,7 @@
           <tbody id="history-body"></tbody>
         </table>
       </div>
-      <h2 class="section">Derniers signaux terminés</h2>
+      <h2 class="section">Derniers signaux terminés <span class="muted">clique sur un trade pour son explication complète</span></h2>
       <div class="wrap">
         <table class="static">
           <thead><tr><th class="l">Signal</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>R:R</th><th class="l">Résultat</th><th>Capital</th></tr></thead>

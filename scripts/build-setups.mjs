@@ -5,6 +5,7 @@
 // Lancé toutes les heures par GitHub Actions (.github/workflows/deploy.yml).
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { fetchJson, mapLimit } from './lib/http.mjs';
 import { BAR, DETECTORS, RULES, detectorStats, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
@@ -87,7 +88,7 @@ async function main() {
           trend: trend1d(daily, now),
           radar: radar(bars, daily),
         },
-        signals, bars,
+        signals, bars, daily,
         start: bars[Math.max(RULES.warmup, bars.length - RULES.backtestBars - 1)]?.t,
       };
     } catch (err) {
@@ -113,6 +114,8 @@ async function main() {
   const compact = s => ({
     id: s.id, detector: s.detector, symbol: s.symbol, dir: s.dir, status: s.status, time: s.time, confirmedAt: s.confirmedAt,
     entry: s.entry, sl: s.sl, tp1: s.tp?.[0] ?? s.tp1, rr: s.rr, outcome: s.outcome, at: s.at, r: s.r, tpHit: s.tpHit ?? null,
+    // Détail pour la fiche explicative du trade (absent des trades gardés d'anciennes versions).
+    why: s.why, trend: s.trend, atr: s.atr, atr4h: s.atr4h, ref: s.ref, day: s.day, halfAt: s.halfAt ?? null, exitPx: s.exitPx ?? null, exitLvl: s.exitLvl ?? null,
   });
   const history = mergeHistory(previous?.history, confirmed.map(compact), freshStart, now, UNIVERSE.map(a => a.symbol));
   const stats = detectorStats(history, now);
@@ -133,6 +136,24 @@ async function main() {
     detectors: DETECTORS, freshStart,
     assets: ok.map(r => r.asset), live: shown, stats, history, charts,
   }));
+
+  // Une fiche par paire (#paire/<symbole>) : 3 mois de bougies 4h et 14 mois de bougies journalières.
+  // Le 7e nombre vaut 1 quand la bougie est fermée.
+  await mkdir(join(OUT, 'paire'), { recursive: true });
+  const row = b => [b.t, b.o, b.h, b.l, b.c, b.v, b.closed === false ? 0 : 1];
+  const pairs = ok.map(r => ({ symbol: r.asset.symbol, generatedAt: new Date(now).toISOString(), h4: r.bars.slice(-540).map(row), d1: r.daily.slice(-430).map(row) }));
+  for (const p of pairs) await writeFile(join(OUT, 'paire', `${p.symbol}.json`), JSON.stringify(p));
+  // Sur une branche de test, les données sont compressées dans paire-gz.txt, recopié à la fin du journal pour les aperçus.
+  if (process.env.PUBLISH === 'false') {
+    const site = await readFile(join(OUT, 'setups.json'), 'utf8');
+    const lines = [];
+    for (const [id, text] of [['_setups', site], ...pairs.map(p => [p.symbol, JSON.stringify(p)])]) {
+      const gz = gzipSync(text).toString('base64');
+      const n = Math.ceil(gz.length / 8000);
+      for (let i = 0; i < n; i++) lines.push(`PAIRE_GZ ${id} ${i + 1}/${n} ${gz.slice(i * 8000, (i + 1) * 8000)}`);
+    }
+    await writeFile('paire-gz.txt', `${lines.join('\n')}\n`);
+  }
 
   console.log(`\n${shown.length} setups affichés (${shown.filter(s => s.outcome === 'open').length} en jeu), ${history.length} signaux dans l'historique.`);
   for (const [key, s] of Object.entries(stats)) {
