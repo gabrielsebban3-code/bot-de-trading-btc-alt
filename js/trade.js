@@ -9,11 +9,9 @@ import { OUTCOME, cap, dirTag, liveOf, newsLink, okxUrl, outcomeTag, plainPct, p
 
 const $ = id => document.getElementById(id);
 const DAY = 86_400_000, BAR = 4 * 3600_000;
-const num = n => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
 const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
 const when = t => new Date(t).toLocaleString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 const dayOf = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-const rText = r => `${r > 0 ? '+' : r < 0 ? '−' : ''}${num(Math.abs(Math.round(r * 100) / 100))}R`;
 let current = null;
 
 // Le trade : celui en jeu (détail complet) ou un trade terminé de l'historique.
@@ -53,10 +51,10 @@ function page(s) {
     <div class="box tr-brief"><h2>En bref</h2><p class="txt">${brief(s, a)}</p></div>
     <div class="box mk cx-box"><h2>Le trade sur le graphique</h2>
       <div class="cx-chart" id="tr-chart"><div class="empty">Chargement du graphique…</div></div>
-      <p class="fine pa-legend">Flèche : l'entrée. Ronds : la moitié prise et la sortie du reste. Pointillés : entrée, stop de départ et objectif de la moitié.</p></div>
+      <p class="fine pa-legend">La flèche montre l'entrée, les ronds la vente de la moitié et la sortie. Les pointillés montrent l'entrée, le stop et l'objectif.</p></div>
     <div class="detail tr-detail">
       <div class="stack">
-        ${whyBox(s, a)}
+        ${whyBox(s)}
         ${planBox(s)}
       </div>
       <div class="stack">
@@ -88,91 +86,91 @@ function brief(s, a) {
   return `${what}, terminé le ${dayOf(s.at)} après ${days} jour${days > 1 ? 's' : ''} : ${esc(OUTCOME[s.outcome][0].toLowerCase())}, <b class="${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r)}</b> du capital.`;
 }
 
-// 1. Pourquoi : les 4 conditions du signal, avec les chiffres de ce jour-là.
-function whyBox(s, a) {
-  const data = setupsData();
+// 1. Pourquoi : les 4 conditions du signal, dites simplement, avec les chiffres de ce jour-là.
+function whyBox(s) {
   const up = s.dir === 'long';
   const d = s.day;
-  const trend = d ? `La journée du ${dayOf(d.t)} a clôturé à ${px(d.c)}, ${up ? 'au-dessus' : 'en dessous'} de la moyenne 50 jours (${px(d.e50)}), et la moyenne 20 jours (${px(d.e20)}) était ${up ? 'au-dessus' : 'en dessous'} de la 50. La tendance était donc <b>${up ? 'haussière' : 'baissière'}</b> : on ne cherchait que des ${up ? 'longs' : 'shorts'}.`
-    : `La clôture et la moyenne 20 jours étaient ${up ? 'au-dessus' : 'en dessous'} de la moyenne 50 jours : tendance <b>${esc(s.trend || (up ? 'haussière' : 'baissière'))}</b>, on ne cherchait que des ${up ? 'longs' : 'shorts'}.`;
-  const word = up ? 'au-dessus du plus haut' : 'sous le plus bas';
-  const gap = s.ref ? ` La clôture (${px(s.entry)}) dépasse ce niveau de ${fmt(Math.abs(s.entry / s.ref - 1) * 100, 1)} %.` : '';
+  const li = (title, text, small = '') => `<li><span class="pa-ck yes" aria-hidden="true">✓</span><div><b>${title}</b><span>${text}</span>${small ? `<small class="muted">${small}</small>` : ''}</div></li>`;
+  const trend = d
+    ? `Le ${dayOf(d.t)}, le prix clôturait à ${px(d.c)}, ${up ? 'au-dessus' : 'en dessous'} de sa moyenne des 50 derniers jours (${px(d.e50)}). Le marché ${up ? 'montait' : 'baissait'} : on ne prend que des ${up ? 'achats' : 'ventes'} dans ce cas.`
+    : `Le prix était ${up ? 'au-dessus' : 'en dessous'} de sa moyenne des 50 derniers jours : le marché ${up ? 'montait' : 'baissait'}.`;
+  const trendSmall = d ? `Règle exacte : clôture et moyenne 20 jours (${px(d.e20)}) ${up ? 'au-dessus' : 'en dessous'} de la moyenne 50 jours.` : '';
+  const lvl = s.ref ? ` (${px(s.ref)})` : '';
   const trigger = {
-    range20: `La bougie 4h a clôturé ${word} des 20 derniers jours${s.ref ? ` (${px(s.ref)})` : ''} : le prix sort ${up ? 'par le haut' : 'par le bas'} de sa zone du mois.${gap}`,
-    range10: `La bougie 4h a clôturé ${word} des 60 dernières bougies 4h, soit 10 jours${s.ref ? ` (${px(s.ref)})` : ''} : ${up ? 'les acheteurs' : 'les vendeurs'} reprennent la main.${gap}`,
-    macd: `L'histogramme du MACD 4h (12, 26, 9) est repassé ${up ? 'au-dessus' : 'en dessous'} de zéro : après un repli, l'élan repart dans le sens de la tendance.`,
+    range20: `Le prix est passé ${up ? 'au-dessus de son plus haut' : 'sous son plus bas'} du dernier mois${lvl} : il sort de sa zone ${up ? 'par le haut' : 'par le bas'}.`,
+    range10: `Le prix est passé ${up ? 'au-dessus de son plus haut' : 'sous son plus bas'} des 10 derniers jours${lvl} : ${up ? 'les acheteurs' : 'les vendeurs'} reprennent la main.`,
+    macd: `Après une petite ${up ? 'baisse' : 'hausse'}, le prix repart ${up ? 'à la hausse' : 'à la baisse'}, dans le sens du marché.`,
   }[s.detector] || esc(s.why || '');
-  const room = s.atr4h ? `Aucun niveau important (plus ${up ? 'haut' : 'bas'} récent, chiffre rond, zone de gros volume) à moins de ${px(s.atr4h * 2 * (data.rules.roomAtr ?? 1.5))} de l'entrée (2 × ${num(data.rules.roomAtr ?? 1.5)} ATR 4h) : le prix avait de la place pour ${up ? 'monter' : 'baisser'}.`
-    : `Aucun niveau important à moins de 2 × ${num(data.rules.roomAtr ?? 1.5)} ATR 4h de l'entrée : le prix avait de la place.`;
-  const li = (title, text) => `<li><span class="pa-ck yes" aria-hidden="true">✓</span><div><b>${title}</b><span>${text}</span></div></li>`;
+  const triggerSmall = s.detector === 'macd' ? 'Repéré avec l\'indicateur MACD sur les bougies de 4 heures, qui repasse de l\'autre côté de zéro.' : 'Une bougie de 4 heures a clôturé au-delà de ce niveau.';
   return `<div class="box"><h2>1. Pourquoi ce trade</h2><ol class="pa-rules">
-    ${li('La tendance de fond', trend)}
-    ${li(`Le déclencheur : ${esc(data.detectors[s.detector])}`, trigger)}
-    ${li('De la place devant', room)}
-    ${li(`Pas d'autre trade sur ${esc(s.symbol)}`, 'Un seul trade à la fois par paire : la paire était libre.')}
+    ${li(`Le marché ${up ? 'montait' : 'baissait'}`, trend, trendSmall)}
+    ${li('Le signal', trigger, triggerSmall)}
+    ${li('Pas d\'obstacle proche', `Aucun ancien ${up ? 'sommet' : 'creux'} ni chiffre rond juste ${up ? 'au-dessus' : 'en dessous'} : le prix avait de la place pour ${up ? 'monter' : 'baisser'}.`)}
+    ${li('Un seul trade à la fois', `Aucun autre trade n'était ouvert sur ${esc(s.symbol)}.`)}
   </ol></div>`;
 }
 
-// 2. Le plan : chaque prix et d'où il vient.
+// Gain ou perte en % du capital (1R = le risque, 1 % du capital par défaut).
+const capOf = r => cap(r);
+
+// 2. Le plan : chaque prix et à quoi il sert.
 function planBox(s) {
   const data = setupsData();
   const risk = data.rules.riskPct ?? 1, P = data.rules.partialR ?? 5;
   const stopPct = Math.abs(s.sl - s.entry) / s.entry;
   const size = risk / 100 / stopPct; // part du capital mise en position pour perdre 1 % au stop
   const tp = tpOf(s);
-  const atr = s.atr ?? Math.abs(s.entry - s.sl) / data.rules.stopAtr;
   const up = s.dir === 'long';
   return `<div class="box"><h2>2. Le plan</h2><dl>
-    ${row('Entrée', `${px(s.entry)} <small class="muted">clôture de la bougie 4h du signal</small>`)}
-    ${row('Stop de départ', `${px(s.sl)} <small class="muted">${plainPct((s.sl - s.entry) / s.entry)} · ${num(data.rules.stopAtr)} × ATR jour (${px(atr)})</small>`, 'down')}
-    ${row('Risque', `${fmt(risk, 0)} % du capital si le stop est touché`, 'txt')}
-    ${row('Taille de la position', `${fmt(size * 100, 0)} % du capital <small class="muted">${fmt(risk, 0)} % ÷ ${fmt(stopPct * 100, 1)} % d'écart au stop</small>`)}
-    ${row(`Moitié à ${fmt(P, 0)}R`, `${px(tp)} <small class="muted">${plainPct((tp - s.entry) / s.entry)} · ${fmt(P, 0)} fois l'écart au stop</small>`, 'up')}
-    ${row('Reste', `gardé jusqu'à une clôture journalière ${up ? 'sous le plus bas' : 'au-dessus du plus haut'} des ${data.rules.exitDays ?? 7} derniers jours`, 'txt')}
-  </dl><p class="txt muted">Exemple avec 1 000 $ : position de ${fmt(size * 1000, 0)} $ ; au stop, la perte est de ${fmt(risk * 10, 0)} $.</p></div>`;
+    ${row('Entrée', `${px(s.entry)} <small class="muted">le prix au moment du signal</small>`)}
+    ${row('Stop', `${px(s.sl)} <small class="muted">${plainPct((s.sl - s.entry) / s.entry)} : si le prix ${up ? 'descend' : 'monte'} jusque-là, on coupe</small>`, 'down')}
+    ${row('Perte maximale', `${fmt(risk, 0)} % du capital`, 'txt')}
+    ${row(up ? 'Combien acheter' : 'Combien vendre', `${fmt(size * 100, 0)} % du capital <small class="muted">avec 1 000 $ : ${fmt(size * 1000, 0)} $</small>`)}
+    ${row('Objectif', `${px(tp)} <small class="muted">${plainPct((tp - s.entry) / s.entry)} : on vend la moitié, ${capOf(P / 2)} de gain déjà assuré</small>`, 'up')}
+    ${row('Le reste', `gardé tant que le marché ${up ? 'monte' : 'baisse'}`, 'txt')}
+  </dl><p class="txt muted">Le stop est placé à une distance qui suit l'agitation habituelle du prix (0,75 fois sa variation moyenne sur une journée). L'objectif est à ${fmt(P, 0)} fois cette distance.</p></div>`;
 }
 
 // 3. Ce qui s'est passé, étape par étape.
 function storyBox(s, a) {
   const data = setupsData();
-  const P = data.rules.partialR ?? 5, risk = data.rules.riskPct ?? 1;
+  const P = data.rules.partialR ?? 5;
   const up = s.dir === 'long';
-  const steps = [[s.time + BAR, `Entrée à <b>${px(s.entry)}</b> à la clôture de la bougie 4h, stop à ${px(s.sl)}.`]];
-  if (s.halfAt) steps.push([s.halfAt, `Le prix atteint ${px(tpOf(s))} (${fmt(P, 0)}R) : la moitié est vendue, soit <b class="up">+${fmt(P * risk / 2, 1)} %</b> du capital déjà gagné. Le stop remonte au prix d'entrée : le reste ne peut plus faire perdre.`]);
-  else if (s.tpHit && !s.halfAt) steps.push([null, `Le prix atteint ${px(tpOf(s))} (${fmt(P, 0)}R) : la moitié est vendue et le stop remonte au prix d'entrée.`]);
-  if (s.outcome === 'sl') steps.push([s.at, `Le prix ${up ? 'redescend' : 'remonte'} jusqu'au stop ${px(s.sl)} avant d'atteindre ${fmt(P, 0)}R : le trade est coupé, <b class="down">${cap(-1)}</b> du capital, la perte prévue.`]);
-  if (s.outcome === 'be') steps.push([s.at, `Le prix revient au prix d'entrée (${px(s.entry)}) : le reste sort sans gain ni perte.`]);
+  const days = data.rules.exitDays ?? 7;
+  const steps = [[s.time + BAR, `${up ? 'Achat' : 'Vente'} à <b>${px(s.entry)}</b>, stop à ${px(s.sl)}.`]];
+  if (s.tpHit) steps.push([s.halfAt, `Le prix atteint l'objectif (${px(tpOf(s))}) : on vend la moitié et on gagne déjà <b class="up">${capOf(P / 2)}</b>. Le stop remonte au prix d'entrée : le reste ne peut plus faire perdre d'argent.`]);
+  if (s.outcome === 'sl') steps.push([s.at, `Le prix ${up ? 'redescend' : 'remonte'} jusqu'au stop (${px(s.sl)}) : on coupe. Perte de <b class="down">${capOf(-1)}</b>, comme prévu.`]);
+  if (s.outcome === 'be') steps.push([s.at, `Le prix revient au prix d'entrée (${px(s.entry)}) : le reste est vendu sans gain ni perte.`]);
   if (s.outcome === 'exit') {
-    const restR = s.tpHit ? 2 * s.r - P : s.r;
-    steps.push([s.at + BAR, `La journée clôture à ${px(s.exitPx ?? s.entry)}, ${up ? 'sous le plus bas' : 'au-dessus du plus haut'} des ${data.rules.exitDays ?? 7} derniers jours${s.exitLvl ? ` (${px(s.exitLvl)})` : ''} : la tendance s'essouffle, ${s.tpHit ? 'le reste est vendu' : 'tout est vendu'} à ${rText(restR)}.`]);
+    // Gain du reste en % du capital : sur une moitié de la position si l'objectif a été atteint.
+    const rest = s.tpHit ? s.r - P / 2 : s.r;
+    steps.push([s.at + BAR, `Le prix clôture la journée ${up ? 'sous son plus bas' : 'au-dessus de son plus haut'} des ${days} derniers jours${s.exitLvl ? ` (${px(s.exitLvl)})` : ''} : ${up ? 'la hausse' : 'la baisse'} s'arrête. On vend ${s.tpHit ? 'le reste' : 'tout'} à ${px(s.exitPx ?? s.entry)} : <b class="${rest >= 0 ? 'up' : 'down'}">${capOf(rest)}</b>${s.tpHit ? ' de plus' : ''}.`]);
   }
   if (s.outcome === 'open' && s.status === 'confirmé') {
     const live = liveOf(s.symbol);
-    steps.push([Date.now(), `Toujours en jeu : prix ${px(a.price)}, stop ${px(live?.stop ?? s.stop ?? s.sl)}${live?.exitAt ? `, sortie si une journée clôture ${up ? 'sous' : 'au-dessus de'} ${px(live.exitAt)}` : ''}.`]);
+    steps.push([Date.now(), `Toujours en cours : prix ${px(a.price)}, stop à ${px(live?.stop ?? s.stop ?? s.sl)}${live?.exitAt ? `. On vendra si une journée clôture ${up ? 'sous' : 'au-dessus de'} ${px(live.exitAt)}` : ''}.`]);
   }
   return `<div class="box"><h2>3. Ce qui s'est passé</h2><ol class="tr-steps">${steps.map(([t, text]) => `<li><span class="muted">${t ? when(t) : ''}</span><span>${text}</span></li>`).join('')}</ol></div>`;
 }
 
-// 4. Le résultat et son calcul.
+// 4. Le résultat et son calcul, en % du capital.
 function resultBox(s, a) {
   const data = setupsData();
-  const P = data.rules.partialR ?? 5, risk = data.rules.riskPct ?? 1;
+  const P = data.rules.partialR ?? 5;
   if (s.status === 'en cours') return '';
   const open = s.outcome === 'open';
   const r = open ? liveR(s, a) : s.r;
+  // Avec l'objectif atteint : la 1re moitié rapporte P/2 % du capital, la 2e moitié le reste.
+  const firstHalf = P / 2, second = r - firstHalf;
   let how;
-  if (open) how = s.tpHit ? `Moitié vendue à ${fmt(P, 0)}R, l'autre moitié vaut ${rText(2 * r - P)} en ce moment : (${fmt(P, 0)}R ${2 * r - P >= 0 ? '+' : '−'} ${num(Math.abs(Math.round((2 * r - P) * 100) / 100))}R) ÷ 2 = ${rText(r)}.` : `Le prix est à ${rText(r)} de l'entrée : ${rText(r)} × ${fmt(risk, 0)} % = ${cap(r)}.`;
-  else if (s.outcome === 'sl') how = `Stop touché avant ${fmt(P, 0)}R : on perd exactement le risque prévu, ${fmt(risk, 0)} % du capital.`;
-  else if (s.outcome === 'be') how = `Moitié vendue à ${fmt(P, 0)}R, l'autre moitié sortie à 0R : (${fmt(P, 0)}R + 0R) ÷ 2 = ${rText(s.r)}, soit ${cap(s.r)}.`;
-  else {
-    const rest = s.tpHit ? 2 * s.r - P : s.r;
-    how = s.tpHit ? `Moitié vendue à ${fmt(P, 0)}R, l'autre moitié à ${rText(rest)} : (${fmt(P, 0)}R ${rest >= 0 ? '+' : '−'} ${num(Math.abs(Math.round(rest * 100) / 100))}R) ÷ 2 = ${rText(s.r)}, soit ${cap(s.r)}.`
-      : `Tout est vendu à ${rText(s.r)} : ${rText(s.r)} × ${fmt(risk, 0)} % = ${cap(s.r)}.`;
-  }
+  if (s.tpHit) how = `1re moitié vendue à l'objectif : ${capOf(firstHalf)}. 2e moitié ${open ? 'en ce moment' : 'vendue à la sortie'} : ${capOf(second)}. Total : <b>${capOf(r)}</b> du capital.`;
+  else if (open) how = `Le prix a bougé de ${capOf(r)} du capital depuis l'entrée.`;
+  else if (s.outcome === 'sl') how = `Le stop a été touché avant l'objectif : on perd ce qui était prévu, ${capOf(-1).replace('-', '')} du capital, pas plus.`;
+  else how = `Tout est vendu avant l'objectif : ${capOf(r)} du capital.`;
   return `<div class="box"><h2>4. ${open ? 'Résultat en ce moment' : 'Résultat'}</h2>
-    <p class="tr-big ${r > 0 ? 'up' : r < 0 ? 'down' : ''}">${cap(r)} <small class="muted">du capital</small></p>
+    <p class="tr-big ${r > 0 ? 'up' : r < 0 ? 'down' : ''}">${capOf(r)} <small class="muted">du capital</small></p>
     <p class="txt">${how}</p>
-    <p class="txt muted">1R = l'écart entre l'entrée et le stop = ${fmt(risk, 0)} % du capital. Environ 2 trades sur 3 finissent au stop : ce sont les gros gains des trades qui tiennent la tendance qui paient ces petites pertes.</p></div>`;
+    <p class="txt muted">À retenir : quand ça rate, on perd 1 %. Quand ça marche, on gagne souvent 5 % ou plus. Environ 2 trades sur 3 perdent, mais les gagnants rapportent plus que toutes ces petites pertes.</p></div>`;
 }
 
 // Graphique du trade : bougies 4h autour du trade (journalières s'il est trop ancien), niveaux du plan.
@@ -193,7 +191,7 @@ function chart() {
   const from = Math.max(0, i0 - pad), to = Math.min(base.length, Math.max(i1, i0) + Math.round(pad / 2) + 1);
   const bars = base.slice(from, to);
   const rel = i => i - from;
-  const levels = [{ v: s.entry, label: 'Entrée', cls: 'fg' }, { v: s.sl, label: 'Stop', cls: 'down' }, { v: tpOf(s), label: 'Moitié', cls: 'up' }];
+  const levels = [{ v: s.entry, label: 'Entrée', cls: 'fg' }, { v: s.sl, label: 'Stop', cls: 'down' }, { v: tpOf(s), label: 'Objectif', cls: 'up' }];
   const marks = [{ i: rel(i0), dir: s.dir, cls: 'acc' }];
   if (s.halfAt) { const k = at(s.halfAt); if (k >= 0) marks.push({ i: rel(k), v: tpOf(s), cls: 'up' }); }
   if (s.at) {
