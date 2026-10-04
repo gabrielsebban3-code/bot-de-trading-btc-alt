@@ -234,6 +234,11 @@ export function newsForProject(id) {
   return data ? data.items.filter(i => i.projectId === id).slice(0, 5) : [];
 }
 
+// News qui passent un test (fiche crypto), dans l'ordre du fil ; null tant que le fil n'est pas chargé.
+export function newsWhere(test, limit = 5) {
+  return data ? data.items.filter(test).slice(0, limit) : null;
+}
+
 export function newsRows(items) {
   return items.map(i => `<a class="row" href="#actu/${encodeURIComponent(i.id)}">${dot(i)}<span class="d fg">${title(i)}</span><span class="r muted">${ago(new Date(i.time).toISOString())}</span></a>`).join('');
 }

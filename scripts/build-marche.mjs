@@ -121,8 +121,9 @@ async function main() {
   };
   sources.dex = dexR.ok ? 'ok' : 'erreur';
 
+  // L'identifiant CoinGecko ouvre la fiche de la crypto (#crypto/<id>, scripts/build-cryptos.mjs).
   const top = coins ? realCoins(coins).slice(0, 12).map(c => ({
-    symbol: String(c.symbol).toUpperCase(), name: c.name, price: c.current_price, mcap: c.market_cap, volume: c.total_volume,
+    id: c.id, symbol: String(c.symbol).toUpperCase(), name: c.name, price: c.current_price, mcap: c.market_cap, volume: c.total_volume,
     change24h: c.price_change_percentage_24h_in_currency / 100, change7d: c.price_change_percentage_7d_in_currency / 100,
     change30d: c.price_change_percentage_30d_in_currency != null ? c.price_change_percentage_30d_in_currency / 100 : null,
   })) : previous?.top || [];
