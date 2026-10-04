@@ -25,8 +25,10 @@ export function price(n) {
 export function pct(n, ratio = true) {
   if (n === null || n === undefined) return '<span class="muted">—</span>';
   const v = ratio ? n * 100 : n;
-  const shown = Math.abs(v) >= 1000 ? `${fmt(v / 100, 0)}×` : `${fmt(v, Math.abs(v) < 10 ? 1 : 0)} %`;
-  return `<span class="${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '+' : ''}${shown}</span>`;
+  // Arrondi d'abord : -0,04 % s'affiche « 0,0 % » (neutre), pas « -0,0 % » en rouge.
+  const r = Math.abs(v) >= 1000 ? v : Number(v.toFixed(Math.abs(v) < 10 ? 1 : 0)) || 0;
+  const shown = Math.abs(r) >= 1000 ? `${fmt(r / 100, 0)}×` : `${fmt(r, Math.abs(v) < 10 ? 1 : 0)} %`;
+  return `<span class="${r > 0 ? 'up' : r < 0 ? 'down' : 'muted'}">${r > 0 ? '+' : ''}${shown}</span>`;
 }
 
 export function ago(iso) {

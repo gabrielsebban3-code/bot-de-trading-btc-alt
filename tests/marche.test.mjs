@@ -1,7 +1,7 @@
 // Onglet Marché : séries quotidiennes, moyennes mobiles et lecture de la direction.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DAY, mergePoints, realCoins, signals, sma, toDaily, verdict } from '../js/marche-lib.js';
+import { DAY, mergePoints, realCoins, signals, sma, tallyText, toDaily, verdict } from '../js/marche-lib.js';
 
 const T0 = Date.parse('2026-01-01T00:00:00Z');
 const D0 = T0 / DAY;
@@ -39,6 +39,7 @@ test('signals : marché haussier, euphorie et levier chaud', () => {
   assert.equal(v.up, 4);
   assert.equal(v.down, 2);
   assert.equal(v.label, 'Plutôt haussier');
+  assert.equal(tallyText(v), '4 signaux haussiers, 2 baissiers sur 6');
 });
 
 test('signals : marché baissier, peur extrême et shorts qui paient', () => {
@@ -59,6 +60,9 @@ test('signals : marché baissier, peur extrême et shorts qui paient', () => {
 test('signals : sans historique, aucun signal et pas de verdict', () => {
   assert.deepEqual(signals({}), []);
   assert.equal(verdict([]).label, 'Pas de direction claire');
+  assert.equal(tallyText(verdict([{ dir: 1 }, { dir: 0 }])), '1 signal haussier, 0 baissier sur 2');
+  // marche.json déjà publié : le verdict n'a que up, down et total.
+  assert.equal(tallyText({ up: 3, down: 1, total: 6, label: 'Plutôt haussier' }), '3 signaux haussiers, 1 baissier sur 6');
 });
 
 test('realCoins : retire stablecoins et versions wrapped ou staked', () => {

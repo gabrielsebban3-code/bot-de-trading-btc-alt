@@ -2,7 +2,7 @@
 // Le graphique empile des panneaux qui partagent l'axe du temps (comme les indicateurs sous un graphique de trading) :
 // chaque courbe garde sa propre échelle, sans double axe.
 import { esc, fmt, money, pct, price } from './format.js';
-import { sma } from './marche-lib.js';
+import { sma, tallyText } from './marche-lib.js';
 import { drawPanes } from './chart.js';
 
 const $ = id => document.getElementById(id);
@@ -143,7 +143,7 @@ function direction(d) {
   if (!v?.total) { $('marche-direction').hidden = true; return; }
   const cls = v.dir > 0 ? 'up' : v.dir < 0 ? 'down' : 'mid';
   $('marche-direction').innerHTML = `<div class="bh"><h2>Direction du marché</h2><span class="verdict ${cls}">${esc(v.label)}</span></div>
-    <p class="tally">${v.up} signal${v.up > 1 ? 's' : ''} haussier${v.up > 1 ? 's' : ''}, ${v.down} baissier${v.down > 1 ? 's' : ''} sur ${v.total}</p>
+    <p class="tally">${tallyText(v)}</p>
     <ul class="signals">${d.signals.map(s => `<li><span class="sig ${s.dir > 0 ? 'up' : s.dir < 0 ? 'down' : 'flat'}">${s.dir > 0 ? '▲' : s.dir < 0 ? '▼' : '•'}</span><span><b>${esc(s.label)}.</b> ${esc(s.text)}</span></li>`).join('')}</ul>`;
 }
 
@@ -191,7 +191,9 @@ function chart() {
 }
 
 function top(list) {
-  $('marche-top').innerHTML = list.length ? list.map((c, i) => `<tr><td class="l num">${i + 1}</td><td class="l"><b>${esc(c.symbol)}</b> <span class="muted">${esc(c.name)}</span></td>
+  // Chaque ligne ouvre la fiche de sa crypto (#crypto/<id>, js/crypto.js).
+  const name = c => `<b>${esc(c.symbol)}</b> <span class="muted">${esc(c.name)}</span>`;
+  $('marche-top').innerHTML = list.length ? list.map((c, i) => `<tr${c.id ? ` data-id="${esc(c.id)}"` : ''}><td class="l num">${i + 1}</td><td class="l name">${c.id ? `<a href="#crypto/${esc(c.id)}">${name(c)}</a>` : name(c)}</td>
     <td class="num">${price(c.price)} $</td><td class="num">${pct(c.change24h)}</td><td class="num">${pct(c.change7d)}</td><td class="num">${pct(c.change30d)}</td>
     <td class="num">${money(c.mcap)}</td><td class="num">${money(c.volume)}</td></tr>`).join('')
     : '<tr><td colspan="8"><div class="empty">Classement indisponible à cette mise à jour.</div></td></tr>';

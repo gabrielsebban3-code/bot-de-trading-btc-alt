@@ -6,8 +6,8 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "data": "node scripts/build-data.mjs --out data && node scripts/build-setups.mjs --out data && node scripts/build-marche.mjs --out data && node scripts/build-news.mjs --out data --projects data/projects.json && node scripts/build-outils.mjs --out data",
-    "sample": "node --import ./tests/mock-fetch.mjs scripts/build-data.mjs --out data --sample && node --import ./tests/mock-fetch.mjs scripts/build-setups.mjs --out data --sample && node --import ./tests/mock-fetch.mjs scripts/build-marche.mjs --out data --sample && node --import ./tests/mock-fetch.mjs scripts/build-news.mjs --out data --projects data/projects.json --sample && node --import ./tests/mock-fetch.mjs scripts/build-outils.mjs --out data --sample",
+    "data": "node scripts/build-data.mjs --out data && node scripts/build-setups.mjs --out data && node scripts/build-marche.mjs --out data && node scripts/build-cryptos.mjs --out data --marche data/marche.json && node scripts/build-news.mjs --out data --projects data/projects.json && node scripts/build-outils.mjs --out data",
+    "sample": "node --import ./tests/mock-fetch.mjs scripts/build-data.mjs --out data --sample && node --import ./tests/mock-fetch.mjs scripts/build-setups.mjs --out data --sample && node --import ./tests/mock-fetch.mjs scripts/build-marche.mjs --out data --sample && node --import ./tests/mock-fetch.mjs scripts/build-cryptos.mjs --out data --marche data/marche.json --sample && node --import ./tests/mock-fetch.mjs scripts/build-news.mjs --out data --projects data/projects.json --sample && node --import ./tests/mock-fetch.mjs scripts/build-outils.mjs --out data --sample",
     "serve": "python3 -m http.server 8080"
   }
 }

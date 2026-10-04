@@ -40,6 +40,7 @@ const COINS = [
   ['bitcoin', 'btc', 'Bitcoin', 84_000], ['ethereum', 'eth', 'Ethereum', 2_700], ['tether', 'usdt', 'Tether', 1],
   ['ripple', 'xrp', 'XRP', 1.5], ['solana', 'sol', 'Solana', 120], ['usd-coin', 'usdc', 'USDC', 1],
   ['lido-staked-ether', 'steth', 'Lido Staked Ether', 2_700], ['dogecoin', 'doge', 'Dogecoin', 0.09],
+  ['figure-heloc', 'figr_heloc', 'Figure Heloc', 1.02], ['leo-token', 'leo', 'LEO Token', 9.5],
 ];
 
 export function routeMarche(data, url) {
