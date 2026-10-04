@@ -155,6 +155,12 @@ jobs:
         continue-on-error: true
         run: node scripts/send-alerts.mjs --data _site/data --previous previous --dry-run --digest-now | tail -1 | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{for(const e of JSON.parse(s)){console.log('## '+e.title);for(const f of e.fields||[])console.log('-- '+f.name+'\\n'+f.value);if(e.description)console.log(e.description)}})"
 
+      # Sur une autre branche : données des fiches paire en fin de journal, pour construire un aperçu.
+      - name: Données des fiches paire
+        if: env.PUBLISH != 'true'
+        continue-on-error: true
+        run: cat paire-gz.txt
+
       # Numéro de version dans les liens vers les scripts et le style : après une mise à jour, le navigateur
       # ne mélange pas la nouvelle page avec les anciens scripts gardés en cache (10 minutes sur GitHub Pages).
       - name: Assembler le site

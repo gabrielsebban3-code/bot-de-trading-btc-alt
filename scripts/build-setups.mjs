@@ -141,14 +141,16 @@ async function main() {
   const row = b => [b.t, b.o, b.h, b.l, b.c, b.v, b.closed === false ? 0 : 1];
   const pairs = ok.map(r => ({ symbol: r.asset.symbol, generatedAt: new Date(now).toISOString(), h4: r.bars.slice(-540).map(row), d1: r.daily.slice(-430).map(row) }));
   for (const p of pairs) await writeFile(join(OUT, 'paire', `${p.symbol}.json`), JSON.stringify(p));
-  // Sur une branche de test, les données sont recopiées dans le journal (compressées) pour les aperçus.
+  // Sur une branche de test, les données sont compressées dans paire-gz.txt, recopié à la fin du journal pour les aperçus.
   if (process.env.PUBLISH === 'false') {
     const site = await readFile(join(OUT, 'setups.json'), 'utf8');
+    const lines = [];
     for (const [id, text] of [['_setups', site], ...pairs.map(p => [p.symbol, JSON.stringify(p)])]) {
       const gz = gzipSync(text).toString('base64');
       const n = Math.ceil(gz.length / 8000);
-      for (let i = 0; i < n; i++) console.log(`PAIRE_GZ ${id} ${i + 1}/${n} ${gz.slice(i * 8000, (i + 1) * 8000)}`);
+      for (let i = 0; i < n; i++) lines.push(`PAIRE_GZ ${id} ${i + 1}/${n} ${gz.slice(i * 8000, (i + 1) * 8000)}`);
     }
+    await writeFile('paire-gz.txt', `${lines.join('\n')}\n`);
   }
 
   console.log(`\n${shown.length} setups affichés (${shown.filter(s => s.outcome === 'open').length} en jeu), ${history.length} signaux dans l'historique.`);
