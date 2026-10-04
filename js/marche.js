@@ -185,8 +185,8 @@ function season(s, top) {
       <div class="as-track"><i style="left:${Math.min(100, Math.max(0, s.value))}%"></i></div>
       <div class="as-scale"><span>Bitcoin</span><b class="num">${s.value}</b><span>Altcoins</span></div>
     </div>
-    <p class="tally">${s.beat} des ${s.total} plus grosses cryptos font mieux que BTC sur 30 jours (BTC ${pct(s.btc30d)}). Saison des altcoins à partir de 75, saison du Bitcoin à 25 ou moins.</p>
-    <p class="as-list"><span class="muted">Les plus fortes face à BTC :</span> ${s.best.map(c => `${name(c)} ${pct(c.vsBtc)}`).join(' · ')}</p>`;
+    <p class="tally">${s.beat} des ${s.total} plus grosses cryptos font mieux que BTC sur 30 jours (BTC\u00a0${pct(s.btc30d)}). Saison des altcoins à partir de 75, saison du Bitcoin à 25 ou moins.</p>
+    <p class="as-list"><span class="muted">Les plus fortes face à BTC :</span> ${s.best.map(c => `${name(c)}\u00a0${pct(c.vsBtc)}`).join(' · ')}</p>`;
 }
 
 // Secteurs : variation de la capitalisation de chaque secteur, sur 24 h ou 7 jours quand l'historique le permet.
