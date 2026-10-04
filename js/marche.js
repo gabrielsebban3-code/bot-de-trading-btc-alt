@@ -114,6 +114,9 @@ export function initMarche(d) {
   data = d;
   tiles(d.tiles || {});
   direction(d);
+  agenda(d.agenda);
+  season(d.altseason, d.top || []);
+  sectors(d.sectors);
   controls();
   chart();
   top(d.top || []);
@@ -147,6 +150,72 @@ function direction(d) {
     <p class="tally">${tallyText(v)}</p>
     <ul class="signals">${d.signals.map(s => `<li><span class="sig ${s.dir > 0 ? 'up' : s.dir < 0 ? 'down' : 'flat'}">${s.dir > 0 ? '▲' : s.dir < 0 ? '▼' : '•'}</span><span><b>${esc(s.label)}.</b> ${esc(s.text)}</span></li>`).join('')}</ul>`;
 }
+
+// Agenda macro : les grosses annonces à venir, à l'heure de Paris ; celles de l'heure passée restent affichées.
+function agenda(a) {
+  const box = $('marche-agenda');
+  box.hidden = !a?.events;
+  if (box.hidden) return;
+  const now = Date.now();
+  const list = a.events.filter(e => Date.parse(e.t) > now - 3_600_000).slice(0, 8);
+  const paris = (t, o) => new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', ...o });
+  const dayKey = t => paris(t, { year: 'numeric', month: 'numeric', day: 'numeric' });
+  const day = t => (dayKey(t) === dayKey(now) ? "Aujourd'hui" : dayKey(t) === dayKey(now + DAY) ? 'Demain' : paris(t, { weekday: 'short', day: 'numeric', month: 'short' }));
+  const soon = t => {
+    const min = Math.round((Date.parse(t) - now) / 60_000);
+    return min < 0 ? `il y a ${-min} min` : min < 60 ? `dans ${min} min` : min < 24 * 60 ? `dans ${Math.round(min / 60)} h` : '';
+  };
+  const figures = e => [e.forecast && `prévu\u00a0${esc(e.forecast)}`, e.previous && `avant\u00a0${esc(e.previous)}`].filter(Boolean).join(' · ');
+  box.innerHTML = `<div class="bh"><h2>Agenda macro</h2><span class="muted">heure de Paris</span></div>
+    <p class="tally">Les annonces qui font le plus bouger BTC, souvent de plusieurs % dans l'heure qui suit.</p>
+    ${list.length ? `<ul class="agenda">${list.map(e => `<li><span class="when"><b>${day(e.t)}</b> ${paris(e.t, { hour: '2-digit', minute: '2-digit' })}</span>
+      <span class="what">${esc(e.title)}${figures(e) ? `<small>${figures(e)}</small>` : ''}</span>${soon(e.t) ? `<span class="tag mid">${soon(e.t)}</span>` : ''}</li>`).join('')}</ul>`
+      : `<p class="empty">Aucune grosse annonce ${a.nextWeek ? 'dans les prochains jours' : "d'ici la fin de la semaine"}.</p>`}`;
+}
+
+// Saison des altcoins : jauge de 0 (saison du Bitcoin) à 100 (saison des altcoins) et les cryptos les plus fortes face à BTC.
+function season(s, top) {
+  const box = $('marche-saison');
+  box.hidden = !s;
+  if (!s) return;
+  const cls = s.dir > 0 ? 'alt' : s.dir < 0 ? 'btc' : 'mid';
+  const fiche = new Set(top.map(c => c.id));
+  const name = c => (fiche.has(c.id) ? `<a href="#crypto/${esc(c.id)}">${esc(c.symbol)}</a>` : esc(c.symbol));
+  box.innerHTML = `<div class="bh"><h2>Saison des altcoins</h2><span class="verdict ${cls}">${esc(s.label)}</span></div>
+    <div class="as-gauge" role="img" aria-label="Indice ${s.value} sur 100 : ${esc(s.label)}">
+      <div class="as-track"><i style="left:${Math.min(100, Math.max(0, s.value))}%"></i></div>
+      <div class="as-scale"><span>Bitcoin</span><b class="num">${s.value}</b><span>Altcoins</span></div>
+    </div>
+    <p class="tally">${s.beat} des ${s.total} plus grosses cryptos font mieux que BTC sur 30 jours (BTC ${pct(s.btc30d)}). Saison des altcoins à partir de 75, saison du Bitcoin à 25 ou moins.</p>
+    <p class="as-list"><span class="muted">Les plus fortes face à BTC :</span> ${s.best.map(c => `${name(c)} ${pct(c.vsBtc)}`).join(' · ')}</p>`;
+}
+
+// Secteurs : variation de la capitalisation de chaque secteur, sur 24 h ou 7 jours quand l'historique le permet.
+const SECTOR_PERIODS = [['change24h', '24 h'], ['change7d', '7 j']];
+function sectors(sec) {
+  const box = $('marche-secteurs');
+  const list = sec?.list || [];
+  box.hidden = !list.some(x => x.change24h != null);
+  if (box.hidden) return;
+  const has7d = list.filter(x => x.change7d != null).length >= list.length / 2;
+  const key = has7d && state.sector === 'change7d' ? 'change7d' : 'change24h';
+  const rows = list.filter(x => x[key] != null).sort((a, b) => b[key] - a[key]);
+  const max = Math.max(...rows.map(x => Math.abs(x[key])), 0.005);
+  const bar = v => `<i class="${v >= 0 ? 'up' : 'down'}" style="${v >= 0 ? 'left' : 'right'}:50%;width:${((Math.abs(v) / max) * 50).toFixed(1)}%"></i>`;
+  box.innerHTML = `<div class="bh"><h2>Secteurs</h2>${has7d
+    ? `<div class="tools" role="group" aria-label="Période">${SECTOR_PERIODS.map(([k, l]) => `<button type="button" class="chip" data-sector="${k}" aria-pressed="${k === key}">${l}</button>`).join('')}</div>`
+    : '<span class="muted">variation sur 24 h</span>'}</div>
+    <ul class="sectors">${rows.map(x => `<li><span class="nm">${esc(x.name)}${x.top?.length ? `<small>${x.top.map(esc).join(' · ')}</small>` : ''}</span>
+      <span class="sbar">${bar(x[key])}</span><span class="num">${pct(x[key])}</span><span class="num muted mc">${big(x.mcap)}</span></li>`).join('')}</ul>`;
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('#marche-secteurs [data-sector]');
+  if (!b) return;
+  state.sector = b.dataset.sector;
+  save();
+  sectors(data?.sectors);
+});
 
 function controls() {
   const pill = (group, key, label, on) => `<button type="button" class="chip${on ? ' on' : ''}" data-${group}="${key}" aria-pressed="${on}">${label}</button>`;

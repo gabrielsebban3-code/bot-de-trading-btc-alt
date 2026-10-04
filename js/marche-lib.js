@@ -198,8 +198,8 @@ export function agendaFr(title) {
 }
 
 // Annonces gardées du calendrier (format ForexFactory : title, country, date avec fuseau, impact, forecast, previous),
-// triées par date ; les chiffres prévus et précédents passent à l'écriture française (0.3% → 0,3 %).
-const frFigure = s => (s ? String(s).replace(/(\d)\.(\d)/g, '$1,$2').replace(/%/g, ' %').replace(/(\d)K\b/g, '$1 k').replace(/(\d)M\b/g, '$1 M').replace(/(\d)B\b/g, '$1 Md') : null);
+// triées par date ; les chiffres prévus et précédents passent à l'écriture française (0.3% → 0,3 %, espace insécable).
+const frFigure = s => (s ? String(s).replace(/(\d)\.(\d)/g, '$1,$2').replace(/%/g, '\u00a0%').replace(/(\d)K\b/g, '$1\u00a0k').replace(/(\d)M\b/g, '$1\u00a0M').replace(/(\d)B\b/g, '$1\u00a0Md') : null);
 export function agendaEvents(rows) {
   return (Array.isArray(rows) ? rows : [])
     .filter(r => r?.impact === 'High' && (r.country === 'USD' || /^(Main Refinancing Rate|BOJ Policy Rate)$/.test(r.title)) && Number.isFinite(Date.parse(r.date)))

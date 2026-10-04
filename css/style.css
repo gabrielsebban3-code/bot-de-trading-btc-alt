@@ -339,8 +339,8 @@ footer b { color: var(--fg); }
 .kpi .v { font-size: 19px; font-weight: 500; letter-spacing: -.02em; }
 .kpi .d { font: 12px var(--mono); }
 .direction { margin-bottom: 16px; }
-.direction .bh, .mk .bh { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
-.direction h2 { margin: 0; font-size: 14px; }
+.direction .bh, .mk .bh, .mk-block .bh { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
+.direction h2, .mk-block h2 { margin: 0; font-size: 14px; }
 .verdict { font: 600 12px var(--sans); padding: 3px 10px; border-radius: 999px; }
 .verdict.up { background: var(--up-soft); } .verdict.down { background: var(--down-soft); } .verdict.mid { color: var(--mid); background: var(--mid-soft); }
 .direction .tally { margin: 10px 14px 0; color: var(--muted); font-size: 12px; }
@@ -350,6 +350,44 @@ footer b { color: var(--fg); }
 .signals b { color: var(--fg); font-weight: 500; }
 .sig { flex: none; width: 16px; text-align: center; font-size: 11px; line-height: 20px; }
 .sig.flat { color: var(--muted); }
+
+/* Agenda macro, saison des altcoins, secteurs */
+.mk-row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; margin-bottom: 16px; }
+.mk-row:not(:has(.box:not([hidden]))) { display: none; }
+@media (max-width: 900px) { .mk-row { grid-template-columns: minmax(0, 1fr); } }
+.mk-block .tally { margin: 10px 14px 0; color: var(--muted); font-size: 12px; }
+.mk-block .bh .tools { margin: 0; }
+.mk-block .empty { padding: 20px 14px; }
+.agenda, .sectors { list-style: none; margin: 0; padding: 4px 14px 10px; }
+.agenda li { display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.agenda li:first-child, .sectors li:first-child { border-top: 0; }
+.agenda .when { flex: none; width: 120px; color: var(--muted); font: 12px var(--mono); }
+.agenda .when b { display: block; color: var(--fg2); font: 500 12px var(--sans); }
+.agenda .what { flex: 1; min-width: 0; color: var(--fg); }
+.agenda small, .sectors small { display: block; margin-top: 2px; color: var(--muted); font: 11px var(--mono); }
+.agenda .tag { flex: none; }
+.verdict.alt { color: var(--s-ma20); background: rgba(176, 124, 240, .14); }
+.verdict.btc { color: var(--accent); background: var(--accent-soft); }
+.as-gauge { padding: 16px 14px 0; }
+.as-track { position: relative; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--accent) 0 25%, var(--panel2) 25% 75%, var(--s-ma20) 75% 100%); }
+.as-track i { position: absolute; top: -4px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--fg); box-shadow: 0 0 0 2px var(--panel); }
+.as-scale { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; color: var(--muted); font-size: 12px; }
+.as-scale b { color: var(--fg); font-size: 22px; font-weight: 500; }
+.as-list { margin: 10px 14px 14px; font-size: 13px; color: var(--fg2); line-height: 1.7; }
+.as-list a { color: var(--fg); font-weight: 500; }
+.mk-block .up, .mk-block .down, .mk-block .muted { white-space: nowrap; }
+#marche-secteurs { margin-top: 16px; }
+.sectors li { display: grid; grid-template-columns: minmax(140px, 240px) minmax(80px, 1fr) 64px 76px; gap: 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.sectors .sbar { position: relative; height: 8px; }
+.sectors .sbar::before { content: ""; position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--line2); }
+.sectors .sbar i { position: absolute; top: 0; bottom: 0; border-radius: 2px; opacity: .8; }
+.sectors .sbar i.up { background: var(--up); } .sectors .sbar i.down { background: var(--down); }
+.sectors .num { text-align: right; font: 12px var(--mono); }
+@media (max-width: 520px) {
+  .sectors li { grid-template-columns: minmax(0, 1.3fr) minmax(56px, 1fr) 58px; gap: 10px; }
+  .sectors .mc { display: none; }
+  .agenda .when { width: 88px; }
+}
 .mk { padding: 14px; }
 .mk-tools { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; }
 .mk-toggles { padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }

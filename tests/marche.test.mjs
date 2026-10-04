@@ -157,8 +157,8 @@ test('agendaEvents : annonces américaines fortes et décisions de taux, en fran
   const ev = agendaEvents(rows);
   assert.deepEqual(ev.map(e => e.title), ["Créations d'emplois (NFP)", 'Inflation (CPI) sur un mois', 'Discours du président de la Fed (Waller)', 'Décision de taux de la Banque du Japon']);
   assert.equal(ev[0].t, '2026-10-09T12:30:00.000Z');
-  assert.deepEqual([ev[0].forecast, ev[0].previous], ['180 k', '-4 k']);
-  assert.deepEqual([ev[1].forecast, ev[1].previous, ev[1].en], ['0,3 %', '0,4 %', 'CPI m/m']);
+  assert.deepEqual([ev[0].forecast, ev[0].previous], ['180\u00a0k', '-4\u00a0k']);
+  assert.deepEqual([ev[1].forecast, ev[1].previous, ev[1].en], ['0,3\u00a0%', '0,4\u00a0%', 'CPI m/m']);
   assert.equal(ev[2].forecast, null);
   assert.equal(agendaFr('Retail Sales m/m'), 'Ventes au détail sur un mois');
   assert.equal(agendaFr('Unknown Thing'), 'Unknown Thing');
