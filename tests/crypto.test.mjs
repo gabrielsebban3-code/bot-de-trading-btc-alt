@@ -127,7 +127,8 @@ test('mentions : news liée par l\'impact, le nom ou le symbole en majuscules', 
 
 test('priceText : lisible du bitcoin aux cryptos à quelques millionièmes de dollar', () => {
   assert.equal(priceText(84000).replace(/\s/g, ' '), '84 000');
-  assert.equal(priceText(1.5), '1,50');
+  assert.equal(priceText(1.4892), '1,489');
+  assert.equal(priceText(14.12), '14,12');
   assert.equal(priceText(0.0912), '0,09120');
   assert.equal(priceText(0.00001234), '0,00001234');
   assert.equal(priceText(null), '—');

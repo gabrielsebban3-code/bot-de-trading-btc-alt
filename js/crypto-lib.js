@@ -159,11 +159,11 @@ export function mentions(item, symbol, name) {
 const num = (v, d = 0) => v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
 const abs = r => `${num(Math.abs(r) * 100, 1)} %`;
 const pctFr = r => `${r >= 0 ? '+' : ''}${num(r * 100, 1)} %`;
-// Prix lisible, même pour les cryptos à quelques millionièmes de dollar.
+// Prix lisible, même pour les cryptos à quelques millionièmes de dollar : 4 chiffres utiles sous 10 $ (1,489 pour XRP).
 export function priceText(n) {
   if (n == null || !Number.isFinite(n)) return '—';
   const a = Math.abs(n);
-  const d = a >= 1000 ? 0 : a >= 1 ? 2 : a > 0 ? Math.min(10, 3 - Math.floor(Math.log10(a))) : 2;
+  const d = a >= 1000 ? 0 : a >= 10 ? 2 : a > 0 ? Math.min(10, 3 - Math.floor(Math.log10(a))) : 2;
   return num(n, d);
 }
 
