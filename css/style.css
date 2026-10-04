@@ -480,6 +480,7 @@ table.cx-table { margin-bottom: 10px; font-size: 13px; }
 .pa-rules ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; color: var(--fg2); }
 .pa-ck { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; margin-top: 1px; }
 .pa-ck.yes { color: var(--up); background: var(--up-soft); } .pa-ck.no { color: var(--muted); background: var(--panel2); }
+.pa-ck.info { color: var(--fg2); background: var(--panel2); }
 .pa-others { padding-top: 0; }
 .cx-chart .lvl { stroke-width: 1; stroke-dasharray: 5 4; stroke: var(--fg2); }
 .cx-chart .lvl-t { font: 10px var(--mono); fill: var(--fg2); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
@@ -491,3 +492,4 @@ table.cx-table { margin-bottom: 10px; font-size: 13px; }
 .cx-chart .mark { fill: var(--fg2); stroke: none; }
 .cx-chart .mark.up { fill: var(--up); } .cx-chart .mark.down { fill: var(--down); } .cx-chart .mark.mute { fill: var(--muted); }
 .cx-chart .mark.acc { stroke: none; }
+.box > .guest-only > p.txt { margin: 0; padding: 0 14px 10px; font-size: 13px; color: var(--fg2); }

@@ -102,7 +102,8 @@ function rulesBox(a, d) {
   const days = d ? d.d1.filter(b => b[6] !== 0) : [];
   const closes = days.map(b => b[4]);
   const e20 = ema(closes, 20).at(-1), e50 = ema(closes, 50).at(-1), last = closes.at(-1);
-  const ok = v => `<span class="pa-ck ${v ? 'yes' : 'no'}" aria-hidden="true">${v ? '✓' : '✗'}</span>`;
+  // ✓ / ✗ : condition remplie ou non en ce moment ; • : règle vérifiée au moment du signal.
+  const ok = v => `<span class="pa-ck ${v === null ? 'info' : v ? 'yes' : 'no'}" aria-hidden="true">${v === null ? '•' : v ? '✓' : '✗'}</span>`;
   const trendOn = r && r.trend !== 'neutre';
   const up = r?.dir === 'long';
   const trendLine = `<li>${ok(trendOn)}<div><b>Tendance journalière ${r ? esc(r.trend) : '—'}</b>
@@ -125,7 +126,7 @@ function rulesBox(a, d) {
   return `<div class="box"><h2>Comment le signal se déclenche</h2><ol class="pa-rules">
     ${trendLine}
     <li>${ok(trendOn)}<div><b>Un des 3 déclencheurs, sur une bougie 4h fermée</b><ul>${triggers}</ul></div></li>
-    <li>${ok(true)}<div><b>De la place devant</b><span>Le signal est ignoré si un niveau important (plus haut ou plus bas récent, chiffre rond, zone de gros volume) est à moins de 2 × ${num(data.rules.roomAtr ?? 1.5)} ATR 4h du prix d'entrée.</span></div></li>
+    <li>${ok(null)}<div><b>De la place devant</b><span>Le signal est ignoré si un niveau important (plus haut ou plus bas récent, chiffre rond, zone de gros volume) est à moins de 2 × ${num(data.rules.roomAtr ?? 1.5)} ATR 4h du prix d'entrée.</span></div></li>
     <li>${ok(!liveOf(a.symbol))}<div><b>Un seul trade à la fois sur ${esc(a.symbol)}</b><span>${liveOf(a.symbol) ? 'Un trade est déjà en jeu : pas de nouveau signal avant sa sortie.' : 'Aucun trade en jeu : la paire est libre.'}</span></div></li>
   </ol><p class="txt muted">Environ deux signaux par mois sur les 4 paires : c'est rare exprès.</p></div>`;
 }
