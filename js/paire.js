@@ -2,6 +2,7 @@
 // qui le déclencheraient et les trades passés, règles expliquées avec les chiffres du moment, bilan de la paire.
 import { ago, esc, fmt, pct } from './format.js';
 import { drawCandles } from './candles.js';
+import { partnersBox } from './partners.js';
 import { macdOf } from './crypto-lib.js';
 import { star } from './watchlist.js';
 import { OUTCOME, TREND, cap, dirTag, lastTradeOf, liveOf, okxUrl, outcomeCls, parisDay, plainPct, px, radarBody, setupsData } from './setups.js';
@@ -77,6 +78,7 @@ function page(a, d) {
       </div>
       <div class="stack">
         ${statsBox(a)}
+        ${partnersBox()}
         <div class="box"><h2>Liens</h2><div class="links">
           <a class="buy" href="${okxUrl(a.symbol)}" target="_blank" rel="noopener">Ouvrir sur OKX</a>
           ${CRYPTO[a.symbol] ? `<a class="chip" href="#crypto/${CRYPTO[a.symbol]}">Fiche ${esc(a.name)} →</a>` : a.symbol === 'BZ' ? '<a class="chip" href="#indicateur/brent">Cours du Brent →</a>' : ''}

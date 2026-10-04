@@ -7,6 +7,7 @@ import { drawCandles } from './candles.js';
 import { BTC_EDGE, changeOver, coinSignals, deSym, fundingYear, groupCandles, keyLevels, LEVERS, liquidation, macdOf, mentions, perfVsBtc, pickGroup, priceText, ratioToBtc, rsiOf, smaOf } from './crypto-lib.js';
 import { tallyText } from './marche-lib.js';
 import { newsRows, newsWhere } from './news.js';
+import { partnersBox } from './partners.js';
 import { star } from './watchlist.js';
 
 const $ = id => document.getElementById(id);
@@ -119,6 +120,7 @@ function page({ d, ratio }) {
       </div>
       <div class="stack">
         <div class="box"><h2>Chiffres clés</h2><dl>${keyFigures(d, last)}</dl></div>
+        ${partnersBox()}
         ${newsBox(d)}
         ${aboutBox(d)}
         ${linksBox(d)}
