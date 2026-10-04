@@ -221,6 +221,7 @@ test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, t
   assert.equal(btc.funding.rate, 0.01);
   assert.ok(btc.funding.history.length > 30);
   assert.ok(btc.oi.length > 30 && btc.longShort.length > 30);
+  assert.deepEqual(btc.oi.at(-1), [Math.floor(Date.now() / 86_400_000), 8.4e9]); // jour en cours : valeur horaire
   assert.match(btc.about.text, /^Le Bitcoin est la première cryptomonnaie/);
   assert.deepEqual(btc.about.categories, ['Cryptocurrency', 'Layer 1 (L1)', 'Proof of Work (PoW)', 'Smart Contract Platform']);
   assert.equal(btc.about.links.explorer, 'https://explorer.bitcoin.org');

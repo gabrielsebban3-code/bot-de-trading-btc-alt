@@ -129,9 +129,13 @@ async function derivatives(sym, swapId) {
   sources.funding = f.ok ? 'ok' : 'erreur';
   if (f.ok) out.funding = f.value;
   const oi = await attempt(`${sym} open interest`, async () => {
-    const rows = await okx(`/rubik/stat/contracts/open-interest-volume?ccy=${sym}&period=1D`);
-    // La journée en cours arrive parfois à 0 : on l'ignore.
-    return toDaily(rows.map(r => [Number(r[0]), Number(r[1])]).filter(([, v]) => v > 0)).map(([d, v]) => [d, sig(v, 4)]);
+    // Les valeurs à 0 (journée en cours) sont ignorées. Les valeurs quotidiennes d'OKX ont jusqu'à 3 jours de retard :
+    // les jours suivants prennent la dernière valeur horaire de chaque jour.
+    const pts = rows => toDaily(rows.map(r => [Number(r[0]), Number(r[1])]).filter(([, v]) => v > 0));
+    const daily = pts(await okx(`/rubik/stat/contracts/open-interest-volume?ccy=${sym}&period=1D`));
+    const hourly = pts(await okx(`/rubik/stat/contracts/open-interest-volume?ccy=${sym}&period=1H`));
+    const last = daily.at(-1)?.[0] ?? -Infinity;
+    return [...daily, ...hourly.filter(([d]) => d > last)].map(([d, v]) => [d, sig(v, 4)]);
   });
   sources.oi = oi.ok ? 'ok' : 'erreur';
   if (oi.ok) out.oi = oi.value;

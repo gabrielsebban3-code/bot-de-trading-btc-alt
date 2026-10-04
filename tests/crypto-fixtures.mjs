@@ -99,6 +99,12 @@ export function routeCrypto(data, url) {
         if (inst !== 'XRP-USDT-SWAP') return undefined;
         return ok(Array.from({ length: 100 }, (_, k) => ({ fundingTime: String(Math.floor(Date.now() / (4 * 3_600_000)) * 4 * 3_600_000 - k * 4 * 3_600_000), realizedRate: '0.00005' }))
           .filter(f => !q('after') || Number(f.fundingTime) < Number(q('after'))));
+      // Open interest heure par heure sur les 3 derniers jours (les valeurs quotidiennes viennent de marche-fixtures.mjs).
+      case '/api/v5/rubik/stat/contracts/open-interest-volume': {
+        if (q('period') !== '1H') return undefined;
+        const now = Math.floor(Date.now() / 3_600_000) * 3_600_000;
+        return ok(Array.from({ length: 72 }, (_, k) => [String(now - k * 3_600_000), String(8.4e9 - k * 1e6), String(2e10)]));
+      }
       case '/api/v5/rubik/stat/contracts/long-short-account-ratio': {
         const r = rng(q('ccy').charCodeAt(0));
         return ok(Array.from({ length: 90 }, (_, k) => [String(Math.floor(Date.now() / DAY) * DAY - k * DAY), String(0.8 + r() * 0.9)]));

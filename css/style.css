@@ -429,10 +429,13 @@ footer b { color: var(--fg); }
 .key.l-ind { background: var(--fg2); } .key.l-macd { background: var(--s-ma50); } .key.l-signal { background: var(--s-ma200); } .key.l-btc { background: var(--accent); }
 /* Ligne des valeurs au-dessus du graphique : la bougie survolée, sinon la dernière */
 .cd-read { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; min-height: 40px; padding-bottom: 8px; font-size: 12px; color: var(--muted); }
-.cd-read .num { color: var(--fg); }
-.cd-read .cd-x { color: var(--fg2); font-weight: 500; }
+.cd-read .cd-x { display: inline-block; font: 500 12px var(--mono); color: var(--fg2); white-space: nowrap; }
 .cd-read.live .cd-x { color: var(--accent); }
-.cd-read .ohlc .num { margin-right: 4px; }
+.cd-v { display: inline-flex; align-items: baseline; white-space: nowrap; }
+.cd-v .key { align-self: center; }
+.cd-v.ohlc { flex-wrap: wrap; gap: 2px 10px; }
+.cd-read .num { display: inline-block; margin-left: 5px; color: var(--fg); }
+.cd-read .num.up { color: var(--up); } .cd-read .num.down { color: var(--down); }
 .cx-detail { margin-bottom: 16px; }
 .cx-detail .box > h2 .chip { font-weight: 500; }
 .box > p.cx-note { font-size: 12px; }

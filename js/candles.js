@@ -170,22 +170,41 @@ export function drawCandles(box, spec) {
   read.setAttribute('aria-live', 'polite');
   box.replaceChildren(read, svg);
 
+  // Chaque valeur de la ligne garde la largeur de la plus longue de la période (chiffres à chasse fixe) : la ligne
+  // ne bouge pas d'une bougie à l'autre, même quand elle tient sur plusieurs lignes (téléphone).
   const P = panes[0];
+  const pctText = v => `${v >= 0 ? '+' : ''}${(v * 100).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+  const step = Math.max(1, Math.floor(n / 150));
+  const widest = (vals, text) => {
+    const ok = vals.filter(v => v != null && Number.isFinite(v));
+    if (!ok.length) return 1;
+    let w = Math.max(text(Math.min(...ok)).length, text(Math.max(...ok)).length, text(ok.at(-1)).length);
+    for (let i = 0; i < ok.length; i += step) w = Math.max(w, text(ok[i]).length);
+    return w;
+  };
+  let wx = spec.label(n - 1).length;
+  for (let i = 0; i < n; i += step) wx = Math.max(wx, spec.label(i).length);
+  const changes = bars.map((b, i) => (i ? b[4] / bars[i - 1][4] - 1 : null));
+  const wPrice = widest(spec.line ? bars.map(b => b[4]) : bars.flatMap(b => [b[2], b[3]]), P.fmt);
+  const wPct = widest(changes, pctText);
+  for (const p of panes) {
+    if (p.kind === 'volume') p.w = widest(bars.map(b => b[5]), p.fmt);
+    for (const s of p.series) s.w = widest(s.vals, s.fmt || p.fmt);
+  }
+  const num = (text, w, cls = '') => `<span class="num${cls}" style="min-width:${w}ch">${esc(text)}</span>`;
   const fill = (i, live) => {
-    const b = bars[i], prev = bars[i - 1];
+    const b = bars[i];
     read.classList.toggle('live', live);
-    const parts = [`<b class="cd-x">${esc(spec.label(i))}</b>`];
-    const ch = prev ? b[4] / prev[4] - 1 : null;
-    const chTxt = ch == null ? '' : ` <span class="${ch >= 0 ? 'up' : 'down'}">${ch >= 0 ? '+' : ''}${(ch * 100).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %</span>`;
-    if (spec.line) parts.push(`<span class="cd-v">Clôture <span class="num">${esc(P.fmt(b[4]))}</span>${chTxt}</span>`);
-    else {
-      parts.push(`<span class="cd-v ohlc">${[['Ouv', 1], ['Haut', 2], ['Bas', 3], ['Clôt', 4]].map(([k, j]) => `${k} <span class="num">${esc(P.fmt(b[j]))}</span>`).join(' ')}${chTxt}</span>`);
-    }
+    const parts = [`<b class="cd-x" style="min-width:${wx}ch">${esc(spec.label(i))}</b>`];
+    const ch = changes[i];
+    const chTxt = num(ch == null ? '' : pctText(ch), wPct, ch == null ? '' : ch >= 0 ? ' up' : ' down');
+    if (spec.line) parts.push(`<span class="cd-v">Clôture ${num(P.fmt(b[4]), wPrice)}${chTxt}</span>`);
+    else parts.push(`<span class="cd-v ohlc">${[['Ouv', 1], ['Haut', 2], ['Bas', 3], ['Clôt', 4]].map(([k, j]) => `<span class="cd-v">${k} ${num(P.fmt(b[j]), wPrice)}${j === 4 ? chTxt : ''}</span>`).join('')}</span>`);
     for (const p of panes) {
-      if (p.kind === 'volume') parts.push(`<span class="cd-v">Vol <span class="num">${esc(p.fmt(b[5]))}</span></span>`);
+      if (p.kind === 'volume') parts.push(`<span class="cd-v">Vol ${num(p.fmt(b[5]), p.w)}</span>`);
       for (const s of p.series) {
         const v = s.vals[i];
-        parts.push(`<span class="cd-v"><i class="key ${esc(s.cls)}"></i>${esc(s.label)} <span class="num">${v == null ? '—' : esc((s.fmt || p.fmt)(v))}</span></span>`);
+        parts.push(`<span class="cd-v"><i class="key ${esc(s.cls)}"></i>${esc(s.label)} ${num(v == null ? '—' : (s.fmt || p.fmt)(v), s.w)}</span>`);
       }
     }
     read.innerHTML = parts.join('');
@@ -208,6 +227,10 @@ export function drawCandles(box, spec) {
       yRect.setAttribute('y', yy - 8.5);
       yText.setAttribute('y', yy + 3.5);
       yText.textContent = p.fmt(p.inv(yy));
+      // L'étiquette tient dans la marge de droite ; une valeur plus longue déborde un peu sur le graphique.
+      const yw = Math.max(R - 4, yText.getComputedTextLength() + 10);
+      yRect.setAttribute('x', W - 2 - yw); yRect.setAttribute('width', yw);
+      yText.setAttribute('x', W - 2 - yw + 5);
       across.setAttribute('visibility', 'inherit');
     } else across.setAttribute('visibility', 'hidden');
     fill(i, true);
@@ -220,8 +243,11 @@ export function drawCandles(box, spec) {
   };
   hit.addEventListener('pointermove', e => show(...at(e)));
   hit.addEventListener('pointerdown', e => show(...at(e)));
-  hit.addEventListener('pointerleave', hide);
-  hit.addEventListener('focus', () => show(cursor));
+  // Au doigt, la croix reste après avoir levé le doigt pour qu'on puisse lire les valeurs ; elle part si on fait défiler la page.
+  hit.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hide(); });
+  hit.addEventListener('pointercancel', hide);
+  // Au clavier (touche Tab), la croix part de la dernière bougie ; un clic ou un appui l'a déjà placée.
+  hit.addEventListener('focus', () => { if (cross.getAttribute('visibility') !== 'visible') show(cursor); });
   hit.addEventListener('blur', hide);
   hit.addEventListener('keydown', e => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
