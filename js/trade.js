@@ -95,7 +95,7 @@ function whyBox(s, a) {
   const trend = d ? `La journée du ${dayOf(d.t)} a clôturé à ${px(d.c)}, ${up ? 'au-dessus' : 'en dessous'} de la moyenne 50 jours (${px(d.e50)}), et la moyenne 20 jours (${px(d.e20)}) était ${up ? 'au-dessus' : 'en dessous'} de la 50. La tendance était donc <b>${up ? 'haussière' : 'baissière'}</b> : on ne cherchait que des ${up ? 'longs' : 'shorts'}.`
     : `La clôture et la moyenne 20 jours étaient ${up ? 'au-dessus' : 'en dessous'} de la moyenne 50 jours : tendance <b>${esc(s.trend || (up ? 'haussière' : 'baissière'))}</b>, on ne cherchait que des ${up ? 'longs' : 'shorts'}.`;
   const word = up ? 'au-dessus du plus haut' : 'sous le plus bas';
-  const gap = s.ref ? ` La clôture (${px(s.entry)}) dépasse ce niveau de ${plainPct(Math.abs(s.entry / s.ref - 1))}.` : '';
+  const gap = s.ref ? ` La clôture (${px(s.entry)}) dépasse ce niveau de ${fmt(Math.abs(s.entry / s.ref - 1) * 100, 1)} %.` : '';
   const trigger = {
     range20: `La bougie 4h a clôturé ${word} des 20 derniers jours${s.ref ? ` (${px(s.ref)})` : ''} : le prix sort ${up ? 'par le haut' : 'par le bas'} de sa zone du mois.${gap}`,
     range10: `La bougie 4h a clôturé ${word} des 60 dernières bougies 4h, soit 10 jours${s.ref ? ` (${px(s.ref)})` : ''} : ${up ? 'les acheteurs' : 'les vendeurs'} reprennent la main.${gap}`,
@@ -124,10 +124,10 @@ function planBox(s) {
   return `<div class="box"><h2>2. Le plan</h2><dl>
     ${row('Entrée', `${px(s.entry)} <small class="muted">clôture de la bougie 4h du signal</small>`)}
     ${row('Stop de départ', `${px(s.sl)} <small class="muted">${plainPct((s.sl - s.entry) / s.entry)} · ${num(data.rules.stopAtr)} × ATR jour (${px(atr)})</small>`, 'down')}
-    ${row('Risque', `${fmt(risk, 0)} % du capital si le stop est touché`)}
+    ${row('Risque', `${fmt(risk, 0)} % du capital si le stop est touché`, 'txt')}
     ${row('Taille de la position', `${fmt(size * 100, 0)} % du capital <small class="muted">${fmt(risk, 0)} % ÷ ${fmt(stopPct * 100, 1)} % d'écart au stop</small>`)}
     ${row(`Moitié à ${fmt(P, 0)}R`, `${px(tp)} <small class="muted">${plainPct((tp - s.entry) / s.entry)} · ${fmt(P, 0)} fois l'écart au stop</small>`, 'up')}
-    ${row('Reste', `gardé jusqu'à une clôture journalière ${up ? 'sous le plus bas' : 'au-dessus du plus haut'} des ${data.rules.exitDays ?? 7} derniers jours`)}
+    ${row('Reste', `gardé jusqu'à une clôture journalière ${up ? 'sous le plus bas' : 'au-dessus du plus haut'} des ${data.rules.exitDays ?? 7} derniers jours`, 'txt')}
   </dl><p class="txt muted">Exemple avec 1 000 $ : position de ${fmt(size * 1000, 0)} $ ; au stop, la perte est de ${fmt(risk * 10, 0)} $.</p></div>`;
 }
 
