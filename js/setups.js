@@ -97,7 +97,7 @@ export function radarBody(a) {
   const r = a.radar;
   const live = liveOf(a.symbol);
   if (live && delayed(live)) {
-    return `<span class="state"><span class="ptag">Premium</span> <b>Nouveau signal</b> sur ${esc(a.symbol)}</span>
+    return `<span class="state"><span class="ptag">Premium</span> <b>Nouveau signal</b> sur ${esc(a.name)}</span>
       <span class="sm">Il sera visible pour tout le monde dans ${hoursText(visibleIn(live))}. Avec Premium, tu le vois tout de suite.</span>`;
   }
   if (live) {

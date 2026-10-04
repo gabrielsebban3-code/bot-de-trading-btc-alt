@@ -55,7 +55,8 @@ export async function renderPaire(sym) {
 function page(a, d) {
   const data = setupsData();
   const r = a.radar;
-  const live = liveOf(a.symbol);
+  // Signal encore réservé à Premium : ni lien, ni niveaux du trade sur cette fiche.
+  const live = liveOf(a.symbol) && !delayed(liveOf(a.symbol)) ? liveOf(a.symbol) : null;
   const others = data.assets.filter(x => x.symbol !== a.symbol);
   return `
     <div class="ph"><h1>${esc(a.name)}</h1><span class="mono muted">${esc(a.symbol)}</span>
@@ -167,7 +168,7 @@ function statsBox(a) {
       ${row('Gain du capital', list.length ? cap(total) : '—', total > 0 ? 'up' : total < 0 ? 'down' : '')}
       ${row('Dernier trade', last ? `${esc(OUTCOME[last.outcome][0])} le ${parisDay(last.at)}` : '—', last ? outcomeCls(last) : '')}
     </dl>
-    <div class="members-only free-only"><p class="txt muted">12 mois de bilan avec <a href="#premium">Premium</a>.</p></div></div>`;
+    <p class="txt muted members-only free-only">Le bilan sur 12 mois est inclus dans <a href="#premium">Premium</a>.</p></div>`;
 }
 
 function tradesBox(a) {
