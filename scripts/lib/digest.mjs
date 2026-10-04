@@ -101,7 +101,7 @@ export function geoSummary(news, now = Date.now()) {
 }
 
 // Le message complet : trois blocs (« embeds ») dans un seul envoi.
-export function buildDigest({ setups, news, siteUrl = '', now = Date.now() }) {
+export function buildDigest({ setups, news, agenda = null, siteUrl = '', now = Date.now() }) {
   const site = siteUrl ? siteUrl.replace(/\/?$/, '/') : undefined;
   const open = (setups?.live || []).filter(s => s.status === 'confirmé' && s.outcome === 'open').sort((a, b) => b.time - a.time);
   const setupText = open.length
@@ -119,6 +119,7 @@ export function buildDigest({ setups, news, siteUrl = '', now = Date.now() }) {
       { title: `Résumé du ${date}`, url: site, color: ACCENT, fields: [
         { name: `Setups en cours (${open.length})`, value: clip(setupText, 1024) },
         { name: 'News du jour', value: clip(newsText, 1024) },
+        ...(agenda ? [{ name: 'Agenda du jour', value: agenda }] : []),
       ] },
       { title: 'Situation géopolitique', url: site ? `${site}#actu` : undefined, color: GEO, description: clip(geoSummary(news, now).text, 4000), footer: { text: NFA } },
     ],
