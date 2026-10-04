@@ -125,7 +125,7 @@ function rulesBox(a, d) {
     : `<li>Cassure 20 jours, cassure 10 jours ou MACD 4h, dans le sens de la tendance : rien à surveiller tant qu'elle est neutre.</li>`;
   return `<div class="box"><h2>Comment le signal se déclenche</h2><ol class="pa-rules">
     ${trendLine}
-    <li>${ok(trendOn)}<div><b>Un des 3 déclencheurs, sur une bougie 4h fermée</b><ul>${triggers}</ul></div></li>
+    <li>${ok(trendOn ? null : false)}<div><b>Un des 3 déclencheurs, sur une bougie 4h fermée</b><ul>${triggers}</ul></div></li>
     <li>${ok(null)}<div><b>De la place devant</b><span>Le signal est ignoré si un niveau important (plus haut ou plus bas récent, chiffre rond, zone de gros volume) est à moins de 2 × ${num(data.rules.roomAtr ?? 1.5)} ATR 4h du prix d'entrée.</span></div></li>
     <li>${ok(!liveOf(a.symbol))}<div><b>Un seul trade à la fois sur ${esc(a.symbol)}</b><span>${liveOf(a.symbol) ? 'Un trade est déjà en jeu : pas de nouveau signal avant sa sortie.' : 'Aucun trade en jeu : la paire est libre.'}</span></div></li>
   </ol><p class="txt muted">Environ deux signaux par mois sur les 4 paires : c'est rare exprès.</p></div>`;
@@ -217,7 +217,10 @@ function chart() {
     if (live.exitAt) levels.push({ v: live.exitAt, label: 'Sortie', cls: 'mute' });
   } else if (r?.levels && r.trend !== 'neutre') {
     const s = r.dir === 'long' ? 1 : -1;
-    for (const l of r.levels) if ((l.price - a.price) * s > 0) levels.push({ v: l.price, label: data.detectors[l.key], cls: 'acc' });
+    // Les deux cassures au même prix (même plus haut sur 10 et 20 jours) : une seule ligne.
+    const ahead = r.levels.filter(l => (l.price - a.price) * s > 0);
+    if (ahead.length === 2 && ahead[0].price === ahead[1].price) levels.push({ v: ahead[0].price, label: 'Cassure 20 et 10 jours', cls: 'acc' });
+    else for (const l of ahead) levels.push({ v: l.price, label: data.detectors[l.key], cls: 'acc' });
     if (r.trigger) levels.push({ v: r.trigger.stop, label: 'Stop prévu', cls: 'down' });
   }
   // Trades passés : flèche sur la bougie du signal (en journalier, la journée qui le contient).

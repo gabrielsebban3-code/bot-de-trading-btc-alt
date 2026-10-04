@@ -142,11 +142,12 @@ export function drawCandles(box, spec) {
     });
 
     // Niveaux du plan (déclenchement, stop, objectif) : ligne pointillée, nom et prix au-dessus, à gauche.
-    for (const lv of p.levels || []) {
-      const yy = y(lv.v);
-      if (yy < top - 2 || yy > bottom + 2) continue;
-      svg.append(el('line', { x1: L, x2: W - R, y1: yy, y2: yy, class: `lvl ${lv.cls || ''}` }),
-        el('text', { x: L + 4, y: yy - 4, class: `lvl-t ${lv.cls || ''}` }, `${lv.label} ${p.fmt(lv.v)}`));
+    // Niveaux proches : les noms sont écartés d'au moins 13 px pour rester lisibles.
+    const lvls = (p.levels || []).map(lv => ({ ...lv, yy: y(lv.v) })).filter(lv => lv.yy >= top - 2 && lv.yy <= bottom + 2).sort((a, b) => a.yy - b.yy);
+    lvls.forEach((lv, j) => { lv.ty = Math.max(top + 9, lv.yy - 4); if (j && lv.ty < lvls[j - 1].ty + 13) lv.ty = lvls[j - 1].ty + 13; });
+    for (const lv of lvls) {
+      svg.append(el('line', { x1: L, x2: W - R, y1: lv.yy, y2: lv.yy, class: `lvl ${lv.cls || ''}` }),
+        el('text', { x: L + 4, y: lv.ty, class: `lvl-t ${lv.cls || ''}` }, `${lv.label} ${p.fmt(lv.v)}`));
     }
     // Signaux passés : flèche sous la bougie (long) ou au-dessus (short).
     for (const m of p.marks || []) {
