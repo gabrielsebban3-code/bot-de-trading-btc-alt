@@ -15,9 +15,9 @@ export function flowNum(s) {
   return m[1] ? -Number(m[2]) : Number(m[2]);
 }
 
-// « 11 Jan 2024 » → nombre de jours depuis le 1er janvier 1970 (UTC).
+// « 11 Jan 2024 » → nombre de jours depuis le 1er janvier 1970 (UTC). « Sept » ou « June » marchent aussi.
 export function farsideDay(s) {
-  const m = String(s).match(/^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})$/);
+  const m = String(s).match(/^(\d{1,2}) ([A-Z][a-z]{2})[a-z]*\.? (\d{4})$/);
   if (!m || !(m[2] in MONTHS)) return null;
   return Date.UTC(Number(m[3]), MONTHS[m[2]], Number(m[1])) / DAY;
 }

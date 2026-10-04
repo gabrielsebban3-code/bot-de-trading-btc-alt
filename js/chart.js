@@ -33,8 +33,38 @@ function timeTicks(start, end, width) {
   return out;
 }
 
-// Dessine les panneaux dans `box`. Un panneau : { title, h, fmt, lines: [{ key, label, pts, cls, keyCls }], bars,
-// ref, lo, hi, ticks, bands, reverse }. Options : xLabel (date ou valeur affichée au survol), xTicks (graduations).
+// Graduations rondes (1, 2, 2,5 ou 5 × 10ⁿ), environ `target` dans [lo, hi].
+function niceTicks(lo, hi, target) {
+  const range = hi - lo;
+  if (!(range > 0)) return [lo];
+  const k0 = Math.floor(Math.log10(range));
+  let best = null;
+  for (let k = k0 - 2; k <= k0; k++) {
+    for (const m of [1, 2, 2.5, 5]) {
+      const step = m * 10 ** k;
+      const first = Math.ceil(lo / step - 1e-9);
+      const n = Math.floor(hi / step + 1e-9) - first + 1;
+      if (n < 2) continue;
+      const score = Math.abs(n - target);
+      if (!best || score < best.score || (score === best.score && n < best.n)) best = { score, n, step, first };
+    }
+  }
+  if (!best) return [lo + range * 0.1, (lo + hi) / 2, hi - range * 0.1];
+  return Array.from({ length: best.n }, (_, i) => Number(((best.first + i) * best.step).toPrecision(12)));
+}
+
+// Nombre de caractères du texte le plus long (sur un échantillon) : la ligne des valeurs garde la même largeur au survol.
+function widest(list, text) {
+  if (!list.length) return 1;
+  const step = Math.max(1, Math.floor(list.length / 150));
+  let w = text(list.at(-1)).length;
+  for (let i = 0; i < list.length; i += step) w = Math.max(w, text(list[i]).length);
+  return w;
+}
+
+// Dessine les panneaux dans `box`. Un panneau : { title, h, fmt, axis, lines: [{ key, label, pts, cls, keyCls }], bars,
+// ref, lo, hi, ticks, bands, reverse } ; `axis` (facultatif) écrit les valeurs de l'axe en plus court que `fmt`.
+// Options : xLabel (date ou valeur affichée au survol), xTicks (graduations).
 export function drawPanes(box, panes, start, end, opts = {}) {
   const W = box.clientWidth;
   if (!W) return;
@@ -61,10 +91,11 @@ export function drawPanes(box, panes, start, end, opts = {}) {
     Object.assign(p, { y, inv, top, bottom });
     if (p.title) svg.append(el('text', { x: L, y: y0 + 11, class: 'pt' }, p.title));
     for (const [a, b, cls] of p.bands || []) svg.append(el('rect', { x: L, width: W - L - R, y: y(b), height: y(a) - y(b), class: cls }));
-    const ticks = p.ticks || [lo + (hi - lo) * 0.1, (lo + hi) / 2, hi - (hi - lo) * 0.1];
+    const ticks = p.ticks || niceTicks(lo, hi, clamp(Math.round((bottom - top) / 50), 2, 5));
+    p.axis ||= p.fmt;
     for (const t of ticks) {
       svg.append(el('line', { x1: L, x2: W - R, y1: y(t), y2: y(t), class: 'grid' }));
-      svg.append(el('text', { x: W - R + 6, y: y(t) + 4, class: 'tick' }, p.fmt(t)));
+      svg.append(el('text', { x: W - R + 6, y: y(t) + 4, class: 'tick' }, p.axis(t)));
     }
     if (p.ref != null && !p.bars) svg.append(el('line', { x1: L, x2: W - R, y1: y(p.ref), y2: y(p.ref), class: 'zero' }));
     for (const l of p.reverse ? [...p.lines].reverse() : p.lines) {
@@ -97,8 +128,8 @@ export function drawPanes(box, panes, start, end, opts = {}) {
   const vline = el('line', { y1: TOP, y2: H - AX, class: 'cross' });
   const across = el('g', { visibility: 'hidden' });
   const hline = el('line', { x1: L, x2: W - R, class: 'cross' });
-  const yRect = el('rect', { x: W - R + 2, width: R - 4, height: 17, rx: 4, class: 'pill' });
-  const yText = el('text', { x: W - R + 7, class: 'pill-t' });
+  const yRect = el('rect', { height: 17, rx: 4, class: 'pill' });
+  const yText = el('text', { class: 'pill-t' });
   across.append(hline, yRect, yText);
   const xRect = el('rect', { y: H - AX + 2, height: 17, rx: 4, class: 'pill' });
   const xText = el('text', { y: H - AX + 14.5, class: 'pill-t mid' });
@@ -116,6 +147,13 @@ export function drawPanes(box, panes, start, end, opts = {}) {
 
   // Le curseur se cale sur les points de la première courbe (les jours sans cotation sont sautés).
   const base = panes.flatMap(p => p.lines).find(l => l.pts.length)?.pts || [];
+  const xw = widest(base, q => xLabel(q[0]));
+  for (const p of panes) {
+    for (const l of p.lines) {
+      const ys = l.pts.map(q => q[1]);
+      l.w = Math.max(widest(ys, p.fmt), ys.length ? Math.max(p.fmt(Math.min(...ys)).length, p.fmt(Math.max(...ys)).length) : 1);
+    }
+  }
   const near = raw => {
     if (!base.length) return { i: -1, d: clamp(Math.round(raw), start, end) };
     let a = 0, b = base.length - 1;
@@ -130,12 +168,12 @@ export function drawPanes(box, panes, start, end, opts = {}) {
   };
   const fill = (d, live) => {
     read.classList.toggle('live', live);
-    const parts = [`<b class="ch-x">${esc(xLabel(d))}</b>`];
+    const parts = [`<b class="ch-x" style="min-width:${xw}ch">${esc(xLabel(d))}</b>`];
     for (const p of panes) {
       for (const l of p.lines) {
         const v = valueAt(l.pts, d);
         const cls = p.bars && v != null ? (v >= 0 ? ' up' : ' down') : '';
-        parts.push(`<span class="ch-v">${p.bars ? '' : `<i class="key ${esc(l.keyCls ?? `k-${l.key}`)}"></i>`}${esc(l.label)} <span class="num${cls}">${v == null ? '—' : esc(p.fmt(v))}</span></span>`);
+        parts.push(`<span class="ch-v">${p.bars ? '' : `<i class="key ${esc(l.keyCls ?? `k-${l.key}`)}"></i>`}<span class="ch-l">${esc(l.label)}</span><span class="num${cls}" style="min-width:${l.w}ch">${v == null ? '—' : esc(p.fmt(v))}</span></span>`);
       }
     }
     read.innerHTML = parts.join('');
@@ -162,9 +200,11 @@ export function drawPanes(box, panes, start, end, opts = {}) {
     if (p) {
       const yy = clamp(py, p.top, p.bottom);
       hline.setAttribute('y1', yy); hline.setAttribute('y2', yy);
-      yRect.setAttribute('y', yy - 8.5);
-      yText.setAttribute('y', yy + 3.5);
-      yText.textContent = p.fmt(p.inv(yy));
+      yText.textContent = p.axis(p.inv(yy));
+      // L'étiquette tient dans la marge de droite ; une valeur plus longue déborde un peu sur le graphique.
+      const yw = Math.max(R - 4, yText.getComputedTextLength() + 10);
+      yRect.setAttribute('x', W - 2 - yw); yRect.setAttribute('width', yw); yRect.setAttribute('y', yy - 8.5);
+      yText.setAttribute('x', W - 2 - yw + 5); yText.setAttribute('y', yy + 3.5);
       across.setAttribute('visibility', 'inherit');
     } else across.setAttribute('visibility', 'hidden');
     fill(d, true);
@@ -177,8 +217,11 @@ export function drawPanes(box, panes, start, end, opts = {}) {
   };
   hit.addEventListener('pointermove', e => show(...at(e)));
   hit.addEventListener('pointerdown', e => show(...at(e)));
-  hit.addEventListener('pointerleave', hide);
-  hit.addEventListener('focus', () => { if (base.length) show(base[clamp(cursor, 0, base.length - 1)][0]); });
+  // Au doigt, la croix reste après avoir levé le doigt pour qu'on puisse lire les valeurs ; elle part si on fait défiler la page.
+  hit.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hide(); });
+  hit.addEventListener('pointercancel', hide);
+  // Au clavier (touche Tab), la croix part du dernier point ; un clic ou un appui l'a déjà placée.
+  hit.addEventListener('focus', () => { if (base.length && cross.getAttribute('visibility') !== 'visible') show(base[clamp(cursor, 0, base.length - 1)][0]); });
   hit.addEventListener('blur', hide);
   hit.addEventListener('keydown', e => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' || !base.length) return;

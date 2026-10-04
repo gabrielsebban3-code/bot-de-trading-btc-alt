@@ -112,10 +112,28 @@ async function main() {
   console.log(`Funding : ${out.funding.map(f => `${f.sym} ${f.okx?.toFixed(4)}/${f.hyperliquid?.toFixed(4) ?? '—'}`).join(', ')}`);
   console.log(`Long/short : BTC ${out.longShort.btc.length} jours (dernier ${out.longShort.btc.at(-1)?.[1]}), ETH ${out.longShort.eth.length}`);
   console.log(`Euro : ${JSON.stringify(out.eur)}`);
-  // Sur une branche de test, le fichier complet est recopié dans le journal (par morceaux) pour les aperçus.
+  // Sur une branche de test, une copie allégée part dans le journal pour les aperçus (bêta) : le total de chaque jour,
+  // le détail par ETF sur les 20 derniers jours seulement, avec des sommes de contrôle pour vérifier la recopie.
   if (process.env.PUBLISH === 'false') {
-    const txt = JSON.stringify(out);
-    const size = 6000;
+    const r = (v, d) => Math.round(v * 10 ** d) / 10 ** d;
+    const etfLite = e => e && { issuers: e.issuers, days: e.days.map((d, i) => (i >= e.days.length - 20 ? [d[0], r(d[1], 1), d[2].map(v => r(v, 1))] : [d[0], r(d[1], 1)])) };
+    const lite = {
+      generatedAt: out.generatedAt,
+      sources: out.sources,
+      etf: { btc: etfLite(out.etf.btc), eth: etfLite(out.etf.eth) },
+      funding: out.funding.map(f => ({ sym: f.sym, price: Number(f.price.toPrecision(6)), volume: Math.round(f.volume), okx: r(f.okx, 5), hyperliquid: f.hyperliquid == null ? null : r(f.hyperliquid, 5) })),
+      longShort: { btc: out.longShort.btc.map(([d, v]) => [d, r(v, 2)]), eth: out.longShort.eth.map(([d, v]) => [d, r(v, 2)]) },
+      eur: out.eur,
+    };
+    const sum = list => r(list.reduce((s, v) => s + v, 0), 2);
+    console.log(`OUTILS_CHECK ${JSON.stringify({
+      btc: lite.etf.btc && [lite.etf.btc.days.length, sum(lite.etf.btc.days.map(d => d[1]))],
+      eth: lite.etf.eth && [lite.etf.eth.days.length, sum(lite.etf.eth.days.map(d => d[1]))],
+      funding: [lite.funding.length, sum(lite.funding.map(f => f.okx))],
+      ls: [lite.longShort.btc.length, sum(lite.longShort.btc.map(d => d[1])), lite.longShort.eth.length, sum(lite.longShort.eth.map(d => d[1]))],
+    })}`);
+    const txt = JSON.stringify(lite);
+    const size = 4000;
     const n = Math.ceil(txt.length / size);
     for (let i = 0; i < n; i++) console.log(`OUTILS_JSON ${i + 1}/${n} ${txt.slice(i * size, (i + 1) * size)}`);
   }

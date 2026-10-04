@@ -84,11 +84,11 @@ async function getJson(path) {
 }
 
 async function load() {
-  const [projects, setups, news, market, marche] = await Promise.all(
-    ['projects', 'setups', 'news', 'market', 'marche'].map(name => getJson(`data/${name}.json`).catch(() => null)),
+  const [projects, setups, news, market, marche, outils] = await Promise.all(
+    ['projects', 'setups', 'news', 'market', 'marche', 'outils'].map(name => getJson(`data/${name}.json`).catch(() => null)),
   );
   showProjects(projects);
-  setOutilsData(marche);
+  setOutilsData(marche, outils);
   if (marche) initMarche(marche);
   else marcheUnavailable();
   marcheReady = true;

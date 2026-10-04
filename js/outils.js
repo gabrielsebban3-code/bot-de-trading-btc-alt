@@ -1,20 +1,23 @@
-// Onglet Outils : calculateurs de trading, tout est calculé dans le navigateur (calculs dans js/outils-lib.js).
-// Les champs communs (capital, risque, entrée, stop, frais…) sont partagés entre les outils et gardés sur l'appareil.
-import { esc, fmt, price } from './format.js';
-import { averageEntry, breakEven, compound, convert, dca, liquidation, num, pnl, positionSize, riskReward, streaks } from './outils-lib.js';
+// Onglet Outils : deux catégories. Simulateurs (calculs faits dans le navigateur, js/outils-lib.js) et
+// données du marché (flux ETF, funding, long / short, préparés chaque heure dans data/outils.json).
+// Les champs communs (capital, risque, prix…) passent d'un outil à l'autre et sont gardés sur l'appareil.
+import { ago, esc, fmt, price } from './format.js';
+import { drawPanes } from './chart.js';
+import { averageEntry, compound, convert, dca, dcaProjection, num, riskReward, streaks } from './outils-lib.js';
+import { annualFunding, flowSummary } from './outils-data.js';
 
 const $ = id => document.getElementById(id);
 const KEY = 'dinexo-outils';
 
-// Valeurs par défaut : compte de 10 000 $, 1 % de risque comme les Setups, frais taker OKX sur perpétuels.
-// Gagnants 32 % et gain moyen 5,8R : bilan du backtest des Setups (102 trades, +122 %).
+// Gagnants 32 % et gain moyen 5,8R : bilan du backtest des Setups (102 trades, +122 %), 1 % risqué par trade.
 const DEFAULTS = {
-  capital: '10000', risk: '1', entry: '60000', stop: '58500', target: '67500', exit: '64000', fee: '0.05',
-  winrate: '32', winR: '5.8', side: 'long', leverage: '5', mmr: '0.4', size: '20000', funding: '0.01', hours: '72',
-  asset: 'btc', amount: '100', every: '7', since: '730', spotFee: '0.1',
-  rate: '2', months: '36', monthly: '0', goal: '50000', trades: '30',
-  p1: '100000', a1: '1000', p2: '90000', a2: '1000', p3: '80000', a3: '1000', p4: '', a4: '', now: '85000', avgTarget: '87000',
+  capital: '10000', risk: '1', entry: '85000', stop: '83000', target: '95000', fee: '0.05',
+  winrate: '32', winR: '5.8', trades: '30',
+  asset: 'btc', dcaMode: 'past', amount: '100', every: '7', since: '730', years: '5', drift: '1', spotFee: '0.1',
+  rate: '2', months: '36', monthly: '0', goal: '50000',
+  buys: JSON.stringify([['100000', '1000'], ['90000', '1000'], ['80000', '1000']]), now: '85000', avgTarget: '87000',
   convAmount: '1', convFrom: 'BTC', convTo: 'EUR',
+  etfAsset: 'btc', etfPeriod: '90', lsAsset: 'btc',
 };
 
 const F = {
@@ -23,67 +26,87 @@ const F = {
   entry: { label: "Prix d'entrée", unit: '$', prices: true },
   stop: { label: 'Stop', unit: '$' },
   target: { label: 'Objectif', unit: '$' },
-  exit: { label: 'Prix de sortie', unit: '$' },
   fee: { label: 'Frais par côté', unit: '%', hint: 'OKX perpétuels : 0,05 % (taker), 0,02 % (maker)' },
   spotFee: { label: 'Frais par achat', unit: '%', hint: 'OKX comptant : 0,1 %' },
-  winrate: { label: 'Trades gagnants', unit: '%' },
-  winR: { label: 'Gain moyen d\'un gagnant', unit: 'R', hint: '1R = la somme risquée' },
-  side: { label: 'Sens', choice: [['long', 'Long'], ['short', 'Short']] },
-  leverage: { label: 'Levier', unit: '×' },
-  mmr: { label: 'Marge de maintenance', unit: '%', hint: 'OKX BTC : 0,4 % pour une petite position' },
-  size: { label: 'Valeur de la position', unit: '$', hint: 'quantité × prix, levier compris' },
-  funding: { label: 'Funding moyen', unit: '% / 8 h', hint: 'positif : les longs paient' },
-  hours: { label: 'Durée du trade', unit: 'heures' },
+  winrate: { label: 'Trades gagnants', unit: '%', hint: 'Setups : 32 % (2 trades sur 3 finissent au stop)' },
+  winR: { label: "Gain moyen d'un gagnant", unit: 'R', hint: '1R = la somme risquée. Setups : 5,8R' },
+  trades: { label: 'Nombre de trades', unit: 'trades', hint: 'Setups : environ 30 par an' },
   asset: { label: 'Actif', choice: [['btc', 'BTC'], ['eth', 'ETH'], ['sol', 'SOL']] },
+  dcaMode: { label: 'Mode', choice: [['past', 'Rejouer le passé'], ['future', "Projeter l'avenir"]] },
   amount: { label: 'Montant de chaque achat', unit: '$' },
   every: { label: 'Fréquence', choice: [['1', 'Jour'], ['7', 'Semaine'], ['14', '2 semaines'], ['30', 'Mois']] },
   since: { label: 'Depuis', choice: [['182', '6 mois'], ['365', '1 an'], ['730', '2 ans'], ['1095', '3 ans'], ['1460', '4 ans']] },
+  years: { label: 'Pendant', choice: [['1', '1 an'], ['3', '3 ans'], ['5', '5 ans'], ['10', '10 ans'], ['20', '20 ans']] },
+  drift: { label: 'Hypothèse', choice: [['1', 'Comme le passé'], ['0.5', 'Moitié moins de hausse'], ['0', 'Aucune hausse']] },
   rate: { label: 'Gain moyen par mois', unit: '%', hint: 'Setups en backtest : environ +1,9 % par mois' },
   months: { label: 'Durée', unit: 'mois' },
   monthly: { label: 'Ajout chaque mois', unit: '$' },
   goal: { label: 'Objectif de capital', unit: '$', optional: true },
-  trades: { label: 'Nombre de trades', unit: 'trades', hint: 'Setups : environ 30 par an' },
-  ...Object.fromEntries([1, 2, 3, 4].flatMap(i => [
-    [`p${i}`, { label: `Achat ${i} : prix`, unit: '$', optional: i > 1 }],
-    [`a${i}`, { label: `Achat ${i} : montant`, unit: '$', optional: i > 1 }],
-  ])),
+  buys: { label: 'Tes achats', buys: true },
   now: { label: 'Prix actuel', unit: '$', prices: true },
   avgTarget: { label: 'Prix moyen visé', unit: '$', optional: true, hint: 'combien racheter maintenant pour y arriver' },
   convAmount: { label: 'Montant', unit: '' },
   convFrom: { label: 'De', choice: [['BTC', 'BTC'], ['ETH', 'ETH'], ['SOL', 'SOL'], ['USD', '$'], ['EUR', '€']] },
   convTo: { label: 'Vers', choice: [['BTC', 'BTC'], ['ETH', 'ETH'], ['SOL', 'SOL'], ['USD', '$'], ['EUR', '€']] },
+  etfAsset: { label: 'ETF', choice: [['btc', 'Bitcoin'], ['eth', 'Ether']] },
+  etfPeriod: { label: 'Période', choice: [['30', '1 mois'], ['90', '3 mois'], ['365', '1 an'], ['all', 'Tout']] },
+  lsAsset: { label: 'Actif', choice: [['btc', 'BTC'], ['eth', 'ETH']] },
 };
 
+const CATS = [['sim', 'Simulateurs'], ['data', 'Données du marché']];
 const TOOLS = [
-  { id: 'position', name: 'Taille de position', fields: ['capital', 'risk', 'entry', 'stop', 'fee'],
-    intro: "Combien acheter (ou vendre à découvert) pour ne perdre que ton risque si le stop est touché, frais compris. Le sens se déduit du stop : sous l'entrée = long, au-dessus = short.", calc: position },
-  { id: 'rr', name: 'Risque / rendement', fields: ['entry', 'stop', 'target', 'fee', 'winrate', 'risk'],
-    intro: "Ce que rapporte l'objectif par rapport à ce que coûte le stop, et le pourcentage de trades gagnants qu'il faut pour ne pas perdre d'argent sur la durée.", calc: rr },
-  { id: 'liquidation', name: 'Prix de liquidation', fields: ['side', 'entry', 'leverage', 'stop', 'mmr'],
-    intro: "Où la plateforme ferme ta position de force en marge isolée, et le levier maximum pour que ton stop passe avant. Calcul de la formule OKX, frais de clôture ignorés : la vraie liquidation arrive un peu plus tôt.", calc: liq },
-  { id: 'pnl', name: 'PnL d\'un trade', fields: ['side', 'entry', 'exit', 'size', 'leverage', 'fee', 'funding', 'hours', 'capital'],
-    intro: 'Le résultat réel d\'un trade une fois les frais d\'entrée, de sortie et le funding payés, en dollars, en % de la marge et en % du compte.', calc: pnlTool },
-  { id: 'breakeven', name: 'Seuil de rentabilité', fields: ['side', 'entry', 'fee', 'funding', 'hours'],
-    intro: 'Le prix à atteindre pour sortir à zéro une fois les frais et le funding payés. Utile avant de remonter un stop au prix d\'entrée.', calc: be },
-  { id: 'dca', name: 'Simulateur DCA', fields: ['asset', 'amount', 'every', 'since', 'spotFee'],
-    intro: "Acheter la même somme à intervalle régulier, rejoué sur les vrais prix de clôture d'OKX, comparé à tout acheter d'un coup le premier jour.", calc: dcaTool },
-  { id: 'compose', name: 'Intérêts composés', fields: ['capital', 'rate', 'months', 'monthly', 'goal'],
-    intro: 'Ce que devient le compte si les gains restent investis chaque mois, et quand un objectif serait atteint.', calc: compose },
-  { id: 'series', name: 'Séries de pertes', fields: ['winrate', 'winR', 'risk', 'trades'],
-    intro: "2 000 parcours tirés au hasard avec ces chiffres : la plus longue série de pertes et le plus gros creux du compte auxquels s'attendre. Préréglé sur les Setups : 2 trades sur 3 finissent au stop, c'est normal.", calc: series },
-  { id: 'moyen', name: "Prix moyen d'entrée", fields: ['p1', 'a1', 'p2', 'a2', 'p3', 'a3', 'p4', 'a4', 'now', 'avgTarget', 'spotFee'],
-    intro: "Ton prix moyen après plusieurs achats du même actif, ce que vaut la position au prix actuel, et combien racheter maintenant pour faire baisser (ou monter) ce prix moyen.", calc: moyen },
-  { id: 'convertir', name: 'Convertisseur', fields: ['convAmount', 'convFrom', 'convTo'],
-    intro: "BTC, ETH, SOL, dollars et euros entre eux, au dernier prix connu. Prix OKX en direct, euro au taux de la BCE.", calc: convertir },
+  { id: 'dca', cat: 'sim', name: 'Simulateur DCA', calc: dcaTool,
+    fields: () => (state.v.dcaMode === 'future' ? ['asset', 'dcaMode', 'amount', 'every', 'years', 'drift', 'spotFee'] : ['asset', 'dcaMode', 'amount', 'every', 'since', 'spotFee']),
+    intro: () => (state.v.dcaMode === 'future'
+      ? "Et si tu achetais la même somme régulièrement pendant des années ? Le simulateur reprend les vraies variations des 4 dernières années par tranches d'un mois, les remet dans un ordre au hasard et joue 1 000 avenirs possibles."
+      : "Acheter la même somme à intervalle régulier, rejoué sur les vrais prix de clôture d'OKX, comparé à tout acheter d'un coup le premier jour.") },
+  { id: 'compose', cat: 'sim', name: 'Intérêts composés', calc: compose, fields: () => ['capital', 'rate', 'months', 'monthly', 'goal'],
+    intro: () => 'Ce que devient le compte si les gains restent investis chaque mois, et quand un objectif serait atteint.' },
+  { id: 'series', cat: 'sim', name: 'Séries de pertes', calc: series, fields: () => ['winrate', 'winR', 'risk', 'trades'],
+    intro: () => "Avec une stratégie qui gagne 1 trade sur 3, il y aura forcément des périodes où rien ne marche. Cet outil te dit à l'avance combien de pertes d'affilée et quelle baisse du compte sont normales, pour ne pas paniquer et changer de méthode au mauvais moment.",
+    how: [
+      'Le simulateur joue 2 000 fois ta série de trades en tirant chaque trade au hasard : gagné 32 fois sur 100, perdu sinon.',
+      'Un trade perdu coûte ton risque (1 % du compte). Un trade gagné rapporte le gain moyen (5,8 fois le risque).',
+      'Sur ces 2 000 parcours, il regarde la plus longue série de pertes et la plus grosse baisse du compte depuis son plus haut.',
+      '« Pire cas normal » : seulement 1 parcours sur 20 fait pire. C\'est le chiffre à garder en tête pour ne pas lâcher la stratégie trop tôt.',
+    ] },
+  { id: 'moyen', cat: 'sim', name: "Prix moyen d'entrée", calc: moyen, fields: () => ['buys', 'now', 'avgTarget', 'spotFee'],
+    intro: () => "Ton prix moyen après plusieurs achats du même actif, ce que vaut la position au prix actuel, et combien racheter maintenant pour faire baisser (ou monter) ce prix moyen." },
+  { id: 'rr', cat: 'sim', name: 'Risque / rendement', calc: rr, fields: () => ['entry', 'stop', 'target', 'fee', 'winrate', 'risk'],
+    intro: () => "Ce que rapporte l'objectif par rapport à ce que coûte le stop, et le pourcentage de trades gagnants qu'il faut pour ne pas perdre d'argent sur la durée." },
+  { id: 'convertir', cat: 'sim', name: 'Convertisseur', calc: convertir, fields: () => ['convAmount', 'convFrom', 'convTo'],
+    intro: () => "BTC, ETH, SOL, dollars et euros entre eux, au dernier prix connu : OKX pour les cryptos, Banque centrale européenne pour l'euro." },
+  { id: 'etf', cat: 'data', name: 'Flux des ETF', calc: etfTool, fields: () => ['etfAsset', 'etfPeriod'],
+    intro: () => "L'argent qui entre ou sort chaque jour des ETF bitcoin et ether au comptant cotés aux États-Unis (BlackRock, Fidelity…). Des entrées fortes plusieurs jours de suite montrent que les gros investisseurs achètent.",
+    how: [
+      "Barre verte : plus d'argent est entré que sorti ce jour-là. Barre rouge : l'inverse.",
+      'Une seule journée ne veut pas dire grand-chose : regarde plutôt les sommes sur 5 et 20 jours, et les séries.',
+      'Les chiffres arrivent après la clôture de la bourse américaine : ceux du jour sont là le lendemain matin, heure de Paris.',
+    ] },
+  { id: 'funding', cat: 'data', name: 'Funding des perpétuels', calc: fundingTool, fields: () => [],
+    intro: () => "Le funding, c'est ce que les acheteurs et les vendeurs de contrats perpétuels se versent toutes les 8 heures pour garder le prix collé au comptant. Il montre de quel côté penchent les traders à levier.",
+    how: [
+      'Positif : les longs paient les shorts, beaucoup de traders parient sur la hausse.',
+      'Négatif : les shorts paient les longs, beaucoup parient sur la baisse.',
+      "Normal : autour de +0,01 % par 8 h. Au-delà de +0,05 %, le marché est très chargé en longs et une baisse peut les liquider en chaîne. Très négatif : même risque dans l'autre sens (squeeze).",
+    ] },
+  { id: 'longshort', cat: 'data', name: 'Long / short', calc: longShortTool, fields: () => ['lsAsset'],
+    intro: () => 'Le nombre de comptes en position longue pour un compte en short sur les contrats OKX. Les petits traders ont souvent tort aux extrêmes : un ratio très haut est plutôt un signal de prudence.',
+    how: [
+      'Ratio 2 : deux comptes long pour un short. Ratio 1 : autant des deux côtés.',
+      "Le ratio compte des comptes, pas des montants : un gros trader pèse autant qu'un petit.",
+      "À lire avec la tendance (onglet Marché) : il sert surtout à repérer un excès d'optimisme ou de pessimisme.",
+    ] },
 ];
 
-const state = { tool: 'position', v: { ...DEFAULTS }, data: null };
+const state = { tool: 'dca', v: { ...DEFAULTS }, marche: null, outils: null };
 try {
   const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
   if (TOOLS.some(t => t.id === saved.tool)) state.tool = saved.tool;
-  for (const [k, v] of Object.entries(saved.v || {})) if ((k in DEFAULTS || k === 'entryAsset') && typeof v === 'string') state.v[k] = v;
+  for (const [k, v] of Object.entries(saved.v || {})) if (k in DEFAULTS && typeof v === 'string') state.v[k] = v;
 } catch { /* stockage indisponible */ }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ tool: state.tool, v: state.v })); } catch { /* stockage indisponible */ } };
+const tool = () => TOOLS.find(x => x.id === state.tool);
 
 // Mise en forme
 const usd = n => (n == null || !Number.isFinite(n) ? '—' : `${n < 0 ? '−' : ''}${fmt(Math.abs(n), Math.abs(n) >= 1000 ? 0 : 2)} $`);
@@ -91,12 +114,22 @@ const signed = n => `<span class="${n >= 0 ? 'up' : 'down'}">${n >= 0 ? '+' : '�
 const pc = (n, d = 2) => (n == null || !Number.isFinite(n) ? '—' : `${fmt(n, d)} %`);
 const spc = (n, d = 2) => `<span class="${n >= 0 ? 'up' : 'down'}">${n >= 0 ? '+' : '−'}${fmt(Math.abs(n), d)} %</span>`;
 const qty = n => fmt(n, n >= 1000 ? 0 : n >= 10 ? 2 : n >= 1 ? 4 : 6);
-const px = n => (n >= 1 ? fmt(n, n >= 1000 ? 0 : n >= 100 ? 2 : 4) : price(n));
-const lev = n => (Number.isFinite(n) ? `${fmt(n, n >= 10 ? 0 : 1)}×` : 'illimité');
+const px = price;
+const plain = n => n.toLocaleString('fr-FR', { maximumFractionDigits: 8 }); // montant tapé, sans zéros ajoutés
+// Axe des graphiques en dollars : les millions en plus court.
+const usdAxis = n => {
+  const a = Math.abs(n);
+  return `${n < 0 ? '−' : ''}${a >= 1e6 ? `${fmt(a / 1e6, a >= 1e7 ? 1 : 2)} M$` : `${fmt(a, a >= 10 || a === 0 ? 0 : 2)} $`}`;
+};
+const mus = n => `${n < 0 ? '−' : '+'}${fmt(Math.abs(n), Math.abs(n) >= 100 ? 0 : 1)} M$`; // millions de dollars signés
+const smus = n => `<span class="${n >= 0 ? 'up' : 'down'}">${mus(n)}</span>`;
+const day = n => new Date(n * 86_400_000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const dur = m => (m < 12 ? `${m} mois` : `${fmt(Math.floor(m / 12))} an${m >= 24 ? 's' : ''}${m % 12 ? ` et ${m % 12} mois` : ''}`);
 const rows = list => `<dl>${list.filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
 const hero = (k, v, sub = '') => `<div class="t-hero"><span class="k">${k}</span><b class="num">${v}</b>${sub ? `<span class="s">${sub}</span>` : ''}</div>`;
 const note = (txt, cls = '') => `<p class="t-note ${cls}">${txt}</p>`;
 const missing = () => '<div class="empty">Remplis les champs avec des nombres pour voir le résultat.</div>';
+const noData = () => '<div class="empty">Ces données ne sont pas encore disponibles : elles sont mises à jour automatiquement toutes les heures.</div>';
 
 function vals(keys) {
   const o = {};
@@ -104,36 +137,142 @@ function vals(keys) {
   return o;
 }
 
-// 1. Taille de position
-function position() {
-  const v = vals(['capital', 'risk', 'entry', 'stop', 'fee']);
-  const r = positionSize({ capital: v.capital, riskPct: v.risk, entry: v.entry, stop: v.stop, feePct: v.fee ?? 0 });
+// Simulateur DCA : rejouer le passé ou projeter l'avenir
+function dcaTool() {
+  const s = state.marche?.series?.[state.v.asset];
+  if (!s?.points?.length) return '<div class="empty">Les prix historiques ne sont pas encore chargés. Ils viennent de la mise à jour automatique du site.</div>';
+  const sym = state.v.asset.toUpperCase();
+  const v = vals(['amount', 'spotFee']);
+  const every = Number(state.v.every);
+  if (state.v.dcaMode === 'future') {
+    const years = Number(state.v.years);
+    const drift = Number(state.v.drift);
+    const r = dcaProjection(s.points, { amount: v.amount, every, years, drift, feePct: v.spotFee ?? 0 });
+    if (!r) return missing();
+    const gain = x => spc((x / r.invested - 1) * 100, 0);
+    return [
+      hero(`Dans ${years} an${years > 1 ? 's' : ''}, scénario du milieu`, usd(r.final.p50), `pour ${usd(r.invested)} investis en ${r.buys} achats de ${usd(v.amount)}`),
+      rows([
+        ['Scénario pessimiste (1 fois sur 10 en dessous)', `${usd(r.final.p10)} · ${gain(r.final.p10)}`],
+        ['Scénario du milieu', `${usd(r.final.p50)} · ${gain(r.final.p50)}`],
+        ['Scénario optimiste (1 fois sur 10 au-dessus)', `${usd(r.final.p90)} · ${gain(r.final.p90)}`],
+        ['Chance de finir sous la somme investie', pc(r.lossOdds, 0)],
+        [`Hausse moyenne de ${sym} supposée`, `${spc(r.usedCagr, 0)} par an`],
+      ]),
+      chart([
+        { name: 'Milieu', cls: 'c-main', pts: r.checkpoints.map(c => [c[0], c[3]]) },
+        { name: 'Optimiste', cls: 'c-high', pts: r.checkpoints.map(c => [c[0], c[4]]) },
+        { name: 'Pessimiste', cls: 'c-low', pts: r.checkpoints.map(c => [c[0], c[2]]) },
+        { name: 'Argent investi', cls: 'c-paid', pts: r.checkpoints.map(c => [c[0], c[1]]) },
+      ], { title: 'Valeur du portefeuille', y: usd, axis: usdAxis, x: m => `après ${dur(m)}`, ticks: yearTicks }),
+      note(drift === 1
+        ? `Base : les ${fmt(r.histYears, 1)} dernières années de ${sym} sur OKX, où il a pris ${spc(r.histCagr, 0)} par an en moyenne. C'est une période très haussière : rien ne garantit que ${sym} refasse aussi bien sur ${years} ans. Compare avec « Moitié moins de hausse » et « Aucune hausse ».`
+        : `Mêmes secousses que les ${fmt(r.histYears, 1)} dernières années, avec ${drift ? 'moitié moins de' : 'aucune'} hausse de fond. Ce n'est pas une prévision : c'est une fourchette de ce qui peut arriver.`, 'warn-inline'),
+    ].join('');
+  }
+  const last = s.points.at(-1)[0];
+  const startDay = Math.max(s.points[0][0], last - Number(state.v.since));
+  const r = dca(s.points, { amount: v.amount, every, startDay, feePct: v.spotFee ?? 0 });
   if (!r) return missing();
-  const asset = state.v.entryAsset ? state.v.entryAsset.toUpperCase() : 'unités';
+  const better = r.value >= r.lump.value;
   return [
-    hero(r.side === 'long' ? 'Acheter (long)' : 'Vendre à découvert (short)', `${qty(r.qty)} ${esc(asset)}`, `soit ${usd(r.notional)} de position`),
+    hero("Valeur aujourd'hui", usd(r.value), `${spc(r.returnPct, 1)} pour ${usd(r.invested)} investis en ${r.buys} achats`),
     rows([
-      ['Perte si le stop est touché', `<span class="down">−${usd(r.risk)}</span> · ${pc(v.risk)} du compte`],
-      ['Distance du stop', pc(r.stopPct)],
-      ['dont frais (entrée + sortie)', usd(r.fees)],
-      ['Levier minimum', r.leverage > 1 ? lev(r.leverage) : 'aucun (1× suffit)'],
-      ['Marge à 5× de levier', usd(r.notional / 5)],
+      ['Prix moyen payé', `${px(r.avgPrice)} $ · ${sym} vaut ${px(r.lastPrice)} $`],
+      ['Quantité accumulée', `${qty(r.units)} ${sym}`],
+      ['Tout acheter le premier jour', `${usd(r.lump.value)} · ${spc(r.lump.returnPct, 1)} (à ${px(r.lump.price)} $)`],
+      ['Pire moment', r.worst.day != null ? `${spc(r.worst.pct, 1)} le ${day(r.worst.day)}` : 'jamais en perte'],
     ]),
-    r.leverage > 1
-      ? note(`La position vaut ${fmt(r.leverage, 1)} fois ton compte : il faut un levier d'au moins ${lev(Math.ceil(r.leverage * 10) / 10)}. Vérifie le <a href="#outils/liquidation">prix de liquidation</a> : il doit rester au-delà du stop.`, 'warn-inline')
-      : note('Le levier ne change pas ta perte au stop : il réduit seulement la marge bloquée. C\'est la taille de position qui fixe le risque.'),
+    chart([
+      { name: 'DCA', cls: 'c-main', pts: r.series.map(x => [x[0], x[2]]) },
+      { name: 'Achat unique', cls: 'c-alt', pts: r.series.map(x => [x[0], x[3]]) },
+      { name: 'Argent investi', cls: 'c-paid', pts: r.series.map(x => [x[0], x[1]]) },
+    ], { title: 'Valeur du portefeuille', y: usd, axis: usdAxis, x: day, dates: true }),
+    note(better
+      ? "Sur cette période, le DCA a fait mieux qu'un achat unique : les achats réguliers ont profité des baisses."
+      : "Sur cette période, tout acheter le premier jour a fait mieux : le prix a surtout monté. Le DCA sert à lisser le risque d'acheter au mauvais moment, pas à gagner plus."),
   ].join('');
 }
 
-// 2. Risque / rendement
+// Intérêts composés
+function compose() {
+  const v = vals(['capital', 'rate', 'months', 'monthly', 'goal']);
+  const r = compound({ capital: v.capital ?? 0, ratePct: v.rate, months: Math.round(v.months ?? 0), monthly: v.monthly ?? 0, target: v.goal });
+  if (!r) return missing();
+  return [
+    hero(`Capital après ${dur(Math.round(v.months))}`, usd(r.final), r.multiple ? `×${fmt(r.multiple, 2)} le capital de départ` : ''),
+    rows([
+      ['Argent versé', usd(r.paid)],
+      ['Gains', signed(r.gains)],
+      ['Gain sur un an à ce rythme', spc(((1 + v.rate / 100) ** 12 - 1) * 100, 1)],
+      v.goal > 0 && [`Objectif de ${usd(v.goal)}`, r.reach == null ? 'pas atteint en 100 ans' : r.reach === 0 ? 'déjà atteint' : `atteint après ${dur(r.reach)}`],
+    ]),
+    chart([
+      { name: 'Capital', cls: 'c-main', pts: r.series.map(x => [x[0], x[2]]) },
+      { name: 'Argent versé', cls: 'c-paid', pts: r.series.map(x => [x[0], x[1]]) },
+    ], { title: 'Capital du compte', y: usd, axis: usdAxis, x: m => `après ${dur(m)}`, tick: m => `${m} mois` }),
+    note("Un rythme régulier chaque mois n'existe pas en trading : certains mois perdent. C'est un ordre de grandeur, pas une promesse."),
+  ].join('');
+}
+
+// Séries de pertes
+function series() {
+  const v = vals(['winrate', 'winR', 'risk', 'trades']);
+  const r = streaks({ winRatePct: v.winrate, winR: v.winR, riskPct: v.risk, trades: Math.round(v.trades ?? 0) });
+  if (!r) return missing();
+  const n = Math.round(v.trades);
+  const signedPct = y => `${y >= 0 ? '+' : '−'}${fmt(Math.abs(y), 1)} %`;
+  return [
+    hero(`Sur ${n} trades, prépare-toi à`, `${r.losingStreak.p95} pertes d'affilée`, `C'est le pire cas normal : 1 parcours sur 20 fait pire. Dans un parcours moyen, ${r.losingStreak.median} d'affilée.`),
+    rows([
+      ['Baisse du compte à encaisser', `−${pc(r.drawdown.p95, 1)} au pire cas normal · −${pc(r.drawdown.median, 1)} en moyenne`],
+      [`Résultat après ${n} trades`, `${spc(r.final.median, 1)} en moyenne`],
+      ['Fourchette (9 parcours sur 10)', `de ${spc(r.final.p5, 1)} à ${spc(r.final.p95, 1)}`],
+      ['Chance de finir en perte', pc(r.lossOdds, 0)],
+      ['Gain moyen par trade', `${r.expectancyR >= 0 ? '+' : '−'}${fmt(Math.abs(r.expectancyR), 2)} fois le risque`],
+    ]),
+    chart([
+      { name: 'Parcours moyen', cls: 'c-main', pts: r.curves.median.map((y, i) => [i, y]) },
+      { name: 'Chanceux', cls: 'c-high', pts: r.curves.p95.map((y, i) => [i, y]) },
+      { name: 'Malchanceux', cls: 'c-low', pts: r.curves.p5.map((y, i) => [i, y]) },
+    ], { title: 'Gain ou perte du compte', y: signedPct, x: i => `après ${i} trade${i > 1 ? 's' : ''}`, tick: i => `trade ${i}`, ref: 0 }),
+    note(`Chanceux et malchanceux : 1 parcours sur 20 fait mieux ou pire. En clair : si tu enchaînes ${r.losingStreak.p95} pertes, la stratégie n'est pas cassée, c'est prévu. Le danger, c'est d'augmenter le risque pour se refaire, ou d'arrêter juste avant les gros gagnants qui paient tout.`),
+  ].join('');
+}
+
+// Prix moyen d'entrée : autant d'achats que tu veux
+function buysList() {
+  try {
+    const a = JSON.parse(state.v.buys);
+    if (Array.isArray(a) && a.length) return a.map(b => [String(b?.[0] ?? ''), String(b?.[1] ?? '')]).slice(0, 50);
+  } catch { /* liste abîmée : on repart des valeurs de départ */ }
+  return JSON.parse(DEFAULTS.buys);
+}
+function moyen() {
+  const v = vals(['now', 'avgTarget', 'spotFee']);
+  const buys = buysList().map(([p, a]) => ({ price: num(p), amount: num(a) }));
+  const r = averageEntry(buys, { current: v.now, target: v.avgTarget, feePct: v.spotFee ?? 0 });
+  if (!r) return missing();
+  const out = [hero("Prix moyen d'entrée", `${px(r.avg)} $`, `${r.count} achat${r.count > 1 ? 's' : ''} · ${usd(r.invested)} investis · frais compris`)];
+  if (r.value != null) {
+    out.push(rows([
+      ['Valeur au prix actuel', `${usd(r.value)} · ${signed(r.pnl)} (${spc(r.pnlPct, 1)})`],
+      ['Quantité', qty(r.units)],
+      ['Hausse nécessaire pour revenir à zéro', r.toBreakEvenPct > 0 ? spc(r.toBreakEvenPct, 1) : 'déjà en gain'],
+      v.avgTarget > 0 && [`Pour un prix moyen à ${px(v.avgTarget)} $`, r.toTarget != null ? `acheter ${usd(r.toTarget)} maintenant` : 'impossible : le prix visé doit être entre le prix actuel et ton prix moyen'],
+    ]));
+    if (r.toTarget != null && r.toTarget > r.invested) out.push(note('Pour y arriver, il faut remettre plus que tout ce que tu as déjà investi. Moyenner à la baisse grossit la position sur un actif qui baisse : à faire avec un plan, pas pour se refaire.', 'warn-inline'));
+  }
+  return out.join('');
+}
+
+// Risque / rendement
 function rr() {
   const v = vals(['entry', 'stop', 'target', 'fee', 'winrate', 'risk']);
   const r = riskReward({ entry: v.entry, stop: v.stop, target: v.target, feePct: v.fee ?? 0, winRatePct: v.winrate });
   if (!r) return missing();
   const wrong = r.rawRR <= 0;
-  const out = [
-    hero(`Ratio R:R (${r.side === 'long' ? 'long' : 'short'}, frais compris)`, wrong ? '—' : `1 : ${fmt(r.rr, 2)}`, wrong ? '' : `brut 1 : ${fmt(r.rawRR, 2)}`),
-  ];
+  const out = [hero(`Ratio R:R (${r.side}, frais compris)`, wrong ? '—' : `1 : ${fmt(r.rr, 2)}`, wrong ? '' : `brut 1 : ${fmt(r.rawRR, 2)}`)];
   if (wrong) return out.concat(note("L'objectif est du mauvais côté de l'entrée par rapport au stop.", 'warn-inline')).join('');
   out.push(rows([
     ['Objectif', `${spc(r.targetPct)} du prix`],
@@ -150,239 +289,140 @@ function rr() {
   return out.join('');
 }
 
-// 3. Prix de liquidation
-function liq() {
-  const v = vals(['side', 'entry', 'leverage', 'stop', 'mmr']);
-  const r = liquidation({ side: v.side, entry: v.entry, leverage: v.leverage, mmrPct: v.mmr ?? 0.4, stop: v.stop });
-  if (!r) return missing();
-  const out = [
-    hero('Prix de liquidation', r.price > 0 ? px(r.price) : 'aucun', `${v.side === 'long' ? '−' : '+'}${pc(r.distPct)} depuis l'entrée`),
-    rows([
-      ['Marge bloquée pour 1 000 $ de position', usd(1000 / v.leverage)],
-      r.maxLeverage != null && ['Levier maximum avec ce stop', lev(Math.floor(r.maxLeverage * 10) / 10)],
-      r.maxLeverage != null && ['Levier conseillé (marge de sécurité)', lev(Math.max(1, Math.floor(r.maxLeverage * 0.7)))],
-    ]),
-  ];
-  if (r.stopFirst === true) out.push(note('Ton stop est touché avant la liquidation. Le levier ne change pas ta perte : elle dépend de la taille de position.'));
-  else if (r.stopFirst === false) out.push(note(`Attention : la liquidation arrive avant ton stop. Baisse le levier sous ${lev(Math.floor(r.maxLeverage * 10) / 10)}.`, 'warn-inline'));
-  else if (v.stop > 0) out.push(note(`Le stop est du mauvais côté de l'entrée pour un ${v.side}.`, 'warn-inline'));
-  return out.join('');
-}
-
-// 4. PnL
-function pnlTool() {
-  const v = vals(['side', 'entry', 'exit', 'size', 'leverage', 'fee', 'funding', 'hours', 'capital']);
-  const r = pnl({ side: v.side, entry: v.entry, exit: v.exit, size: v.size, leverage: v.leverage ?? 1, feePct: v.fee ?? 0, fundingPct: v.funding ?? 0, hours: v.hours ?? 0, capital: v.capital });
-  if (!r) return missing();
-  return [
-    hero('Résultat net', signed(r.net), r.capitalPct != null ? `${spc(r.capitalPct)} du compte` : ''),
-    rows([
-      ['Mouvement du prix', spc(r.movePct)],
-      ['Résultat brut', signed(r.gross)],
-      ['Frais (entrée + sortie)', `−${usd(r.fees)}`],
-      ['Funding', r.funding >= 0 ? `−${usd(r.funding)} payé` : `+${usd(-r.funding)} reçu`],
-      ['Marge bloquée', usd(r.margin)],
-      ['Rendement de la marge', spc(r.roe)],
-    ]),
-    note("Le rendement de la marge grossit avec le levier, pas le résultat en dollars : c'est la valeur de la position qui compte."),
-  ].join('');
-}
-
-// 5. Seuil de rentabilité
-function be() {
-  const v = vals(['side', 'entry', 'fee', 'funding', 'hours']);
-  const r = breakEven({ side: v.side, entry: v.entry, feeInPct: v.fee ?? 0, feeOutPct: v.fee ?? 0, fundingPct: v.funding ?? 0, hours: v.hours ?? 0 });
-  if (!r) return missing();
-  const maker = breakEven({ side: v.side, entry: v.entry, feeInPct: 0.02, feeOutPct: 0.02, fundingPct: v.funding ?? 0, hours: v.hours ?? 0 });
-  return [
-    hero('Prix pour sortir à zéro', px(r.price), `${spc(r.movePct, 3)} de mouvement nécessaire`),
-    rows([
-      ['Avec des ordres limites (0,02 %)', `${px(maker.price)} · ${spc(maker.movePct, 3)}`],
-      ['Sans frais ni funding', px(v.entry)],
-    ]),
-    note(`Un stop remonté pile au prix d'entrée fait perdre un peu : place-le plutôt à ${px(r.price)}.`),
-  ].join('');
-}
-
-// 6. DCA
-function dcaTool() {
-  const s = state.data?.series?.[state.v.asset];
-  if (!s?.points?.length) return '<div class="empty">Les prix historiques ne sont pas encore chargés. Ils viennent de la mise à jour automatique du site.</div>';
-  const v = vals(['amount', 'every', 'since', 'spotFee']);
-  const last = s.points.at(-1)[0];
-  const startDay = Math.max(s.points[0][0], last - Number(v.since));
-  const r = dca(s.points, { amount: v.amount, every: Number(v.every), startDay, feePct: v.spotFee ?? 0 });
-  if (!r) return missing();
-  const sym = state.v.asset.toUpperCase();
-  const dy = n => new Date(n * 86_400_000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-  const better = r.value >= r.lump.value;
-  return [
-    hero(`Valeur aujourd'hui`, usd(r.value), `${spc(r.returnPct, 1)} pour ${usd(r.invested)} investis en ${r.buys} achats`),
-    rows([
-      ['Prix moyen payé', `${px(r.avgPrice)} $ · ${sym} vaut ${px(r.lastPrice)} $`],
-      ['Quantité accumulée', `${qty(r.units)} ${sym}`],
-      ['Tout acheter le premier jour', `${usd(r.lump.value)} · ${spc(r.lump.returnPct, 1)} (à ${px(r.lump.price)} $)`],
-      ['Pire moment', r.worst.day != null ? `${spc(r.worst.pct, 1)} le ${dy(r.worst.day)}` : 'jamais en perte'],
-    ]),
-    chart([
-      { name: 'Argent investi', cls: 'c-paid', pts: r.series.map(x => [x[0], x[1]]) },
-      { name: 'Achat unique', cls: 'c-alt', pts: r.series.map(x => [x[0], x[3]]) },
-      { name: 'DCA', cls: 'c-main', pts: r.series.map(x => [x[0], x[2]]) },
-    ], { x: dy, y: n => usd(n) }),
-    note(better
-      ? `Sur cette période, le DCA a fait mieux qu'un achat unique : les achats réguliers ont profité des baisses.`
-      : `Sur cette période, tout acheter le premier jour a fait mieux : le prix a surtout monté. Le DCA sert à lisser le risque d'acheter au mauvais moment, pas à gagner plus.`),
-  ].join('');
-}
-
-// 7. Intérêts composés
-function compose() {
-  const v = vals(['capital', 'rate', 'months', 'monthly', 'goal']);
-  const r = compound({ capital: v.capital ?? 0, ratePct: v.rate, months: Math.round(v.months ?? 0), monthly: v.monthly ?? 0, target: v.goal });
-  if (!r) return missing();
-  const dur = m => (m < 12 ? `${m} mois` : `${fmt(Math.floor(m / 12))} an${m >= 24 ? 's' : ''}${m % 12 ? ` et ${m % 12} mois` : ''}`);
-  return [
-    hero(`Capital après ${dur(Math.round(v.months))}`, usd(r.final), r.multiple ? `×${fmt(r.multiple, 2)} le capital de départ` : ''),
-    rows([
-      ['Argent versé', usd(r.paid)],
-      ['Gains', signed(r.gains)],
-      ['Gain sur un an à ce rythme', spc(((1 + v.rate / 100) ** 12 - 1) * 100, 1)],
-      v.goal > 0 && ['Objectif de ' + usd(v.goal), r.reach == null ? 'pas atteint en 100 ans' : r.reach === 0 ? 'déjà atteint' : `atteint après ${dur(r.reach)}`],
-    ]),
-    chart([
-      { name: 'Argent versé', cls: 'c-paid', pts: r.series.map(x => [x[0], x[1]]) },
-      { name: 'Capital', cls: 'c-main', pts: r.series.map(x => [x[0], x[2]]) },
-    ], { x: m => `${m} mois`, y: n => usd(n) }),
-    note('Un rythme régulier chaque mois n\'existe pas en trading : certains mois perdent. C\'est un ordre de grandeur, pas une promesse.'),
-  ].join('');
-}
-
-// 8. Séries de pertes
-function series() {
-  const v = vals(['winrate', 'winR', 'risk', 'trades']);
-  const r = streaks({ winRatePct: v.winrate, winR: v.winR, riskPct: v.risk, trades: Math.round(v.trades ?? 0) });
-  if (!r) return missing();
-  const n = Math.round(v.trades);
-  return [
-    hero('Pire série de pertes à prévoir', `${r.losingStreak.p95} d'affilée`, `${r.losingStreak.median} dans un parcours moyen, ${r.losingStreak.max} au pire des 2 000`),
-    rows([
-      ['Plus gros creux du compte', `−${pc(r.drawdown.median, 1)} en moyenne · −${pc(r.drawdown.p95, 1)} 1 fois sur 20`],
-      [`Résultat après ${n} trades`, `${spc(r.final.median, 1)} en moyenne`],
-      ['1 fois sur 20', `moins de ${spc(r.final.p5, 1)} · plus de ${spc(r.final.p95, 1)}`],
-      ['Chance de finir en perte', pc(r.lossOdds, 0)],
-      ['Gain moyen par trade', `${r.expectancyR >= 0 ? '+' : '−'}${fmt(Math.abs(r.expectancyR), 2)} R`],
-    ]),
-    chart([
-      { name: 'Malchanceux (1 sur 20)', cls: 'c-paid', pts: r.curves.p5.map((y, i) => [i, y]) },
-      { name: 'Chanceux (1 sur 20)', cls: 'c-alt', pts: r.curves.p95.map((y, i) => [i, y]) },
-      { name: 'Parcours moyen', cls: 'c-main', pts: r.curves.median.map((y, i) => [i, y]) },
-    ], { x: i => `trade ${i}`, y: y => `${y >= 0 ? '+' : '−'}${fmt(Math.abs(y), 1)} %`, zero: true }),
-    note(`Une série de ${r.losingStreak.p95} pertes d'affilée n'est pas un signe que la stratégie est cassée : avec ces chiffres, elle arrive normalement. Le danger, c'est de risquer plus pour se refaire.`),
-  ].join('');
-}
-
-// 9. Prix moyen d'entrée
-function moyen() {
-  const v = vals(['p1', 'a1', 'p2', 'a2', 'p3', 'a3', 'p4', 'a4', 'now', 'avgTarget', 'spotFee']);
-  const buys = [1, 2, 3, 4].map(i => ({ price: v[`p${i}`], amount: v[`a${i}`] }));
-  const r = averageEntry(buys, { current: v.now, target: v.avgTarget, feePct: v.spotFee ?? 0 });
-  if (!r) return missing();
-  const out = [
-    hero('Prix moyen d\'entrée', `${px(r.avg)} $`, `${r.count} achat${r.count > 1 ? 's' : ''} · ${usd(r.invested)} investis · frais compris`),
-  ];
-  if (r.value != null) {
-    out.push(rows([
-      ['Valeur au prix actuel', `${usd(r.value)} · ${signed(r.pnl)} (${spc(r.pnlPct, 1)})`],
-      ['Quantité', qty(r.units)],
-      ['Hausse nécessaire pour revenir à zéro', r.toBreakEvenPct > 0 ? `${spc(r.toBreakEvenPct, 1)}` : 'déjà en gain'],
-      v.avgTarget > 0 && [`Pour un prix moyen à ${px(v.avgTarget)} $`, r.toTarget != null ? `acheter ${usd(r.toTarget)} maintenant` : 'impossible : le prix visé doit être entre le prix actuel et ton prix moyen'],
-    ]));
-    if (r.toTarget != null && r.toTarget > r.invested) out.push(note(`Pour y arriver, il faut remettre plus que tout ce que tu as déjà investi. Moyenner à la baisse grossit la position sur un actif qui baisse : à faire avec un plan, pas pour se refaire.`, 'warn-inline'));
-  }
-  return out.join('');
-}
-
-// 10. Convertisseur
-// Valeur d'une unité en dollars. Prix des cryptos : données du site, puis OKX en direct ; euro : taux BCE (frankfurter.app).
+// Convertisseur. Valeur d'une unité en dollars : clôtures du site, puis OKX en direct ; euro : BCE.
 const rates = { USD: 1 };
 const rateSrc = {};
 let live = null;
 function seedRates() {
-  for (const a of ['btc', 'eth', 'sol']) {
-    const p = state.data?.series?.[a]?.points?.at(-1)?.[1];
-    if (p && !rateSrc[a.toUpperCase()]) { rates[a.toUpperCase()] = p; rateSrc[a.toUpperCase()] = 'clôture d\'hier'; }
+  for (const s of ['BTC', 'ETH', 'SOL']) {
+    const p = state.marche?.series?.[s.toLowerCase()]?.points?.at(-1)?.[1];
+    if (p && rateSrc[s] !== 'OKX en direct') { rates[s] = p; rateSrc[s] = 'dernière clôture'; }
   }
+  const e = state.outils?.eur;
+  if (e?.usd && !rateSrc.EUR?.startsWith('BCE, en direct')) { rates.EUR = e.usd; rateSrc.EUR = `BCE, ${e.date}`; }
 }
 function liveRates() {
   if (live) return live;
   live = Promise.all([
     ...['BTC', 'ETH', 'SOL'].map(s => fetch(`https://www.okx.com/api/v5/market/ticker?instId=${s}-USDT`).then(r => r.json())
-      .then(j => { const p = Number(j.data?.[0]?.last); if (p > 0) { rates[s] = p; rateSrc[s] = 'OKX en direct'; } }).catch(() => {})),
+      .then(j => { const p = Number(j.data?.[0]?.last); if (p > 0) { rates[s] = p; rateSrc[s] = 'OKX en direct'; } })),
     fetch('https://api.frankfurter.app/latest?from=EUR&to=USD').then(r => r.json())
-      .then(j => { const p = Number(j.rates?.USD); if (p > 0) { rates.EUR = p; rateSrc.EUR = `BCE, ${j.date}`; } }).catch(() => {}),
-  ]).then(() => { if (page.classList.contains('on')) renderResult(); });
+      .then(j => { const p = Number(j.rates?.USD); if (p > 0) { rates.EUR = p; rateSrc.EUR = `BCE, en direct (${j.date})`; } }),
+  ].map(p => p.catch(() => {}))).then(() => { if (page.classList.contains('on') && state.tool === 'convertir') renderResult(); });
   return live;
 }
-
 function convertir() {
   liveRates();
   const v = vals(['convAmount', 'convFrom', 'convTo']);
   const r = convert(v.convAmount, v.convFrom, v.convTo, rates);
   const sym = c => ({ USD: '$', EUR: '€' })[c] || c;
   const shown = (n, c) => (['USD', 'EUR'].includes(c) ? `${fmt(n, n >= 1000 ? 0 : 2)} ${sym(c)}` : `${qty(n)} ${c}`);
-  if (r == null) return rates[v.convFrom] && rates[v.convTo] ? missing() : '<div class="empty">Ce cours n\'est pas encore disponible : réessaie dans un instant.</div>';
+  const typed = (n, c) => `${plain(n)} ${sym(c)}`;
+  if (r == null) {
+    if (v.convAmount == null) return missing();
+    const gone = [v.convFrom, v.convTo].filter(c => !rates[c]).map(sym).join(' et ');
+    return `<div class="empty">Le cours ${esc(gone)} n'a pas pu être chargé. Réessaie dans un instant.</div>`;
+  }
   return [
-    hero(`${shown(v.convAmount, v.convFrom)} =`, shown(r, v.convTo)),
+    hero(`${typed(v.convAmount, v.convFrom)} =`, shown(r, v.convTo)),
     rows(['BTC', 'ETH', 'SOL', 'EUR'].filter(c => rates[c]).map(c => [`1 ${sym(c)}`, `${fmt(rates[c], rates[c] >= 100 ? 0 : 4)} $ <span class="muted">· ${rateSrc[c]}</span>`])),
   ].join('');
 }
 
-// Petit graphique en lignes (SVG), axe des x partagé, survol pour lire les valeurs.
-let charts = [];
-function chart(lines, fmtr) {
-  charts.push({ lines, fmtr });
-  return `<div class="t-chart" data-chart="${charts.length - 1}"></div><div class="t-keys">${lines.map(l => `<span><i class="key ${l.cls}"></i>${l.name}</span>`).join('')}</div>`;
+// Flux des ETF
+function etfTool() {
+  const etf = state.outils?.etf?.[state.v.etfAsset];
+  const s = flowSummary(etf);
+  if (!s) return noData();
+  const name = state.v.etfAsset === 'btc' ? 'bitcoin' : 'ether';
+  const n = state.v.etfPeriod === 'all' ? etf.days.length : Math.round(Number(state.v.etfPeriod) * 5 / 7); // jours de bourse
+  const shown = etf.days.slice(-n);
+  const streak = s.streak === 0 ? '' : `${Math.abs(s.streak)} jour${Math.abs(s.streak) > 1 ? 's' : ''} ${s.streak > 0 ? "d'entrées" : 'de sorties'} d'affilée`;
+  return [
+    hero(`ETF ${name}, ${day(s.last.day)}`, smus(s.last.total), streak),
+    rows([
+      ['5 derniers jours de bourse', smus(s.d5)],
+      ['20 derniers jours de bourse', smus(s.d20)],
+      [etf.days.length > 300 ? 'Depuis le lancement' : `Depuis le ${day(etf.days[0][0])}`, smus(s.total)],
+    ]),
+    chart([{ name: 'Flux du jour', bars: true, pts: shown.map(d => [d[0], d[1]]) }], { title: 'Flux quotidiens', y: mus, x: day, dates: true }),
+    `<div class="t-sub">Par émetteur, 20 derniers jours de bourse</div><div class="wrap flat"><table class="static"><thead><tr><th class="l">ETF</th><th>Dernier jour</th><th>20 jours</th></tr></thead><tbody>${
+      s.byIssuer.slice(0, 8).map(i => `<tr><td class="l">${esc(i.name)}</td><td class="num">${smus(i.last)}</td><td class="num">${smus(i.d20)}</td></tr>`).join('')}</tbody></table></div>`,
+    note(`Source : farside.co.uk, en millions de dollars. Mis à jour ${ago(state.outils.generatedAt)}.`),
+  ].join('');
 }
 
+// Funding des perpétuels
+function fundingTool() {
+  const list = state.outils?.funding;
+  if (!list?.length) return noData();
+  const sorted = [...list].sort((a, b) => b.okx - a.okx);
+  const btc = list.find(f => f.sym === 'BTC');
+  const avg = list.reduce((s, f) => s + f.okx, 0) / list.length;
+  const mood = avg > 0.03 ? 'Les traders sont très chargés en longs' : avg > 0.005 ? 'Les traders penchent un peu vers la hausse' : avg < -0.01 ? 'Les traders sont chargés en shorts' : 'Le levier est calme';
+  const f4 = v => (v == null ? '<span class="muted">—</span>' : `<span class="${v > 0.03 ? 'down' : v < -0.01 ? 'up' : ''}">${v >= 0 ? '+' : '−'}${fmt(Math.abs(v), 4)} %</span>`);
+  return [
+    hero('Funding moyen des 20 plus gros perpétuels', `${avg >= 0 ? '+' : '−'}${fmt(Math.abs(avg), 4)} %`, `${mood}. Par 8 h sur OKX${btc ? ` · BTC ${btc.okx >= 0 ? '+' : '−'}${fmt(Math.abs(btc.okx), 4)} %` : ''}.`),
+    `<div class="wrap flat"><table class="static"><thead><tr><th class="l">Actif</th><th>OKX / 8 h</th><th>Hyperliquid / 8 h</th><th>Sur un an</th></tr></thead><tbody>${
+      sorted.map(f => `<tr><td class="l">${esc(f.sym)}</td><td class="num">${f4(f.okx)}</td><td class="num">${f4(f.hyperliquid)}</td><td class="num">${spc(annualFunding(f.okx), 1)}</td></tr>`).join('')}</tbody></table></div>`,
+    note(`En rouge : funding élevé, beaucoup de longs à levier (risque de chute en chaîne). En vert : funding négatif, beaucoup de shorts (risque de squeeze à la hausse). « Sur un an » : ce que toucherait un short gardé un an à ce taux. Mis à jour ${ago(state.outils.generatedAt)}.`),
+  ].join('');
+}
+
+// Long / short
+function longShortTool() {
+  const pts = state.outils?.longShort?.[state.v.lsAsset];
+  if (!pts?.length) return noData();
+  const last = pts.at(-1)[1];
+  const longPct = last / (1 + last) * 100;
+  const sorted = pts.map(p => p[1]).sort((a, b) => a - b);
+  const rank = sorted.filter(v => v <= last).length / sorted.length * 100;
+  const read = rank > 85 ? "Très haut par rapport aux derniers mois : beaucoup d'optimisme, prudence sur les achats."
+    : rank < 15 ? 'Très bas par rapport aux derniers mois : beaucoup de pessimisme, souvent proche d\'un rebond.' : "Dans sa zone habituelle : pas d'excès.";
+  return [
+    hero(`Ratio long / short ${state.v.lsAsset.toUpperCase()} sur OKX`, fmt(last, 2), `${fmt(longPct, 0)} % des comptes sont long, ${fmt(100 - longPct, 0)} % short`),
+    rows([
+      ['Par rapport aux derniers mois', `plus haut que ${fmt(rank, 0)} % des jours`],
+      ['Le plus haut / le plus bas', `${fmt(sorted.at(-1), 2)} / ${fmt(sorted[0], 2)}`],
+    ]),
+    chart([{ name: 'Ratio long / short', cls: 'c-main', pts }], { title: 'Comptes long pour un compte short', y: y => fmt(y, 2), x: day, dates: true, ref: 1 }),
+    note(`${read} Mis à jour ${ago(state.outils.generatedAt)}.`),
+  ].join('');
+}
+
+// Graphiques : même moteur que l'onglet Marché (js/chart.js), valeurs au-dessus et croix qui suit le curseur.
+let charts = [];
+function chart(lines, o) {
+  charts.push({ lines, o });
+  return `<div class="mk-chart t-chart" data-chart="${charts.length - 1}"></div>`;
+}
+// Graduations rondes pour un axe en mois ou en trades.
+const numTicks = label => (start, end, width) => {
+  const room = Math.max(2, Math.floor(width / 80));
+  const raw = (end - start) / room || 1;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map(m => m * mag).find(s => s >= raw);
+  const out = [];
+  for (let v = Math.ceil(start / step) * step; v <= end + 1e-9; v += step) out.push([v, label(v)]);
+  return out;
+};
+// Axe en mois gradué en années.
+function yearTicks(start, end, width) {
+  const room = Math.max(2, Math.floor(width / 70));
+  const years = (end - start) / 12;
+  const step = [1, 2, 5, 10].find(s => years / s <= room) || 10;
+  const out = [];
+  for (let y = step; y * 12 <= end + 1e-9; y += step) out.push([y * 12, `${y} an${y > 1 ? 's' : ''}`]);
+  return out;
+}
 function drawCharts(root) {
-  for (const el of root.querySelectorAll('[data-chart]')) {
-    const { lines, fmtr } = charts[Number(el.dataset.chart)];
-    const W = Math.max(260, el.clientWidth), H = 200, L = 6, R = 6, T = 10, B = 22;
-    const all = lines.flatMap(l => l.pts);
-    const xs = all.map(p => p[0]), ys = all.map(p => p[1]);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs);
-    let y0 = Math.min(...ys, fmtr.zero ? 0 : Infinity), y1 = Math.max(...ys);
-    if (y1 === y0) y1 = y0 + 1;
-    const pad = (y1 - y0) * 0.06;
-    y0 = y0 >= 0 && y0 - pad < 0 ? 0 : y0 - pad;
-    y1 += pad;
-    const X = x => L + (x - x0) / (x1 - x0 || 1) * (W - L - R);
-    const Y = y => T + (1 - (y - y0) / (y1 - y0)) * (H - T - B);
-    const path = pts => pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('');
-    const ticks = [y0 + (y1 - y0) * 0.2, y0 + (y1 - y0) * 0.55, y0 + (y1 - y0) * 0.9];
-    el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="Graphique">
-      ${ticks.map(t => `<line class="grid" x1="${L}" x2="${W - R}" y1="${Y(t)}" y2="${Y(t)}"/><text class="tick" x="${L}" y="${Y(t) - 4}">${esc(fmtr.y(t))}</text>`).join('')}
-      ${fmtr.zero && y0 < 0 ? `<line class="zero" x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}"/>` : ''}
-      <text class="tick" x="${L}" y="${H - 6}">${esc(fmtr.x(x0))}</text><text class="tick end" x="${W - R}" y="${H - 6}">${esc(fmtr.x(x1))}</text>
-      ${lines.map(l => `<path class="ln ${l.cls}" d="${path(l.pts)}"/>`).join('')}
-      <line class="cross" y1="${T}" y2="${H - B}" hidden/>
-    </svg><div class="mk-tip" hidden></div>`;
-    const svg = el.querySelector('svg'), cross = svg.querySelector('.cross'), tip = el.querySelector('.mk-tip');
-    const base = lines[0].pts;
-    const move = e => {
-      const r = svg.getBoundingClientRect();
-      const x = x0 + (e.clientX - r.left - L) / (W - L - R) * (x1 - x0);
-      let i = 0;
-      for (let k = 0; k < base.length; k++) if (Math.abs(base[k][0] - x) < Math.abs(base[i][0] - x)) i = k;
-      const cx = X(base[i][0]);
-      cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.hidden = false;
-      tip.innerHTML = `<b>${esc(fmtr.x(base[i][0]))}</b>${[...lines].reverse().map(l => `<div><i class="key ${l.cls}"></i>${l.name}<span class="num">${esc(fmtr.y(l.pts[i][1]))}</span></div>`).join('')}`;
-      tip.hidden = false;
-      tip.style.left = `${Math.min(Math.max(0, cx - 100), W - tip.offsetWidth)}px`;
-    };
-    svg.addEventListener('pointermove', move);
-    svg.addEventListener('pointerdown', move);
-    svg.addEventListener('pointerleave', () => { cross.hidden = true; tip.hidden = true; });
+  for (const box of root.querySelectorAll('[data-chart]')) {
+    const { lines, o } = charts[Number(box.dataset.chart)];
+    const xs = lines.flatMap(l => l.pts.map(p => p[0]));
+    drawPanes(box, [{
+      title: o.title, h: 230, fmt: o.y, axis: o.axis, ref: o.ref, bars: lines.some(l => l.bars), reverse: true,
+      lines: lines.map(l => ({ key: l.name, label: l.name, pts: l.pts, cls: l.cls || '', keyCls: l.cls || '' })),
+    }], Math.min(...xs), Math.max(...xs), { xLabel: o.x, xTicks: o.ticks || (o.dates ? undefined : numTicks(o.tick || o.x)) });
   }
 }
 
@@ -393,36 +433,49 @@ function field(k) {
     return `<div class="t-field t-wide"><span class="lb">${f.label}</span><div class="tools" role="group" aria-label="${esc(f.label)}">${f.choice.map(([v, l]) =>
       `<button type="button" class="chip" data-k="${k}" data-v="${v}" aria-pressed="${state.v[k] === v}">${l}</button>`).join('')}</div></div>`;
   }
-  const prices = f.prices ? ['btc', 'eth', 'sol'].map(a => [a, rates[a.toUpperCase()]]).filter(([, p]) => p) : [];
+  if (f.buys) {
+    const list = buysList();
+    return `<div class="t-field t-wide"><span class="lb">${f.label}</span>
+      <div class="t-buys"><span class="lb">Prix d'achat</span><span class="lb">Montant investi</span><span></span>
+      ${list.map(([p, a], i) => `<span class="t-in"><input id="t-buy-${i}-p" data-buy="${i}" data-part="0" inputmode="decimal" autocomplete="off" aria-label="Achat ${i + 1} : prix" value="${esc(p)}"><span class="u">$</span></span>
+        <span class="t-in"><input id="t-buy-${i}-a" data-buy="${i}" data-part="1" inputmode="decimal" autocomplete="off" aria-label="Achat ${i + 1} : montant" value="${esc(a)}"><span class="u">$</span></span>
+        <button type="button" class="t-del" data-del="${i}" aria-label="Retirer l'achat ${i + 1}" ${list.length < 2 ? 'disabled' : ''}>×</button>`).join('')}
+      </div><button type="button" class="btn t-add" id="t-addbuy">+ Ajouter un achat</button></div>`;
+  }
+  const prices = f.prices ? ['BTC', 'ETH', 'SOL'].map(s => [s, rates[s]]).filter(([, p]) => p) : [];
   return `<label class="t-field"><span class="lb">${f.label}${f.optional ? ' <span class="muted">(facultatif)</span>' : ''}</span>
     <span class="t-in"><input id="t-${k}" data-k="${k}" inputmode="decimal" autocomplete="off" spellcheck="false" value="${esc(state.v[k])}"><span class="u">${f.unit}</span></span>
     ${f.hint ? `<span class="hint">${f.hint}</span>` : ''}
-    ${prices.length ? `<span class="t-quick">${prices.map(([a, p]) => `<button type="button" class="chip" data-price="${a}" data-for="${k}" data-p="${p}">${a.toUpperCase()} ${px(p)}</button>`).join('')}</span>` : ''}</label>`;
+    ${prices.length ? `<span class="t-quick">${prices.map(([s, p]) => `<button type="button" class="chip" data-price="${s}" data-for="${k}" data-p="${p}">${s} ${px(p)}</button>`).join('')}</span>` : ''}</label>`;
 }
 
 function renderResult() {
-  const t = TOOLS.find(x => x.id === state.tool);
+  const t = tool();
   charts = [];
   const box = $('outil-res');
-  box.innerHTML = `<h2>Résultat</h2><div class="t-out">${t.calc()}</div>`;
+  box.innerHTML = `<h2>${t.cat === 'data' ? 'En ce moment' : 'Résultat'}</h2><div class="t-out">${t.calc()}</div>`;
   drawCharts(box);
-  for (const k of t.fields) {
+  for (const k of t.fields()) {
     const input = $(`t-${k}`);
     if (input) input.classList.toggle('bad', num(state.v[k]) == null && !(F[k].optional && state.v[k].trim() === ''));
   }
+  for (const input of page.querySelectorAll('[data-buy]')) input.classList.toggle('bad', input.value.trim() !== '' && num(input.value) == null);
 }
 
 function render() {
-  const t = TOOLS.find(x => x.id === state.tool);
-  $('outils-tabs').innerHTML = TOOLS.map(x => `<a class="chip" href="#outils/${x.id}" aria-pressed="${x.id === t.id}">${x.name}</a>`).join('');
-  $('outil').innerHTML = `<div class="box t-form"><h2>${t.name}</h2><p class="txt">${t.intro}</p>
-    <form class="t-fields" onsubmit="return false">${t.fields.map(field).join('')}</form>
-    <div class="links"><button type="button" class="btn" id="t-reset">Valeurs par défaut</button></div></div>
+  const t = tool();
+  $('outils-tabs').innerHTML = CATS.map(([c, label]) => `<div class="t-cat"><span class="lb">${label}</span><div class="t-chips">${
+    TOOLS.filter(x => x.cat === c).map(x => `<a class="chip" href="#outils/${x.id}" aria-pressed="${x.id === t.id}">${x.name}</a>`).join('')}</div></div>`).join('');
+  const fields = t.fields();
+  $('outil').innerHTML = `<div class="box t-form"><h2>${t.name}</h2><p class="txt">${t.intro()}</p>
+    ${fields.length ? `<form class="t-fields" onsubmit="return false">${fields.map(field).join('')}</form>` : ''}
+    ${t.how ? `<div class="t-how"><b>Comment lire</b><ul>${t.how.map(h => `<li>${h}</li>`).join('')}</ul></div>` : ''}
+    ${t.cat === 'sim' ? '<div class="links"><button type="button" class="btn" id="t-reset">Valeurs par défaut</button></div>' : ''}</div>
     <div class="box t-res" id="outil-res"></div>`;
   renderResult();
-  // Sur mobile, la ligne des outils défile : on centre l'outil choisi sans faire bouger la page.
-  const tabs = $('outils-tabs'), on = tabs.querySelector('[aria-pressed="true"]');
-  if (on) tabs.scrollLeft = on.offsetLeft - tabs.offsetLeft - (tabs.clientWidth - on.offsetWidth) / 2;
+  // Sur mobile, chaque ligne d'outils défile : on centre l'outil choisi sans faire bouger la page.
+  const on = $('outils-tabs').querySelector('[aria-pressed="true"]');
+  if (on) on.parentElement.scrollLeft = on.offsetLeft - on.parentElement.offsetLeft - (on.parentElement.clientWidth - on.offsetWidth) / 2;
 }
 
 export function showTool(id) {
@@ -431,18 +484,22 @@ export function showTool(id) {
   render();
 }
 
-export function setOutilsData(marche) {
-  state.data = marche;
+export function setOutilsData(marche, outils) {
+  state.marche = marche;
+  state.outils = outils;
   seedRates();
-  if (location.hash.slice(1).split('/')[0] === 'outils') render();
+  if (page.classList.contains('on')) render();
 }
 
 const page = $('page-outils');
 page.addEventListener('input', e => {
-  const k = e.target.dataset?.k;
-  if (!k) return;
-  state.v[k] = e.target.value;
-  if (k === 'entry') delete state.v.entryAsset;
+  const d = e.target.dataset || {};
+  if (d.buy != null) {
+    const list = buysList();
+    list[Number(d.buy)][Number(d.part)] = e.target.value;
+    state.v.buys = JSON.stringify(list);
+  } else if (d.k) state.v[d.k] = e.target.value;
+  else return;
   save();
   renderResult();
 });
@@ -450,25 +507,32 @@ page.addEventListener('click', e => {
   const c = e.target.closest('button[data-k]');
   if (c) {
     state.v[c.dataset.k] = c.dataset.v;
-    c.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === c)));
     save();
-    renderResult();
+    render(); // un choix peut changer les champs affichés (DCA : passé ou avenir)
     return;
   }
   const p = e.target.closest('button[data-price]');
   if (p) {
-    const v = Number(p.dataset.p), k = p.dataset.for;
-    state.v[k] = String(Number(v.toPrecision(6)));
-    if (k === 'entry') state.v.entryAsset = p.dataset.price;
+    const k = p.dataset.for;
+    state.v[k] = String(Number(Number(p.dataset.p).toPrecision(6)));
     $(`t-${k}`).value = state.v[k];
     save();
     renderResult();
     return;
   }
+  const del = e.target.closest('button[data-del]');
+  if (del || e.target.id === 't-addbuy') {
+    const list = buysList();
+    if (del) list.splice(Number(del.dataset.del), 1);
+    else list.push(['', '']);
+    state.v.buys = JSON.stringify(list);
+    save();
+    render();
+    if (!del) $(`t-buy-${list.length - 1}-p`)?.focus();
+    return;
+  }
   if (e.target.id === 't-reset') {
-    const t = TOOLS.find(x => x.id === state.tool);
-    for (const k of t.fields) state.v[k] = DEFAULTS[k];
-    delete state.v.entryAsset;
+    for (const k of tool().fields()) state.v[k] = DEFAULTS[k];
     save();
     render();
   }

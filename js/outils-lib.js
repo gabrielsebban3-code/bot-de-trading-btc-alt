@@ -180,16 +180,20 @@ export function convert(amount, from, to, rates) {
   return amount * a / b;
 }
 
-// DCA vers l'avenir : rejoue au hasard des tranches de 30 jours du passé (même hausses, mêmes krachs, dans un
-// autre ordre) pour `years` années d'achats réguliers. Renvoie les parcours pessimiste (10 %), médian et
-// optimiste (90 %) de la valeur du portefeuille, mois par mois.
-export function dcaProjection(points, { amount, every, years, runs = 1000, seed = 7, feePct = 0, block = 30 }) {
+// DCA vers l'avenir : rejoue au hasard des tranches de 30 jours du passé (mêmes hausses, mêmes krachs, dans un
+// autre ordre) pour `years` années d'achats réguliers. `drift` garde toute la tendance du passé (1), la moitié
+// (0,5) ou aucune (0, seulement les secousses). Renvoie les parcours pessimiste (10 %), médian et optimiste (90 %)
+// de la valeur du portefeuille, mois par mois.
+export function dcaProjection(points, { amount, every, years, runs = 1000, seed = 7, feePct = 0, block = 30, drift = 1 }) {
   const closes = (points || []).map(p => p[1]).filter(p => p > 0);
   if (!(amount > 0 && every >= 1 && years > 0 && years <= 30) || closes.length < block * 4) return null;
-  const rets = closes.slice(1).map((p, i) => Math.log(p / closes[i]));
+  const raw = closes.slice(1).map((p, i) => Math.log(p / closes[i]));
+  const mean = raw.reduce((a, b) => a + b, 0) / raw.length;
+  const rets = raw.map(r => r - (1 - drift) * mean);
   const days = Math.round(years * 365);
-  const step = 30;
-  const n = Math.floor(days / step);
+  // Un point par mois pour le graphique ; le dernier tombe le dernier jour, comme le résultat final.
+  const n = Math.round(years * 12);
+  const monthAt = new Map(Array.from({ length: n + 1 }, (_, i) => [Math.round(i * days / n), i]));
   const fee = feePct / 100;
   const rand = rng(seed);
   const at = Array.from({ length: n + 1 }, () => []);
@@ -202,20 +206,22 @@ export function dcaProjection(points, { amount, every, years, runs = 1000, seed 
         lp += rets[start + ((d - 1) % block)];
       }
       if (d % every === 0 && d < days) units += amount * (1 - fee) / Math.exp(lp);
-      if (d % step === 0 && d / step <= n) at[d / step].push(units * Math.exp(lp));
+      if (monthAt.has(d)) at[monthAt.get(d)].push(units * Math.exp(lp));
     }
     finals.push(units * Math.exp(lp));
   }
   const buys = Math.ceil(days / every);
   const invested = buys * amount;
   const pick = (a, p) => percentile([...a].sort((x, y) => x - y), p);
-  const checkpoints = at.map((vals, i) => [i, Math.min(Math.ceil(i * step / every), buys) * amount, pick(vals, 10), pick(vals, 50), pick(vals, 90)]);
+  const paidAt = d => (Math.floor(Math.min(d, days - 1) / every) + 1) * amount;
+  const checkpoints = at.map((vals, i) => [i, paidAt(Math.round(i * days / n)), pick(vals, 10), pick(vals, 50), pick(vals, 90)]);
   const histYears = (closes.length - 1) / 365;
   return {
     invested, buys,
     final: { p10: pick(finals, 10), p50: pick(finals, 50), p90: pick(finals, 90) },
     lossOdds: finals.filter(f => f < invested).length / runs * 100,
     histCagr: ((closes.at(-1) / closes[0]) ** (1 / histYears) - 1) * 100,
+    usedCagr: (Math.exp(mean * drift * 365) - 1) * 100,
     histYears,
     checkpoints,
   };

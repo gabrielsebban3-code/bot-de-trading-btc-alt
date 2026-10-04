@@ -115,7 +115,18 @@ test('dcaProjection : prix qui monte de 1 % tous les 30 jours, sans hasard possi
   assert.equal(r.lossOdds, 0);
   near(r.histCagr, (1.01 ** (365 / 30) - 1) * 100, 1e-3);
   assert.equal(r.checkpoints.length, 13);
+  // Le dernier point du graphique est le résultat final.
+  assert.deepEqual(r.checkpoints.at(-1).slice(1), [r.invested, r.final.p10, r.final.p50, r.final.p90]);
+  const weekly = dcaProjection(pts, { amount: 100, every: 7, years: 5, runs: 20 });
+  assert.equal(weekly.checkpoints.length, 61);
+  assert.deepEqual(weekly.checkpoints.at(-1).slice(1, 2), [weekly.invested]);
+  assert.equal(weekly.checkpoints[0][1], 100);
   assert.equal(dcaProjection(pts.slice(0, 50), { amount: 100, every: 7, years: 1 }), null);
+  // Sans tendance : le prix ne bouge plus, la valeur finale est la somme investie.
+  const flat = dcaProjection(pts, { amount: 100, every: 30, years: 1, runs: 20, drift: 0 });
+  near(flat.final.p50, 1300);
+  near(flat.usedCagr, 0);
+  near(r.usedCagr, r.histCagr, 1e-3);
 });
 
 test('flowNum et farsideDay', () => {
@@ -124,7 +135,9 @@ test('flowNum et farsideDay', () => {
   assert.equal(flowNum('-'), 0);
   assert.equal(flowNum('abc'), null);
   assert.equal(farsideDay('11 Jan 2024') * 86_400_000, Date.UTC(2024, 0, 11));
+  assert.equal(farsideDay('02 Sept 2025') * 86_400_000, Date.UTC(2025, 8, 2));
   assert.equal(farsideDay('Total'), null);
+  assert.equal(farsideDay('11 Foo 2024'), null);
 });
 
 test('parseFarside : codes boursiers, jours, négatifs entre parenthèses, lignes de total ignorées', () => {

@@ -374,10 +374,28 @@ footer b { color: var(--fg); }
 .mk-chart .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 .mk-chart rect[tabindex]:focus { outline: none; }
 .mk-chart svg:has(rect[tabindex]:focus-visible) { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
-.mk-tip { position: absolute; top: 24px; pointer-events: none; background: var(--panel2); border: 1px solid var(--line2); border-radius: 8px; padding: 8px 10px; font-size: 12px; display: grid; gap: 3px; min-width: 190px; box-shadow: 0 8px 24px rgba(0, 0, 0, .4); z-index: 2; }
-.mk-tip b { font-weight: 500; color: var(--muted); }
-.mk-tip div { display: flex; align-items: center; gap: 0; }
-.mk-tip div .num { margin-left: auto; padding-left: 12px; color: var(--fg); }
+.mk-chart .tick.end { text-anchor: end; }
+/* Survol : les valeurs s'affichent dans une ligne au-dessus du graphique (jamais sur les courbes), la croix montre
+   sa valeur sur l'axe de droite et la date sur l'axe du bas. Chaque valeur a une largeur fixe (calculée par
+   js/chart.js) : la ligne ne saute pas pendant qu'on déplace le curseur ou le doigt. */
+.ch-read { display: flex; flex-wrap: wrap; gap: 2px 16px; padding-bottom: 8px; font-size: 12px; color: var(--muted); }
+.ch-read .ch-x { display: inline-block; font: 500 12px var(--mono); color: var(--fg2); white-space: nowrap; }
+.ch-read.live .ch-x { color: var(--accent); }
+.ch-v { display: inline-flex; align-items: baseline; white-space: nowrap; }
+.ch-v .key { align-self: center; }
+.ch-v .num { display: inline-block; margin-left: 6px; color: var(--fg); }
+.ch-v .num.up { color: var(--up); } .ch-v .num.down { color: var(--down); }
+.mk-chart .pill { fill: var(--fg2); }
+.mk-chart .pill-t { fill: var(--bg); font: 500 10px var(--mono); }
+.mk-chart .pill-t.mid { text-anchor: middle; }
+.mk-chart .hov-dot { stroke: var(--panel); stroke-width: 2; }
+/* Courbes des outils */
+.mk-chart .c-main { stroke: var(--accent); fill: var(--accent); } .key.c-main { background: var(--accent); }
+.mk-chart .c-alt { stroke: var(--s-ma50); fill: var(--s-ma50); } .key.c-alt { background: var(--s-ma50); }
+.mk-chart .c-high { stroke: var(--up); fill: var(--up); } .key.c-high { background: var(--up); }
+.mk-chart .c-low { stroke: var(--down); fill: var(--down); } .key.c-low { background: var(--down); }
+.mk-chart .c-paid { stroke: var(--muted); fill: var(--muted); } .key.c-paid { background: var(--muted); }
+.mk-chart .ln.c-paid { stroke-dasharray: 4 3; stroke-width: 1.4; }
 /* Fiche indicateur */
 .ind-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; margin-bottom: 16px; }
 .ind-head .v { font-size: 30px; font-weight: 500; letter-spacing: -.03em; }
@@ -391,7 +409,11 @@ footer b { color: var(--fg); }
 /* Outils : calculateurs (formulaire à gauche, résultat à droite) */
 a.chip { display: inline-block; }
 a.chip:hover { text-decoration: none; }
-#outils-tabs { margin-bottom: 14px; }
+/* Deux catégories d'outils, une ligne de pilules chacune */
+#outils-tabs { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 16px; }
+.t-cat { display: flex; align-items: center; gap: 6px 12px; min-width: 0; }
+.t-cat > .lb { flex: none; width: 130px; font-size: 12px; color: var(--muted); }
+.t-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .outil { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-bottom: 16px; }
 @media (max-width: 900px) { .outil { grid-template-columns: 1fr; } }
 .t-form > p.txt { color: var(--muted); }
@@ -424,25 +446,25 @@ a.chip:hover { text-decoration: none; }
 .t-levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; padding: 0 14px 14px; }
 .t-levels span { background: var(--bg); border-radius: 8px; padding: 6px 8px; font: 13px var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .t-levels i { display: block; font: normal 11px var(--sans); color: var(--accent); }
-.t-chart { position: relative; margin: 4px 14px 0; min-height: 200px; }
-.t-chart svg { display: block; overflow: visible; touch-action: pan-y; }
-.t-chart .grid { stroke: var(--line); stroke-width: 1; }
-.t-chart .zero { stroke: var(--line2); stroke-width: 1; }
-.t-chart .tick { fill: var(--muted); font: 10px var(--mono); }
-.t-chart .tick.end { text-anchor: end; }
-.t-chart .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
-.t-chart .ln { fill: none; stroke-width: 1.8; stroke-linejoin: round; }
-.t-chart .mk-tip { top: 0; }
-.ln.c-main { stroke: var(--accent); } .key.c-main { background: var(--accent); }
-.ln.c-alt { stroke: var(--s-ma50); } .key.c-alt { background: var(--s-ma50); }
-.ln.c-paid { stroke: var(--muted); stroke-dasharray: 4 3; stroke-width: 1.4; } .key.c-paid { background: var(--muted); }
-.t-keys { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 14px 12px; font-size: 12px; color: var(--muted); }
+.t-chart { margin: 4px 14px 12px; min-height: 0; }
+.t-chart .ln { stroke-width: 1.8; }
+.t-how { margin: 0 14px 14px; padding: 10px 12px; background: var(--bg); border-radius: 8px; font-size: 12px; color: var(--fg2); }
+.t-how b { display: block; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
+.t-how ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+/* Prix moyen : autant de lignes d'achat que voulu */
+.t-buys { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px; gap: 6px; align-items: center; }
+.t-buys > .lb { font-size: 11px; }
+.t-del { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.t-del:hover:not(:disabled) { color: var(--down); border-color: var(--line2); }
+.t-del:disabled { opacity: .35; cursor: default; }
+.t-add { align-self: flex-start; margin-top: 4px; }
 .outil-nfa { margin-top: 0; }
 @media (max-width: 700px) {
-  /* Une seule ligne d'outils qui défile au doigt, au lieu de 4 lignes de pilules */
-  #outils-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
-  #outils-tabs::-webkit-scrollbar { display: none; }
-  #outils-tabs .chip { flex: none; }
+  /* Chaque catégorie : son nom au-dessus, puis une ligne d'outils qui défile au doigt */
+  .t-cat { flex-direction: column; align-items: stretch; gap: 6px; }
+  .t-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+  .t-chips::-webkit-scrollbar { display: none; }
+  .t-chips .chip { flex: none; }
 }
 @media (max-width: 520px) {
   /* Résultats : libellé au-dessus de la valeur, pour que les longues valeurs ne se coupent pas */
