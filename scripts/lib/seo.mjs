@@ -31,17 +31,16 @@ function page({ site, root, title, description, canonical, body }) {
   <meta name="theme-color" content="#0c0d10">
   <link rel="icon" href="${root}icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="${root}apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="${root}css/style.css">
 </head>
 <body class="seo">
+  <a class="skip" href="#contenu">Aller au contenu</a>
   <header><div class="bar"><a class="logo" href="${root}#resume">Dinexo</a><a class="me" href="${root}#marche">Ouvrir le tableau de bord</a></div></header>
-  <main>
+  <main id="contenu" tabindex="-1">
 ${body}
   </main>
-  <footer><p><b>Ceci n'est pas un conseil financier.</b> Dinexo est un outil d'information gratuit. Le trading de cryptomonnaies comporte un risque élevé de perte en capital. Données : CoinGecko, OKX, DefiLlama.</p></footer>
+  <footer><p><b>Ceci n'est pas un conseil financier.</b> Dinexo est un outil d'information gratuit. Le trading de cryptomonnaies comporte un risque élevé de perte en capital. Données : CoinGecko, OKX, DefiLlama.</p>
+    <div class="legal-links" role="navigation" aria-label="Informations légales"><a href="${root}legal/mentions-legales.html">Mentions légales</a> · <a href="${root}legal/confidentialite.html">Confidentialité</a> · <a href="${root}legal/cookies.html">Cookies et stockage</a> · <a href="${root}legal/cgu.html">Conditions d'utilisation</a></div></footer>
 </body>
 </html>
 `;
@@ -114,6 +113,37 @@ export function sitemap({ site, coins, generatedAt }) {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url><loc>${esc(u)}</loc><lastmod>${day}</lastmod></url>`).join('\n')}
 </urlset>
+`;
+}
+
+// Guide du site pour les agents IA et les robots (format llms.txt : https://llmstxt.org) : ce qu'est Dinexo,
+// les pages lisibles sans JavaScript et les fichiers de données publics, mis à jour toutes les heures.
+export function llms({ site, coins }) {
+  const list = coins.map(c => `- [${c.name} (${c.symbol})](${site}/crypto/${c.id}/)`).join('\n');
+  return `# Dinexo
+
+> Tableau de bord crypto gratuit en français : marché, setups de trading dans le sens de la tendance sur BTC, ETH, SOL et le pétrole Brent, actualité qui fait bouger les prix, projets crypto rentables et outils de simulation. Mis à jour toutes les heures. Information seulement, pas de conseil en investissement.
+
+Le tableau de bord (${site}/) est une application en JavaScript à onglets (#marche, #setups, #actu…). Pour lire le contenu sans l'exécuter, utilise les pages fixes et les fichiers JSON ci-dessous.
+
+## Pages lisibles sans JavaScript
+
+- [Toutes les cryptos suivies](${site}/crypto/)
+${list}
+
+## Données publiques (JSON)
+
+- [Marché](${site}/data/marche.json) : prix, tendance, indicateurs, agenda macro, secteurs
+- [Setups](${site}/data/setups.json) : signaux de trading en cours et historique
+- [Actu](${site}/data/news.json) : news classées par importance, traduites en français
+- [Projets](${site}/data/projects.json) : petits projets crypto classés par revenus
+- [Outils](${site}/data/outils.json) : flux des ETF, funding, ratio long / short
+
+## Informations légales
+
+- [Conditions d'utilisation](${site}/legal/cgu.html)
+- [Confidentialité](${site}/legal/confidentialite.html)
+- [Mentions légales](${site}/legal/mentions-legales.html)
 `;
 }
 

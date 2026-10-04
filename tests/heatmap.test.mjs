@@ -30,7 +30,7 @@ test('tileColor : gris autour de 0, vert ou rouge net dès un petit mouvement, p
   assert.equal(tileColor(-0.03, 6), 'rgb(59, 63, 74)', 'presque rien');
   assert.equal(tileColor(6, 6), 'rgb(23, 207, 99)');
   assert.equal(tileColor(50, 6), 'rgb(23, 207, 99)');
-  assert.equal(tileColor(-50, 6), 'rgb(238, 43, 59)');
+  assert.equal(tileColor(-50, 6), 'rgb(226, 36, 52)');
   const ch = (s, i) => Number(tileColor(s, 6).match(/\d+/g)[i]);
   assert.ok(ch(0.2, 1) > ch(0.2, 0) + 50, '+0,2 % : déjà vert');
   assert.ok(ch(-0.2, 0) > ch(-0.2, 1) + 60, '-0,2 % : déjà rouge');
@@ -66,4 +66,12 @@ test('squarify : remplit le cadre, aires proportionnelles, sans chevauchement', 
   assert.ok(Math.max(r[0].w / r[0].h, r[0].h / r[0].w) < 3);
   assert.deepEqual(squarify([], 0, 0, 10, 10), []);
   assert.deepEqual(squarify([1, 1], 0, 0, 0, 10), [{ x: 0, y: 0, w: 0, h: 0 }, { x: 0, y: 0, w: 0, h: 0 }]);
+});
+
+test('tileInk : texte foncé sur le vert vif, blanc sur les fonds sombres (contraste lisible)', async () => {
+  const { tileInk, DARK_INK } = await import('../js/treemap.js');
+  assert.equal(tileInk(0, 6), '#fff');
+  assert.equal(tileInk(-1, 6), '#fff');
+  assert.equal(tileInk(6, 6), DARK_INK);
+  assert.equal(tileInk(null, 6), '#fff');
 });

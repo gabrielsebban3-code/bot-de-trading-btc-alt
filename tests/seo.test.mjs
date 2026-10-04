@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { siteUrl, coinPage, listPage, sitemap, robots, homePage } from '../scripts/lib/seo.mjs';
+import { siteUrl, coinPage, listPage, sitemap, robots, homePage, llms } from '../scripts/lib/seo.mjs';
 
 const site = siteUrl('https://dinexo.fr/');
 const coins = [
@@ -49,4 +49,18 @@ test("accueil : adresse remplacée et liens vers les fiches", () => {
   assert.match(html, /href="https:\/\/dinexo\.fr\/"/);
   assert.match(html, /<a href="crypto\/bitcoin\/">Bitcoin<\/a>/);
   assert.doesNotMatch(html, /%SITE%|seo:fiches/);
+});
+
+test('llms.txt : guide pour les agents IA, avec les fiches, les données et les pages légales', () => {
+  const txt = llms({ site, coins });
+  assert.match(txt, /^# Dinexo\n\n> /);
+  assert.match(txt, /\[Bitcoin \(BTC\)\]\(https:\/\/dinexo\.fr\/crypto\/bitcoin\/\)/);
+  assert.match(txt, /https:\/\/dinexo\.fr\/data\/setups\.json/);
+  assert.match(txt, /https:\/\/dinexo\.fr\/legal\/cgu\.html/);
+});
+
+test('pages fixes : polices du site (pas de Google Fonts) et liens légaux', () => {
+  const html = coinPage({ site, coin: coins[0], trend: null, about: null, coins, generatedAt });
+  assert.doesNotMatch(html, /fonts\.googleapis|fonts\.gstatic/);
+  assert.match(html, /href="\.\.\/\.\.\/legal\/confidentialite\.html"/);
 });

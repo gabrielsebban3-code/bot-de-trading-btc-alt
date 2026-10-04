@@ -186,7 +186,7 @@ export function drawCandles(box, spec) {
   const xRect = el('rect', { y: H - AX + 2, height: 17, rx: 4, class: 'pill' });
   const xText = el('text', { y: H - AX + 14.5, class: 'pill-t mid' });
   cross.append(vline, across, xRect, xText);
-  const hit = el('rect', { x: 0, y: 0, width: W, height: H, fill: 'transparent', tabindex: 0, 'aria-label': 'Survoler le graphique : flèches gauche et droite pour passer d\'une bougie à l\'autre' });
+  const hit = el('rect', { x: 0, y: 0, width: W, height: H, fill: 'transparent', tabindex: 0, role: 'application', 'aria-label': 'Survoler le graphique : flèches gauche et droite pour passer d\'une bougie à l\'autre' });
   svg.append(cross, hit);
 
   const read = document.createElement('div');

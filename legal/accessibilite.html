@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Accessibilité · Dinexo</title>
+  <meta name="description" content="Ce que Dinexo fait pour être utilisable par tous : contrastes, clavier, lecteurs d'écran, et comment signaler un problème.">
+  <meta name="theme-color" content="#0c0d10">
+  <link rel="icon" href="../icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="seo">
+  <a class="skip" href="#contenu">Aller au contenu</a>
+  <header><div class="bar"><a class="logo" href="../#resume">Dinexo</a><a class="me" href="../#resume">Ouvrir le tableau de bord</a></div></header>
+  <main id="contenu" tabindex="-1">
+    <article class="legal">
+<h1>Accessibilité</h1>
+<p class="maj">Dernière mise à jour : 4 octobre 2026</p>
+<p>Dinexo veut être lisible et utilisable par tout le monde, y compris avec un lecteur d'écran, au clavier seul, ou par un programme qui lit les pages.
+Le site n'a pas fait l'objet d'un audit officiel RGAA ; voici ce qui est en place et ce qui reste imparfait.</p>
+
+<h2>Ce qui est en place</h2>
+<ul>
+  <li>Contraste des textes vérifié automatiquement (outil axe, critères WCAG 2.2 niveau AA) sur toutes les pages, en version ordinateur et mobile.</li>
+  <li>Texte de remplacement sur les images (logos des cryptos) et description des graphiques.</li>
+  <li>Navigation au clavier : lien « Aller au contenu », contour visible sur l'élément actif, graphiques parcourables avec les flèches.</li>
+  <li>Structure de titres sur chaque page, langue française déclarée, animations coupées si ton appareil demande moins de mouvement.</li>
+  <li>Les liens dans le texte sont soulignés, pour ne pas dépendre de la couleur.</li>
+</ul>
+
+<h2>Limites connues</h2>
+<ul>
+  <li>Les graphiques restent avant tout visuels : leurs chiffres principaux sont repris en texte à côté, mais pas chaque point de la courbe.</li>
+  <li>La heatmap repose sur la couleur ; chaque tuile indique aussi la variation en texte et dans son nom lu par les lecteurs d'écran.</li>
+</ul>
+
+<h2>Pour les robots et agents IA</h2>
+<p>Un résumé du site lisible par les programmes est disponible à l'adresse <a href="../llms.txt">llms.txt</a>, et chaque crypto du tableau Marché a une page fixe lisible sans JavaScript.</p>
+
+<h2>Signaler un problème</h2>
+<p>Si un contenu ou une fonction t'est inaccessible, écris à <mark class="todo">[à compléter : e-mail de contact]</mark> en décrivant la page et le problème : nous te répondrons et te donnerons l'information autrement si besoin.</p>
+    </article>
+  </main>
+  <footer>
+    <p><b>Ceci n'est pas un conseil financier.</b> Dinexo est un outil d'information. Le trading de cryptomonnaies et de matières premières comporte un risque élevé de perte en capital.</p>
+    <div class="legal-links" role="navigation" aria-label="Informations légales"><a href="mentions-legales.html">Mentions légales</a> · <a href="confidentialite.html">Confidentialité</a> · <a href="cookies.html">Cookies et stockage</a> · <a href="cgu.html">Conditions d'utilisation</a> · <a href="accessibilite.html" aria-current="page">Accessibilité</a></div>
+  </footer>
+</body>
+</html>

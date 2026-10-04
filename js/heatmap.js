@@ -2,7 +2,7 @@
 // Données en direct depuis l'API publique et gratuite de CoinGecko, redemandées toutes les 2 minutes tant que
 // l'onglet est ouvert. Calculs dans js/treemap.js.
 import { esc, money, pct, price } from './format.js';
-import { PERIODS, coins, squarify, summary, tileColor } from './treemap.js';
+import { PERIODS, coins, squarify, summary, tileColor, tileInk } from './treemap.js';
 import { star, watchlist } from './watchlist.js';
 
 const URL = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=1h,24h,7d';
@@ -96,9 +96,11 @@ function render() {
     const small = Math.min(r.w, r.h);
     const fs = Math.max(10, Math.min(30, small / 4.2));
     const label = small < 26 ? '' : `<b style="font-size:${fs.toFixed(0)}px">${esc(c.symbol)}</b>${small >= 44 ? `<span style="font-size:${Math.max(10, fs * 0.6).toFixed(0)}px">${v === null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(Math.abs(v) < 10 ? 1 : 0).replace('.', ',')} %`}</span>` : ''}`;
-    return `<button type="button" class="tile${wl.has(c.symbol) ? ' wl' : ''}${state.picked === c.id ? ' on' : ''}" data-id="${esc(c.id)}"`
-      + ` style="left:${r.x.toFixed(1)}px;top:${r.y.toFixed(1)}px;width:${r.w.toFixed(1)}px;height:${r.h.toFixed(1)}px;background:${tileColor(v, full)}"`
-      + ` title="${esc(`${c.name} (${c.symbol}) · ${v === null ? '—' : `${v.toFixed(2)} %`}`)}">${label}</button>`;
+    const ink = tileInk(v, full);
+    const name = `${c.name} (${c.symbol}) · ${v === null ? '—' : `${v.toFixed(2)} %`}`;
+    return `<button type="button" class="tile${wl.has(c.symbol) ? ' wl' : ''}${state.picked === c.id ? ' on' : ''}${ink === '#fff' ? '' : ' ink'}" data-id="${esc(c.id)}"`
+      + ` style="left:${r.x.toFixed(1)}px;top:${r.y.toFixed(1)}px;width:${r.w.toFixed(1)}px;height:${r.h.toFixed(1)}px;background:${tileColor(v, full)};color:${ink}"`
+      + ` title="${esc(name)}" aria-label="${esc(name)}">${label}</button>`;
   }).join('');
 
   const known = list.filter(c => c.change[period] !== null).sort((a, b) => b.change[period] - a.change[period]);
@@ -119,7 +121,7 @@ function info(list) {
     `<a href="https://www.coingecko.com/fr/coins/${encodeURIComponent(c.id)}" target="_blank" rel="noopener">CoinGecko ↗</a>`,
     SETUP_ASSETS.includes(c.symbol) ? '<a href="#setups">Setups</a>' : '',
   ].join('');
-  el.innerHTML = `<div class="hd">${c.image && /^https:\/\//.test(c.image) ? `<img src="${esc(c.image)}" alt="" width="22" height="22">` : ''}<b>${esc(c.name)}</b><span class="muted">${esc(c.symbol)} · #${c.rank ?? '—'}</span>
+  el.innerHTML = `<div class="hd">${c.image && /^https:\/\//.test(c.image) ? `<img src="${esc(c.image)}" alt="${esc(`Logo ${c.name}`)}" width="22" height="22">` : ''}<b>${esc(c.name)}</b><span class="muted">${esc(c.symbol)} · #${c.rank ?? '—'}</span>
       ${star(c.symbol, { text: true })}
       <button type="button" class="x" aria-label="Fermer">×</button></div>
     <div class="lv"><span><i>Prix</i>${price(c.price)} $</span><span><i>1 h</i>${pct(c.change['1h'], false)}</span><span><i>24 h</i>${pct(c.change['24h'], false)}</span><span><i>7 j</i>${pct(c.change['7d'], false)}</span></div>

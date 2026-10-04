@@ -1,8 +1,8 @@
-// Référencement : pages fixes par crypto, sitemap.xml, robots.txt, et adresse du site dans index.html.
+// Référencement : pages fixes par crypto, sitemap.xml, robots.txt, llms.txt (agents IA), et adresse du site dans index.html.
 // Usage : node scripts/build-seo.mjs --dir _site --site https://…  (lit _site/data/marche.json et _site/data/crypto/)
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { siteUrl, coinPage, listPage, sitemap, robots, homePage } from './lib/seo.mjs';
+import { siteUrl, coinPage, listPage, sitemap, robots, homePage, llms } from './lib/seo.mjs';
 
 const arg = name => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : null; };
 const dir = arg('dir') ?? '_site';
@@ -24,6 +24,7 @@ for (const coin of coins) {
 if (coins.length) await writeFile(join(dir, 'crypto', 'index.html'), listPage({ site, coins, generatedAt }));
 await writeFile(join(dir, 'sitemap.xml'), sitemap({ site, coins: coins.length ? coins : [], generatedAt }));
 await writeFile(join(dir, 'robots.txt'), robots(site));
+await writeFile(join(dir, 'llms.txt'), llms({ site, coins }));
 const home = join(dir, 'index.html');
 await writeFile(home, homePage(await readFile(home, 'utf8'), { site, coins }));
-console.log(`Référencement : ${coins.length} fiche(s) crypto, sitemap.xml et robots.txt pour ${site}.`);
+console.log(`Référencement : ${coins.length} fiche(s) crypto, sitemap.xml, robots.txt et llms.txt pour ${site}.`);

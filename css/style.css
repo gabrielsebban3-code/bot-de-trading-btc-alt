@@ -1,12 +1,16 @@
 /* Dinexo — style DEX (Hyperliquid / Uniswap / Jupiter) : fond ardoise, panneaux arrondis,
    onglets en pilules, chiffres en mono. Accent orange. Thème sombre unique. */
+/* Polices Geist servies par le site lui-même (fonts/, licence OFL) : aucune requête vers Google Fonts,
+   donc l'adresse IP des visiteurs n'est pas envoyée à Google. */
+@font-face { font-family: "Geist"; src: url("../fonts/Geist-Variable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url("../fonts/GeistMono-Variable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
 :root {
   color-scheme: dark;
   --bg: #0c0d10; --panel: #15171c; --panel2: #1c1f26; --line: #23262e; --line2: #3a3e48;
   --fg: #eceef2; --fg2: #c9ccd3; --muted: #8b909c;
   --accent: #ff8a00; --accent-soft: rgba(255, 138, 0, .12); --accent-line: rgba(255, 138, 0, .25);
   --up: #22c55e; --up-soft: rgba(34, 197, 94, .12);
-  --down: #ef4444; --down-soft: rgba(239, 68, 68, .12);
+  --down: #f25c5c; --down-soft: rgba(239, 68, 68, .12);
   --mid: #f59e0b; --mid-soft: rgba(245, 158, 11, .08); --low: #5c616c;
   --sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -22,6 +26,13 @@ button { font: inherit; color: inherit; }
 .num, .mono, td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
 [hidden] { display: none !important; }
+/* Texte lu par les lecteurs d'écran et les robots, invisible à l'écran. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* Lien « Aller au contenu » : visible seulement quand on arrive dessus au clavier. */
+.skip { position: absolute; left: 16px; top: -60px; z-index: 30; background: var(--accent); color: #1a0f00; font-weight: 600; padding: 8px 14px; border-radius: 8px; }
+.skip:focus { top: 8px; text-decoration: none; }
+/* Liens au milieu d'un texte : soulignés, pour ne pas reposer que sur la couleur. */
+.txt a:not(.btn):not(.buy), .fine a, .intro p a, .legal a, .cx-note a, .pa-others a { text-decoration: underline; text-underline-offset: 2px; }
 
 /* En-tête */
 .sample { text-align: center; color: var(--mid); background: var(--mid-soft); font-size: 12px; padding: 6px 16px; }
@@ -77,7 +88,7 @@ body:not(.member) .members-only, body.member .guest-only { display: none !import
 .alert { display: flex; align-items: center; gap: 4px; background: var(--down-soft); border-top: 1px solid rgba(239, 68, 68, .3); padding: 0 6px 0 16px; }
 .alert a { flex: 1; min-width: 0; display: flex; gap: 10px; align-items: center; justify-content: center; color: #fca5a5; font-size: 13px; padding: 8px 0; }
 .alert a:hover { text-decoration: none; color: #fecaca; }
-.alert .k { background: var(--down); color: #fff; font-weight: 600; font-size: 11px; padding: 1px 8px; border-radius: 999px; flex: none; }
+.alert .k { background: #c81e1e; color: #fff; font-weight: 600; font-size: 11px; padding: 1px 8px; border-radius: 999px; flex: none; }
 .alert .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .alert .when { color: var(--muted); font-size: 12px; white-space: nowrap; flex: none; }
 .alert button { background: none; border: 0; color: #fca5a5; font-size: 18px; line-height: 1; padding: 4px 8px; cursor: pointer; border-radius: 6px; flex: none; }
@@ -144,7 +155,7 @@ a.card:hover { border-color: var(--line2); transform: translateY(-1px); text-dec
 .tools { display: flex; flex-wrap: wrap; gap: 8px 6px; margin-bottom: 10px; align-items: center; }
 .chip { font: 500 12px var(--sans); border: 1px solid var(--line); background: var(--panel); color: var(--muted); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
 .chip:hover { color: var(--fg); }
-.chip[aria-pressed="true"] { color: var(--fg); border-color: var(--accent); background: var(--accent-soft); }
+.chip[aria-pressed="true"], .chip[aria-current="page"] { color: var(--fg); border-color: var(--accent); background: var(--accent-soft); }
 .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
 .tools label { font-size: 12px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
 select { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 12px var(--sans); }
@@ -255,10 +266,11 @@ h2.section { margin: 28px 0 10px; }
 .heatmap .empty { position: absolute; inset: 0; display: grid; place-items: center; }
 .tile { position: absolute; border: 1px solid var(--bg); padding: 2px; margin: 0; color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; overflow: hidden; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); line-height: 1.1; }
 .tile b { font-weight: 600; letter-spacing: -.01em; }
-.tile span { font-family: var(--mono); font-variant-numeric: tabular-nums; opacity: .92; }
+.tile span { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .tile:hover { filter: brightness(1.15); z-index: 1; }
 .tile.wl { box-shadow: inset 0 0 0 2px var(--accent); }
 .tile.on { box-shadow: inset 0 0 0 2px #fff; z-index: 2; }
+.tile.ink { text-shadow: none; }
 .hm-legend { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; font: 11px var(--mono); color: var(--muted); }
 .hm-legend i { width: 18px; height: 10px; border-radius: 2px; display: inline-block; }
 .hm-legend > span:first-child { margin-right: 4px; }
@@ -301,6 +313,7 @@ button.row:hover { background: var(--panel2); }
 .field input.code { font: 500 18px var(--mono); letter-spacing: .3em; }
 .field input:focus { border-color: var(--accent); outline: none; }
 .login .msg { font-size: 12px; color: var(--mid); }
+.txt.rgpd { font-size: 12px; padding-bottom: 14px; }
 .login .msg:empty { display: none; }
 .box > p.note { color: var(--mid); }
 .row.wl { gap: 8px; }
@@ -315,6 +328,8 @@ footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 12px
 footer p { max-width: 70ch; margin: 0 auto; }
 footer b { color: var(--fg); }
 footer .seo-links { margin-top: 10px; }
+footer .legal-links { margin-top: 10px; }
+footer .legal-links a { color: var(--fg2); text-decoration: underline; text-underline-offset: 2px; }
 /* Pages fixes pour Google : /crypto/ et /crypto/<id>/ (scripts/lib/seo.mjs) */
 .seo-page { max-width: 760px; margin: 0 auto; }
 .seo-page > p { color: var(--fg2); font-size: 14px; }
@@ -329,6 +344,20 @@ footer .seo-links { margin-top: 10px; }
 .seo-page .btn.primary:hover { text-decoration: none; filter: brightness(1.1); }
 .seo-links { line-height: 1.9; }
 body.seo .bar { justify-content: space-between; }
+/* Pages légales (legal/*.html) */
+.legal { max-width: 760px; margin: 0 auto; color: var(--fg2); font-size: 15px; line-height: 1.65; }
+.legal h1 { font-size: 26px; color: var(--fg); margin-bottom: 4px; }
+.legal h2 { font-size: 18px; color: var(--fg); margin: 32px 0 8px; }
+.legal h3 { font-size: 15px; color: var(--fg); margin: 20px 0 6px; }
+.legal .maj { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+.legal .resume { border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: var(--r); padding: 12px 16px; }
+.legal .resume ul { margin: 6px 0 0; padding-left: 20px; }
+.legal table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0 16px; }
+.legal th, .legal td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.legal th { color: var(--fg); font-weight: 600; background: var(--panel); }
+.legal td code, .legal p code { font: 12px var(--mono); color: var(--fg); overflow-wrap: anywhere; }
+.legal .todo { background: rgba(245, 158, 11, .18); color: #fcd34d; padding: 0 4px; border-radius: 4px; }
+@media (max-width: 700px) { .legal table, .legal thead, .legal tbody, .legal tr, .legal th, .legal td { display: block; } .legal thead { display: none; } .legal td { border: 0; padding: 2px 0; } .legal tr { border-bottom: 1px solid var(--line); padding: 8px 0; } .legal td:first-child { color: var(--fg); font-weight: 600; } }
 
 @media (max-width: 700px) {
   /* backdrop-filter ferait de l'en-tête le repère de la barre fixe : on le retire sur mobile */
@@ -491,7 +520,7 @@ a.chip:hover { text-decoration: none; }
 .t-field.t-wide { grid-column: 1 / -1; }
 .t-field .tools { margin: 0; }
 .t-field .lb { font-size: 12px; color: var(--muted); }
-.t-field .hint { font-size: 11px; color: var(--muted); opacity: .8; }
+.t-field .hint { font-size: 11px; color: var(--muted); }
 .t-in { display: flex; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
 .t-in:focus-within { border-color: var(--accent); }
 /* 16 px : en dessous, Safari sur iPhone zoome sur le champ */
