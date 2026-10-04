@@ -395,6 +395,12 @@ footer b { color: var(--fg); }
 #marche-top tr[data-id]:hover { background: var(--panel2); }
 #marche-top td.name a { color: var(--fg); }
 #marche-top td.name a:hover { text-decoration: none; }
+@media (max-width: 520px) {
+  /* Téléphone : rang, ticker, tendance, prix et 24 h sur le premier écran ; le reste défile au doigt */
+  #marche-top td.name .muted { display: none; }
+  #marche-head th, #marche-top td { padding-inline: 8px; }
+  #marche-head th:first-child, #marche-top td:first-child { padding-left: 14px; }
+}
 .cx-ph { align-items: center; }
 .cx-logo { width: 32px; height: 32px; border-radius: 50%; background: var(--panel2); }
 .cx-when { font-size: 12px; }
