@@ -244,9 +244,11 @@ async function main() {
     ].join(' · '));
     dumps.push([coin.id, out]);
   }
-  // Sur une branche de test, chaque fiche est recopiée dans le journal (compressée) pour les aperçus.
+  // Sur une branche de test, chaque fiche est recopiée dans le journal (compressée) pour les aperçus,
+  // avec les données Marché, Actu et Setups du même passage (BTC, dominance, news et setups de la fiche).
   if (process.env.PUBLISH === 'false') {
-    for (const [id, out] of dumps) {
+    const site = await Promise.all(['marche', 'news', 'setups'].map(async n => [`_${n}`, await readFile(join(args.out || 'data', `${n}.json`), 'utf8').then(JSON.parse).catch(() => null)]));
+    for (const [id, out] of [...dumps, ...site.filter(([, v]) => v)]) {
       const gz = gzipSync(JSON.stringify(out)).toString('base64');
       const n = Math.ceil(gz.length / 8000);
       for (let i = 0; i < n; i++) console.log(`CRYPTO_GZ ${id} ${i + 1}/${n} ${gz.slice(i * 8000, (i + 1) * 8000)}`);
