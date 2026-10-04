@@ -70,8 +70,9 @@ test('signals : sans historique, aucun signal et pas de verdict', () => {
   assert.equal(tallyText({ up: 3, down: 1, total: 6, label: 'Plutôt haussier' }), '3 signaux haussiers, 1 baissier sur 6');
 });
 
-test('realCoins : retire stablecoins et versions wrapped ou staked', () => {
-  const list = [['BTC', 'Bitcoin'], ['USDT', 'Tether'], ['STETH', 'Lido Staked Ether'], ['WBTC', 'Wrapped Bitcoin'], ['USDE', 'Ethena USDe'], ['SOL', 'Solana']]
+test('realCoins : retire stablecoins, fonds tokenisés et versions wrapped ou staked', () => {
+  const list = [['BTC', 'Bitcoin'], ['USDT', 'Tether'], ['STETH', 'Lido Staked Ether'], ['WBTC', 'Wrapped Bitcoin'], ['USDE', 'Ethena USDe'], ['SOL', 'Solana'],
+    ['EURC', 'EURC'], ['EURSAFO', 'Spiko Amundi Overnight Swap Fund (EUR)'], ['OUSG', 'Ondo Short-Term US Government Bond Fund']]
     .map(([symbol, name]) => ({ symbol, name }));
   assert.deepEqual(realCoins(list).map(c => c.symbol), ['BTC', 'SOL']);
 });

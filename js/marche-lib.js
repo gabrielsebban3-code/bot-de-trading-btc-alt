@@ -124,10 +124,10 @@ export function verdict(list) {
 // Décompte d'un verdict : « 3 signaux haussiers, 1 baissier sur 6 ».
 export const tallyText = v => `${v.up} ${v.up > 1 ? 'signaux haussiers' : 'signal haussier'}, ${v.down} baissier${v.down > 1 ? 's' : ''} sur ${v.total}`;
 
-// Stablecoins, versions « wrapped » ou « staked » : dupliquent BTC ou ETH, ou ne bougent pas.
-// Actifs du monde réel mis sur la blockchain (prêts immobiliers, bons du Trésor, or…) : pas des cryptos qu'on trade.
-const NOT_COINS = /usd|_|^dai$|^wbtc$|^weth$|^steth$|^wsteth$|^weeth$|^wbeth$|^cbbtc$|^lbtc$|^susde$|^bsc-usd$|^buidl$|^xaut$|^paxg$/i;
-export const realCoins = list => list.filter(c => !NOT_COINS.test(c.symbol) && !/wrapped|staked|bridged|tokenized|treasury|heloc/i.test(c.name));
+// Stablecoins (dollar ou euro), versions « wrapped » ou « staked » : dupliquent BTC ou ETH, ou ne bougent pas.
+// Actifs du monde réel mis sur la blockchain (prêts immobiliers, bons du Trésor, fonds monétaires, or…) : pas des cryptos qu'on trade.
+const NOT_COINS = /usd|^eur|_|^dai$|^wbtc$|^weth$|^steth$|^wsteth$|^weeth$|^wbeth$|^cbbtc$|^lbtc$|^susde$|^bsc-usd$|^buidl$|^xaut$|^paxg$/i;
+export const realCoins = list => list.filter(c => !NOT_COINS.test(c.symbol) && !/wrapped|staked|bridged|tokenized|treasury|heloc|fund/i.test(c.name));
 
 // Tri du tableau des cryptos par colonne. Sens de départ : classement croissant, sinon les plus grandes valeurs d'abord
 // (pour la tendance : signaux haussiers moins baissiers, d'après la fiche de chaque crypto) ; reverse inverse le sens.
@@ -157,10 +157,11 @@ export function altSeason(list, n = 50) {
   return { value, beat, total: vs.length, btc30d: btc.change30d, dir, label, best: ranked.slice(0, 5), worst: ranked.slice(-5).reverse() };
 }
 
-// Secteurs suivis : identifiant de la catégorie CoinGecko et nom affiché.
+// Secteurs suivis : identifiant de la catégorie CoinGecko et nom affiché. Pas les actifs réels (RWA) : leur capitalisation
+// suit surtout les parts de fonds créées ou rachetées, pas un prix.
 export const SECTORS = [
   ['layer-1', 'Layer 1'], ['layer-2', 'Layer 2'], ['decentralized-finance-defi', 'DeFi'], ['meme-token', 'Memecoins'],
-  ['artificial-intelligence', 'Intelligence artificielle'], ['ai-agents', 'Agents IA'], ['real-world-assets-rwa', 'Actifs réels (RWA)'],
+  ['artificial-intelligence', 'Intelligence artificielle'], ['ai-agents', 'Agents IA'],
   ['gaming', 'Jeux vidéo'], ['depin', 'DePIN (réseaux physiques)'], ['exchange-based-tokens', 'Jetons de plateformes'],
   ['privacy-coins', 'Confidentialité'], ['decentralized-exchange', 'Plateformes décentralisées (DEX)'], ['oracle', 'Oracles'],
   ['decentralized-perpetuals', 'Perpétuels décentralisés'], ['lending-borrowing', 'Prêts et emprunts'],

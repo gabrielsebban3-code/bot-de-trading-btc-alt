@@ -105,7 +105,7 @@ async function main() {
   const tvl = take('tvl', tvlR) && toDaily(tvlR.value.map(x => [Number(x.date) * 1000, Number(x.tvl)]));
   const global = take('coingecko global', globalR)?.data;
   await sleep(1500);
-  const coinsR = await attempt('CoinGecko top', () => fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=100&price_change_percentage=24h,7d,30d`, { headers: cgHeaders, retries: 4 }));
+  const coinsR = await attempt('CoinGecko top', () => fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=250&price_change_percentage=24h,7d,30d`, { headers: cgHeaders, retries: 4 }));
   const coins = take('coingecko top', coinsR);
   // Dérivés (perpétuels et contrats à terme) de toutes les plateformes suivies par CoinGecko, en BTC.
   await sleep(1500);
@@ -150,7 +150,7 @@ async function main() {
   };
   sources.dex = dexR.ok ? 'ok' : 'erreur';
 
-  // Les 100 plus grosses cryptos au format du tableau (variations en fraction : 0,05 = +5 %). Les 20 premières hors
+  // Les 250 plus grosses cryptos au format du tableau (variations en fraction : 0,05 = +5 %). Les 20 premières hors
   // stablecoins forment le tableau ; l'identifiant CoinGecko ouvre la fiche de la crypto (#crypto/<id>, scripts/build-cryptos.mjs).
   const ratio = v => (v == null ? null : v / 100);
   const market = coins ? coins.map(c => ({
@@ -168,18 +168,23 @@ async function main() {
 
   // Secteurs : capitalisation et variation sur 24 h des catégories CoinGecko suivies. CoinGecko ne donne pas la
   // variation sur 7 jours : chaque secteur garde un point par jour d'un passage à l'autre pour la calculer.
-  const symbolOf = new Map((market || []).map(c => [c.id, c.symbol]));
+  // Une variation de plus de 40 % en un jour pour tout un secteur vient d'un jeton mal compté par CoinGecko : elle
+  // n'est pas affichée.
+  const symbolOf = new Map(realCoins(market || []).map(c => [c.id, c.symbol]));
+  const odd = [];
   const sectors = cats ? { list: SECTORS.map(([id, name]) => {
     const c = cats.find(x => x.id === id);
     if (!(c?.market_cap > 0)) return null;
+    let change24h = ratio(c.market_cap_change_24h);
+    if (Math.abs(change24h) > 0.4) { odd.push(`${id} ${(change24h * 100).toFixed(1)} %`); change24h = null; }
     const history = compact(mergePoints(previous?.sectors?.list?.find(x => x.id === id)?.history, [[today, c.market_cap]], 60));
-    return { id, name, mcap: c.market_cap, change24h: ratio(c.market_cap_change_24h), change7d: changeOver(history, 7), volume24h: c.volume_24h ?? null,
+    return { id, name, mcap: c.market_cap, change24h, change7d: changeOver(history, 7), volume24h: c.volume_24h ?? null,
       top: (c.top_3_coins_id || []).map(i => symbolOf.get(i)).filter(Boolean), history };
   }).filter(Boolean) } : previous?.sectors || null;
   if (cats) {
     const missing = SECTORS.filter(([id]) => !sectors.list.some(x => x.id === id)).map(([id]) => id);
-    console.log(`Secteurs : ${sectors.list.length}/${SECTORS.length} trouvés${missing.length ? ` · absents : ${missing.join(', ')}` : ''}`);
-    console.log(`Catégories CoinGecko les plus grosses : ${cats.slice(0, 40).map(x => x.id).join(', ')}`);
+    console.log(`Secteurs : ${sectors.list.length}/${SECTORS.length} trouvés${missing.length ? ` · absents : ${missing.join(', ')}` : ''}${odd.length ? ` · variation écartée : ${odd.join(', ')}` : ''}`);
+    console.log(`Secteurs, cryptos phares : ${sectors.list.map(x => `${x.id} ${x.top.join('/') || '—'} (${(cats.find(c => c.id === x.id)?.top_3_coins_id || []).join('/')})`).join(' · ')}`);
   }
 
   // Agenda : semaine en cours et semaine suivante quand ForexFactory la publie ; sans réponse, celui déjà publié.
