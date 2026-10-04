@@ -80,10 +80,15 @@ export function drawCandles(box, spec) {
     defs.append(cp);
     svg.append(el('text', { x: L, y: y0 + 11, class: 'pt' }, p.title));
     for (const [a, b, cls] of p.bands || []) svg.append(el('rect', { x: L, width: PW, y: y(b), height: y(a) - y(b), class: cls }));
-    const ticks = (p.ticks || niceTicks(lo, hi, p.kind === 'candles' || p.kind === 'close' ? Math.max(3, Math.round(p.h / 60)) : 2)).filter(t => t >= lo && t <= hi);
+    const priced = p.kind === 'candles' || p.kind === 'close';
+    const ticks = (p.ticks || niceTicks(lo, hi, priced ? Math.max(3, Math.round(p.h / 60)) : 2)).filter(t => t >= lo && t <= hi);
+    // Graduations du prix avec juste les décimales du pas (1,5 et 2 plutôt que 1,500 et 2,000).
+    const step = ticks.length > 1 ? ticks[1] - ticks[0] : 0;
+    const dec = step > 0 ? (step.toFixed(10).replace(/0+$/, '').split('.')[1] || '').length : 0;
+    const tickText = priced && step > 0 ? t => t.toLocaleString('fr-FR', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : p.fmt;
     for (const t of ticks) {
       svg.append(el('line', { x1: L, x2: W - R, y1: y(t), y2: y(t), class: 'grid' }));
-      svg.append(el('text', { x: W - R + 6, y: y(t) + 4, class: 'tick' }, p.fmt(t)));
+      svg.append(el('text', { x: W - R + 6, y: y(t) + 4, class: 'tick' }, tickText(t)));
     }
     for (const r of p.refs || []) svg.append(el('line', { x1: L, x2: W - R, y1: y(r), y2: y(r), class: 'ref' }));
 
