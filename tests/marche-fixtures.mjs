@@ -26,7 +26,18 @@ export function marcheRoutes(now = Date.now()) {
   const tvl = walk(60e9, 1600, 23, 0.02);
   const funding = Array.from({ length: 270 }, (_, k) => ({ fundingTime: String(today - k * 8 * 3600_000), realizedRate: String((r() - 0.35) * 0.0004) }));
   const oi = walk(8e9, 180, 24, 0.03);
+  // Agenda ForexFactory : dates avec fuseau (heure de New York) ou en UTC ; seules les annonces fortes américaines
+  // et les décisions de taux BCE / Banque du Japon restent.
+  const iso = ms => new Date(ms).toISOString();
+  const agenda = [
+    { title: 'FOMC Statement', country: 'USD', date: iso(now - 2 * DAY), impact: 'High', forecast: '', previous: '' },
+    { title: 'CPI m/m', country: 'USD', date: `${iso(now + DAY).slice(0, 10)}T08:30:00-04:00`, impact: 'High', forecast: '0.3%', previous: '0.4%' },
+    { title: 'Unemployment Claims', country: 'USD', date: iso(now + 2 * DAY), impact: 'Medium', forecast: '230K', previous: '225K' },
+    { title: 'German ZEW Economic Sentiment', country: 'EUR', date: iso(now + DAY), impact: 'High', forecast: '', previous: '' },
+    { title: 'Main Refinancing Rate', country: 'EUR', date: iso(now + 3 * DAY), impact: 'High', forecast: '2.00%', previous: '2.00%' },
+  ];
   return {
+    agenda,
     candles,
     fng,
     stables: days(1600).map((d, i) => ({ date: String(d / 1000), totalCirculatingUSD: { peggedUSD: st[i] } })),
@@ -35,6 +46,16 @@ export function marcheRoutes(now = Date.now()) {
     oi: days(180).map((d, i) => [String(d), i === 179 ? '0' : String(oi[i]), String(oi[i] * 3)]).reverse(), // OKX : jour en cours parfois à 0
   };
 }
+
+// Secteurs (catégories CoinGecko), les plus gros d'abord ; un secteur sans capitalisation est ignoré.
+const CATEGORIES = [
+  { id: 'smart-contract-platform', name: 'Smart Contract Platform', market_cap: 2.1e12, market_cap_change_24h: -0.8, volume_24h: 7e10, top_3_coins_id: ['bitcoin', 'ethereum', 'solana'] },
+  { id: 'layer-1', name: 'Layer 1 (L1)', market_cap: 2e12, market_cap_change_24h: -0.6, volume_24h: 6e10, top_3_coins_id: ['bitcoin', 'ethereum', 'ripple'] },
+  { id: 'decentralized-finance-defi', name: 'Decentralized Finance (DeFi)', market_cap: 1.1e11, market_cap_change_24h: 1.3, volume_24h: 8e9, top_3_coins_id: ['chainlink', 'uniswap', 'aave'] },
+  { id: 'meme-token', name: 'Meme', market_cap: 6e10, market_cap_change_24h: 4.2, volume_24h: 5e9, top_3_coins_id: ['dogecoin', 'shiba-inu', 'pepe'] },
+  { id: 'artificial-intelligence', name: 'Artificial Intelligence (AI)', market_cap: 3e10, market_cap_change_24h: null, volume_24h: 3e9, top_3_coins_id: [] },
+  { id: 'gaming', name: 'Gaming (GameFi)', market_cap: 0, market_cap_change_24h: 2, volume_24h: 0, top_3_coins_id: [] },
+];
 
 const COINS = [
   ['bitcoin', 'btc', 'Bitcoin', 84_000], ['ethereum', 'eth', 'Ethereum', 2_700], ['tether', 'usdt', 'Tether', 1],
@@ -69,9 +90,16 @@ export function routeMarche(data, url) {
       { id: 'okex_swap', name: 'OKX (Futures)', open_interest_btc: 120_000, trade_volume_24h_btc: '400000' },
       { id: 'petite', name: 'Petite plateforme', open_interest_btc: null, trade_volume_24h_btc: null }];
   }
+  // Les plus grosses cryptos, puis 50 altcoins fictifs aux variations variées (pour la saison des altcoins).
   if (p === 'api.coingecko.com/api/v3/coins/markets' && !q('ids')) {
-    return COINS.map(([id, symbol, name, price], i) => ({ id, symbol, name, current_price: price, market_cap: 1.7e12 / (i + 1), total_volume: 2e10 / (i + 1),
-      price_change_percentage_24h_in_currency: -2.5 + i * 0.4, price_change_percentage_7d_in_currency: 1 - i, price_change_percentage_30d_in_currency: 4 - i * 1.5 }));
+    return [...COINS.map(([id, symbol, name, price], i) => ({ id, symbol, name, current_price: price, market_cap: 1.7e12 / (i + 1), total_volume: 2e10 / (i + 1),
+      price_change_percentage_24h_in_currency: -2.5 + i * 0.4, price_change_percentage_7d_in_currency: 1 - i, price_change_percentage_30d_in_currency: 4 - i * 1.5 })),
+    ...Array.from({ length: 50 }, (_, k) => ({ id: `alt-${k + 1}`, symbol: `alt${k + 1}`, name: `Altcoin ${k + 1}`, current_price: 1 + k,
+      market_cap: 1.7e12 / (k + 11), total_volume: 2e10 / (k + 11), price_change_percentage_24h_in_currency: ((k * 13) % 9) - 4,
+      price_change_percentage_7d_in_currency: ((k * 7) % 15) - 7, price_change_percentage_30d_in_currency: ((k * 37) % 41) - 18 }))];
   }
+  if (p === 'api.coingecko.com/api/v3/coins/categories') return CATEGORIES;
+  // ForexFactory : la semaine en cours ; la suivante n'est pas encore publiée.
+  if (p === 'nfs.faireconomy.media/ff_calendar_thisweek.json') return data.agenda;
   return undefined;
 }

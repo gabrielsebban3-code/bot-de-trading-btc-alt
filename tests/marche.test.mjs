@@ -3,10 +3,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DAY, mergePoints, realCoins, signals, sma, sortTop, tallyText, toDaily, verdict } from '../js/marche-lib.js';
+import { agendaEvents, agendaFr, altSeason, changeOver, DAY, mergePoints, realCoins, signals, sma, sortTop, tallyText, toDaily, verdict } from '../js/marche-lib.js';
 
 const T0 = Date.parse('2026-01-01T00:00:00Z');
 const D0 = T0 / DAY;
@@ -76,11 +76,16 @@ test('realCoins : retire stablecoins et versions wrapped ou staked', () => {
   assert.deepEqual(realCoins(list).map(c => c.symbol), ['BTC', 'SOL']);
 });
 
-test('script Marché : open interest du jour en direct, dérivés de toutes les plateformes', async () => {
+test('script Marché : open interest du jour en direct, dérivés, saison des altcoins, secteurs et agenda', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'dinexo-marche-'));
-  await promisify(execFile)(process.execPath, ['--import', './tests/mock-fetch.mjs', 'scripts/build-marche.mjs', '--out', dir]);
-  const m = JSON.parse(await readFile(join(dir, 'marche.json'), 'utf8'));
   const today = Math.floor(Date.now() / DAY);
+  // Version déjà en ligne : historique des secteurs et de la saison des altcoins, gardé d'un passage à l'autre.
+  await writeFile(join(dir, 'previous.json'), JSON.stringify({
+    sectors: { list: [{ id: 'meme-token', history: [[today - 8, 5e10], [today - 1, 5.5e10]] }] },
+    altseason: { history: [[today - 1, 40]] },
+  }));
+  await promisify(execFile)(process.execPath, ['--import', './tests/mock-fetch.mjs', 'scripts/build-marche.mjs', '--out', dir, '--previous', join(dir, 'previous.json')]);
+  const m = JSON.parse(await readFile(join(dir, 'marche.json'), 'utf8'));
   // Les valeurs quotidiennes d'OKX s'arrêtent avant aujourd'hui : le jour en cours prend la valeur en direct.
   assert.ok(m.series.oi.points.at(-2)[0] < today);
   assert.deepEqual(m.series.oi.points.at(-1), [today, 13.5e9]);
@@ -91,6 +96,73 @@ test('script Marché : open interest du jour en direct, dérivés de toutes les 
   assert.equal(m.tiles.derivs.exchanges, 2);
   assert.equal(m.sources['dérivés'], 'ok');
   assert.equal(m.tiles.perps, undefined);
+  // Tableau : 20 cryptos hors stablecoins. Saison des altcoins sur les 50 plus grosses hors BTC, un point par jour.
+  assert.equal(m.top.length, 20);
+  assert.equal(m.altseason.total, 50);
+  assert.equal(m.altseason.value, Math.round((100 * m.altseason.beat) / 50));
+  assert.deepEqual(m.altseason.history, [[today - 1, 40], [today, m.altseason.value]]);
+  // Secteurs suivis trouvés chez CoinGecko (un secteur sans capitalisation est ignoré), symboles des plus grosses cryptos
+  // connues, variation sur 7 jours grâce à l'historique déjà publié.
+  assert.deepEqual(m.sectors.list.map(x => x.id), ['layer-1', 'decentralized-finance-defi', 'meme-token', 'artificial-intelligence']);
+  const [l1, , meme, ai] = m.sectors.list;
+  assert.deepEqual(l1.top, ['BTC', 'ETH', 'XRP']);
+  assert.equal(l1.change7d, null);
+  assert.deepEqual(l1.history, [[today, 2e12]]);
+  assert.deepEqual(meme.top, ['DOGE']);
+  assert.ok(Math.abs(meme.change24h - 0.042) < 1e-12);
+  assert.ok(Math.abs(meme.change7d - 0.2) < 1e-12);
+  assert.equal(meme.history.length, 3);
+  assert.equal(ai.change24h, null);
+  // Agenda : annonces fortes américaines et décision de la BCE, en français ; la semaine prochaine n'est pas publiée.
+  assert.deepEqual(m.agenda.events.map(e => e.title), ['Communiqué de la Fed', 'Inflation (CPI) sur un mois', 'Décision de taux de la BCE']);
+  assert.equal(m.agenda.events[1].t.slice(11), '12:30:00.000Z');
+  assert.equal(m.agenda.nextWeek, false);
+  assert.equal(m.sources.agenda, 'ok');
+  assert.equal(m.sources.secteurs, 'ok');
+});
+
+test('altSeason : part des 50 plus grosses qui battent BTC sur 30 jours, sans BTC ni stablecoins', () => {
+  const coin = (symbol, change30d, name = symbol) => ({ id: symbol.toLowerCase(), symbol, name, change30d });
+  const alts = Array.from({ length: 12 }, (_, i) => coin(`A${i}`, i < 9 ? 0.2 : -0.1));
+  const list = [coin('BTC', 0.1, 'Bitcoin'), coin('USDT', 0, 'Tether'), coin('WBTC', 0.1, 'Wrapped Bitcoin'), ...alts];
+  const s = altSeason(list);
+  assert.deepEqual([s.beat, s.total, s.value, s.dir, s.label], [9, 12, 75, 1, 'Saison des altcoins']);
+  assert.ok(Math.abs(s.best[0].vsBtc - (1.2 / 1.1 - 1)) < 1e-12);
+  assert.deepEqual(s.worst.map(c => c.symbol), ['A11', 'A10', 'A9', 'A8', 'A7']);
+  // Seulement les n premières : 9 sur 10 font mieux que BTC.
+  assert.equal(altSeason(list, 10).value, 90);
+  const btcSeason = altSeason([coin('BTC', 0.1), ...Array.from({ length: 12 }, (_, i) => coin(`B${i}`, i < 3 ? 0.3 : 0))]);
+  assert.deepEqual([btcSeason.value, btcSeason.dir, btcSeason.label], [25, -1, 'Saison du Bitcoin']);
+  assert.equal(altSeason(alts), null); // sans BTC
+  assert.equal(altSeason([coin('BTC', 0.1), ...alts.slice(0, 9)]), null); // trop peu d'altcoins
+});
+
+test('changeOver : variation sur n jours, null tant que l\'historique est trop court', () => {
+  assert.ok(Math.abs(changeOver([[1, 100], [3, 100], [10, 120]], 7) - 0.2) < 1e-12);
+  assert.equal(changeOver([[5, 100], [10, 120]], 7), null);
+  assert.equal(changeOver([], 7), null);
+  assert.equal(changeOver(undefined, 7), null);
+});
+
+test('agendaEvents : annonces américaines fortes et décisions de taux, en français, triées', () => {
+  const rows = [
+    { title: 'CPI m/m', country: 'USD', date: '2026-10-14T08:30:00-04:00', impact: 'High', forecast: '0.3%', previous: '0.4%' },
+    { title: 'Non-Farm Employment Change', country: 'USD', date: '2026-10-09T08:30:00-04:00', impact: 'High', forecast: '180K', previous: '-4K' },
+    { title: 'Unemployment Claims', country: 'USD', date: '2026-10-09T08:30:00-04:00', impact: 'Medium' },
+    { title: 'German ZEW Economic Sentiment', country: 'EUR', date: '2026-10-14T05:00:00-04:00', impact: 'High' },
+    { title: 'BOJ Policy Rate', country: 'JPY', date: '2026-10-30T00:00:00-04:00', impact: 'High', forecast: '0.75%', previous: '0.50%' },
+    { title: 'Fed Chair Waller Speaks', country: 'USD', date: '2026-10-15T10:00:00-04:00', impact: 'High' },
+    { title: 'Mystery Index', country: 'USD', date: 'pas une date', impact: 'High' },
+  ];
+  const ev = agendaEvents(rows);
+  assert.deepEqual(ev.map(e => e.title), ["Créations d'emplois (NFP)", 'Inflation (CPI) sur un mois', 'Discours du président de la Fed (Waller)', 'Décision de taux de la Banque du Japon']);
+  assert.equal(ev[0].t, '2026-10-09T12:30:00.000Z');
+  assert.deepEqual([ev[0].forecast, ev[0].previous], ['180 k', '-4 k']);
+  assert.deepEqual([ev[1].forecast, ev[1].previous, ev[1].en], ['0,3 %', '0,4 %', 'CPI m/m']);
+  assert.equal(ev[2].forecast, null);
+  assert.equal(agendaFr('Retail Sales m/m'), 'Ventes au détail sur un mois');
+  assert.equal(agendaFr('Unknown Thing'), 'Unknown Thing');
+  assert.deepEqual(agendaEvents(null), []);
 });
 
 test('sortTop : classement, tendance la plus nette d\'abord, plus fortes hausses, sens inversé', () => {

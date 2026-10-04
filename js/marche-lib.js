@@ -125,8 +125,8 @@ export function verdict(list) {
 export const tallyText = v => `${v.up} ${v.up > 1 ? 'signaux haussiers' : 'signal haussier'}, ${v.down} baissier${v.down > 1 ? 's' : ''} sur ${v.total}`;
 
 // Stablecoins, versions « wrapped » ou « staked » : dupliquent BTC ou ETH, ou ne bougent pas.
-// Actifs du monde réel mis sur la blockchain (prêts immobiliers, bons du Trésor…) : pas des cryptos qu'on trade.
-const NOT_COINS = /usd|_|^dai$|^wbtc$|^weth$|^steth$|^wsteth$|^weeth$|^wbeth$|^cbbtc$|^lbtc$|^susde$|^bsc-usd$|^buidl$/i;
+// Actifs du monde réel mis sur la blockchain (prêts immobiliers, bons du Trésor, or…) : pas des cryptos qu'on trade.
+const NOT_COINS = /usd|_|^dai$|^wbtc$|^weth$|^steth$|^wsteth$|^weeth$|^wbeth$|^cbbtc$|^lbtc$|^susde$|^bsc-usd$|^buidl$|^xaut$|^paxg$/i;
 export const realCoins = list => list.filter(c => !NOT_COINS.test(c.symbol) && !/wrapped|staked|bridged|tokenized|treasury|heloc/i.test(c.name));
 
 // Tri du tableau des cryptos par colonne. Sens de départ : classement croissant, sinon les plus grandes valeurs d'abord
@@ -139,4 +139,70 @@ export function sortTop(list, key, trends = new Map(), reverse = false) {
   return list.map((c, i) => [c, value(c, i), i])
     .sort((a, b) => (a[1] == null) - (b[1] == null) || sign * ((b[1] ?? 0) - (a[1] ?? 0)) || a[2] - b[2])
     .map(([c]) => c);
+}
+
+// Saison des altcoins : part des n plus grosses cryptos (hors BTC, stablecoins et versions wrapped) qui font mieux
+// que BTC sur 30 jours. 75 % ou plus : saison des altcoins ; 25 % ou moins : saison du Bitcoin.
+// Liste au format du tableau (symbol en majuscules, change30d en fraction : 0,05 = +5 %).
+export function altSeason(list, n = 50) {
+  const btc = list.find(c => c.symbol === 'BTC');
+  if (btc?.change30d == null) return null;
+  const alts = realCoins(list).filter(c => c.symbol !== 'BTC').slice(0, n).filter(c => c.change30d != null);
+  if (alts.length < 10) return null;
+  const vs = alts.map(c => ({ id: c.id, symbol: c.symbol, name: c.name, vsBtc: (1 + c.change30d) / (1 + btc.change30d) - 1 }));
+  const beat = vs.filter(c => c.vsBtc > 0).length;
+  const value = Math.round((100 * beat) / vs.length);
+  const [dir, label] = value >= 75 ? [1, 'Saison des altcoins'] : value <= 25 ? [-1, 'Saison du Bitcoin'] : [0, 'Pas de saison nette'];
+  const ranked = [...vs].sort((a, b) => b.vsBtc - a.vsBtc);
+  return { value, beat, total: vs.length, btc30d: btc.change30d, dir, label, best: ranked.slice(0, 5), worst: ranked.slice(-5).reverse() };
+}
+
+// Secteurs suivis : identifiant de la catégorie CoinGecko et nom affiché.
+export const SECTORS = [
+  ['layer-1', 'Layer 1'], ['layer-2', 'Layer 2'], ['decentralized-finance-defi', 'DeFi'], ['meme-token', 'Memecoins'],
+  ['artificial-intelligence', 'Intelligence artificielle'], ['ai-agents', 'Agents IA'], ['real-world-assets-rwa', 'Actifs réels (RWA)'],
+  ['gaming', 'Jeux vidéo'], ['depin', 'DePIN (réseaux physiques)'], ['exchange-based-tokens', 'Jetons de plateformes'],
+  ['privacy-coins', 'Confidentialité'], ['decentralized-exchange', 'Plateformes décentralisées (DEX)'], ['oracle', 'Oracles'],
+  ['perpetuals', 'Perpétuels décentralisés'], ['lending-borrowing', 'Prêts et emprunts'],
+];
+
+// Variation d'une série quotidienne sur `days` jours ; null tant que l'historique est trop court.
+export function changeOver(points, days) {
+  const last = points?.at(-1);
+  const ref = last && points.findLast(([d]) => d <= last[0] - days);
+  return ref && ref[1] ? last[1] / ref[1] - 1 : null;
+}
+
+// Agenda macro : les annonces américaines à fort impact, plus les décisions de taux de la BCE et de la Banque du Japon,
+// avec un nom en français (le titre anglais reste si l'annonce n'est pas dans la liste).
+const AGENDA_FR = [
+  [/^Core CPI m\/m$/, 'Inflation sous-jacente (CPI) sur un mois'], [/^Core CPI y\/y$/, 'Inflation sous-jacente (CPI) sur un an'],
+  [/^CPI m\/m$/, 'Inflation (CPI) sur un mois'], [/^CPI y\/y$/, 'Inflation (CPI) sur un an'],
+  [/^Core PPI m\/m$/, 'Prix à la production sous-jacents (PPI)'], [/^PPI m\/m$/, 'Prix à la production (PPI)'],
+  [/^Core PCE Price Index m\/m$/, 'Inflation PCE sous-jacente sur un mois'], [/^PCE Price Index m\/m$/, 'Inflation PCE sur un mois'],
+  [/^Non-Farm Employment Change$/, "Créations d'emplois (NFP)"], [/^ADP Non-Farm Employment Change$/, 'Emplois privés (ADP)'],
+  [/^Unemployment Rate$/, 'Taux de chômage'], [/^Unemployment Claims$/, 'Inscriptions au chômage de la semaine'],
+  [/^Average Hourly Earnings m\/m$/, 'Salaire horaire moyen sur un mois'], [/^JOLTS Job Openings$/, "Offres d'emploi (JOLTS)"],
+  [/^Federal Funds Rate$/, 'Décision de taux de la Fed'], [/^FOMC Statement$/, 'Communiqué de la Fed'],
+  [/^FOMC Press Conference$/, 'Conférence de presse de la Fed'], [/^FOMC Meeting Minutes$/, 'Compte rendu de la réunion de la Fed'],
+  [/^FOMC Economic Projections$/, 'Prévisions économiques de la Fed'], [/^Fed Chair (.+) (Speaks|Testifies)$/, 'Discours du président de la Fed ($1)'],
+  [/^(Advance|Prelim|Final) GDP q\/q$/, 'Croissance du PIB sur un trimestre'], [/^Core Retail Sales m\/m$/, 'Ventes au détail hors automobile'],
+  [/^Retail Sales m\/m$/, 'Ventes au détail sur un mois'], [/^ISM Manufacturing PMI$/, "Activité de l'industrie (ISM)"],
+  [/^ISM Services PMI$/, 'Activité des services (ISM)'], [/^(Prelim )?UoM Consumer Sentiment$/, 'Moral des ménages (Michigan)'],
+  [/^CB Consumer Confidence$/, 'Confiance des consommateurs'], [/^Main Refinancing Rate$/, 'Décision de taux de la BCE'],
+  [/^BOJ Policy Rate$/, 'Décision de taux de la Banque du Japon'],
+];
+export function agendaFr(title) {
+  const hit = AGENDA_FR.find(([re]) => re.test(title));
+  return hit ? title.replace(hit[0], hit[1]) : title;
+}
+
+// Annonces gardées du calendrier (format ForexFactory : title, country, date avec fuseau, impact, forecast, previous),
+// triées par date ; les chiffres prévus et précédents passent à l'écriture française (0.3% → 0,3 %).
+const frFigure = s => (s ? String(s).replace(/(\d)\.(\d)/g, '$1,$2').replace(/%/g, ' %').replace(/(\d)K\b/g, '$1 k').replace(/(\d)M\b/g, '$1 M').replace(/(\d)B\b/g, '$1 Md') : null);
+export function agendaEvents(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter(r => r?.impact === 'High' && (r.country === 'USD' || /^(Main Refinancing Rate|BOJ Policy Rate)$/.test(r.title)) && Number.isFinite(Date.parse(r.date)))
+    .map(r => ({ t: new Date(r.date).toISOString(), title: agendaFr(r.title), en: r.title, cur: r.country, forecast: frFigure(r.forecast), previous: frFigure(r.previous) }))
+    .sort((a, b) => a.t.localeCompare(b.t));
 }
