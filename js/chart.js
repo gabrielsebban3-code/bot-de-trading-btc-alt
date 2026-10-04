@@ -14,7 +14,8 @@ const el = (tag, attrs = {}, text) => {
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-export const dateFr = d => new Date(d * DAY).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' });
+// « 1er oct. 26 » : le premier du mois s'écrit 1er en français.
+export const dateFr = d => new Date(d * DAY).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' }).replace(/^1 /, '1er ');
 
 // Graduations du temps : le 1er de chaque mois, ou une date par semaine sur une courte période.
 function timeTicks(start, end, width) {
@@ -29,7 +30,7 @@ function timeTicks(start, end, width) {
   }
   const step = Math.max(1, Math.ceil(span / room));
   const out = [];
-  for (let d = Math.ceil(start); d <= end; d += step) out.push([d, new Date(d * DAY).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' })]);
+  for (let d = Math.ceil(start); d <= end; d += step) out.push([d, new Date(d * DAY).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(/^1 /, '1er ')]);
   return out;
 }
 
@@ -53,6 +54,27 @@ function niceTicks(lo, hi, target) {
   return Array.from({ length: best.n }, (_, i) => Number(((best.first + i) * best.step).toPrecision(12)));
 }
 
+// Graduations d'une échelle logarithmique (valeurs réelles, lo > 0) : 1, 3 ou 1, 2, 5 × 10ⁿ selon la place.
+// Sur moins d'une décade, des graduations rondes ordinaires.
+function logTicks(lo, hi, target) {
+  let best = null;
+  for (const ms of [[1], [1, 3], [1, 2, 5]]) {
+    const out = [];
+    for (let k = Math.floor(Math.log10(lo)); k <= Math.ceil(Math.log10(hi)); k++) {
+      for (const m of ms) {
+        const v = Number((m * 10 ** k).toPrecision(12));
+        if (v >= lo && v <= hi) out.push(v);
+      }
+    }
+    if (out.length < 2) continue;
+    const score = Math.abs(out.length - target);
+    if (!best || score < best.score) best = { score, out };
+  }
+  if (!best) return niceTicks(lo, hi, target);
+  const every = Math.ceil(best.out.length / (target + 1));
+  return best.out.filter((_, i) => i % every === 0);
+}
+
 // Nombre de caractères du texte le plus long (sur un échantillon) : la ligne des valeurs garde la même largeur au survol.
 function widest(list, text) {
   if (!list.length) return 1;
@@ -63,8 +85,11 @@ function widest(list, text) {
 }
 
 // Dessine les panneaux dans `box`. Un panneau : { title, h, fmt, axis, lines: [{ key, label, pts, cls, keyCls }], bars,
-// ref, lo, hi, ticks, bands, reverse } ; `axis` (facultatif) écrit les valeurs de l'axe en plus court que `fmt`.
-// Options : xLabel (date ou valeur affichée au survol), xTicks (graduations).
+// ref, lo, hi, ticks, bands, reverse, log } ; `axis` (facultatif) écrit les valeurs de l'axe en plus court que `fmt`,
+// `log` passe l'échelle en logarithmique (pour des prix qui se multiplient par 10 ou 100).
+// Options : xLabel (date ou valeur affichée au survol), xTicks (graduations), snap (positions où se cale le curseur,
+// par défaut les points de la première courbe), tolerance (écart accepté entre le curseur et un point), marks
+// (positions d'un trait vertical pointillé, par exemple « aujourd'hui »).
 export function drawPanes(box, panes, start, end, opts = {}) {
   const W = box.clientWidth;
   if (!W) return;
@@ -76,22 +101,28 @@ export function drawPanes(box, panes, start, end, opts = {}) {
   const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': `Graphique ${panes.map(p => p.title).join(', ')}` });
   let y0 = TOP;
   for (const p of panes) {
-    const vals = p.lines.flatMap(l => l.pts.map(q => q[1])).concat(p.ref != null ? [p.ref] : []);
-    let lo = p.lo ?? Math.min(...vals), hi = p.hi ?? Math.max(...vals);
+    // En logarithmique, les calculs de l'échelle se font sur log10 des valeurs (strictement positives).
+    const tf = p.log ? v => Math.log10(Math.max(v, 1e-12)) : v => v;
+    const vals = p.lines.flatMap(l => l.pts.map(q => q[1])).concat(p.ref != null ? [p.ref] : []).map(tf);
+    let lo = p.lo != null ? tf(p.lo) : Math.min(...vals), hi = p.hi != null ? tf(p.hi) : Math.max(...vals);
     if (p.bars) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
     if (p.lo == null) {
       const pad = (hi - lo) * 0.06 || Math.abs(hi) * 0.05 || 1;
-      const floor = lo >= 0 ? 0 : -Infinity; // une courbe toujours positive ne descend pas sous zéro
+      const floor = lo >= 0 && !p.log ? 0 : -Infinity; // une courbe toujours positive ne descend pas sous zéro
       lo = p.bars ? lo : Math.max(floor, lo - pad);
       hi += pad;
     }
     const top = y0 + 18, bottom = y0 + p.h;
-    const y = v => bottom - ((v - lo) / (hi - lo || 1)) * (bottom - top);
-    const inv = py => lo + ((bottom - py) / (bottom - top)) * (hi - lo);
+    const y = v => bottom - ((tf(v) - lo) / (hi - lo || 1)) * (bottom - top);
+    const inv = py => {
+      const v = lo + ((bottom - py) / (bottom - top)) * (hi - lo);
+      return p.log ? 10 ** v : v;
+    };
     Object.assign(p, { y, inv, top, bottom });
     if (p.title) svg.append(el('text', { x: L, y: y0 + 11, class: 'pt' }, p.title));
     for (const [a, b, cls] of p.bands || []) svg.append(el('rect', { x: L, width: W - L - R, y: y(b), height: y(a) - y(b), class: cls }));
-    const ticks = p.ticks || niceTicks(lo, hi, clamp(Math.round((bottom - top) / 50), 2, 5));
+    const target = clamp(Math.round((bottom - top) / 50), 2, 5);
+    const ticks = p.ticks || (p.log ? logTicks(10 ** lo, 10 ** hi, target) : niceTicks(lo, hi, target));
     p.axis ||= p.fmt;
     for (const t of ticks) {
       svg.append(el('line', { x1: L, x2: W - R, y1: y(t), y2: y(t), class: 'grid' }));
@@ -116,6 +147,7 @@ export function drawPanes(box, panes, start, end, opts = {}) {
     }
     y0 = bottom + GAP;
   }
+  for (const d of opts.marks || []) svg.append(el('line', { x1: x(d), x2: x(d), y1: TOP, y2: H - AX, class: 'mark' }));
   // Axe horizontal sous le dernier panneau ; les graduations du bord restent dans le cadre.
   for (const [d, label] of (opts.xTicks || timeTicks)(start, end, W - L - R)) {
     const tx = x(d);
@@ -145,8 +177,8 @@ export function drawPanes(box, panes, start, end, opts = {}) {
   read.setAttribute('aria-live', 'polite');
   box.replaceChildren(read, svg);
 
-  // Le curseur se cale sur les points de la première courbe (les jours sans cotation sont sautés).
-  const base = panes.flatMap(p => p.lines).find(l => l.pts.length)?.pts || [];
+  // Le curseur se cale sur les points de la première courbe (les jours sans cotation sont sautés), ou sur `snap`.
+  const base = opts.snap ? opts.snap.map(d => [d]) : panes.flatMap(p => p.lines).find(l => l.pts.length)?.pts || [];
   const xw = widest(base, q => xLabel(q[0]));
   for (const p of panes) {
     for (const l of p.lines) {

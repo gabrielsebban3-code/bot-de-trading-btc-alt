@@ -43,6 +43,11 @@ test('dca : achats réguliers, prix moyen, comparaison avec un achat unique', ()
   assert.equal(r.worst.day, 1);
   assert.equal(r.series.length, 5);
   assert.deepEqual(r.series[4], [4, 300, 700, 600]);
+  // Prix moyen payé jour après jour : 100 au premier achat, 200 / 3 au jour 2 (1 + 2 unités), 300 / 3,5 à la fin.
+  near(r.cost[0][1], 100);
+  near(r.cost[1][1], 100);
+  near(r.cost[2][1], 200 / 3);
+  near(r.cost[4][1], 300 / 3.5);
   assert.equal(dca(pts, { amount: 100, every: 7, startDay: 10 }), null);
 });
 
@@ -117,6 +122,13 @@ test('dcaProjection : prix qui monte de 1 % tous les 30 jours, sans hasard possi
   assert.equal(r.checkpoints.length, 13);
   // Le dernier point du graphique est le résultat final.
   assert.deepEqual(r.checkpoints.at(-1).slice(1), [r.invested, r.final.p10, r.final.p50, r.final.p90]);
+  // Prix de l'actif : part du dernier prix et prend 1 % tous les 30 jours, dans tous les scénarios.
+  assert.equal(r.lastPrice, pts.at(-1)[1]);
+  assert.equal(r.prices.length, 13);
+  assert.deepEqual(r.prices[0], [0, r.lastPrice, r.lastPrice, r.lastPrice]);
+  assert.equal(r.prices.at(-1)[0], 365);
+  near(r.price.p50, r.lastPrice * 1.01 ** (365 / 30), 1e-6);
+  near(r.price.p10, r.price.p90, 1e-6);
   const weekly = dcaProjection(pts, { amount: 100, every: 7, years: 5, runs: 20 });
   assert.equal(weekly.checkpoints.length, 61);
   assert.deepEqual(weekly.checkpoints.at(-1).slice(1, 2), [weekly.invested]);
@@ -125,6 +137,7 @@ test('dcaProjection : prix qui monte de 1 % tous les 30 jours, sans hasard possi
   // Sans tendance : le prix ne bouge plus, la valeur finale est la somme investie.
   const flat = dcaProjection(pts, { amount: 100, every: 30, years: 1, runs: 20, drift: 0 });
   near(flat.final.p50, 1300);
+  near(flat.price.p50, flat.lastPrice);
   near(flat.usedCagr, 0);
   near(r.usedCagr, r.histCagr, 1e-3);
 });

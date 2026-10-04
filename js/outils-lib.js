@@ -44,7 +44,7 @@ export function dca(points, { amount, every, startDay, feePct = 0 }) {
   if (!(amount > 0 && every >= 1) || rows.length < 2) return null;
   const fee = feePct / 100;
   let units = 0, invested = 0, next = rows[0][0], buys = 0;
-  const series = [];
+  const series = [], cost = [];
   for (const [d, p] of rows) {
     if (d >= next) {
       units += amount * (1 - fee) / p;
@@ -53,6 +53,7 @@ export function dca(points, { amount, every, startDay, feePct = 0 }) {
       next += every * Math.ceil((d - next + 1) / every);
     }
     series.push([d, invested, units * p]);
+    cost.push([d, invested * (1 - fee) / units]);
   }
   const first = rows[0][1], last = rows.at(-1)[1];
   const lumpUnits = invested * (1 - fee) / first;
@@ -67,6 +68,7 @@ export function dca(points, { amount, every, startDay, feePct = 0 }) {
     lump: { value: lumpUnits * last, returnPct: (lumpUnits * last / invested - 1) * 100, price: first },
     worst: { day: worst.day, pct: worst.pct * 100 },
     series: series.map(([d, inv, v], i) => [d, inv, v, lumpUnits * rows[i][1]]),
+    cost, // prix moyen payé à chaque jour : [jour, prix]
   };
 }
 
@@ -183,7 +185,8 @@ export function convert(amount, from, to, rates) {
 // DCA vers l'avenir : rejoue au hasard des tranches de 30 jours du passé (mêmes hausses, mêmes krachs, dans un
 // autre ordre) pour `years` années d'achats réguliers. `drift` garde toute la tendance du passé (1), la moitié
 // (0,5) ou aucune (0, seulement les secousses). Renvoie les parcours pessimiste (10 %), médian et optimiste (90 %)
-// de la valeur du portefeuille, mois par mois.
+// de la valeur du portefeuille, mois par mois, et ceux du prix de l'actif (`prices` : [jours après le dernier
+// prix, bas, milieu, haut]).
 export function dcaProjection(points, { amount, every, years, runs = 1000, seed = 7, feePct = 0, block = 30, drift = 1 }) {
   const closes = (points || []).map(p => p[1]).filter(p => p > 0);
   if (!(amount > 0 && every >= 1 && years > 0 && years <= 30) || closes.length < block * 4) return null;
@@ -197,6 +200,7 @@ export function dcaProjection(points, { amount, every, years, runs = 1000, seed 
   const fee = feePct / 100;
   const rand = rng(seed);
   const at = Array.from({ length: n + 1 }, () => []);
+  const priceAt = Array.from({ length: n + 1 }, () => []);
   const finals = [];
   for (let k = 0; k < runs; k++) {
     let lp = 0, units = 0, start = 0;
@@ -206,7 +210,10 @@ export function dcaProjection(points, { amount, every, years, runs = 1000, seed 
         lp += rets[start + ((d - 1) % block)];
       }
       if (d % every === 0 && d < days) units += amount * (1 - fee) / Math.exp(lp);
-      if (monthAt.has(d)) at[monthAt.get(d)].push(units * Math.exp(lp));
+      if (monthAt.has(d)) {
+        at[monthAt.get(d)].push(units * Math.exp(lp));
+        priceAt[monthAt.get(d)].push(Math.exp(lp));
+      }
     }
     finals.push(units * Math.exp(lp));
   }
@@ -215,10 +222,14 @@ export function dcaProjection(points, { amount, every, years, runs = 1000, seed 
   const pick = (a, p) => percentile([...a].sort((x, y) => x - y), p);
   const paidAt = d => (Math.floor(Math.min(d, days - 1) / every) + 1) * amount;
   const checkpoints = at.map((vals, i) => [i, paidAt(Math.round(i * days / n)), pick(vals, 10), pick(vals, 50), pick(vals, 90)]);
+  const lastPrice = closes.at(-1);
+  const prices = priceAt.map((vals, i) => [Math.round(i * days / n), ...[10, 50, 90].map(q => pick(vals, q) * lastPrice)]);
   const histYears = (closes.length - 1) / 365;
   return {
-    invested, buys,
+    invested, buys, days, runs, block, lastPrice,
     final: { p10: pick(finals, 10), p50: pick(finals, 50), p90: pick(finals, 90) },
+    price: { p10: prices.at(-1)[1], p50: prices.at(-1)[2], p90: prices.at(-1)[3] },
+    prices,
     lossOdds: finals.filter(f => f < invested).length / runs * 100,
     histCagr: ((closes.at(-1) / closes[0]) ** (1 / histYears) - 1) * 100,
     usedCagr: (Math.exp(mean * drift * 365) - 1) * 100,

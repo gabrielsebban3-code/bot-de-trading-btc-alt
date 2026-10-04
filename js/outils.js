@@ -1,7 +1,7 @@
 // Onglet Outils : deux catégories. Simulateurs (calculs faits dans le navigateur, js/outils-lib.js) et
 // données du marché (flux ETF, funding, long / short, préparés chaque heure dans data/outils.json).
 // Les champs communs (capital, risque, prix…) passent d'un outil à l'autre et sont gardés sur l'appareil.
-import { ago, esc, fmt, price } from './format.js';
+import { ago, esc, fmt, money, price } from './format.js';
 import { drawPanes } from './chart.js';
 import { averageEntry, compound, convert, dca, dcaProjection, num, percentile, riskReward, streaks } from './outils-lib.js';
 import { annualFunding, flowSummary } from './outils-data.js';
@@ -55,11 +55,11 @@ const F = {
 
 const CATS = [['sim', 'Simulateurs'], ['data', 'Données du marché']];
 const TOOLS = [
-  { id: 'dca', cat: 'sim', name: 'Simulateur DCA', calc: dcaTool, mode: 'dcaMode',
+  { id: 'dca', cat: 'sim', name: 'Simulateur DCA', calc: dcaTool, method: dcaMethod, mode: 'dcaMode',
     fields: () => (state.v.dcaMode === 'future' ? ['asset', 'amount', 'every', 'years', 'drift', 'spotFee'] : ['asset', 'amount', 'every', 'since', 'spotFee']),
     intro: () => (state.v.dcaMode === 'future'
       ? "Et si tu achetais la même somme régulièrement pendant des années ? Le simulateur reprend les vraies variations des 4 dernières années par tranches d'un mois, les remet dans un ordre au hasard et joue 1 000 avenirs possibles."
-      : "Acheter la même somme à intervalle régulier, rejoué sur les vrais prix de clôture d'OKX, comparé à tout acheter d'un coup le premier jour.") },
+      : "Acheter la même somme à intervalles réguliers, rejoué sur les vrais prix de clôture d'OKX, comparé à tout acheter d'un coup le premier jour.") },
   { id: 'compose', cat: 'sim', name: 'Intérêts composés', calc: compose, fields: () => ['capital', 'rate', 'months', 'monthly', 'goal'],
     intro: () => 'Ce que devient le compte si les gains restent investis chaque mois, et quand un objectif serait atteint.' },
   { id: 'series', cat: 'sim', name: 'Séries de pertes', calc: series, fields: () => ['winrate', 'winR', 'risk', 'trades'],
@@ -93,7 +93,7 @@ const TOOLS = [
   { id: 'longshort', cat: 'data', name: 'Long / short', calc: longShortTool, fields: () => ['lsAsset'],
     intro: () => 'Le nombre de comptes en position longue pour un compte en short sur les contrats OKX. Les petits traders ont souvent tort aux extrêmes : un ratio très haut est plutôt un signal de prudence.',
     how: [
-      'Ratio 2 : deux comptes long pour un short. Ratio 1 : autant des deux côtés.',
+      'Ratio 2 : deux comptes en long pour un en short. Ratio 1 : autant des deux côtés.',
       "Le ratio compte des comptes, pas des montants : un gros trader pèse autant qu'un petit.",
       "À lire avec la tendance (onglet Marché) : il sert surtout à repérer un excès d'optimisme ou de pessimisme.",
     ] },
@@ -119,11 +119,16 @@ const plain = n => n.toLocaleString('fr-FR', { maximumFractionDigits: 8 }); // m
 // Axe des graphiques en dollars : les millions en plus court.
 const usdAxis = n => {
   const a = Math.abs(n);
-  return `${n < 0 ? '−' : ''}${a >= 1e6 ? `${fmt(a / 1e6, a >= 1e7 ? 1 : 2)} M$` : `${fmt(a, a >= 10 || a === 0 ? 0 : 2)} $`}`;
+  const short = (v, d) => v.toLocaleString('fr-FR', { maximumFractionDigits: d });
+  return `${n < 0 ? '−' : ''}${a >= 1e9 ? `${short(a / 1e9, 2)} Md$` : a >= 1e6 ? `${short(a / 1e6, a >= 1e7 ? 1 : 2)} M$` : `${fmt(a, a >= 10 || a === 0 ? 0 : 2)} $`}`;
 };
+// Variation en % sans décimale, sauf près de −100 % (une perte presque totale n'est pas une perte totale).
+const spc0 = n => spc(n, Math.abs(n) >= 99 && Math.abs(n) < 100 ? 1 : 0);
+// Espaces insécables du français : pas de retour à la ligne avant « : ; ! ? » % $ » ni après « «.
+const nb = html => html.replace(/ ([:;!?»%$])/g, '\u00a0$1').replace(/« /g, '«\u00a0');
 const mus = n => (Math.abs(n) < 0.05 ? '0 M$' : `${n < 0 ? '−' : '+'}${fmt(Math.abs(n), Math.abs(n) >= 100 ? 0 : 1)} M$`); // millions de dollars signés
 const smus = n => `<span class="${Math.abs(n) < 0.05 ? 'muted' : n > 0 ? 'up' : 'down'}">${mus(n)}</span>`;
-const day = n => new Date(n * 86_400_000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const day = n => new Date(n * 86_400_000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).replace(/^1 /, '1er ');
 const dur = m => (m < 12 ? `${m} mois` : `${fmt(Math.floor(m / 12))} an${m >= 24 ? 's' : ''}${m % 12 ? ` et ${m % 12} mois` : ''}`);
 const rows = list => `<dl>${list.filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
 const hero = (k, v, sub = '') => `<div class="t-hero"><span class="k">${k}</span><b class="num">${v}</b>${sub ? `<span class="s">${sub}</span>` : ''}</div>`;
@@ -137,27 +142,69 @@ function vals(keys) {
   return o;
 }
 
-// Simulateur DCA : rejouer le passé ou projeter l'avenir
+// Simulateur DCA : rejouer le passé ou projeter l'avenir. Le calcul est gardé tant que les champs ne changent pas
+// (le résultat et l'onglet « Comment c'est calculé » s'en servent tous les deux).
+let dcaMemo = { key: '', r: null };
+function dcaRun() {
+  const s = state.marche?.series?.[state.v.asset];
+  if (!s?.points?.length) return null;
+  const v = vals(['amount', 'spotFee']);
+  const every = Number(state.v.every);
+  const future = state.v.dcaMode === 'future';
+  const key = JSON.stringify([state.v.asset, future, v, every, future ? [state.v.years, state.v.drift] : state.v.since, s.points.length, s.points.at(-1)]);
+  if (dcaMemo.key !== key) {
+    const opts = { amount: v.amount, every, feePct: v.spotFee ?? 0 };
+    const last = s.points.at(-1)[0];
+    dcaMemo = { key, r: future
+      ? dcaProjection(s.points, { ...opts, years: Number(state.v.years), drift: Number(state.v.drift) })
+      : dca(s.points, { ...opts, startDay: Math.max(s.points[0][0], last - Number(state.v.since)) }) };
+  }
+  return dcaMemo.r;
+}
+const EVERY = { 1: 'chaque jour', 7: 'chaque semaine', 14: 'toutes les 2 semaines', 30: 'tous les 30 jours' };
+const ans = y => `${y} an${y > 1 ? 's' : ''}`;
+// Prix d'un actif : 84 838 $, puis 2,1 M$ au-delà du million.
+const pxs = n => (n >= 1e6 ? money(n) : `${px(n)} $`);
+// Axe des prix : 20 k$, 1 M$, 2,5 M$.
+const pxAxis = n => {
+  const [v, u] = n >= 1e9 ? [n / 1e9, 'Md$'] : n >= 1e6 ? [n / 1e6, 'M$'] : n >= 1e3 ? [n / 1e3, 'k$'] : [n, '$'];
+  return `${fmt(v, Number.isInteger(Math.round(v * 10) / 10) ? 0 : 1)} ${u}`;
+};
+const monthYear = d => new Date(d * 86_400_000).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+// Axe du prix sur plusieurs années : les années, et « aujourd'hui » entre le vrai prix et les scénarios.
+const priceTicks = today => (start, end, width) => {
+  const at = d => (d - start) / (end - start || 1) * width;
+  const years = [];
+  for (let y = new Date(start * 86_400_000).getUTCFullYear() + 1; Date.UTC(y, 0, 1) / 86_400_000 <= end; y++) years.push(y);
+  const perYear = width / ((end - start) / 365.25 || 1);
+  const step = [1, 2, 5, 10].find(k => k * perYear >= 36) || 10; // au moins 36 px entre deux années
+  return years.filter(y => y % step === 0).map(y => [Date.UTC(y, 0, 1) / 86_400_000, String(y)])
+    .filter(([d]) => Math.abs(at(d) - at(today)) > 50)
+    .concat([[today, "aujourd'hui"]])
+    .sort((a, b) => a[0] - b[0]);
+};
+
 function dcaTool() {
   const s = state.marche?.series?.[state.v.asset];
   if (!s?.points?.length) return '<div class="empty">Les prix historiques ne sont pas encore chargés. Ils viennent de la mise à jour automatique du site.</div>';
+  const r = dcaRun();
+  if (!r) return missing();
   const sym = state.v.asset.toUpperCase();
-  const v = vals(['amount', 'spotFee']);
-  const every = Number(state.v.every);
+  const amount = num(state.v.amount);
+  const today = s.points.at(-1)[0];
   if (state.v.dcaMode === 'future') {
     const years = Number(state.v.years);
     const drift = Number(state.v.drift);
-    const r = dcaProjection(s.points, { amount: v.amount, every, years, drift, feePct: v.spotFee ?? 0 });
-    if (!r) return missing();
-    const gain = x => spc((x / r.invested - 1) * 100, 0);
+    const gain = x => spc0((x / r.invested - 1) * 100);
+    const move = x => spc0((x / r.lastPrice - 1) * 100);
+    const later = d => today + d;
     return [
-      hero(`Dans ${years} an${years > 1 ? 's' : ''}, scénario du milieu`, usd(r.final.p50), `pour ${usd(r.invested)} investis en ${r.buys} achats de ${usd(v.amount)}`),
+      hero(`Dans ${ans(years)}, scénario du milieu`, usd(r.final.p50), `pour ${usd(r.invested)} investis en ${fmt(r.buys)} achats de ${plain(amount)} $`),
       rows([
         ['Scénario pessimiste (1 fois sur 10 en dessous)', `${usd(r.final.p10)} · ${gain(r.final.p10)}`],
         ['Scénario du milieu', `${usd(r.final.p50)} · ${gain(r.final.p50)}`],
         ['Scénario optimiste (1 fois sur 10 au-dessus)', `${usd(r.final.p90)} · ${gain(r.final.p90)}`],
         ['Chance de finir sous la somme investie', pc(r.lossOdds, 0)],
-        [`Hausse moyenne de ${sym} supposée`, `${spc(r.usedCagr, 0)} par an`],
       ]),
       chart([
         { name: 'Milieu', cls: 'c-main', pts: r.checkpoints.map(c => [c[0], c[3]]) },
@@ -165,18 +212,31 @@ function dcaTool() {
         { name: 'Pessimiste', cls: 'c-low', pts: r.checkpoints.map(c => [c[0], c[2]]) },
         { name: 'Argent investi', cls: 'c-paid', pts: r.checkpoints.map(c => [c[0], c[1]]) },
       ], { title: 'Valeur du portefeuille', y: usd, axis: usdAxis, x: m => `après ${dur(m)}`, ticks: yearTicks }),
+      `<h3 class="t-h3">Prix de ${sym}</h3>`,
+      rows([
+        [`Dernier prix (clôture du ${day(today)})`, `${px(r.lastPrice)} $`],
+        [`Dans ${ans(years)}, scénario pessimiste`, `${pxs(r.price.p10)} · ${move(r.price.p10)}`],
+        [`Dans ${ans(years)}, scénario du milieu`, `${pxs(r.price.p50)} · ${move(r.price.p50)}`],
+        [`Dans ${ans(years)}, scénario optimiste`, `${pxs(r.price.p90)} · ${move(r.price.p90)}`],
+        [`Hausse moyenne de ${sym} supposée`, `${spc(r.usedCagr, 0)} par an`],
+      ]),
+      chart([
+        { name: 'Milieu', cls: 'c-main', pts: r.prices.map(c => [later(c[0]), c[2]]) },
+        { name: 'Optimiste', cls: 'c-high', pts: r.prices.map(c => [later(c[0]), c[3]]) },
+        { name: 'Pessimiste', cls: 'c-low', pts: r.prices.map(c => [later(c[0]), c[1]]) },
+        { name: 'Prix réel', key: 'price', cls: 'c-price', pts: s.points },
+      ], { title: `Prix de ${sym}, échelle log`, y: pxs, axis: pxAxis, log: true, x: d => (d > today ? monthYear(d) : day(d)),
+        ticks: priceTicks(today), snap: s.points.map(p => p[0]).concat(r.prices.slice(1).map(c => later(c[0]))), tolerance: 0, marks: [today] }),
+      note(`À gauche de la ligne pointillée, le vrai prix de ${sym} sur OKX. À droite, les trois scénarios. Échelle log : un doublement du prix prend toujours la même hauteur, de 10 000 à 20 000 $ comme de 100 000 à 200 000 $.`),
       note(drift === 1
-        ? `Base : les ${fmt(r.histYears, 1)} dernières années de ${sym} sur OKX, où il a pris ${spc(r.histCagr, 0)} par an en moyenne. C'est une période très haussière : rien ne garantit que ${sym} refasse aussi bien sur ${years} ans. Compare avec « Moitié moins de hausse » et « Aucune hausse ».`
+        ? `Base : les ${fmt(r.histYears, 1)} dernières années de ${sym} sur OKX, où il a pris ${spc(r.histCagr, 0)} par an en moyenne. C'est une période très haussière : rien ne garantit que ${sym} refasse aussi bien sur ${ans(years)}. Compare avec « Moitié moins de hausse » et « Aucune hausse ».`
         : `Mêmes secousses que les ${fmt(r.histYears, 1)} dernières années, avec ${drift ? 'moitié moins de' : 'aucune'} hausse de fond. Ce n'est pas une prévision : c'est une fourchette de ce qui peut arriver.`, 'warn-inline'),
     ].join('');
   }
-  const last = s.points.at(-1)[0];
-  const startDay = Math.max(s.points[0][0], last - Number(state.v.since));
-  const r = dca(s.points, { amount: v.amount, every, startDay, feePct: v.spotFee ?? 0 });
-  if (!r) return missing();
   const better = r.value >= r.lump.value;
+  const first = r.series[0][0];
   return [
-    hero("Valeur aujourd'hui", usd(r.value), `${spc(r.returnPct, 1)} pour ${usd(r.invested)} investis en ${r.buys} achats`),
+    hero("Valeur aujourd'hui", usd(r.value), `${spc(r.returnPct, 1)} pour ${usd(r.invested)} investis en ${fmt(r.buys)} achats de ${plain(amount)} $`),
     rows([
       ['Prix moyen payé', `${px(r.avgPrice)} $ · ${sym} vaut ${px(r.lastPrice)} $`],
       ['Quantité accumulée', `${qty(r.units)} ${sym}`],
@@ -191,7 +251,58 @@ function dcaTool() {
     note(better
       ? "Sur cette période, le DCA a fait mieux qu'un achat unique : les achats réguliers ont profité des baisses."
       : "Sur cette période, tout acheter le premier jour a fait mieux : le prix a surtout monté. Le DCA sert à lisser le risque d'acheter au mauvais moment, pas à gagner plus."),
+    `<h3 class="t-h3">Prix de ${sym}</h3>`,
+    rows([
+      [`Prix au départ (${day(first)})`, `${px(r.lump.price)} $`],
+      [`Dernier prix (clôture du ${day(today)})`, `${px(r.lastPrice)} $ · ${spc((r.lastPrice / r.lump.price - 1) * 100, 1)}`],
+    ]),
+    chart([
+      { name: `Prix de ${sym}`, key: 'price', cls: 'c-price', pts: s.points.filter(p => p[0] >= first) },
+      { name: 'Ton prix moyen', cls: 'c-main', pts: r.cost },
+    ], { title: `Prix de ${sym} et ton prix moyen`, y: d => `${px(d)} $`, axis: usdAxis, x: day, dates: true }),
+    note(`Quand le prix de ${sym} passe sous ton prix moyen, le DCA est en perte. Chaque achat sous ce prix moyen le fait baisser.`),
   ].join('');
+}
+
+// Onglet « Comment c'est calculé » du simulateur DCA, avec les chiffres du calcul en cours.
+function dcaMethod() {
+  const s = state.marche?.series?.[state.v.asset];
+  const r = dcaRun();
+  if (!s?.points?.length || !r) return null;
+  const sym = state.v.asset.toUpperCase();
+  const amount = `${plain(num(state.v.amount))} $`;
+  const fee = pc(num(state.v.spotFee) ?? 0, 1);
+  const every = EVERY[state.v.every];
+  if (state.v.dcaMode === 'future') {
+    const years = Number(state.v.years);
+    const drift = Number(state.v.drift);
+    const runs = fmt(r.runs);
+    return [
+      ['Les données', `Les prix de clôture de ${sym} sur OKX, jour par jour, du ${day(s.points[0][0])} au ${day(s.points.at(-1)[0])} : ${fmt(r.histYears, 1)} ans de vraies hausses et de vraies chutes. Sur cette période, ${sym} a pris ${spc(r.histCagr, 0)} par an en moyenne.`],
+      ['Des morceaux du passé', `Le simulateur découpe ce passé en morceaux de ${r.block} jours qui se suivent. Chaque morceau garde les vraies variations, jour après jour.`],
+      ['Un avenir possible', `Il tire ${fmt(Math.ceil(r.days / r.block))} morceaux au hasard et les met bout à bout pour couvrir ${ans(years)}, en partant du dernier prix (${px(r.lastPrice)} $).`],
+      ['Tes achats', `Dans cet avenir, il achète pour ${amount} de ${sym} ${every} au prix du jour, moins ${fee} de frais : ${fmt(r.buys)} achats, ${usd(r.invested)} investis. À la fin, il regarde ce que valent les ${sym} accumulés.`],
+      [`${runs} avenirs`, `Il recommence ${runs} fois avec d'autres tirages, puis classe les résultats du plus bas au plus haut. Pessimiste : 1 avenir sur 10 finit plus bas. Milieu : la moitié fait mieux, l'autre moitié moins bien. Optimiste : 1 avenir sur 10 finit plus haut.`],
+      [`Le prix de ${sym}`, `Les prix de ${sym} de ces ${runs} avenirs sont classés de la même façon, mois par mois : ce sont les trois courbes à droite de « aujourd'hui ».`],
+      ["L'hypothèse", drift === 1
+        ? `« Comme le passé » : les morceaux sont pris tels quels, avec la hausse moyenne des ${fmt(r.histYears, 1)} dernières années (${spc(r.usedCagr, 0)} par an).`
+        : drift
+          ? `« Moitié moins de hausse » : chaque jour, le simulateur retire la moitié de la hausse moyenne du passé. Les secousses restent les mêmes, mais la tendance de fond tombe à ${spc(r.usedCagr, 0)} par an.`
+          : '« Aucune hausse » : chaque jour, le simulateur retire toute la hausse moyenne du passé. Il ne reste que les secousses : le prix monte et descend sans tendance de fond.'],
+      ['Les limites', `Ce n'est pas une prévision. Le simulateur ne fait que remélanger le passé : un mois pire que le pire mois de ces ${fmt(r.histYears, 1)} ans (ou meilleur que le meilleur) ne peut pas arriver dans ses avenirs.`],
+    ];
+  }
+  const first = r.series[0][0];
+  return [
+    ['Les données', `Les vrais prix de clôture de ${sym} sur OKX, jour par jour, du ${day(first)} au ${day(r.series.at(-1)[0])}.`],
+    ['Tes achats', `Le premier jour, puis ${every}, le simulateur achète pour ${amount} de ${sym} au prix de clôture, moins ${fee} de frais : ${fmt(r.buys)} achats, ${usd(r.invested)} investis.`],
+    ["Valeur aujourd'hui", `Les ${qty(r.units)} ${sym} accumulés multipliés par le dernier prix (${px(r.lastPrice)} $) : ${usd(r.value)}.`],
+    ['Prix moyen payé', `L'argent investi, frais retirés, divisé par la quantité achetée : ${px(r.avgPrice)} $. C'est la courbe orange du graphique du prix.`],
+    ['Tout acheter le premier jour', `Les mêmes ${usd(r.invested)} investis d'un coup le ${day(first)}, à ${px(r.lump.price)} $, pour comparer.`],
+    ['Pire moment', r.worst.day != null
+      ? `Le jour où la valeur du portefeuille était le plus en dessous de l'argent déjà investi : le ${day(r.worst.day)} (${spc(r.worst.pct, 1)}).`
+      : "Le jour où la valeur du portefeuille était le plus en dessous de l'argent déjà investi. Ici, elle ne l'a jamais été."],
+  ];
 }
 
 // Intérêts composés
@@ -386,12 +497,12 @@ function longShortTool() {
   const read = rank > 85 ? "Très haut par rapport aux derniers mois : beaucoup d'optimisme, prudence sur les achats."
     : rank < 15 ? 'Très bas par rapport aux derniers mois : beaucoup de pessimisme, souvent proche d\'un rebond.' : "Dans sa zone habituelle : pas d'excès.";
   return [
-    hero(`Ratio long / short ${state.v.lsAsset.toUpperCase()} sur OKX`, fmt(last, 2), `${fmt(longPct, 0)} % des comptes sont long, ${fmt(100 - longPct, 0)} % short`),
+    hero(`Ratio long / short ${state.v.lsAsset.toUpperCase()} sur OKX`, fmt(last, 2), `${fmt(longPct, 0)} % des comptes sont en long, ${fmt(100 - longPct, 0)} % en short`),
     rows([
       ['Par rapport aux derniers mois', `plus haut que ${fmt(rank, 0)} % des jours`],
       ['Le plus haut / le plus bas', `${fmt(sorted.at(-1), 2)} / ${fmt(sorted[0], 2)}`],
     ]),
-    chart([{ name: 'Ratio long / short', cls: 'c-main', pts }], { title: 'Comptes long pour un compte short', y: y => fmt(y, 2), x: day, dates: true, ref: 1 }),
+    chart([{ name: 'Ratio long / short', cls: 'c-main', pts }], { title: 'Comptes en long pour un compte en short', y: y => fmt(y, 2), x: day, dates: true, ref: 1 }),
     note(`${read} Mis à jour ${ago(state.outils.generatedAt)}.`),
   ].join('');
 }
@@ -426,9 +537,11 @@ function drawCharts(root) {
     const { lines, o } = charts[Number(box.dataset.chart)];
     const xs = lines.flatMap(l => l.pts.map(p => p[0]));
     drawPanes(box, [{
-      title: o.title, h: 230, fmt: o.y, axis: o.axis, ref: o.ref, bars: lines.some(l => l.bars), reverse: true,
-      lines: lines.map(l => ({ key: l.name, label: l.name, pts: l.pts, cls: l.cls || '', keyCls: l.cls || '' })),
-    }], Math.min(...xs), Math.max(...xs), { xLabel: o.x, xTicks: o.ticks || (o.dates ? undefined : numTicks(o.tick || o.x)) });
+      title: o.title, h: 230, fmt: o.y, axis: o.axis, ref: o.ref, log: o.log, bars: lines.some(l => l.bars), reverse: true,
+      lines: lines.map(l => ({ key: l.key || l.name, label: l.name, pts: l.pts, cls: l.cls || '', keyCls: l.cls || '' })),
+    }], Math.min(...xs), Math.max(...xs), {
+      xLabel: o.x, xTicks: o.ticks || (o.dates ? undefined : numTicks(o.tick || o.x)), snap: o.snap, tolerance: o.tolerance, marks: o.marks,
+    });
   }
 }
 
@@ -436,8 +549,10 @@ function drawCharts(root) {
 function field(k) {
   const f = F[k];
   if (f.choice) {
+    // Actif du DCA : son dernier prix de clôture à côté du nom.
+    const last = v => (k === 'asset' ? state.marche?.series?.[v]?.points?.at(-1)?.[1] : null);
     return `<div class="t-field t-wide"><span class="lb">${f.label}</span><div class="tools" role="group" aria-label="${esc(f.label)}">${f.choice.map(([v, l]) =>
-      `<button type="button" class="chip" data-k="${k}" data-v="${v}" aria-pressed="${state.v[k] === v}">${l}</button>`).join('')}</div></div>`;
+      `<button type="button" class="chip" data-k="${k}" data-v="${v}" aria-pressed="${state.v[k] === v}">${l}${last(v) ? ` <span class="num">${px(last(v))} $</span>` : ''}</button>`).join('')}</div></div>`;
   }
   if (f.buys) {
     const list = buysList();
@@ -462,11 +577,21 @@ function modes(k) {
     `<button type="button" data-k="${k}" data-v="${v}" aria-pressed="${state.v[k] === v}"><b>${l}</b><span>${f.sub[i]}</span></button>`).join('')}</div>`;
 }
 
+// Onglet du résultat : 'res' (résultat) ou 'calc' (comment c'est calculé), pour les outils qui ont `method`.
+let view = 'res';
+const VIEWS = [['res', 'Résultat'], ['calc', "Comment c'est calculé"]];
+const steps = list => (list ? `<ol class="t-steps">${list.map(([b, txt]) => `<li><b>${b}</b>${txt}</li>`).join('')}</ol>` : missing());
+
 function renderResult() {
   const t = tool();
   charts = [];
   const box = $('outil-res');
-  box.innerHTML = `<h2>${t.cat === 'data' ? 'En ce moment' : 'Résultat'}</h2><div class="t-out">${t.calc()}</div>`;
+  const calc = Boolean(t.method) && view === 'calc';
+  const head = t.method
+    ? `<div class="t-tabs" role="group" aria-label="Affichage">${VIEWS.map(([v, l]) =>
+      `<button type="button" class="chip" data-view="${v}" aria-pressed="${(v === 'calc') === calc}">${l}</button>`).join('')}</div>`
+    : `<h2>${t.cat === 'data' ? 'En ce moment' : 'Résultat'}</h2>`;
+  box.innerHTML = `${head}<div class="t-out">${nb(calc ? steps(t.method()) : t.calc())}</div>`;
   drawCharts(box);
   for (const k of t.fields()) {
     const input = $(`t-${k}`);
@@ -480,7 +605,7 @@ function render() {
   $('outils-tabs').innerHTML = CATS.map(([c, label]) => `<div class="t-cat"><span class="lb">${label}</span><div class="t-chips">${
     TOOLS.filter(x => x.cat === c).map(x => `<a class="chip" href="#outils/${x.id}" aria-pressed="${x.id === t.id}">${x.name}</a>`).join('')}</div></div>`).join('');
   const fields = t.fields();
-  $('outil').innerHTML = `<div class="box t-form"><h2>${t.name}</h2>${t.mode ? modes(t.mode) : ''}<p class="txt">${t.intro()}</p>
+  $('outil').innerHTML = `<div class="box t-form"><h2>${t.name}</h2>${t.mode ? modes(t.mode) : ''}<p class="txt">${nb(t.intro())}</p>
     ${fields.length ? `<form class="t-fields" onsubmit="return false">${fields.map(field).join('')}</form>` : ''}
     ${t.how ? `<div class="t-how"><b>Comment lire</b><ul>${t.how.map(h => `<li>${h}</li>`).join('')}</ul></div>` : ''}
     ${t.cat === 'sim' ? '<div class="links"><button type="button" class="btn" id="t-reset">Valeurs par défaut</button></div>' : ''}</div>
@@ -492,7 +617,10 @@ function render() {
 }
 
 export function showTool(id) {
-  if (TOOLS.some(t => t.id === id)) state.tool = id;
+  if (TOOLS.some(t => t.id === id)) {
+    if (id !== state.tool) view = 'res';
+    state.tool = id;
+  }
   save();
   render();
 }
@@ -517,6 +645,13 @@ page.addEventListener('input', e => {
   renderResult();
 });
 page.addEventListener('click', e => {
+  const tab = e.target.closest('button[data-view]');
+  if (tab) {
+    view = tab.dataset.view;
+    renderResult();
+    $('outil-res').querySelector(`[data-view="${view}"]`)?.focus();
+    return;
+  }
   const c = e.target.closest('button[data-k]');
   if (c) {
     state.v[c.dataset.k] = c.dataset.v;
