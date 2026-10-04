@@ -163,7 +163,7 @@ export const SECTORS = [
   ['artificial-intelligence', 'Intelligence artificielle'], ['ai-agents', 'Agents IA'], ['real-world-assets-rwa', 'Actifs réels (RWA)'],
   ['gaming', 'Jeux vidéo'], ['depin', 'DePIN (réseaux physiques)'], ['exchange-based-tokens', 'Jetons de plateformes'],
   ['privacy-coins', 'Confidentialité'], ['decentralized-exchange', 'Plateformes décentralisées (DEX)'], ['oracle', 'Oracles'],
-  ['perpetuals', 'Perpétuels décentralisés'], ['lending-borrowing', 'Prêts et emprunts'],
+  ['decentralized-perpetuals', 'Perpétuels décentralisés'], ['lending-borrowing', 'Prêts et emprunts'],
 ];
 
 // Agenda macro : les annonces américaines à fort impact, plus les décisions de taux de la BCE et de la Banque du Japon,

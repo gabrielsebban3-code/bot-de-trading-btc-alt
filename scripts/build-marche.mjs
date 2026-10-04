@@ -188,7 +188,12 @@ async function main() {
   sources.agenda = week ? 'ok' : 'erreur';
   const rows = [...(week || []), ...(nextWeek || [])];
   const agenda = week ? { fetchedAt: now.toISOString(), nextWeek: Boolean(nextWeek), events: agendaEvents(rows) } : previous?.agenda || null;
-  if (week) console.log(`Agenda : ${rows.length} annonces, ${agenda.events.length} gardées${nextWeek ? ' (semaine prochaine comprise)' : ''} · ${agenda.events.map(e => `${e.t.slice(5, 16)} ${e.en}`).join(' · ')}`);
+  if (week) {
+    console.log(`Agenda : ${rows.length} annonces, ${agenda.events.length} gardées${nextWeek ? ' (semaine prochaine comprise)' : ''} · ${agenda.events.map(e => `${e.t.slice(5, 16)} ${e.en}`).join(' · ')}`);
+    const kept = new Set(agenda.events.map(e => `${e.cur} ${e.en}`));
+    const left = rows.filter(r => r?.impact === 'High' && !kept.has(`${r.country} ${r.title}`)).map(r => `${r.country} ${r.title}`);
+    console.log(`Agenda, fort impact laissé de côté : ${left.join(' · ') || 'aucune'}`);
+  }
 
   await mkdir(OUT, { recursive: true });
   const out = { generatedAt: now.toISOString(), sample: Boolean(args.sample), sources, tiles, signals: list, verdict: verdict(list), top, altseason, sectors, agenda, series };
