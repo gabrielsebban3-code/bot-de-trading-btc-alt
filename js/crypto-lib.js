@@ -157,6 +157,10 @@ export function mentions(item, symbol, name) {
 }
 
 const num = (v, d = 0) => v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+// « de BTC » mais « d'ETH » : élision devant une voyelle.
+export const deSym = s => (/^[AEIOUY]/i.test(s) ? `d'${s}` : `de ${s}`);
+// Écart face à BTC à partir duquel une crypto fait mieux ou moins bien que lui (signal et encadré de la fiche).
+export const BTC_EDGE = 0.05;
 const abs = r => `${num(Math.abs(r) * 100, 1)} %`;
 const pctFr = r => `${r >= 0 ? '+' : ''}${num(r * 100, 1)} %`;
 // Prix lisible, même pour les cryptos à quelques millionièmes de dollar : 4 chiffres utiles sous 10 $ (1,489 pour XRP).
@@ -215,7 +219,7 @@ export function coinSignals({ symbol, d1 = [], h4 = [], ratio = [], funding = []
   }
   const c30 = symbol === 'BTC' ? null : changeOver(ratio, 30);
   if (c30 != null) {
-    const dir = c30 > 0.05 ? 1 : c30 < -0.05 ? -1 : 0;
+    const dir = c30 > BTC_EDGE ? 1 : c30 < -BTC_EDGE ? -1 : 0;
     out.push({ key: 'btc', label: 'Face à BTC', dir,
       text: `${symbol} ${pctFr(c30)} face à BTC sur 30 jours : ${dir === 1 ? 'il fait mieux que BTC' : dir === -1 ? 'il fait moins bien que BTC' : 'il suit BTC'}.` });
   }

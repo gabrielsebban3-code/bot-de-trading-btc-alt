@@ -2,7 +2,7 @@
 // Le graphique empile des panneaux qui partagent l'axe du temps (comme les indicateurs sous un graphique de trading) :
 // chaque courbe garde sa propre échelle, sans double axe.
 import { esc, fmt, money, pct, price } from './format.js';
-import { DAY, sma } from './marche-lib.js';
+import { DAY, sma, tallyText } from './marche-lib.js';
 
 const $ = id => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
@@ -144,7 +144,7 @@ function direction(d) {
   if (!v?.total) { $('marche-direction').hidden = true; return; }
   const cls = v.dir > 0 ? 'up' : v.dir < 0 ? 'down' : 'mid';
   $('marche-direction').innerHTML = `<div class="bh"><h2>Direction du marché</h2><span class="verdict ${cls}">${esc(v.label)}</span></div>
-    <p class="tally">${v.up} signal${v.up > 1 ? 's' : ''} haussier${v.up > 1 ? 's' : ''}, ${v.down} baissier${v.down > 1 ? 's' : ''} sur ${v.total}</p>
+    <p class="tally">${tallyText(v)}</p>
     <ul class="signals">${d.signals.map(s => `<li><span class="sig ${s.dir > 0 ? 'up' : s.dir < 0 ? 'down' : 'flat'}">${s.dir > 0 ? '▲' : s.dir < 0 ? '▼' : '•'}</span><span><b>${esc(s.label)}.</b> ${esc(s.text)}</span></li>`).join('')}</ul>`;
 }
 

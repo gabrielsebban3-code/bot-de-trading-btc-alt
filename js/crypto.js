@@ -4,7 +4,8 @@
 // toutes les heures par scripts/build-cryptos.mjs) ; le prix du haut est celui d'OKX en direct.
 import { ago, esc, fmt, money, pct, safeUrl } from './format.js';
 import { drawCandles } from './candles.js';
-import { changeOver, coinSignals, fundingYear, groupCandles, keyLevels, LEVERS, liquidation, macdOf, mentions, perfVsBtc, pickGroup, priceText, ratioToBtc, rsiOf, smaOf } from './crypto-lib.js';
+import { BTC_EDGE, changeOver, coinSignals, deSym, fundingYear, groupCandles, keyLevels, LEVERS, liquidation, macdOf, mentions, perfVsBtc, pickGroup, priceText, ratioToBtc, rsiOf, smaOf } from './crypto-lib.js';
+import { tallyText } from './marche-lib.js';
 import { newsRows, newsWhere } from './news.js';
 import { star } from './watchlist.js';
 
@@ -133,7 +134,7 @@ function trendBox(read, sym) {
   if (!v.total) return '';
   const cls = v.dir > 0 ? 'up' : v.dir < 0 ? 'down' : 'mid';
   return `<div class="box direction"><div class="bh"><h2>Lecture de la tendance</h2><span class="verdict ${cls}">${esc(v.label)}</span></div>
-    <p class="tally">${v.up} signal${v.up > 1 ? 's' : ''} haussier${v.up > 1 ? 's' : ''}, ${v.down} baissier${v.down > 1 ? 's' : ''} sur ${v.total}</p>
+    <p class="tally">${tallyText(v)}</p>
     <ul class="signals">${read.signals.map(s => `<li><span class="sig ${s.dir > 0 ? 'up' : s.dir < 0 ? 'down' : 'flat'}">${s.dir > 0 ? '▲' : s.dir < 0 ? '▼' : '•'}</span><span><b>${esc(s.label)}.</b> ${esc(s.text)}</span></li>`).join('')}</ul>
     <p class="txt muted cx-note">Les repères des setups : moyennes 20, 50 et 200 jours, sortie de la zone des 20 derniers jours, MACD 4 h. ${esc(sym)} est lu seul ; la direction du marché entier est dans l'onglet <a href="#marche">Marché</a>.</p></div>`;
 }
@@ -153,7 +154,7 @@ function btcBox(d, ratio) {
   const p30 = perf.find(p => p.days === 30) || perf[0];
   const g = gap(p30);
   return `<div class="box"><h2>Force face à BTC <button type="button" class="chip cx-show" data-cxshow="btc">Voir sur le graphique</button></h2>
-    <p class="txt">Sur ${label(p30.days)}, ${esc(d.symbol)} ${Math.abs(g) < 0.02 ? 'suit à peu près BTC' : g > 0 ? `fait <b class="up">mieux que BTC</b>` : `fait <b class="down">moins bien que BTC</b>`} (${pct(g)} face à BTC). Une crypto plus forte que BTC monte plus vite quand le marché monte ; plus faible, elle baisse en général plus vite que lui.</p>
+    <p class="txt">Sur ${label(p30.days)}, ${esc(d.symbol)} ${Math.abs(g) <= BTC_EDGE ? 'suit à peu près BTC' : g > 0 ? `fait <b class="up">mieux que BTC</b>` : `fait <b class="down">moins bien que BTC</b>`} (${pct(g)} face à BTC). Une crypto plus forte que BTC monte plus vite quand le marché monte ; plus faible, elle baisse en général plus vite que lui.</p>
     <table class="cx-table"><thead><tr><th class="l">Période</th><th>${esc(d.symbol)}</th><th>BTC</th><th>Face à BTC</th></tr></thead>
     <tbody>${perf.map(p => `<tr><td class="l">${label(p.days)}</td><td class="num">${pct(p.coin)}</td><td class="num">${pct(p.btc)}</td><td class="num">${pct(gap(p))}</td></tr>`).join('')}</tbody></table></div>`;
 }
@@ -182,7 +183,7 @@ function leverBox(d, last) {
     ${oi != null ? row('Open interest', `${money(oi)} <span class="muted">· 7&nbsp;j</span> ${pct(oi7)}`) : ''}
     ${ls != null ? row('Comptes à l\'achat', `${fmt((ls / (1 + ls)) * 100, 0)} % <span class="muted">· ratio long / short ${fmt(ls, 2)}</span>`) : ''}
   </dl>
-  <p class="txt cx-sub">Liquidation d'une position ouverte maintenant à ${usd(entry)}, en marge isolée${lv?.atrPct ? `. Une journée normale de ${sym} bouge de <b>${fmt(lv.atrPct * 100, 1)} %</b> (amplitude moyenne sur 14 jours)` : ''} :</p>
+  <p class="txt cx-sub">Liquidation d'une position ouverte maintenant à ${usd(entry)}, en marge isolée${lv?.atrPct ? `. Une journée normale ${deSym(sym)} bouge de <b>${fmt(lv.atrPct * 100, 1)} %</b> (amplitude moyenne sur 14 jours)` : ''} :</p>
   <table class="cx-table"><thead><tr><th class="l">Levier</th><th>Long liquidé à</th><th>Short liquidé à</th><th>Écart</th>${lv?.atrPct ? '<th>Journées</th>' : ''}</tr></thead><tbody>
   ${levers.map(l => {
     const q = liquidation(entry, l);
@@ -208,7 +209,7 @@ function keyFigures(d, last) {
     lv ? row('Plus haut / bas sur 1 an', `${priceText(lv.hi1y)} / ${priceText(lv.lo1y)}`) : '',
     lv?.atrPct != null ? row('Amplitude d\'une journée', `${fmt(lv.atrPct * 100, 1)} % <span class="muted">· moyenne 14&nbsp;j</span>`) : '',
     m.circulating != null ? row('En circulation', supply(m.circulating, sym) + supplyShare) : '',
-    m.max != null ? row('Offre maximum', supply(m.max, sym)) : m.circulating != null ? row('Offre maximum', '<span class="muted">pas de plafond</span>', 'txt') : '',
+    m.max != null ? row('Offre maximale', supply(m.max, sym)) : m.circulating != null ? row('Offre maximale', '<span class="muted">pas de plafond</span>', 'txt') : '',
     d.about?.genesis ? row('Lancement', isoFr(d.about.genesis)) : '',
   ].join('');
 }

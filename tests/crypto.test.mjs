@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   atrOf, changeOver, coinSignals, emaOf, fundingYear, GROUPS, groupCandles, keyLevels, liquidation, macdOf, mentions,
-  per8h, perfVsBtc, pickGroup, priceText, ratioToBtc, rsiOf, smaOf,
+  BTC_EDGE, deSym, per8h, perfVsBtc, pickGroup, priceText, ratioToBtc, rsiOf, smaOf,
 } from '../js/crypto-lib.js';
 import { candlesFromOkx, cleanLink, excerpt, fundingHistory } from '../scripts/lib/cryptos.mjs';
 import { realCoins } from '../js/marche-lib.js';
@@ -149,6 +149,23 @@ test('coinSignals : tendance haussière, cassure, MACD 4 h et force face à BTC'
   assert.ok(!b.signals.some(s => s.key === 'btc' || s.key === 'funding'));
   // Historique trop court : pas de tendance de fond, pas de verdict.
   assert.deepEqual(coinSignals({ symbol: 'NEW', d1: days(5, i => 1 + i) }).signals, []);
+});
+
+test("deSym : « de BTC » mais « d'ETH »", () => {
+  assert.equal(deSym('BTC'), 'de BTC');
+  assert.equal(deSym('ETH'), "d'ETH");
+  assert.equal(deSym('AVAX'), "d'AVAX");
+  assert.equal(deSym('XRP'), 'de XRP');
+});
+
+test('coinSignals : même seuil que l\'encadré Force face à BTC pour dire qu\'une crypto suit BTC', () => {
+  const d1 = days(60, () => 100);
+  const ratio = gap => d1.map((c, i) => [c[0], 0.001 * (i >= 30 ? 1 + gap : 1)]); // écart pris sur les 30 derniers jours
+  const btc = gap => coinSignals({ symbol: 'ETH', d1, ratio: ratio(gap) }).signals.find(s => s.key === 'btc');
+  assert.equal(btc(BTC_EDGE * 0.6).dir, 0);
+  assert.match(btc(BTC_EDGE * 0.6).text, /il suit BTC/);
+  assert.equal(btc(BTC_EDGE * 1.2).dir, 1);
+  assert.equal(btc(-BTC_EDGE * 1.2).dir, -1);
 });
 
 test('coinSignals : tendance baissière sous la zone du mois', () => {

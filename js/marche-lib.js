@@ -121,6 +121,9 @@ export function verdict(list) {
     label: score >= 2 ? 'Plutôt haussier' : score <= -2 ? 'Plutôt baissier' : 'Pas de direction claire' };
 }
 
+// Décompte d'un verdict : « 3 signaux haussiers, 1 baissier sur 6 ».
+export const tallyText = v => `${v.up} ${v.up > 1 ? 'signaux haussiers' : 'signal haussier'}, ${v.down} baissier${v.down > 1 ? 's' : ''} sur ${v.total}`;
+
 // Stablecoins, versions « wrapped » ou « staked » : dupliquent BTC ou ETH, ou ne bougent pas.
 // Actifs du monde réel mis sur la blockchain (prêts immobiliers, bons du Trésor…) : pas des cryptos qu'on trade.
 const NOT_COINS = /usd|_|^dai$|^wbtc$|^weth$|^steth$|^wsteth$|^weeth$|^wbeth$|^cbbtc$|^lbtc$|^susde$|^bsc-usd$|^buidl$/i;

@@ -204,9 +204,9 @@ export function drawCandles(box, spec) {
     const ch = changes[i];
     const chTxt = num(ch == null ? '' : pctText(ch), wPct, ch == null ? '' : ch >= 0 ? ' up' : ' down');
     if (spec.line) parts.push(`<span class="cd-v">Clôture ${num(P.fmt(b[4]), wPrice)}${chTxt}</span>`);
-    else parts.push(`<span class="cd-v ohlc">${[['Ouv', 1], ['Haut', 2], ['Bas', 3], ['Clôt', 4]].map(([k, j]) => `<span class="cd-v">${k} ${num(P.fmt(b[j]), wPrice)}${j === 4 ? chTxt : ''}</span>`).join('')}</span>`);
+    else parts.push(`<span class="cd-v ohlc">${[['Ouv.', 1], ['Haut', 2], ['Bas', 3], ['Clôt.', 4]].map(([k, j]) => `<span class="cd-v">${k} ${num(P.fmt(b[j]), wPrice)}${j === 4 ? chTxt : ''}</span>`).join('')}</span>`);
     for (const p of panes) {
-      if (p.kind === 'volume') parts.push(`<span class="cd-v">Vol ${num(p.fmt(b[5]), p.w)}</span>`);
+      if (p.kind === 'volume') parts.push(`<span class="cd-v">Vol. ${num(p.fmt(b[5]), p.w)}</span>`);
       for (const s of p.series) {
         const v = s.vals[i];
         parts.push(`<span class="cd-v"><i class="key ${esc(s.cls)}"></i>${esc(s.label)} ${num(v == null ? '—' : (s.fmt || p.fmt)(v), s.w)}</span>`);
