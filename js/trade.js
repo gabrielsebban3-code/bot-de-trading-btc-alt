@@ -4,6 +4,7 @@ import { esc, fmt } from './format.js';
 import { drawCandles } from './candles.js';
 import { star } from './watchlist.js';
 import { loadPaire } from './paire.js';
+import { deSym } from './crypto-lib.js';
 import { OUTCOME, cap, dirTag, liveOf, newsLink, okxUrl, outcomeTag, plainPct, projectLink, px, setupsData, statusTag } from './setups.js';
 
 const $ = id => document.getElementById(id);
@@ -80,7 +81,7 @@ function liveR(s, a) {
 }
 
 function brief(s, a) {
-  const what = `${s.dir === 'long' ? 'Achat (long)' : 'Vente à découvert (short)'} de ${esc(s.symbol)} à <b>${px(s.entry)}</b> le ${dayOf(s.time)}`;
+  const what = `${s.dir === 'long' ? 'Achat (long)' : 'Vente à découvert (short)'} ${deSym(esc(s.symbol))} à <b>${px(s.entry)}</b> le ${dayOf(s.time)}`;
   if (s.status === 'en cours') return `${what}, si la bougie 4h en cours ferme comme maintenant. Le signal peut encore disparaître à la clôture.`;
   if (s.outcome === 'open') return `${what}. Le trade est toujours en jeu : en ce moment <b class="${liveR(s, a) >= 0 ? 'up' : 'down'}">${cap(liveR(s, a))}</b> du capital.`;
   const days = Math.max(1, Math.round((s.at - s.time) / DAY));
