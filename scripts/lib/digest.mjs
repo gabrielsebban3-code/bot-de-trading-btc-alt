@@ -38,12 +38,12 @@ const ZONES = [
 ];
 export const zoneOf = item => ZONES.find(([, re]) => re.test(item.titleEn || item.title || ''))?.[0] ?? 'Autres';
 
-const num = v => (v == null || !Number.isFinite(v) ? '—' : v.toLocaleString('fr-FR', { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : Math.abs(v) >= 1 ? 2 : 4 }).replace(/\u00a0|\u202f/g, ' '));
+export const num = v => (v == null || !Number.isFinite(v) ? '—' : v.toLocaleString('fr-FR', { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : Math.abs(v) >= 1 ? 2 : 4 }).replace(/\u00a0|\u202f/g, ' '));
 const hhmm = t => new Intl.DateTimeFormat('fr-FR', { timeZone: DIGEST.zone, hour: '2-digit', minute: '2-digit' }).format(new Date(t));
-const clip = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+export const clip = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 const arrow = d => (d > 0 ? '▲' : d < 0 ? '▼' : '');
 // Lien Markdown de Discord ; les crochets du titre casseraient le lien.
-const line = i => {
+export const line = i => {
   const title = clip(String(i.title || i.titleEn || '').replace(/[[\]]/g, ''), 150);
   const move = i.reaction?.strong ? ` · ${i.reaction.asset} ${i.reaction.pct > 0 ? '+' : ''}${String(i.reaction.pct).replace('.', ',')} % en 1 h` : '';
   return `• ${hhmm(i.time)} · ${i.link ? `[${title}](${i.link})` : title}${move}`;
@@ -56,8 +56,8 @@ function sameStory(a, b) {
   const shared = [...A].filter(w => B.has(w)).length;
   return shared >= 2 && shared / Math.min(A.size, B.size) >= 0.3 && Math.abs(a.time - b.time) < 12 * 3600e3;
 }
-const distinct = (items, n) => items.reduce((kept, i) => (kept.length < n && !kept.some(k => sameStory(k, i)) ? [...kept, i] : kept), []);
-const byWeight = (a, b) => LEVEL[b.importance] - LEVEL[a.importance] || (b.count || 1) - (a.count || 1) || b.time - a.time;
+export const distinct = (items, n) => items.reduce((kept, i) => (kept.length < n && !kept.some(k => sameStory(k, i)) ? [...kept, i] : kept), []);
+export const byWeight = (a, b) => LEVEL[b.importance] - LEVEL[a.importance] || (b.count || 1) - (a.count || 1) || b.time - a.time;
 
 // Les news qui comptent des dernières 24 h, sans les baleines (des transferts, pas des nouvelles) ni les non vérifiées.
 function recent(news, now) {
@@ -101,7 +101,7 @@ export function geoSummary(news, now = Date.now()) {
 }
 
 // Le message complet : trois blocs (« embeds ») dans un seul envoi.
-export function buildDigest({ setups, news, siteUrl = '', now = Date.now() }) {
+export function buildDigest({ setups, news, agenda = null, siteUrl = '', now = Date.now() }) {
   const site = siteUrl ? siteUrl.replace(/\/?$/, '/') : undefined;
   const open = (setups?.live || []).filter(s => s.status === 'confirmé' && s.outcome === 'open').sort((a, b) => b.time - a.time);
   const setupText = open.length
@@ -119,6 +119,7 @@ export function buildDigest({ setups, news, siteUrl = '', now = Date.now() }) {
       { title: `Résumé du ${date}`, url: site, color: ACCENT, fields: [
         { name: `Setups en cours (${open.length})`, value: clip(setupText, 1024) },
         { name: 'News du jour', value: clip(newsText, 1024) },
+        ...(agenda ? [{ name: 'Agenda du jour', value: agenda }] : []),
       ] },
       { title: 'Situation géopolitique', url: site ? `${site}#actu` : undefined, color: GEO, description: clip(geoSummary(news, now).text, 4000), footer: { text: NFA } },
     ],
