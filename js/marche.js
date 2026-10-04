@@ -2,7 +2,7 @@
 // Le graphique empile des panneaux qui partagent l'axe du temps (comme les indicateurs sous un graphique de trading) :
 // chaque courbe garde sa propre échelle, sans double axe.
 import { esc, fmt, money, pct, price } from './format.js';
-import { DAY, sma, tallyText } from './marche-lib.js';
+import { DAY, sma, sortTop, tallyText } from './marche-lib.js';
 
 const $ = id => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
@@ -292,11 +292,53 @@ export function drawPanes(box, panes, start, end) {
   });
 }
 
+// Tableau des plus grosses cryptos : la tendance de chaque crypto vient de sa fiche (data/crypto/index.json, écrit par
+// scripts/build-cryptos.mjs avec le même calcul que la page de la crypto). Un clic sur un titre de colonne trie,
+// un second clic inverse le sens ; le tri est gardé avec les autres choix de l'onglet.
+const COLS = [['rank', '#', 'l'], [null, 'Actif', 'l'], ['trend', 'Tendance', 'l'], ['price', 'Prix'], ['change24h', '24 h'],
+  ['change7d', '7 j'], ['change30d', '30 j'], ['mcap', 'Market cap'], ['volume', 'Volume 24 h']];
+if (!COLS.some(([k]) => k && k === state.sort)) Object.assign(state, { sort: 'rank', rev: false });
+let topList = [];
+let trends = new Map();
+
 function top(list) {
-  // Chaque ligne ouvre la fiche de sa crypto (#crypto/<id>, js/crypto.js).
-  const name = c => `<b>${esc(c.symbol)}</b> <span class="muted">${esc(c.name)}</span>`;
-  $('marche-top').innerHTML = list.length ? list.map((c, i) => `<tr${c.id ? ` data-id="${esc(c.id)}"` : ''}><td class="l num">${i + 1}</td><td class="l name">${c.id ? `<a href="#crypto/${esc(c.id)}">${name(c)}</a>` : name(c)}</td>
-    <td class="num">${price(c.price)} $</td><td class="num">${pct(c.change24h)}</td><td class="num">${pct(c.change7d)}</td><td class="num">${pct(c.change30d)}</td>
-    <td class="num">${money(c.mcap)}</td><td class="num">${money(c.volume)}</td></tr>`).join('')
-    : '<tr><td colspan="8"><div class="empty">Classement indisponible à cette mise à jour.</div></td></tr>';
+  topList = list;
+  renderTop();
+  fetch('data/crypto/index.json', { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null)).then(ix => {
+    if (!ix?.coins?.length) return;
+    trends = new Map(ix.coins.map(c => [c.id, c.trend]));
+    renderTop();
+  }).catch(() => { /* pas encore de résumé : colonne Tendance vide */ });
 }
+
+function trendCell(t) {
+  if (!t) return '<span class="muted">—</span>';
+  const [cls, text] = t.dir > 0 ? [' up', '▲ Haussier'] : t.dir < 0 ? [' down', '▼ Baissier'] : ['', '• Neutre'];
+  return `<span class="tag trend${cls}" title="${esc(`${t.label} : ${tallyText(t)}`)}">${text}</span>`;
+}
+
+function renderTop() {
+  const asc = (state.sort === 'rank') !== Boolean(state.rev);
+  $('marche-head').innerHTML = `<tr>${COLS.map(([k, label, cls]) => {
+    const on = k === state.sort;
+    const th = `<th${cls ? ` class="${cls}"` : ''}${on ? ` aria-sort="${asc ? 'ascending' : 'descending'}"` : ''}>`;
+    return k ? `${th}<button type="button" class="sort" data-mksort="${k}">${label}<span class="arr" aria-hidden="true">${on ? (asc ? '▲' : '▼') : ''}</span></button></th>` : `${th}${label}</th>`;
+  }).join('')}</tr>`;
+  // Chaque ligne ouvre la fiche de sa crypto (#crypto/<id>, js/crypto.js) ; # reste le rang au classement.
+  const rank = new Map(topList.map((c, i) => [c, i + 1]));
+  const name = c => `<b>${esc(c.symbol)}</b> <span class="muted">${esc(c.name)}</span>`;
+  $('marche-top').innerHTML = topList.length ? sortTop(topList, state.sort, trends, state.rev).map(c => `<tr${c.id ? ` data-id="${esc(c.id)}"` : ''}><td class="l num">${rank.get(c)}</td><td class="l name">${c.id ? `<a href="#crypto/${esc(c.id)}">${name(c)}</a>` : name(c)}</td>
+    <td class="l">${trendCell(trends.get(c.id))}</td><td class="num">${price(c.price)} $</td><td class="num">${pct(c.change24h)}</td><td class="num">${pct(c.change7d)}</td><td class="num">${pct(c.change30d)}</td>
+    <td class="num">${money(c.mcap)}</td><td class="num">${money(c.volume)}</td></tr>`).join('')
+    : `<tr><td colspan="${COLS.length}"><div class="empty">Classement indisponible à cette mise à jour.</div></td></tr>`;
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('#marche-head button[data-mksort]');
+  if (!b) return;
+  const k = b.dataset.mksort;
+  if (k === state.sort) state.rev = !state.rev;
+  else Object.assign(state, { sort: k, rev: false });
+  save();
+  renderTop();
+});

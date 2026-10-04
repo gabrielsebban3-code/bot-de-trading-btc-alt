@@ -286,9 +286,19 @@ test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, t
   assert.deepEqual(leo.sources, { bougies: 'coingecko', presentation: 'ok' });
   assert.deepEqual([leo.about.text, leo.about.lang], ['LEO Token is a cryptocurrency.', 'en']); // aucune traduction possible
 
+  // Résumé pour le tableau de l'onglet Marché : la tendance de chaque fiche, calculée comme sur la fiche.
+  const index = JSON.parse(await readFile(join(dir, 'crypto', 'index.json'), 'utf8'));
+  assert.deepEqual(index.coins.map(c => c.id), ['bitcoin', 'ethereum', 'ripple', 'dogecoin', 'leo-token']);
+  for (const c of index.coins) {
+    const f = await read(c.id);
+    const v = coinSignals({ symbol: f.symbol, d1: f.candles.d1, h4: f.candles.h4, funding: f.funding?.history || [], oi: f.oi }).verdict;
+    assert.deepEqual(c.trend, { dir: v.dir, label: v.label, up: v.up, down: v.down, total: v.total });
+  }
+
   // Journal : une ligne par fiche, et les fiches compressées pour les aperçus hors branche principale.
   assert.match(first.stdout, /BTC \(bitcoin\) : 1000 j \+ 300 × 4 h · BTC-USDT · levier max 100×/);
   assert.match(first.stdout, /CRYPTO_GZ leo-token 1\/\d+ /);
+  assert.match(first.stdout, /CRYPTO_GZ index 1\/\d+ /);
 
   // Deuxième passage avec les fiches déjà en ligne : présentation reprise, le reste à jour.
   const second = await run('--previous', join(dir, 'crypto'));
@@ -298,8 +308,9 @@ test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, t
   assert.deepEqual((await read('leo-token')).about.text, 'FR LEO Token is a cryptocurrency.');
   assert.match(second.stdout, /LEO \(leo-token\).*présentation fr \(traduite\)/);
 
-  // Plus de temps : les fiches déjà en ligne sont gardées telles quelles.
+  // Plus de temps : les fiches déjà en ligne sont gardées telles quelles, et le résumé reste complet.
   const before = await read('ripple');
   await assert.rejects(run('--previous', join(dir, 'crypto'), '--budget', '0'), /Aucune fiche à jour/);
   assert.deepEqual(await read('ripple'), before);
+  assert.equal(JSON.parse(await readFile(join(dir, 'crypto', 'index.json'), 'utf8')).coins.length, 5);
 });

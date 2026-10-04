@@ -100,7 +100,7 @@ async function main() {
   const tvl = take('tvl', tvlR) && toDaily(tvlR.value.map(x => [Number(x.date) * 1000, Number(x.tvl)]));
   const global = take('coingecko global', globalR)?.data;
   await sleep(1500);
-  const coinsR = await attempt('CoinGecko top', () => fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=30&price_change_percentage=24h,7d,30d`, { headers: cgHeaders, retries: 4 }));
+  const coinsR = await attempt('CoinGecko top', () => fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=40&price_change_percentage=24h,7d,30d`, { headers: cgHeaders, retries: 4 }));
   const coins = take('coingecko top', coinsR);
   // Dérivés (perpétuels et contrats à terme) de toutes les plateformes suivies par CoinGecko, en BTC.
   await sleep(1500);
@@ -143,7 +143,7 @@ async function main() {
   sources.dex = dexR.ok ? 'ok' : 'erreur';
 
   // L'identifiant CoinGecko ouvre la fiche de la crypto (#crypto/<id>, scripts/build-cryptos.mjs).
-  const top = coins ? realCoins(coins).slice(0, 12).map(c => ({
+  const top = coins ? realCoins(coins).slice(0, 20).map(c => ({
     id: c.id, symbol: String(c.symbol).toUpperCase(), name: c.name, price: c.current_price, mcap: c.market_cap, volume: c.total_volume,
     change24h: c.price_change_percentage_24h_in_currency / 100, change7d: c.price_change_percentage_7d_in_currency / 100,
     change30d: c.price_change_percentage_30d_in_currency != null ? c.price_change_percentage_30d_in_currency / 100 : null,

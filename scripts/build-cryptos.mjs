@@ -12,7 +12,7 @@ import { attempt, fetchJson } from './lib/http.mjs';
 import { candlesFromOkx, cleanLink, excerpt, fundingHistory, liveOpenInterest, sentences, sig, withLive } from './lib/cryptos.mjs';
 import { decode } from './lib/news.mjs';
 import { DAY, mergePoints, realCoins, toDaily } from '../js/marche-lib.js';
-import { coinSignals, per8h } from '../js/crypto-lib.js';
+import { coinSignals, per8h, ratioToBtc } from '../js/crypto-lib.js';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
@@ -21,7 +21,7 @@ const OKX = 'https://www.okx.com/api/v5';
 const CG = 'https://api.coingecko.com/api/v3';
 const cgHeaders = process.env.COINGECKO_API_KEY ? { 'x-cg-demo-api-key': process.env.COINGECKO_API_KEY } : {};
 const HOUR = 3_600_000;
-const TOP = 12;
+const TOP = 20;
 const ABOUT_DAYS = 3;
 const ABOUT_PER_RUN = 4; // présentations périmées rafraîchies à chaque passage, au plus
 // Au-delà de ce temps, les fiches restantes reprennent la version déjà en ligne (l'étape a 9 minutes en tout).
@@ -58,9 +58,25 @@ async function coinList() {
       return top.slice(0, TOP).map(c => ({ id: c.id, symbol: c.symbol.toUpperCase(), name: c.name }));
     }
   }
-  const coins = await gecko('/coins/markets?vs_currency=usd&per_page=30', 4);
+  const coins = await gecko('/coins/markets?vs_currency=usd&per_page=40', 4);
   console.log('Liste : classement CoinGecko');
   return realCoins(coins).slice(0, TOP).map(c => ({ id: c.id, symbol: String(c.symbol).toUpperCase(), name: c.name }));
+}
+
+// Prix quotidiens de BTC du fichier Marché : la force face à BTC compte dans la tendance, comme sur la fiche.
+async function btcPoints() {
+  for (const path of String(args.marche || '').split(',').filter(Boolean)) {
+    const pts = (await readFile(path, 'utf8').then(JSON.parse).catch(() => null))?.series?.btc?.points;
+    if (pts?.length) return pts;
+  }
+  return [];
+}
+
+// Tendance d'une fiche (même calcul que la page de la crypto).
+function trendOf(f, btc) {
+  const ratio = f.symbol === 'BTC' ? [] : ratioToBtc(f.candles.d1, btc);
+  const { verdict: v } = coinSignals({ symbol: f.symbol, d1: f.candles.d1, h4: f.candles.h4, ratio, funding: f.funding?.history || [], oi: f.oi || [] });
+  return { dir: v.dir, label: v.label, up: v.up, down: v.down, total: v.total };
 }
 
 // Chiffres clés de CoinGecko pour toutes les cryptos de la liste, en une demande.
@@ -175,7 +191,9 @@ async function translate(text) {
 
 // Présentation du projet : texte en français (traduit de l'anglais au besoin), catégories, date de lancement, liens.
 async function about(id) {
-  const c = await gecko(`/coins/${id}?localization=true&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`);
+  // Une seule nouvelle tentative : une présentation manquée est reprise au passage suivant, et chaque refus de
+  // CoinGecko (429) coûte une minute d'attente sur les 6 de l'étape, partagées par les 20 fiches.
+  const c = await gecko(`/coins/${id}?localization=true&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`, 1);
   const fr = excerpt(c.description?.fr), en = excerpt(c.description?.en);
   const translated = !fr && en ? await translate(en) : null;
   const l = c.links || {};
@@ -204,6 +222,8 @@ async function main() {
   const now = new Date();
   console.log(`Dinexo · fiches crypto · ${now.toISOString()}`);
   const list = await coinList();
+  const btc = await btcPoints();
+  const summary = []; // tendance de chaque fiche, pour le tableau de l'onglet Marché (crypto/index.json)
   const previous = new Map(await Promise.all(list.map(async c => [c.id, await readPrevious(c.id)])));
   const mk = await attempt('CoinGecko chiffres clés', () => markets(list.map(c => c.id)));
   const inst = await attempt('OKX marchés', instruments);
@@ -220,6 +240,7 @@ async function main() {
     const sym = coin.symbol;
     if (late()) {
       if (prev) await writeFile(join(OUT, `${coin.id}.json`), JSON.stringify(prev));
+      if (prev?.candles?.d1?.length) summary.push({ id: coin.id, symbol: sym, trend: trendOf(prev, btc) });
       console.log(`${sym} : temps écoulé, ${prev ? 'version déjà en ligne gardée' : 'pas de fiche'}.`);
       continue;
     }
@@ -264,16 +285,20 @@ async function main() {
     };
     if (!out.candles.d1.length) { console.log(`${sym} : pas de bougies, pas de fiche.`); continue; }
     await writeFile(join(OUT, `${coin.id}.json`), JSON.stringify(out));
-    const read = coinSignals({ symbol: sym, d1: out.candles.d1, h4: out.candles.h4, funding: out.funding?.history || [], oi: out.oi });
+    const trend = trendOf(out, btc);
+    summary.push({ id: coin.id, symbol: sym, trend });
     console.log([
       `${sym} (${coin.id}) : ${out.candles.d1.length} j + ${out.candles.h4.length} × 4 h · ${src || 'CoinGecko'}`,
       swap ? `levier max ${out.okx.maxLever}× · funding ${out.funding?.rate ?? '—'} %/8 h · OI ${money(out.oi.at(-1)?.[1])} · L/S ${out.longShort.at(-1)?.[1] ?? '—'}` : 'pas de perpétuel OKX',
-      `${read.verdict.label} (${read.verdict.up}/${read.verdict.down} sur ${read.verdict.total})`,
+      `${trend.label} (${trend.up}/${trend.down} sur ${trend.total})`,
       `présentation ${info?.lang ?? '—'}${sources.presentation === 'ok' ? '' : ` (${sources.presentation || 'reprise'})`}`,
       `sources ${JSON.stringify(sources)}`,
     ].join(' · '));
     dumps.push([coin.id, out]);
   }
+  const index = { generatedAt: now.toISOString(), coins: summary };
+  await writeFile(join(OUT, 'index.json'), JSON.stringify(index));
+  dumps.push(['index', index]);
   // Sur une branche de test, chaque fiche est recopiée dans le journal (compressée) pour les aperçus,
   // avec les données Marché, Actu et Setups du même passage (BTC, dominance, news et setups de la fiche).
   if (process.env.PUBLISH === 'false') {
@@ -284,7 +309,7 @@ async function main() {
       for (let i = 0; i < n; i++) console.log(`CRYPTO_GZ ${id} ${i + 1}/${n} ${gz.slice(i * 8000, (i + 1) * 8000)}`);
     }
   }
-  if (!dumps.length) throw new Error('Aucune fiche à jour : les versions déjà en ligne sont conservées.');
+  if (dumps.length < 2) throw new Error('Aucune fiche à jour : les versions déjà en ligne sont conservées.');
 }
 
 main().catch(err => {
