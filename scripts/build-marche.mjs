@@ -10,7 +10,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { attempt, fetchJson } from './lib/http.mjs';
 import { liveOpenInterest, withLive } from './lib/cryptos.mjs';
-import { agendaEvents, altSeason, changeOver, compact, mergePoints, realCoins, SECTORS, signals, toDaily, verdict } from '../js/marche-lib.js';
+import { agendaEvents, altSeason, compact, mergePoints, realCoins, SECTORS, signals, toDaily, verdict } from '../js/marche-lib.js';
+import { changeOver } from '../js/crypto-lib.js';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));

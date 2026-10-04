@@ -166,13 +166,6 @@ export const SECTORS = [
   ['perpetuals', 'Perpétuels décentralisés'], ['lending-borrowing', 'Prêts et emprunts'],
 ];
 
-// Variation d'une série quotidienne sur `days` jours ; null tant que l'historique est trop court.
-export function changeOver(points, days) {
-  const last = points?.at(-1);
-  const ref = last && points.findLast(([d]) => d <= last[0] - days);
-  return ref && ref[1] ? last[1] / ref[1] - 1 : null;
-}
-
 // Agenda macro : les annonces américaines à fort impact, plus les décisions de taux de la BCE et de la Banque du Japon,
 // avec un nom en français (le titre anglais reste si l'annonce n'est pas dans la liste).
 const AGENDA_FR = [

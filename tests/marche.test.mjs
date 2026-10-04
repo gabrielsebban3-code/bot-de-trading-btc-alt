@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { agendaEvents, agendaFr, altSeason, changeOver, DAY, mergePoints, realCoins, signals, sma, sortTop, tallyText, toDaily, verdict } from '../js/marche-lib.js';
+import { agendaEvents, agendaFr, altSeason, DAY, mergePoints, realCoins, signals, sma, sortTop, tallyText, toDaily, verdict } from '../js/marche-lib.js';
 
 const T0 = Date.parse('2026-01-01T00:00:00Z');
 const D0 = T0 / DAY;
@@ -135,13 +135,6 @@ test('altSeason : part des 50 plus grosses qui battent BTC sur 30 jours, sans BT
   assert.deepEqual([btcSeason.value, btcSeason.dir, btcSeason.label], [25, -1, 'Saison du Bitcoin']);
   assert.equal(altSeason(alts), null); // sans BTC
   assert.equal(altSeason([coin('BTC', 0.1), ...alts.slice(0, 9)]), null); // trop peu d'altcoins
-});
-
-test('changeOver : variation sur n jours, null tant que l\'historique est trop court', () => {
-  assert.ok(Math.abs(changeOver([[1, 100], [3, 100], [10, 120]], 7) - 0.2) < 1e-12);
-  assert.equal(changeOver([[5, 100], [10, 120]], 7), null);
-  assert.equal(changeOver([], 7), null);
-  assert.equal(changeOver(undefined, 7), null);
 });
 
 test('agendaEvents : annonces américaines fortes et décisions de taux, en français, triées', () => {
