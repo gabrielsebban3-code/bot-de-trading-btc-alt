@@ -113,14 +113,14 @@ test('evaluate : stop, moitié puis stop à l\'entrée, sortie sur clôture jour
   const at = b => b.at(-1).t;
 
   const stop = day11([{ o: 100, h: 100.5, l: 97.5, c: 98 }]);
-  assert.deepEqual(evaluate(sig, stop, 0, daily), { outcome: 'sl', at: at(stop), r: -1, tpHit: 0 });
+  assert.deepEqual(evaluate(sig, stop, 0, daily), { outcome: 'sl', at: at(stop), r: -1, tpHit: 0, halfAt: null, exitPx: sig.sl, exitLvl: null });
 
   const be = day11([{ o: 100, h: 111, l: 100.5, c: 105 }, { o: 105, h: 106, l: 99.5, c: 101 }]);
-  assert.deepEqual(evaluate(sig, be, 0, daily), { outcome: 'be', at: at(be), r: 2.5, tpHit: 1 }, 'moitié à 5R, reste sorti à 0R');
+  assert.deepEqual(evaluate(sig, be, 0, daily), { outcome: 'be', at: at(be), r: 2.5, tpHit: 1, halfAt: be[1].t, exitPx: 100, exitLvl: null }, 'moitié à 5R, reste sorti à 0R');
 
   const fade = day11([flatBar, flatBar, flatBar, flatBar, { o: 100, h: 100, l: 98.5, c: 98.8 }]);
   assert.equal(exitLevel(daily, 11, 'long'), 99, 'plus bas des 7 journées avant le jour 11');
-  assert.deepEqual(evaluate(sig, fade, 0, daily), { outcome: 'exit', at: at(fade), r: -0.6, tpHit: 0 }, 'clôture journalière sous le plus bas de 7 jours');
+  assert.deepEqual(evaluate(sig, fade, 0, daily), { outcome: 'exit', at: at(fade), r: -0.6, tpHit: 0, halfAt: null, exitPx: 98.8, exitLvl: 99 }, 'clôture journalière sous le plus bas de 7 jours');
   const midDay = day11([flatBar, { o: 100, h: 100, l: 98.5, c: 98.8 }]);
   assert.equal(evaluate(sig, midDay, 0, daily).outcome, 'open', 'une bougie 4h sous le niveau ne suffit pas : il faut la clôture du jour');
 
@@ -129,6 +129,8 @@ test('evaluate : stop, moitié puis stop à l\'entrée, sortie sur clôture jour
   assert.equal(e.outcome, 'open');
   assert.equal(e.tpHit, 1);
   assert.equal(e.stop, 100, 'stop remonté au prix d\'entrée');
+  assert.equal(e.halfAt, live[1].t, 'moment où la moitié est prise, pour la fiche du trade');
+  assert.equal(e.halfAt, live[1].t, 'moment où la moitié est prise, pour la fiche du trade');
   assert.equal(e.exitAt, null, 'plus bas de 10 jours (99) sous le stop : pas affiché');
 });
 
@@ -147,6 +149,8 @@ test('scanAsset : signal seulement dans le sens de la tendance, un seul trade à
   assert.equal(sigs[0].outcome, 'open');
   assert.equal(sigs[0].confirmedAt, sigs[0].time + BAR);
   assert.match(sigs[0].why, /tendance journalière est haussière/);
+  assert.equal(sigs[0].ref, 101, 'plus haut cassé, gardé pour la fiche du trade');
+  assert.ok(sigs[0].day.e20 > sigs[0].day.e50 && sigs[0].day.c > sigs[0].day.e50, 'clôture et moyennes du jour qui donnaient la tendance');
   assert.ok(Math.abs(sigs[0].entry - sigs[0].sl - RULES.stopAtr * dailyContext(up).atr.at(-1)) < 1e-9, 'stop à 0,75 ATR journalier');
   const down = trendDays(-0.6);
   assert.deepEqual(scanAsset({ symbol: 'TEST' }, { bars: b, daily: down }).filter(s => s.dir === 'long'), [], 'cassure haussière en tendance baissière : ignorée');

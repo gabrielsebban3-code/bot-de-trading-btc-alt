@@ -1,7 +1,8 @@
 // Point d'entrée : navigation, chargement des données, watchlist et ticker.
 import { ago, esc, fmt, pct, price } from './format.js';
 import { initProjects, renderProject } from './projects.js';
-import { initSetups, renderSetup, setupsUnavailable } from './setups.js';
+import { initSetups, setupsUnavailable } from './setups.js';
+import { renderSetup } from './trade.js';
 import { focusNews, initNews, newsFocus, newsUnavailable } from './news.js';
 import { starTitle, watchlist } from './watchlist.js';
 import { initMarche, marcheUnavailable, renderIndicator } from './marche.js';

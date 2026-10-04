@@ -150,9 +150,11 @@ export function drawCandles(box, spec) {
         el('text', { x: L + 4, y: lv.ty, class: `lvl-t ${lv.cls || ''}` }, `${lv.label} ${p.fmt(lv.v)}`));
     }
     // Signaux passés : flèche sous la bougie (long) ou au-dessus (short).
+    // Avec un prix (m.v) : un rond à ce prix, pour la moitié prise ou la sortie d'un trade.
     for (const m of p.marks || []) {
       const b = bars[m.i];
       if (!b) continue;
+      if (m.v != null) { svg.append(el('circle', { cx: x(m.i).toFixed(1), cy: y(m.v).toFixed(1), r: 4.5, class: `mark dot ${m.cls || ''}` })); continue; }
       const cx = x(m.i), long = m.dir === 'long';
       const yy = long ? y(b[3]) + 5 : y(b[2]) - 5, s = long ? 1 : -1;
       svg.append(el('path', { d: `M${cx.toFixed(1)},${yy.toFixed(1)}l4.5,${8 * s}h-9Z`, class: `mark ${m.cls || ''}` }));

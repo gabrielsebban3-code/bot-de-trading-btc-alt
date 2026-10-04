@@ -21,7 +21,7 @@ const ema = (values, n) => { const k = 2 / (n + 1); let e = null; return values.
 const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
 const num = n => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
 
-async function load(sym) {
+export async function loadPaire(sym) {
   const hit = cache.get(sym);
   if (hit && Date.now() - hit.at < 600_000) return hit.d;
   const res = await fetch(`data/paire/${encodeURIComponent(sym)}.json`, { cache: 'no-cache' });
@@ -42,7 +42,7 @@ export async function renderPaire(sym) {
   current = { a, d: null };
   el.innerHTML = page(a, null);
   try {
-    const d = await load(sym);
+    const d = await loadPaire(sym);
     if (current?.a !== a) return; // une autre fiche a été ouverte entre-temps
     current.d = d;
     el.innerHTML = page(a, d);
@@ -167,8 +167,8 @@ function statsBox(a) {
 function tradesBox(a) {
   const data = setupsData();
   const list = data.history.filter(s => s.symbol === a.symbol).slice(0, 40);
-  const rows = list.map(s => `<tr>
-      <td class="l muted">${parisDay(s.time)}</td>
+  const rows = list.map(s => `<tr data-trade="${esc(s.id)}" title="Voir l'explication du trade">
+      <td class="l"><a href="#setup/${encodeURIComponent(s.id)}">${parisDay(s.time)}</a></td>
       <td class="l">${esc(data.detectors[s.detector])}</td>
       <td class="l">${dirTag(s.dir)}</td>
       <td class="n">${px(s.entry)}</td>
@@ -176,7 +176,7 @@ function tradesBox(a) {
       <td class="l"><span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span></td>
       <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${s.outcome === 'open' ? '—' : cap(s.r)}</td>
     </tr>`).join('');
-  return `<h2 class="section">Trades passés sur ${esc(a.symbol)}</h2>
+  return `<h2 class="section">Trades passés sur ${esc(a.symbol)} <span class="muted">clique sur un trade pour son explication complète</span></h2>
     <div class="members-only"><div class="wrap"><table class="static">
       <thead><tr><th class="l">Signal</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>Stop</th><th class="l">Résultat</th><th>Capital</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="7"><div class="empty">Aucun trade sur cette paire pour le moment.</div></td></tr>'}</tbody>

@@ -493,3 +493,19 @@ table.cx-table { margin-bottom: 10px; font-size: 13px; }
 .cx-chart .mark.up { fill: var(--up); } .cx-chart .mark.down { fill: var(--down); } .cx-chart .mark.mute { fill: var(--muted); }
 .cx-chart .mark.acc { stroke: none; }
 .box > .guest-only > p.txt { margin: 0; padding: 0 14px 10px; font-size: 13px; color: var(--fg2); }
+
+/* Fiche trade (#setup/<id>) : explication complète d'un trade, en jeu ou terminé */
+tr[data-trade] { cursor: pointer; }
+tr[data-trade]:hover td { background: var(--panel2); }
+.tr-brief { margin-bottom: 16px; }
+.tr-brief .txt { font-size: 14px; color: var(--fg); max-width: 80ch; }
+.tr-detail { margin-top: 16px; }
+.tr-steps { list-style: none; margin: 0; padding: 0 14px 14px; display: grid; gap: 12px; font-size: 13px; border-left: 0; }
+.tr-steps li { display: grid; gap: 2px; padding-left: 14px; border-left: 2px solid var(--line2); }
+.tr-steps li:first-child { border-left-color: var(--accent); }
+.tr-steps li:last-child { border-left-color: var(--fg2); }
+.tr-steps .muted { font: 11px var(--mono); }
+.tr-steps span:not(.muted) { color: var(--fg2); }
+.tr-big { margin: 0; padding: 0 14px 8px; font: 500 26px var(--mono); letter-spacing: -.02em; }
+.tr-big small { font: 13px var(--sans); }
+.cx-chart .mark.dot { stroke: var(--panel); stroke-width: 2px; }
