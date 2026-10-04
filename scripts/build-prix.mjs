@@ -136,10 +136,10 @@ async function main() {
   console.log(`${coins.length} fichiers de prix écrits${failed ? `, ${failed} en échec` : ''}. Euro : ${eur.rates.at(-1)} € pour 1 $.`);
   for (const c of coins.slice(0, 6)) console.log(`${c.symbol} depuis le ${new Date(c.start).toISOString().slice(0, 10)} : ${c.last} € (${c.days} jours)`);
 
-  // Sur une branche de test : quelques fichiers compressés en fin de journal, pour construire la bêta.
+  // Sur une branche de test : les fichiers compressés en fin de journal, pour construire la bêta.
   if (process.env.PUBLISH === 'false') {
     const lines = [];
-    for (const name of ['index', 'BTC', 'ETH', 'SOL', 'XRP']) {
+    for (const name of ['index', ...coins.map(c => c.symbol)]) {
       const text = await readFile(join(OUT, `${name}.json`), 'utf8').catch(() => null);
       if (!text) continue;
       const gz = gzipSync(text).toString('base64');

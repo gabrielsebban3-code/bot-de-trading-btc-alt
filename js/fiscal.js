@@ -106,7 +106,7 @@ function standingBox(st) {
   return `<div class="box"><h2>Où tu en es aujourd'hui</h2>
     <div class="fi-kpis">
       <div><span>Valeur de ton portefeuille</span><b>${eur(st.value)}</b></div>
-      <div><span>Ce que tu as payé (reste)</span><b>${eur(st.base)}</b></div>
+      <div><span>Ce que tu as payé</span><b>${eur(st.base)}</b></div>
       <div><span>Gain si tu vendais tout</span>${signed(st.gain)}</div>
       <div><span>Impôt si tu vendais tout</span><b>${eur(st.taxIfSold)}</b><small>${fmt(r.total, 1)} % du gain</small></div>
     </div>
@@ -262,7 +262,7 @@ function howBox() {
     <li><b>Le gain d'une vente</b>Ce que tu as reçu, moins la part de ton prix d'achat total qui correspond à cette vente. Cette part = prix d'achat restant × montant vendu ÷ valeur de tout ton portefeuille ce jour-là. C'est la formule officielle du formulaire 2086 (ligne 224).</li>
     <li><b>L'impôt de l'année</b>On additionne les gains et les pertes de toutes les ventes de l'année. Si le résultat est un gain, il est taxé à 31,4 % (30 % pour les ventes faites avant 2025). Si tes ventes de l'année ne dépassent pas 305 €, rien n'est dû.</li>
     <li><b>Une autre option</b>Tu peux choisir d'être imposé au barème de l'impôt sur le revenu à la place des 31,4 % (case 3CN), ce qui peut être moins cher si tu paies peu d'impôt.</li>
-  </ol><p class="t-note">C'est une estimation pour t'aider à préparer ta déclaration, pas un conseil fiscal. Les règles sont celles des particuliers qui investissent de temps en temps ; si tu trades comme un métier, d'autres règles s'appliquent. Vérifie sur impots.gouv.fr ou avec un conseiller.</p></div>`;
+  </ol><p class="t-note">C'est une estimation pour t'aider à préparer ta déclaration, pas un conseil fiscal. Les règles sont celles des particuliers qui investissent de temps en temps ; si le trading est ton métier, d'autres règles s'appliquent. Vérifie sur impots.gouv.fr ou avec un conseiller.</p></div>`;
 }
 
 // ---------- Actions ----------

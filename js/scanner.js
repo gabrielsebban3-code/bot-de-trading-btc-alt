@@ -3,7 +3,7 @@
 // Sans Premium : les 3 premières lignes de chaque bloc. Données : data/scanner.json (scripts/build-scanner.mjs).
 import { ago, esc, fmt, money, pct } from './format.js';
 import { isPremium, onTier, premiumBox } from './premium.js';
-import { TREND, dirTag, okxUrl, parisDay, plainPct, px } from './setups.js';
+import { TREND, dirTag, okxUrl, plainPct, px } from './setups.js';
 
 const $ = id => document.getElementById(id);
 const FREE_ROWS = 3;
@@ -56,7 +56,6 @@ function draw() {
   const signals = coins.filter(c => c.signal).sort((a, b) => b.signal.time - a.signal.time);
   const ready = coins.filter(c => near(c) && !(c.signal?.outcome === 'open')).sort((a, b) => Math.abs(a.trigger.distance) - Math.abs(b.trigger.distance));
   const tiles = [
-    ['Cryptos analysées', coins.length],
     ['Tendance haussière', count('haussière')],
     ['Tendance baissière', count('baissière')],
     ['Sans direction claire', count('neutre')],
@@ -95,7 +94,7 @@ function signalCard(c) {
     now = `<span class="sm">En ce moment <b class="${r >= 0 ? 'up' : 'down'}">${capital(r)}</b> du capital (1 % risqué par trade).</span>`;
   } else if (s.r != null) now = `<span class="sm">Résultat : <b class="${s.r >= 0 ? 'up' : 'down'}">${capital(s.r)}</b> du capital.</span>`;
   return `<a class="card" href="${link(c)}"${ext(c)}>${head(c)}
-    <span class="state">${dirTag(s.dir)} <b>${esc(data.detectors[s.detector] || s.detector)}</b> le ${parisDay(s.confirmedAt)} <span class="tag ${cls}">${label}</span></span>
+    <span class="state">${dirTag(s.dir)} <b>${esc(data.detectors[s.detector] || s.detector)}</b> ${ago(new Date(s.confirmedAt).toISOString())} <span class="tag ${cls}">${label}</span></span>
     <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(s.stop ?? s.sl)}</span><span><i>Moitié à ${fmt(data.rules.partialR ?? 5, 0)}R</i>${px(s.tp1)}</span><span><i>Prix actuel</i>${px(c.price)}</span></span>
     ${now}${untested(c)}<span class="go">${linkText(c)}</span></a>`;
 }
