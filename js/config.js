@@ -14,7 +14,7 @@ export const SUPABASE = {
 // Liens partenaires (affiliation) des plateformes : colle ici le lien de parrainage donné par chaque plateforme.
 // Une plateforme sans lien n'est pas affichée ; sans aucun lien, l'encadré « Plateformes partenaires » est caché.
 export const PARTNERS = {
-  okx: '',
+  okx: 'https://my.okx.com/fr-fr/join/33GLPEFF',
   bitget: '',
   binance: '',
 };
