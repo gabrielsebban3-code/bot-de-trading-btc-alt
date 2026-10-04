@@ -184,7 +184,7 @@ function tradesBox(a) {
       <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${s.outcome === 'open' ? '—' : cap(s.r)}</td>
     </tr>`).join('');
   return `<h2 class="section">Trades passés sur ${esc(a.symbol)} <span class="muted">clique sur un trade pour son explication complète</span></h2>
-    <div class="members-only"><div class="wrap"><table class="static">
+    <div class="members-only"><div class="wrap" tabindex="0" role="region" aria-label="Historique des trades"><table class="static">
       <thead><tr><th class="l">Signal</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>Stop</th><th class="l">Résultat</th><th>Capital</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="7"><div class="empty">Aucun trade sur cette paire pour le moment.</div></td></tr>'}</tbody>
     </table></div></div>

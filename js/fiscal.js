@@ -250,7 +250,7 @@ function opsBox(list, res) {
     <td class="n">${o.eur == null ? '—' : eur(o.eur + (o.type === 'achat' ? o.fee : 0), 2)}</td><td class="l muted">${SRC[o.src] || esc(o.src)}</td>
     <td class="n">${isPremium() ? `<button type="button" class="t-del" data-fdel="${esc(o.id)}" aria-label="Supprimer cette opération">×</button>` : ''}</td></tr>`).join('');
   return `<h2 class="section">${isPremium() ? 'Mes opérations' : 'Opérations de l\'exemple'} <span class="muted">${list.length}</span></h2>
-    <div class="wrap"><table class="static fi-ops"><thead><tr><th class="l">Date</th><th class="l">Type</th><th class="l">Crypto</th><th>Euros</th><th class="l">Source</th><th></th></tr></thead>
+    <div class="wrap" tabindex="0" role="region" aria-label="Tes opérations"><table class="static fi-ops"><thead><tr><th class="l">Date</th><th class="l">Type</th><th class="l">Crypto</th><th>Euros</th><th class="l">Source</th><th><span class="sr-only">Supprimer</span></th></tr></thead>
       <tbody>${rows || '<tr><td colspan="6"><div class="empty">Aucune opération. Ajoute ton premier achat avec le bloc « Ajouter des opérations ».</div></td></tr>'}</tbody></table></div>
     <div class="links fi-links">${sorted.length > 30 ? `<button type="button" class="btn" data-fall>${state.all ? 'Afficher les 30 dernières' : `Afficher les ${sorted.length}`}</button>` : ''}
       ${isPremium() && list.length ? `<button type="button" class="btn danger" data-fclear>${state.clear ? 'Confirmer : tout effacer' : 'Tout effacer'}</button>` : ''}</div>`;
