@@ -21,6 +21,7 @@ let newsReady = false;
 let marcheReady = false;
 
 // Navigation par ancre : #resume, #projets, #projet/<id>…
+let shown = null; // page affichée avant ce changement d'ancre
 function route() {
   const [page, id] = location.hash.slice(1).split('/');
   const target = ['projet', 'setup', 'indicateur', 'crypto'].includes(page) ? page : PAGES.includes(page) ? page : 'resume';
@@ -37,7 +38,10 @@ function route() {
   if (target === 'setup' && setupsReady) renderSetup(decodeURIComponent(id || ''));
   if (target === 'crypto') renderCrypto(decodeURIComponent(id || ''));
   if (target === 'indicateur') { $('ind-back').textContent = $('ind-back').hash === '#marche' ? '← Marché' : '← Résumé'; if (marcheReady) renderIndicator(decodeURIComponent(id || '')); }
-  window.scrollTo(0, 0);
+  // Retour d'une fiche crypto : on retrouve le tableau des cryptos plutôt que le haut de l'onglet Marché.
+  if (target === 'marche' && shown === 'crypto') $('marche-top').closest('.wrap').scrollIntoView({ block: 'center' });
+  else window.scrollTo(0, 0);
+  shown = target;
   // Bouton Connexion en haut à droite : sur mobile, le bloc de connexion est sous la watchlist, on l'amène à l'écran.
   if (target === 'compte' && id === 'connexion') $('account').scrollIntoView({ block: 'center' });
   if (target === 'actu' && id && newsReady) focusNews(decodeURIComponent(id));

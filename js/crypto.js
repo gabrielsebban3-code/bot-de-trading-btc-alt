@@ -177,7 +177,7 @@ function leverBox(d, last) {
     ${row('Levier maximum', d.okx.maxLever ? `${d.okx.maxLever}×` : '—')}
     ${f ? row('Funding actuel', `${fundingFmt(f.rate)} / 8 h <span class="muted">· ${f.rate >= 0 ? 'les longs paient' : 'les shorts paient'} ≈ ${fmt(Math.abs(fundingYear(f.rate)), 1)} % par an</span>`, f.rate > 0.03 ? 'down' : '') : ''}
     ${left != null ? row('Prochain paiement', `${new Date(next).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })} <span class="muted">· dans ${left >= HOUR ? `${Math.floor(left / HOUR)} h ` : ''}${String(Math.floor((left % HOUR) / 60_000)).padStart(2, '0')} min</span>`) : ''}
-    ${oi != null ? row('Open interest', `${money(oi)} <span class="muted">· 7 j</span> ${pct(oi7)}`) : ''}
+    ${oi != null ? row('Open interest', `${money(oi)} <span class="muted">· 7&nbsp;j</span> ${pct(oi7)}`) : ''}
     ${ls != null ? row('Comptes à l\'achat', `${fmt((ls / (1 + ls)) * 100, 0)} % <span class="muted">· ratio long / short ${fmt(ls, 2)}</span>`) : ''}
   </dl>
   <p class="txt cx-sub">Liquidation d'une position ouverte maintenant à ${usd(entry)}, en marge isolée${lv?.atrPct ? `. Une journée normale de ${sym} bouge de <b>${fmt(lv.atrPct * 100, 1)} %</b> (amplitude moyenne sur 14 jours)` : ''} :</p>
@@ -194,7 +194,7 @@ function keyFigures(d, last) {
   const m = d.market || {};
   const sym = d.symbol;
   const lv = keyLevels(d.candles.d1);
-  const supplyShare = m.max ? ` <span class="muted">· ${fmt((m.circulating / m.max) * 100, 0)} % du max</span>` : '';
+  const supplyShare = m.max ? ` <span class="muted">· ${fmt((m.circulating / m.max) * 100, 0)}&nbsp;% du&nbsp;max</span>` : '';
   return [
     row('Prix', usd(live?.last ?? m.price ?? last)),
     m.high24h != null ? row('Plus haut / bas 24 h', `${priceText(m.high24h)} / ${priceText(m.low24h)}`) : '',
@@ -204,16 +204,18 @@ function keyFigures(d, last) {
     m.ath != null ? row('Record historique', `${usd(m.ath)} <span class="muted">· ${isoFr(m.athDate)}</span>`) : '',
     m.athChange != null ? row('Distance au record', pct(m.athChange), '') : '',
     lv ? row('Plus haut / bas sur 1 an', `${priceText(lv.hi1y)} / ${priceText(lv.lo1y)}`) : '',
-    lv?.atrPct != null ? row('Amplitude d\'une journée', `${fmt(lv.atrPct * 100, 1)} % <span class="muted">· moyenne 14 j</span>`) : '',
+    lv?.atrPct != null ? row('Amplitude d\'une journée', `${fmt(lv.atrPct * 100, 1)} % <span class="muted">· moyenne 14&nbsp;j</span>`) : '',
     m.circulating != null ? row('En circulation', supply(m.circulating, sym) + supplyShare) : '',
     m.max != null ? row('Offre maximum', supply(m.max, sym)) : m.circulating != null ? row('Offre maximum', '<span class="muted">pas de plafond</span>', 'txt') : '',
     d.about?.genesis ? row('Lancement', isoFr(d.about.genesis)) : '',
   ].join('');
 }
 
+// News qui citent la crypto : les critiques et moyennes d'abord (les transferts de baleines, faibles, ensuite).
 function newsBox(d) {
-  const items = newsWhere(i => mentions(i, d.symbol, d.name));
-  if (items === null) return '';
+  const all = newsWhere(i => mentions(i, d.symbol, d.name), 40);
+  if (all === null) return '';
+  const items = [...all.filter(i => i.importance !== 'low'), ...all.filter(i => i.importance === 'low')].slice(0, 5);
   return `<div class="box"><h2>News récentes <a href="#actu">Actu →</a></h2>${items.length ? newsRows(items) : `<div class="empty">Pas de news récente sur ${esc(d.name)} dans le fil.</div>`}</div>`;
 }
 
