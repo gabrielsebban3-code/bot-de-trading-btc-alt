@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Onglet Marché : chiffres clés, historique quotidien des courbes du graphique et plus grosses cryptos.
 // Sources gratuites sans clé : OKX (prix, funding, open interest), DefiLlama (TVL, stablecoins, volume DEX),
-// alternative.me (Fear & Greed), CoinGecko (capitalisation globale, dérivés, top cryptos).
+// alternative.me (Fear & Greed), CoinGecko (capitalisation globale, dérivés, top cryptos, secteurs),
+// ForexFactory (agenda des annonces économiques de la semaine).
 // Le funding et l'open interest n'ont que quelques mois d'historique chez OKX : on garde celui déjà publié.
 // Usage : node scripts/build-marche.mjs [--out data] [--previous ancien-marche.json]
 
@@ -9,7 +10,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { attempt, fetchJson } from './lib/http.mjs';
 import { liveOpenInterest, withLive } from './lib/cryptos.mjs';
-import { compact, mergePoints, realCoins, signals, toDaily, verdict } from '../js/marche-lib.js';
+import { agendaEvents, altSeason, compact, mergePoints, realCoins, SECTORS, signals, toDaily, verdict } from '../js/marche-lib.js';
+import { changeOver } from '../js/crypto-lib.js';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
@@ -17,6 +19,7 @@ const OUT = args.out || 'data';
 const OKX = 'https://www.okx.com/api/v5';
 const LLAMA = 'https://api.llama.fi';
 const CG = 'https://api.coingecko.com/api/v3';
+const FF = 'https://nfs.faireconomy.media';
 const cgHeaders = process.env.COINGECKO_API_KEY ? { 'x-cg-demo-api-key': process.env.COINGECKO_API_KEY } : {};
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const DAYS = 1500; // ~4 ans
@@ -88,24 +91,29 @@ async function main() {
       return withToday || daily;
     })),
   ];
-  const [fngR, stR, tvlR, dexR, globalR] = await Promise.all([
+  const [fngR, stR, tvlR, dexR, globalR, weekR, nextWeekR] = await Promise.all([
     attempt('Fear & Greed', () => fetchJson('https://api.alternative.me/fng/?limit=0')),
     attempt('DefiLlama stablecoins', () => fetchJson('https://stablecoins.llama.fi/stablecoincharts/all')),
     attempt('DefiLlama TVL', () => fetchJson(`${LLAMA}/v2/historicalChainTvl`)),
     attempt('DefiLlama DEX', () => fetchJson(`${LLAMA}/overview/dexs?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`)),
     attempt('CoinGecko global', () => fetchJson(`${CG}/global`, { headers: cgHeaders })),
+    attempt('Agenda de la semaine', () => fetchJson(`${FF}/ff_calendar_thisweek.json`)),
+    attempt('Agenda de la semaine prochaine', () => fetchJson(`${FF}/ff_calendar_nextweek.json`, { retries: 0 })),
   ]);
   const fng = take('fear & greed', fngR) && toDaily(fngR.value.data.map(x => [Number(x.timestamp) * 1000, Number(x.value)]));
   const stables = take('stablecoins', stR) && toDaily(stR.value.map(x => [Number(x.date) * 1000, Number(x.totalCirculatingUSD?.peggedUSD)]));
   const tvl = take('tvl', tvlR) && toDaily(tvlR.value.map(x => [Number(x.date) * 1000, Number(x.tvl)]));
   const global = take('coingecko global', globalR)?.data;
   await sleep(1500);
-  const coinsR = await attempt('CoinGecko top', () => fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=40&price_change_percentage=24h,7d,30d`, { headers: cgHeaders, retries: 4 }));
+  const coinsR = await attempt('CoinGecko top', () => fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=250&price_change_percentage=24h,7d,30d`, { headers: cgHeaders, retries: 4 }));
   const coins = take('coingecko top', coinsR);
   // Dérivés (perpétuels et contrats à terme) de toutes les plateformes suivies par CoinGecko, en BTC.
   await sleep(1500);
   const derivR = await attempt('CoinGecko dérivés', () => fetchJson(`${CG}/derivatives/exchanges?order=open_interest_btc_desc&per_page=100`, { headers: cgHeaders, retries: 3 }));
   const derivs = take('dérivés', derivR);
+  await sleep(1500);
+  const catsR = await attempt('CoinGecko secteurs', () => fetchJson(`${CG}/coins/categories`, { headers: cgHeaders, retries: 3 }));
+  const cats = take('secteurs', catsR);
 
   // Chaque courbe garde son historique déjà publié si la source ne répond pas, ou n'a que les derniers mois.
   const old = previous?.series || {};
@@ -142,15 +150,58 @@ async function main() {
   };
   sources.dex = dexR.ok ? 'ok' : 'erreur';
 
-  // L'identifiant CoinGecko ouvre la fiche de la crypto (#crypto/<id>, scripts/build-cryptos.mjs).
-  const top = coins ? realCoins(coins).slice(0, 20).map(c => ({
+  // Les 250 plus grosses cryptos au format du tableau (variations en fraction : 0,05 = +5 %). Les 20 premières hors
+  // stablecoins forment le tableau ; l'identifiant CoinGecko ouvre la fiche de la crypto (#crypto/<id>, scripts/build-cryptos.mjs).
+  const ratio = v => (v == null ? null : v / 100);
+  const market = coins ? coins.map(c => ({
     id: c.id, symbol: String(c.symbol).toUpperCase(), name: c.name, price: c.current_price, mcap: c.market_cap, volume: c.total_volume,
-    change24h: c.price_change_percentage_24h_in_currency / 100, change7d: c.price_change_percentage_7d_in_currency / 100,
-    change30d: c.price_change_percentage_30d_in_currency != null ? c.price_change_percentage_30d_in_currency / 100 : null,
-  })) : previous?.top || [];
+    change24h: ratio(c.price_change_percentage_24h_in_currency), change7d: ratio(c.price_change_percentage_7d_in_currency),
+    change30d: ratio(c.price_change_percentage_30d_in_currency),
+  })) : null;
+  const top = market ? realCoins(market).slice(0, 20) : previous?.top || [];
+  const today = Math.floor(now / 86_400_000);
+
+  // Saison des altcoins, avec un point par jour gardé d'un passage à l'autre.
+  const season = market && altSeason(market);
+  const altseason = season ? { ...season, history: mergePoints(previous?.altseason?.history, [[today, season.value]], 400) } : previous?.altseason || null;
+  if (season) console.log(`Saison des altcoins : ${season.beat}/${season.total} font mieux que BTC sur 30 jours (BTC ${(season.btc30d * 100).toFixed(1)} %) → ${season.label} (${season.value})`);
+
+  // Secteurs : capitalisation et variation sur 24 h des catégories CoinGecko suivies. CoinGecko ne donne pas la
+  // variation sur 7 jours : chaque secteur garde un point par jour d'un passage à l'autre pour la calculer.
+  // Une variation de plus de 40 % en un jour pour tout un secteur vient d'un jeton mal compté par CoinGecko : elle
+  // n'est pas affichée.
+  const symbolOf = new Map(realCoins(market || []).map(c => [c.id, c.symbol]));
+  const odd = [];
+  const sectors = cats ? { list: SECTORS.map(([id, name]) => {
+    const c = cats.find(x => x.id === id);
+    if (!(c?.market_cap > 0)) return null;
+    let change24h = ratio(c.market_cap_change_24h);
+    if (Math.abs(change24h) > 0.4) { odd.push(`${id} ${(change24h * 100).toFixed(1)} %`); change24h = null; }
+    const history = compact(mergePoints(previous?.sectors?.list?.find(x => x.id === id)?.history, [[today, c.market_cap]], 60));
+    return { id, name, mcap: c.market_cap, change24h, change7d: changeOver(history, 7), volume24h: c.volume_24h ?? null,
+      top: (c.top_3_coins_id || []).map(i => symbolOf.get(i)).filter(Boolean), history };
+  }).filter(Boolean) } : previous?.sectors || null;
+  if (cats) {
+    const missing = SECTORS.filter(([id]) => !sectors.list.some(x => x.id === id)).map(([id]) => id);
+    console.log(`Secteurs : ${sectors.list.length}/${SECTORS.length} trouvés${missing.length ? ` · absents : ${missing.join(', ')}` : ''}${odd.length ? ` · variation écartée : ${odd.join(', ')}` : ''}`);
+    console.log(`Secteurs, cryptos phares : ${sectors.list.map(x => `${x.id} ${x.top.join('/') || '—'} (${(cats.find(c => c.id === x.id)?.top_3_coins_id || []).join('/')})`).join(' · ')}`);
+  }
+
+  // Agenda : semaine en cours et semaine suivante quand ForexFactory la publie ; sans réponse, celui déjà publié.
+  const arr = r => (r.ok && Array.isArray(r.value) ? r.value : null);
+  const [week, nextWeek] = [arr(weekR), arr(nextWeekR)];
+  sources.agenda = week ? 'ok' : 'erreur';
+  const rows = [...(week || []), ...(nextWeek || [])];
+  const agenda = week ? { fetchedAt: now.toISOString(), nextWeek: Boolean(nextWeek), events: agendaEvents(rows) } : previous?.agenda || null;
+  if (week) {
+    console.log(`Agenda : ${rows.length} annonces, ${agenda.events.length} gardées${nextWeek ? ' (semaine prochaine comprise)' : ''} · ${agenda.events.map(e => `${e.t.slice(5, 16)} ${e.en}`).join(' · ')}`);
+    const kept = new Set(agenda.events.map(e => `${e.cur} ${e.en}`));
+    const left = rows.filter(r => r?.impact === 'High' && !kept.has(`${r.country} ${r.title}`)).map(r => `${r.country} ${r.title}`);
+    console.log(`Agenda, fort impact laissé de côté : ${left.join(' · ') || 'aucune'}`);
+  }
 
   await mkdir(OUT, { recursive: true });
-  const out = { generatedAt: now.toISOString(), sample: Boolean(args.sample), sources, tiles, signals: list, verdict: verdict(list), top, series };
+  const out = { generatedAt: now.toISOString(), sample: Boolean(args.sample), sources, tiles, signals: list, verdict: verdict(list), top, altseason, sectors, agenda, series };
   await writeFile(join(OUT, 'marche.json'), JSON.stringify(out));
   console.log('Sources :', sources);
   for (const [k, s] of Object.entries(series)) console.log(`${k} : ${s.points.length} jours, dernier ${s.points.at(-1)?.[1] ?? '—'}`);
