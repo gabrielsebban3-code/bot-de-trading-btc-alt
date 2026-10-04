@@ -123,7 +123,9 @@ function page({ d, ratio }) {
         ${linksBox(d)}
       </div>
     </div>
-    <p class="fine">Sources gratuites : OKX (bougies${d.candles.line ? '' : ` ${esc(d.okx?.candles || '')}`}, funding, open interest, comptes long / short), CoinGecko (chiffres clés, présentation). Fiche mise à jour toutes les heures${d.candles.line ? ' ; cette crypto n\'est pas sur OKX : courbe des clôtures quotidiennes de CoinGecko' : ''}.</p>`;
+    <p class="fine">${d.candles.line
+      ? 'Source gratuite : CoinGecko (cours, chiffres clés, présentation). Cette crypto n\'est pas sur OKX : courbe des clôtures quotidiennes sur un an.'
+      : `Sources gratuites : OKX (bougies ${esc(d.okx?.candles || '')}${d.okx?.swap ? ', funding, open interest, comptes long / short' : ''}), CoinGecko (chiffres clés, présentation).`} Fiche mise à jour toutes les heures.</p>`;
 }
 
 function trendBox(read, sym) {
