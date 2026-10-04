@@ -32,7 +32,7 @@ const F = {
   winR: { label: "Gain moyen d'un gagnant", unit: 'R', hint: '1R = la somme risquée. Setups : 5,8R' },
   trades: { label: 'Nombre de trades', unit: 'trades', hint: 'Setups : environ 30 par an' },
   asset: { label: 'Actif', choice: [['btc', 'BTC'], ['eth', 'ETH'], ['sol', 'SOL']] },
-  dcaMode: { label: 'Mode', choice: [['past', 'Rejouer le passé'], ['future', "Projeter l'avenir"]] },
+  dcaMode: { label: 'Mode', choice: [['past', 'Rejouer le passé'], ['future', "Projeter l'avenir"]], sub: ["vrais prix d'OKX", 'de 1 à 20 ans'] },
   amount: { label: 'Montant de chaque achat', unit: '$' },
   every: { label: 'Fréquence', choice: [['1', 'Jour'], ['7', 'Semaine'], ['14', '2 semaines'], ['30', 'Mois']] },
   since: { label: 'Depuis', choice: [['182', '6 mois'], ['365', '1 an'], ['730', '2 ans'], ['1095', '3 ans'], ['1460', '4 ans']] },
@@ -55,8 +55,8 @@ const F = {
 
 const CATS = [['sim', 'Simulateurs'], ['data', 'Données du marché']];
 const TOOLS = [
-  { id: 'dca', cat: 'sim', name: 'Simulateur DCA', calc: dcaTool,
-    fields: () => (state.v.dcaMode === 'future' ? ['asset', 'dcaMode', 'amount', 'every', 'years', 'drift', 'spotFee'] : ['asset', 'dcaMode', 'amount', 'every', 'since', 'spotFee']),
+  { id: 'dca', cat: 'sim', name: 'Simulateur DCA', calc: dcaTool, mode: 'dcaMode',
+    fields: () => (state.v.dcaMode === 'future' ? ['asset', 'amount', 'every', 'years', 'drift', 'spotFee'] : ['asset', 'amount', 'every', 'since', 'spotFee']),
     intro: () => (state.v.dcaMode === 'future'
       ? "Et si tu achetais la même somme régulièrement pendant des années ? Le simulateur reprend les vraies variations des 4 dernières années par tranches d'un mois, les remet dans un ordre au hasard et joue 1 000 avenirs possibles."
       : "Acheter la même somme à intervalle régulier, rejoué sur les vrais prix de clôture d'OKX, comparé à tout acheter d'un coup le premier jour.") },
@@ -455,6 +455,13 @@ function field(k) {
     ${prices.length ? `<span class="t-quick">${prices.map(([s, p]) => `<button type="button" class="chip" data-price="${s}" data-for="${k}" data-p="${p}">${s} ${px(p)}</button>`).join('')}</span>` : ''}</label>`;
 }
 
+// Mode d'un outil (DCA : passé ou avenir) : deux gros boutons sous le titre, pour qu'on ne le rate pas.
+function modes(k) {
+  const f = F[k];
+  return `<div class="t-modes" role="group" aria-label="${esc(f.label)}">${f.choice.map(([v, l], i) =>
+    `<button type="button" data-k="${k}" data-v="${v}" aria-pressed="${state.v[k] === v}"><b>${l}</b><span>${f.sub[i]}</span></button>`).join('')}</div>`;
+}
+
 function renderResult() {
   const t = tool();
   charts = [];
@@ -473,7 +480,7 @@ function render() {
   $('outils-tabs').innerHTML = CATS.map(([c, label]) => `<div class="t-cat"><span class="lb">${label}</span><div class="t-chips">${
     TOOLS.filter(x => x.cat === c).map(x => `<a class="chip" href="#outils/${x.id}" aria-pressed="${x.id === t.id}">${x.name}</a>`).join('')}</div></div>`).join('');
   const fields = t.fields();
-  $('outil').innerHTML = `<div class="box t-form"><h2>${t.name}</h2><p class="txt">${t.intro()}</p>
+  $('outil').innerHTML = `<div class="box t-form"><h2>${t.name}</h2>${t.mode ? modes(t.mode) : ''}<p class="txt">${t.intro()}</p>
     ${fields.length ? `<form class="t-fields" onsubmit="return false">${fields.map(field).join('')}</form>` : ''}
     ${t.how ? `<div class="t-how"><b>Comment lire</b><ul>${t.how.map(h => `<li>${h}</li>`).join('')}</ul></div>` : ''}
     ${t.cat === 'sim' ? '<div class="links"><button type="button" class="btn" id="t-reset">Valeurs par défaut</button></div>' : ''}</div>

@@ -417,6 +417,14 @@ a.chip:hover { text-decoration: none; }
 .outil { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-bottom: 16px; }
 @media (max-width: 900px) { .outil { grid-template-columns: 1fr; } }
 .t-form > p.txt { color: var(--muted); }
+/* Mode d'un outil (DCA : passé ou avenir) : deux gros boutons sous le titre */
+.t-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 0 14px 12px; padding: 4px; background: var(--bg); border-radius: 10px; }
+.t-modes button { display: flex; flex-direction: column; gap: 1px; text-align: left; padding: 8px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
+.t-modes button:hover { color: var(--fg); }
+.t-modes button[aria-pressed="true"] { color: var(--fg); background: var(--accent-soft); border-color: var(--accent); }
+.t-modes b { font-size: 14px; font-weight: 600; }
+.t-modes span { font-size: 12px; }
+.t-modes button[aria-pressed="true"] span { color: var(--fg2); }
 .t-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 14px 14px; }
 @media (max-width: 520px) { .t-fields { grid-template-columns: 1fr; } }
 .t-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
