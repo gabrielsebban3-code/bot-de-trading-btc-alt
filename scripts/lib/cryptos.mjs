@@ -1,6 +1,7 @@
 // Fiches crypto : mise en forme des réponses d'OKX et de CoinGecko (fonctions pures, testées dans tests/crypto.test.mjs).
 import { toDaily } from '../../js/marche-lib.js';
 import { per8h } from '../../js/crypto-lib.js';
+import { decode } from './news.mjs';
 
 const HOUR = 3_600_000;
 export const sig = (n, d = 6) => (Number.isFinite(n) ? Number(n.toPrecision(d)) : null);
@@ -26,15 +27,31 @@ export function fundingHistory(rows, everyHours = 8) {
   return toDaily(pts, { mean: true }).map(([d, v]) => [d, sig(v, 4)]);
 }
 
+// Phrases d'un texte (un point, un point d'exclamation ou d'interrogation suivi d'une majuscule ou d'un chiffre).
+export const sentences = text => String(text || '').split(/(?<=[.!?])\s+(?=[A-ZÀ-Ý0-9])/).filter(Boolean);
+
 // Début de la présentation CoinGecko : texte brut, trois phrases au plus (on s'arrête après 280 caractères).
+// Le titre en tête des textes français (« Qu'est-ce que le Bitcoin ? (BTC) ») est retiré.
 export function excerpt(html, max = 480) {
-  const text = String(html || '').replace(/<\/?(p|br|div|li|ul|ol|h\d)\b[^>]*>/gi, ' ').replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&rsquo;/g, "'").replace(/\s+/g, ' ').trim();
+  const text = decode(String(html || '').replace(/<\/?(p|br|div|li|ul|ol|h\d)\b[^>]*>/gi, ' ').replace(/<[^>]+>/g, ''))
+    .replace(/\s+/g, ' ').trim()
+    .replace(/^(?:qu['’]est-ce (?:que |qu['’])|what (?:is|are) )[^?]{1,80}\?\s*(?:\([^)]{1,15}\)\s*)?(?=\S)/i, '');
   if (!text) return null;
   let out = '';
-  for (const [i, s] of text.split(/(?<=[.!?])\s+(?=[A-ZÀ-Ý0-9])/).entries()) {
+  for (const [i, s] of sentences(text).entries()) {
     if (out && (i >= 3 || out.length > 280 || out.length + s.length > max)) break;
     out += (out ? ' ' : '') + s;
   }
   return out.length > max ? `${out.slice(0, max - 1).replace(/\s+\S*$/, '')}…` : out;
+}
+
+// Lien du projet sans les paramètres de parrainage ou de suivi (CoinGecko en garde parfois, « ?ref=… »).
+export function cleanLink(url) {
+  if (!/^https?:\/\//i.test(url || '')) return null;
+  try {
+    const u = new URL(url);
+    const drop = [...u.searchParams.keys()].filter(k => /^(ref|referral|referrer|utm_\w+)$/i.test(k));
+    for (const k of drop) u.searchParams.delete(k);
+    return drop.length ? u.href : url;
+  } catch { return null; }
 }

@@ -107,6 +107,13 @@ export function routeCrypto(data, url) {
         return undefined;
     }
   }
+  // Traductions des présentations : Google refuse le texte de Dogecoin (trop de demandes), MyMemory prend le relais
+  // sauf pour LEO (quota du jour atteint), qui reste en anglais jusqu'au passage suivant.
+  if (u.host === 'translate.googleapis.com' && /^Dogecoin /.test(q('q'))) return 'Trop de demandes';
+  if (u.host === 'api.mymemory.translated.net') {
+    return /^LEO /.test(q('q')) ? { responseData: { translatedText: 'MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY.' }, responseStatus: 429 }
+      : { responseData: { translatedText: `MM ${q('q')}`.replace(/'/g, '&#39;') }, responseStatus: 200 };
+  }
   if (u.host !== 'api.coingecko.com') return undefined;
   const path = u.pathname.replace('/api/v3', '');
   if (path === '/coins/markets' && q('ids')) {
@@ -136,12 +143,13 @@ export function routeCrypto(data, url) {
       },
     };
   }
+  // Historique : un an au plus sans abonnement (CoinGecko refuse au-delà).
   const chart = path.match(/^\/coins\/([a-z0-9-]+)\/market_chart$/)?.[1];
-  if (chart && BY_ID.has(chart)) {
+  if (chart && BY_ID.has(chart) && Number(q('days')) <= 365) {
     const [, , , price, seed] = BY_ID.get(chart);
     const r = rng(seed);
     const today = Math.floor(Date.now() / DAY) * DAY;
-    const prices = Array.from({ length: 731 }, (_, i) => [today - (730 - i) * DAY, price * (0.7 + 0.3 * (i / 730)) * (1 + (r() - 0.5) * 0.02)]);
+    const prices = Array.from({ length: 366 }, (_, i) => [today - (365 - i) * DAY, price * (0.7 + 0.3 * (i / 365)) * (1 + (r() - 0.5) * 0.02)]);
     prices.push([Date.now(), price]);
     return { prices, total_volumes: prices.map(([t]) => [t, 2e6 * (1 + r())]), market_caps: [] };
   }

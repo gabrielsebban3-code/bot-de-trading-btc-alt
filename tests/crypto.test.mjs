@@ -11,7 +11,7 @@ import {
   atrOf, changeOver, coinSignals, emaOf, fundingYear, GROUPS, groupCandles, keyLevels, liquidation, macdOf, mentions,
   per8h, perfVsBtc, pickGroup, priceText, ratioToBtc, rsiOf, smaOf,
 } from '../js/crypto-lib.js';
-import { candlesFromOkx, excerpt, fundingHistory } from '../scripts/lib/cryptos.mjs';
+import { candlesFromOkx, cleanLink, excerpt, fundingHistory } from '../scripts/lib/cryptos.mjs';
 import { realCoins } from '../js/marche-lib.js';
 
 const D0 = 20_003; // un lundi (7 octobre 2024)
@@ -181,6 +181,18 @@ test('excerpt : texte brut, trois phrases au plus', () => {
     'Le Bitcoin est né en 2009. Offre limitée. Réserve de valeur.');
   assert.equal(excerpt(''), null);
   assert.ok(excerpt('Mot '.repeat(200)).length <= 480);
+  // Titre en tête des textes CoinGecko et caractères codés
+  assert.equal(excerpt('<p>Qu&#39;est-ce que le Bitcoin ? (BTC) Le Bitcoin est né en 2009.</p>'), 'Le Bitcoin est né en 2009.');
+  assert.equal(excerpt('What is Chainlink (LINK)? Chainlink connects smart contracts to real-world data.'), 'Chainlink connects smart contracts to real-world data.');
+  assert.equal(excerpt('Le &quot;BNB&quot; paie les frais &amp; plus encore.'), 'Le "BNB" paie les frais & plus encore.');
+});
+
+test('cleanLink : sans parrainage ni suivi', () => {
+  assert.equal(cleanLink('https://www.binance.com?ref=37754157'), 'https://www.binance.com/');
+  assert.equal(cleanLink('https://site.org/a?utm_source=cg&id=3'), 'https://site.org/a?id=3');
+  assert.equal(cleanLink('https://bitcoin.org/bitcoin.pdf'), 'https://bitcoin.org/bitcoin.pdf');
+  assert.equal(cleanLink('javascript:alert(1)'), null);
+  assert.equal(cleanLink(''), null);
 });
 
 test('realCoins : retire aussi les actifs du monde réel mis sur la blockchain', () => {
@@ -188,7 +200,7 @@ test('realCoins : retire aussi les actifs du monde réel mis sur la blockchain',
   assert.deepEqual(realCoins(list).map(c => c.symbol), ['BTC', 'XRP']);
 });
 
-test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, présentation gardée 3 jours', async () => {
+test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, traduction, présentation gardée 3 jours', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'dinexo-crypto-'));
   const top = [['bitcoin', 'BTC', 'Bitcoin'], ['ethereum', 'ETH', 'Ethereum'], ['ripple', 'XRP', 'XRP'], ['dogecoin', 'DOGE', 'Dogecoin'], ['leo-token', 'LEO', 'LEO Token']]
     .map(([id, symbol, name]) => ({ id, symbol, name }));
@@ -223,12 +235,17 @@ test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, p
   assert.equal(doge.okx.candles, 'DOGE-USDT-SWAP');
   assert.ok(doge.candles.d1.length > 500 && doge.candles.h4.length === 300);
 
+  // Google refuse : MyMemory traduit, et Google est laissé de côté pour la suite du passage.
+  assert.equal(doge.about.text, "MM Dogecoin is a cryptocurrency.");
+  assert.equal(doge.about.lang, 'fr');
+
   const leo = await read('leo-token');
   assert.equal(leo.candles.line, true);
   assert.equal(leo.okx.swap, null);
   assert.equal(leo.funding, null);
-  assert.ok(leo.candles.d1.length >= 730);
+  assert.ok(leo.candles.d1.length >= 365); // un an d'historique CoinGecko
   assert.deepEqual(leo.sources, { bougies: 'coingecko', presentation: 'ok' });
+  assert.deepEqual([leo.about.text, leo.about.lang], ['LEO Token is a cryptocurrency.', 'en']); // aucune traduction possible
 
   // Journal : une ligne par fiche, et les fiches compressées pour les aperçus hors branche principale.
   assert.match(first.stdout, /BTC \(bitcoin\) : 1000 j \+ 300 × 4 h · BTC-USDT · levier max 100×/);
@@ -238,6 +255,9 @@ test('script des fiches : bougies OKX, perpétuel seul, crypto absente d\'OKX, p
   const second = await run('--previous', join(dir, 'crypto'));
   assert.equal((await read('bitcoin')).sources.presentation, undefined);
   assert.match(second.stdout, /présentation fr \(reprise\)/);
+  // La présentation restée en anglais est traduite au passage suivant, sans redemander CoinGecko.
+  assert.deepEqual((await read('leo-token')).about.text, 'FR LEO Token is a cryptocurrency.');
+  assert.match(second.stdout, /LEO \(leo-token\).*présentation fr \(traduite\)/);
 
   // Plus de temps : les fiches déjà en ligne sont gardées telles quelles.
   const before = await read('ripple');

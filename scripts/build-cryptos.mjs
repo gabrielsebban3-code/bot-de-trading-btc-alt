@@ -9,7 +9,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { attempt, fetchJson } from './lib/http.mjs';
-import { candlesFromOkx, excerpt, fundingHistory, sig } from './lib/cryptos.mjs';
+import { candlesFromOkx, cleanLink, excerpt, fundingHistory, sentences, sig } from './lib/cryptos.mjs';
+import { decode } from './lib/news.mjs';
 import { DAY, realCoins, toDaily } from '../js/marche-lib.js';
 import { coinSignals, per8h } from '../js/crypto-lib.js';
 
@@ -97,8 +98,9 @@ async function okxCandles(instId, bar, pages, unit) {
 }
 
 // Crypto absente d'OKX : clôtures quotidiennes et volumes de CoinGecko (courbe au lieu de bougies).
+// CoinGecko gratuit ne donne qu'un an d'historique (au-delà, il refuse la demande).
 async function geckoLine(id) {
-  const r = await gecko(`/coins/${id}/market_chart?vs_currency=usd&days=730`);
+  const r = await gecko(`/coins/${id}/market_chart?vs_currency=usd&days=365`);
   const vol = new Map(toDaily(r.total_volumes));
   return toDaily(r.prices).map(([d, p]) => [d, sig(p), sig(p), sig(p), sig(p), sig(vol.get(d) ?? 0, 4)]);
 }
@@ -142,10 +144,25 @@ async function derivatives(sym, swapId) {
   return { ...out, sources };
 }
 
+// Traduction gratuite : Google (accès public), sinon MyMemory, phrase par phrase (500 caractères au plus par demande).
+// Google refuse quand l'Actu vient de lui envoyer tous ses titres : on ne l'attend pas, il est laissé de côté
+// jusqu'à la fin du passage.
+let googleOff = false;
 async function translate(text) {
-  const r = await attempt('Traduction', () => fetchJson(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=fr&dt=t&q=${encodeURIComponent(text)}`, { retries: 1, timeout: 15_000 }));
-  const out = r.ok ? (r.value?.[0] || []).map(s => s?.[0] ?? '').join('').trim() : '';
-  return out || null;
+  if (!googleOff) {
+    const r = await attempt('Traduction Google', () => fetchJson(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=fr&dt=t&q=${encodeURIComponent(text)}`, { retries: 0, timeout: 15_000 }));
+    const out = r.ok ? (r.value?.[0] || []).map(s => s?.[0] ?? '').join('').trim() : '';
+    if (out) return out;
+    googleOff = true;
+  }
+  const parts = [];
+  for (const s of sentences(text)) {
+    const r = await attempt('Traduction MyMemory', () => fetchJson(`https://api.mymemory.translated.net/get?langpair=en|fr&q=${encodeURIComponent(s)}`, { retries: 0, timeout: 15_000 }));
+    const out = r.ok ? decode(r.value?.responseData?.translatedText ?? '').trim() : '';
+    if (!out || Number(r.value?.responseStatus) !== 200 || /MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(out)) return null;
+    parts.push(out);
+  }
+  return parts.join(' ') || null;
 }
 
 // Présentation du projet : texte en français (traduit de l'anglais au besoin), catégories, date de lancement, liens.
@@ -154,7 +171,7 @@ async function about(id) {
   const fr = excerpt(c.description?.fr), en = excerpt(c.description?.en);
   const translated = !fr && en ? await translate(en) : null;
   const l = c.links || {};
-  const first = list => (Array.isArray(list) ? list.find(u => /^https?:\/\//.test(u || '')) : null) || null;
+  const first = list => cleanLink((Array.isArray(list) ? list.find(u => /^https?:\/\//.test(u || '')) : null) || null);
   return {
     text: fr || translated || en || null,
     lang: fr || translated ? 'fr' : en ? 'en' : null,
@@ -162,7 +179,7 @@ async function about(id) {
     genesis: c.genesis_date || null,
     links: {
       site: first(l.homepage),
-      whitepaper: /^https?:\/\//.test(l.whitepaper || '') ? l.whitepaper : null,
+      whitepaper: cleanLink(l.whitepaper),
       twitter: l.twitter_screen_name ? `https://x.com/${l.twitter_screen_name}` : null,
       reddit: /^https?:\/\/(www\.)?reddit\.com\/r\/\w/.test(l.subreddit_url || '') ? l.subreddit_url : null,
       github: first(l.repos_url?.github),
@@ -212,6 +229,10 @@ async function main() {
       const a = await attempt(`${sym} présentation`, () => about(coin.id));
       if (a.ok) info = a.value;
       sources.presentation = a.ok ? 'ok' : 'erreur';
+    } else if (info?.lang === 'en' && info.text) {
+      // Présentation restée en anglais (traduction indisponible au passage précédent) : on retente la traduction seule.
+      const fr = await translate(info.text);
+      if (fr) { info = { ...info, text: fr, lang: 'fr' }; sources.presentation = 'traduite'; }
     }
     // Une source muette : la partie correspondante de la fiche déjà en ligne est gardée.
     const d1 = d1R.ok && d1R.value.length ? d1R.value : prev?.candles?.d1 || [];
@@ -239,7 +260,7 @@ async function main() {
       `${sym} (${coin.id}) : ${out.candles.d1.length} j + ${out.candles.h4.length} × 4 h · ${src || 'CoinGecko'}`,
       swap ? `levier max ${out.okx.maxLever}× · funding ${out.funding?.rate ?? '—'} %/8 h · OI ${money(out.oi.at(-1)?.[1])} · L/S ${out.longShort.at(-1)?.[1] ?? '—'}` : 'pas de perpétuel OKX',
       `${read.verdict.label} (${read.verdict.up}/${read.verdict.down} sur ${read.verdict.total})`,
-      `présentation ${info?.lang ?? '—'}${sources.presentation ? '' : ' (reprise)'}`,
+      `présentation ${info?.lang ?? '—'}${sources.presentation === 'ok' ? '' : ` (${sources.presentation || 'reprise'})`}`,
       `sources ${JSON.stringify(sources)}`,
     ].join(' · '));
     dumps.push([coin.id, out]);
