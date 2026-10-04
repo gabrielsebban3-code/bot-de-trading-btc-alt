@@ -3,7 +3,7 @@
 // Les champs communs (capital, risque, prix…) passent d'un outil à l'autre et sont gardés sur l'appareil.
 import { ago, esc, fmt, price } from './format.js';
 import { drawPanes } from './chart.js';
-import { averageEntry, compound, convert, dca, dcaProjection, num, riskReward, streaks } from './outils-lib.js';
+import { averageEntry, compound, convert, dca, dcaProjection, num, percentile, riskReward, streaks } from './outils-lib.js';
 import { annualFunding, flowSummary } from './outils-data.js';
 
 const $ = id => document.getElementById(id);
@@ -121,8 +121,8 @@ const usdAxis = n => {
   const a = Math.abs(n);
   return `${n < 0 ? '−' : ''}${a >= 1e6 ? `${fmt(a / 1e6, a >= 1e7 ? 1 : 2)} M$` : `${fmt(a, a >= 10 || a === 0 ? 0 : 2)} $`}`;
 };
-const mus = n => `${n < 0 ? '−' : '+'}${fmt(Math.abs(n), Math.abs(n) >= 100 ? 0 : 1)} M$`; // millions de dollars signés
-const smus = n => `<span class="${n >= 0 ? 'up' : 'down'}">${mus(n)}</span>`;
+const mus = n => (Math.abs(n) < 0.05 ? '0 M$' : `${n < 0 ? '−' : '+'}${fmt(Math.abs(n), Math.abs(n) >= 100 ? 0 : 1)} M$`); // millions de dollars signés
+const smus = n => `<span class="${Math.abs(n) < 0.05 ? 'muted' : n > 0 ? 'up' : 'down'}">${mus(n)}</span>`;
 const day = n => new Date(n * 86_400_000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const dur = m => (m < 12 ? `${m} mois` : `${fmt(Math.floor(m / 12))} an${m >= 24 ? 's' : ''}${m % 12 ? ` et ${m % 12} mois` : ''}`);
 const rows = list => `<dl>${list.filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
@@ -357,12 +357,18 @@ function fundingTool() {
   const list = state.outils?.funding;
   if (!list?.length) return noData();
   const sorted = [...list].sort((a, b) => b.okx - a.okx);
-  const btc = list.find(f => f.sym === 'BTC');
-  const avg = list.reduce((s, f) => s + f.okx, 0) / list.length;
-  const mood = avg > 0.03 ? 'Les traders sont très chargés en longs' : avg > 0.005 ? 'Les traders penchent un peu vers la hausse' : avg < -0.01 ? 'Les traders sont chargés en shorts' : 'Le levier est calme';
   const f4 = v => (v == null ? '<span class="muted">—</span>' : `<span class="${v > 0.03 ? 'down' : v < -0.01 ? 'up' : ''}">${v >= 0 ? '+' : '−'}${fmt(Math.abs(v), 4)} %</span>`);
+  const p4 = v => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v), 4)} %`;
+  // Valeur du milieu (médiane) : un seul actif extrême ne fausse pas la lecture, contrairement à une moyenne.
+  const mid = percentile(sorted.map(f => f.okx).reverse(), 50);
+  const mood = mid > 0.03 ? 'Les traders sont très chargés en longs' : mid > 0.005 ? 'Les traders penchent un peu vers la hausse' : mid < -0.01 ? 'Les traders sont chargés en shorts' : 'Le levier est calme';
+  const majors = ['BTC', 'ETH'].map(s => list.find(f => f.sym === s)).filter(Boolean).map(f => `${f.sym} ${p4(f.okx)}`).join(', ');
+  const extremes = sorted.filter(f => Math.abs(f.okx) >= 0.05);
+  const them = extremes.length > 1 ? 'ces actifs' : 'cet actif';
+  const why = extremes.every(f => f.okx < 0) ? `beaucoup de shorts sur ${them} : une hausse brutale peut les forcer à racheter` : `levier très chargé sur ${them}`;
   return [
-    hero('Funding moyen des 20 plus gros perpétuels', `${avg >= 0 ? '+' : '−'}${fmt(Math.abs(avg), 4)} %`, `${mood}. Par 8 h sur OKX${btc ? ` · BTC ${btc.okx >= 0 ? '+' : '−'}${fmt(Math.abs(btc.okx), 4)} %` : ''}.`),
+    hero('Funding typique des 20 plus gros perpétuels', p4(mid), `${mood}. Par 8 h sur OKX${majors ? ` · ${majors}` : ''}.`),
+    extremes.length ? note(`Hors norme : ${extremes.map(f => `${esc(f.sym)} ${p4(f.okx)}`).join(', ')}, ${why}.`, 'warn-inline') : '',
     `<div class="wrap flat"><table class="static"><thead><tr><th class="l">Actif</th><th>OKX / 8 h</th><th>Hyperliquid / 8 h</th><th>Sur un an</th></tr></thead><tbody>${
       sorted.map(f => `<tr><td class="l">${esc(f.sym)}</td><td class="num">${f4(f.okx)}</td><td class="num">${f4(f.hyperliquid)}</td><td class="num">${spc(annualFunding(f.okx), 1)}</td></tr>`).join('')}</tbody></table></div>`,
     note(`En rouge : funding élevé, beaucoup de longs à levier (risque de chute en chaîne). En vert : funding négatif, beaucoup de shorts (risque de squeeze à la hausse). « Sur un an » : ce que toucherait un short gardé un an à ce taux. Mis à jour ${ago(state.outils.generatedAt)}.`),
