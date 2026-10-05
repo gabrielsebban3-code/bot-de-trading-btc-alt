@@ -454,6 +454,7 @@ body.seo .bar { justify-content: space-between; }
 .agenda .what { flex: 1; min-width: 0; color: var(--fg); }
 .agenda small, .sectors small { display: block; margin-top: 2px; color: var(--muted); font: 11px var(--mono); }
 .agenda .tag { flex: none; }
+.agenda li.minor .what, .agenda li.minor .when b { color: var(--muted); }
 .verdict.alt { color: var(--s-ma20); background: rgba(176, 124, 240, .14); }
 .verdict.btc { color: var(--accent-ink); background: var(--accent-soft); }
 .as-gauge { padding: 16px 14px 0; }

@@ -168,6 +168,7 @@ export const SECTORS = [
 ];
 
 // Agenda macro : les annonces américaines à fort impact, plus les décisions de taux de la BCE et de la Banque du Japon,
+// puis les annonces américaines moyennes (« minor », affichées en discret, jamais envoyées sur Discord),
 // avec un nom en français (le titre anglais reste si l'annonce n'est pas dans la liste).
 const AGENDA_FR = [
   [/^Core CPI m\/m$/, 'Inflation sous-jacente (CPI) sur un mois'], [/^Core CPI y\/y$/, 'Inflation sous-jacente (CPI) sur un an'],
@@ -185,6 +186,23 @@ const AGENDA_FR = [
   [/^ISM Services PMI$/, 'Activité des services (ISM)'], [/^(Prelim )?UoM Consumer Sentiment$/, 'Moral des ménages (Michigan)'],
   [/^CB Consumer Confidence$/, 'Confiance des consommateurs'], [/^Main Refinancing Rate$/, 'Décision de taux de la BCE'],
   [/^BOJ Policy Rate$/, 'Décision de taux de la Banque du Japon'],
+  // Annonces moyennes les plus courantes.
+  [/^FOMC Member (.+) Speaks$/, "Discours d'un membre de la Fed ($1)"], [/^Crude Oil Inventories$/, 'Stocks de pétrole américains'],
+  [/^Final Manufacturing PMI$/, "Activité de l'industrie (PMI final)"], [/^Final Services PMI$/, 'Activité des services (PMI final)'],
+  [/^Flash Manufacturing PMI$/, "Activité de l'industrie (PMI provisoire)"], [/^Flash Services PMI$/, 'Activité des services (PMI provisoire)'],
+  [/^ISM Manufacturing Prices$/, "Prix payés par l'industrie (ISM)"], [/^ISM Services Prices$/, 'Prix payés par les services (ISM)'],
+  [/^(Prelim )?UoM Inflation Expectations$/, "Inflation attendue par les ménages (Michigan)"], [/^Challenger Job Cuts y\/y$/, 'Annonces de licenciements (Challenger)'],
+  [/^Trade Balance$/, 'Balance commerciale'], [/^Core Durable Goods Orders m\/m$/, 'Commandes de biens durables hors transport'],
+  [/^Durable Goods Orders m\/m$/, 'Commandes de biens durables'], [/^Empire State Manufacturing Index$/, "Activité de l'industrie à New York"],
+  [/^Philly Fed Manufacturing Index$/, "Activité de l'industrie à Philadelphie"], [/^Industrial Production m\/m$/, 'Production industrielle'],
+  [/^Building Permits$/, 'Permis de construire'], [/^Housing Starts$/, 'Mises en chantier'],
+  [/^Existing Home Sales$/, 'Ventes de logements anciens'], [/^New Home Sales$/, 'Ventes de logements neufs'],
+  [/^Pending Home Sales m\/m$/, 'Promesses de vente de logements'], [/^Employment Cost Index q\/q$/, 'Coût du travail sur un trimestre'],
+  [/^Import Prices m\/m$/, 'Prix à l\u2019importation'], [/^Federal Budget Balance$/, "Solde du budget fédéral"],
+  [/^(\d+)-y Bond Auction$/, 'Adjudication de dette à $1 ans'], [/^Factory Orders m\/m$/, 'Commandes à l\u2019industrie'],
+  [/^Personal Spending m\/m$/, 'Dépenses des ménages'], [/^Personal Income m\/m$/, 'Revenus des ménages'],
+  [/^Prelim Unit Labor Costs q\/q$/, 'Coût unitaire du travail'], [/^Prelim Nonfarm Productivity q\/q$/, 'Productivité du travail'],
+  [/^Wholesale Inventories m\/m$/, 'Stocks des grossistes'], [/^Consumer Credit m\/m$/, 'Crédit à la consommation'],
 ];
 export function agendaFr(title) {
   const hit = AGENDA_FR.find(([re]) => re.test(title));
@@ -194,9 +212,10 @@ export function agendaFr(title) {
 // Annonces gardées du calendrier (format ForexFactory : title, country, date avec fuseau, impact, forecast, previous),
 // triées par date ; les chiffres prévus et précédents passent à l'écriture française (0.3% → 0,3 %, espace insécable).
 const frFigure = s => (s ? String(s).replace(/(\d)\.(\d)/g, '$1,$2').replace(/%/g, '\u00a0%').replace(/(\d)K\b/g, '$1\u00a0k').replace(/(\d)M\b/g, '$1\u00a0M').replace(/(\d)B\b/g, '$1\u00a0Md') : null);
+const major = r => r.impact === 'High' && (r.country === 'USD' || /^(Main Refinancing Rate|BOJ Policy Rate)$/.test(r.title));
 export function agendaEvents(rows) {
   return (Array.isArray(rows) ? rows : [])
-    .filter(r => r?.impact === 'High' && (r.country === 'USD' || /^(Main Refinancing Rate|BOJ Policy Rate)$/.test(r.title)) && Number.isFinite(Date.parse(r.date)))
-    .map(r => ({ t: new Date(r.date).toISOString(), title: agendaFr(r.title), en: r.title, cur: r.country, forecast: frFigure(r.forecast), previous: frFigure(r.previous) }))
+    .filter(r => Number.isFinite(Date.parse(r?.date)) && (major(r) || (r.impact === 'Medium' && r.country === 'USD')))
+    .map(r => ({ t: new Date(r.date).toISOString(), title: agendaFr(r.title), en: r.title, cur: r.country, forecast: frFigure(r.forecast), previous: frFigure(r.previous), ...(major(r) ? {} : { minor: true }) }))
     .sort((a, b) => a.t.localeCompare(b.t));
 }

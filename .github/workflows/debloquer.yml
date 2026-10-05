@@ -1,0 +1,47 @@
+# Garde-fou : un passage de « Données et site » coincé (tâche en attente d'une machine GitHub qui n'arrive jamais)
+# bloque tous les suivants, et le site ne se met plus à jour (vu le 2026-10-05 : 6 h sans mise à jour).
+# Ce workflow, hors de la file de « Données et site », annule un passage dont une tâche attend depuis plus de 30 min
+# ou qui tourne depuis plus d'une heure ; le passage suivant repart alors normalement.
+name: Débloquer le site
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+concurrency:
+  group: debloquer
+  cancel-in-progress: true
+
+jobs:
+  debloquer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Annuler les passages coincés
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          now=$(date +%s)
+          for status in queued in_progress; do
+            gh api "repos/$REPO/actions/workflows/deploy.yml/runs?branch=$BRANCH&status=$status&per_page=20" \
+              --jq '.workflow_runs[] | "\(.id) \(.run_started_at)"'
+          done | while read -r id started; do
+            age=$(( (now - $(date -d "$started" +%s)) / 60 ))
+            # Tâche en attente de machine : depuis quand (started_at d'une tâche « queued » = son entrée dans la file).
+            waiting=$(gh api "repos/$REPO/actions/runs/$id/jobs" --jq '[.jobs[] | select(.status == "queued" or .status == "waiting") | .started_at] | min // empty')
+            wait=0
+            [ -n "$waiting" ] && wait=$(( (now - $(date -d "$waiting" +%s)) / 60 ))
+            echo "Passage $id : lancé il y a $age min, tâche en attente depuis $wait min."
+            if [ "$wait" -gt 30 ] || [ "$age" -gt 60 ]; then
+              echo "::warning::Passage $id coincé : annulation."
+              gh api -X POST "repos/$REPO/actions/runs/$id/cancel" >/dev/null \
+                || gh api -X POST "repos/$REPO/actions/runs/$id/force-cancel" >/dev/null \
+                || echo "::warning::Impossible d'annuler le passage $id."
+            fi
+          done
