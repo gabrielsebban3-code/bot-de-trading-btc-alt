@@ -5,7 +5,7 @@ export const SUPABASE = {
   url: 'https://dqfaduyfrehzipsfrwpc.supabase.co',
   key: 'sb_publishable_FVd3kyS16INilqWkWpYunA_-SDzdu8f',
   // Bouton « Continuer avec Google » : à activer une fois Google branché dans Supabase (Authentication → Providers).
-  google: false,
+  google: true,
   // Code à 6 chiffres dans l'e-mail de connexion : à activer une fois {{ .Token }} ajouté aux modèles d'e-mail de Supabase
   // (Authentication → Emails, possible seulement avec un SMTP perso). Sinon l'e-mail ne contient que le lien.
   code: false,
