@@ -336,7 +336,7 @@ function renderAccount() {
     el.innerHTML = `<h2>Connexion</h2>
       <p class="txt">Crée ton compte gratuit, sans mot de passe :</p>
       ${PERKS}
-      ${SUPABASE.google ? '<div class="links"><button type="button" class="btn primary" data-act="google">Continuer avec Google</button></div>' : ''}
+      ${SUPABASE.google ? '<div class="links"><button type="button" class="btn primary" data-act="google">Continuer avec Google</button><span class="beta">Nouveau (bêta). Si ça bloque, utilise le lien par e-mail ci-dessous.</span></div>' : ''}
       <form class="login" id="login-email"><label for="login-mail">${SUPABASE.google ? 'Ou reçois' : 'Reçois'} ${SUPABASE.code ? 'un code' : 'un lien'} de connexion par e-mail</label>
         <span class="field"><input id="login-mail" name="email" type="email" required autocomplete="email" placeholder="ton@email.com"><button class="btn primary">${SUPABASE.code ? 'Recevoir un code' : 'Envoyer le lien'}</button></span></form>
       ${note}`;
