@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 40
     env:
       PUBLISH: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-      NEWS_ONLY: ${{ github.event.schedule == '2,32,47 * * * *' || inputs.actu == true }}
+      NEWS_ONLY_ASKED: ${{ github.event.schedule == '2,32,47 * * * *' || inputs.actu == true }}
     steps:
       - uses: actions/checkout@v4
 
@@ -41,7 +41,7 @@ jobs:
           node-version: 22
 
       - name: Tests
-        if: env.NEWS_ONLY != 'true'
+        if: env.NEWS_ONLY_ASKED != 'true'
         run: npm test
 
       - name: Configurer GitHub Pages
@@ -76,6 +76,26 @@ jobs:
             rm -f previous/prix/index.json
             echo "Pas encore de prix en ligne."
           fi
+
+      # Un passage « actu seulement » devient complet quand les données en ligne sont trop vieilles ou absentes
+      # (ex. : le scanner ou les setups jamais publiés). Sinon, avec l'appel toutes les 5 minutes, le passage
+      # complet qui attend son tour est remplacé à chaque fois et le site peut rester des heures sans setups ni scanner.
+      - name: Choisir le type de passage
+        run: |
+          news_only="$NEWS_ONLY_ASKED"
+          if [ "$news_only" = true ] && [ "$PUBLISH" = true ]; then
+            limit=$(( $(date +%s) - 90 * 60 ))
+            for f in setups scanner marche; do
+              at=$(jq -r '.generatedAt // empty' "previous/$f.json" 2>/dev/null)
+              t=$( [ -n "$at" ] && date -d "$at" +%s 2>/dev/null || echo 0)
+              if [ "$t" -lt "$limit" ]; then
+                echo "$f.json absent ou vieux de plus de 90 min : passage complet."
+                news_only=false
+                break
+              fi
+            done
+          fi
+          echo "NEWS_ONLY=$news_only" >> "$GITHUB_ENV"
 
       # Chaque étape peut échouer sans bloquer les autres : la version déjà en ligne est alors republiée.
       - name: Actu
