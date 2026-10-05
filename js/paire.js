@@ -65,7 +65,6 @@ function page(a, d) {
     <div class="ind-head"><span class="v num">${px(a.price)}</span>
       <span class="chg num"><span>24 h <b>${pct(a.change24h ?? null)}</b></span></span>
       <span class="muted">perpétuel OKX · mis à jour ${ago(data.generatedAt)}</span></div>
-    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     <div class="box pa-now"><h2>En ce moment</h2><div class="pa-state">${radarBody(a)}
       ${live ? `<a class="chip" href="#setup/${encodeURIComponent(live.id)}">Voir le trade en jeu →</a>` : ''}</div></div>
     <div class="box mk cx-box">
@@ -89,6 +88,7 @@ function page(a, d) {
       </div>
     </div>
     ${tradesBox(a)}
+    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     <p class="fine">Source gratuite : bougies du perpétuel ${esc(a.symbol)}-USDT sur OKX. Fiche mise à jour toutes les heures.</p>`;
 }
 

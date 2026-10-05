@@ -83,6 +83,19 @@ watchlist.subscribe(list => {
   ticker();
 });
 
+// Bouton soleil / lune : bascule clair ou sombre, gardé sur cet appareil. Les graphiques sont redessinés avec les nouvelles couleurs.
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f5f6f8' : '#0c0d10');
+}
+applyTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+$('theme').addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+  try { localStorage.setItem('dinexo-theme', next); } catch { /* stockage indisponible */ }
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
+});
+
 // Encadrés « À savoir » : masqués une fois lus, sur cet appareil.
 document.querySelectorAll('.intro').forEach(el => {
   const key = `dinexo-intro-${el.dataset.intro}`;

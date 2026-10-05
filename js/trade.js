@@ -57,7 +57,6 @@ function page(s) {
   return `
     <div class="ph"><h1>${esc(s.symbol)} · ${esc(data.detectors[s.detector])}</h1>${dirTag(s.dir)}${s.status === 'en cours' ? statusTag(s) : ''}${outcomeTag(s)}${open && s.status === 'confirmé' ? '<span class="tag acc">En jeu</span>' : ''}${star(s.symbol, { text: true })}</div>
     <p class="sub">${esc(a.name)} · perpétuel OKX · bougie 4h du ${when(s.time)} (heure de Paris)</p>
-    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     <div class="box tr-brief"><h2>En bref</h2><p class="txt">${brief(s, a)}</p></div>
     <div class="box mk cx-box"><h2>Le trade sur le graphique</h2>
       <div class="cx-chart" id="tr-chart"><div class="empty">Chargement du graphique…</div></div>
@@ -76,7 +75,8 @@ function page(s) {
           <a class="chip" href="#historique">Tous les trades →</a></div>
           ${projectLink(s.symbol)}${open ? newsLink(s) : ''}</div>
       </div>
-    </div>`;
+    </div>
+    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>`;
 }
 
 const tpOf = s => s.tp?.[0] ?? s.tp1;
