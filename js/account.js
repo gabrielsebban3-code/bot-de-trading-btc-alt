@@ -59,6 +59,10 @@ const PERKS = `<ul class="perks">
   <li><b>${ALERTS.free} alertes de prix</b> sur n'importe quel actif</li>
   <li>Ta <b>watchlist</b> sur tous tes appareils</li></ul>
   <p class="txt muted">Tu veux tout en direct et 12 mois d'historique ? <a href="#premium">Découvre Premium</a>.</p>`;
+// Information au moment où l'adresse est demandée (RGPD, article 13) : à quoi elle sert, où lire le détail.
+const PRIVACY = `<p class="txt muted rgpd" id="login-rgpd">En créant un compte, tu acceptes les <a href="legal/cgu.html">conditions d'utilisation</a>.
+  Ton adresse e-mail sert seulement à te connecter et à retrouver ta watchlist et tes alertes. Elle n'est ni vendue ni utilisée pour de la publicité,
+  et tu peux supprimer ton compte à tout moment. Détails : <a href="legal/confidentialite.html">politique de confidentialité</a>.</p>`;
 const row = (k, v) => `<dt>${k}</dt><dd class="txt">${v}</dd>`;
 const day = iso => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Paris' });
 
@@ -338,8 +342,9 @@ function renderAccount() {
       ${PERKS}
       ${SUPABASE.google ? '<div class="links"><button type="button" class="btn primary" data-act="google">Continuer avec Google</button><span class="beta">Nouveau (bêta). Si ça bloque, utilise le lien par e-mail ci-dessous.</span></div>' : ''}
       <form class="login" id="login-email"><label for="login-mail">${SUPABASE.google ? 'Ou reçois' : 'Reçois'} ${SUPABASE.code ? 'un code' : 'un lien'} de connexion par e-mail</label>
-        <span class="field"><input id="login-mail" name="email" type="email" required autocomplete="email" placeholder="ton@email.com"><button class="btn primary">${SUPABASE.code ? 'Recevoir un code' : 'Envoyer le lien'}</button></span></form>
-      ${note}`;
+        <span class="field"><input id="login-mail" name="email" type="email" required autocomplete="email" placeholder="ton@email.com" aria-describedby="login-rgpd"><button class="btn primary">${SUPABASE.code ? 'Recevoir un code' : 'Envoyer le lien'}</button></span></form>
+      ${note}
+      ${PRIVACY}`;
   }
   $('admin').hidden = !admin;
   if (admin) renderAdmin();

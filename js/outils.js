@@ -603,7 +603,7 @@ function renderResult() {
 function render() {
   const t = tool();
   $('outils-tabs').innerHTML = CATS.map(([c, label]) => `<div class="t-cat"><span class="lb">${label}</span><div class="t-chips">${
-    TOOLS.filter(x => x.cat === c).map(x => `<a class="chip" href="#outils/${x.id}" aria-pressed="${x.id === t.id}">${x.name}</a>`).join('')}</div></div>`).join('');
+    TOOLS.filter(x => x.cat === c).map(x => `<a class="chip" href="#outils/${x.id}"${x.id === t.id ? ' aria-current="page"' : ''}>${x.name}</a>`).join('')}</div></div>`).join('');
   const fields = t.fields();
   $('outil').innerHTML = `<div class="box t-form"><h2>${t.name}</h2>${t.mode ? modes(t.mode) : ''}<p class="txt">${nb(t.intro())}</p>
     ${fields.length ? `<form class="t-fields" onsubmit="return false">${fields.map(field).join('')}</form>` : ''}
@@ -612,7 +612,7 @@ function render() {
     <div class="box t-res" id="outil-res"></div>`;
   renderResult();
   // Sur mobile, chaque ligne d'outils défile : on centre l'outil choisi sans faire bouger la page.
-  const on = $('outils-tabs').querySelector('[aria-pressed="true"]');
+  const on = $('outils-tabs').querySelector('[aria-current="page"]');
   if (on) on.parentElement.scrollLeft = on.offsetLeft - on.parentElement.offsetLeft - (on.parentElement.clientWidth - on.offsetWidth) / 2;
 }
 

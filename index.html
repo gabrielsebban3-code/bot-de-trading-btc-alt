@@ -20,13 +20,12 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Dinexo","url":"%SITE%/","inLanguage":"fr","description":"Tableau de bord crypto gratuit en français : marché, setups de trading, actualité et outils."}</script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+  <link rel="preload" href="fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="sample" id="sample" hidden>Données d'exemple : la première mise à jour automatique n'a pas encore tourné.</div>
+  <a class="skip" href="#contenu">Aller au contenu</a>
+  <aside class="sample" id="sample" aria-label="Avertissement" hidden>Données d'exemple : la première mise à jour automatique n'a pas encore tourné.</aside>
   <header>
     <div class="bar">
       <a class="logo" href="#resume">Dinexo</a>
@@ -57,9 +56,10 @@
     <div class="ticker" id="ticker" hidden><div id="ticker-track"></div></div>
   </header>
 
-  <main>
+  <main id="contenu" tabindex="-1">
     <!-- Résumé -->
     <section class="page" id="page-resume">
+      <h1 class="sr-only">Dinexo : résumé du marché crypto</h1>
       <div class="intro" data-intro="resume"><span class="i">i</span>
         <p>Dinexo surveille trois choses : <b>des petits projets crypto qui gagnent de l'argent</b>, <b>des setups dans le sens de la tendance, gardés plusieurs semaines</b> sur BTC, ETH, SOL et le pétrole, et <b>l'actu qui fait bouger les marchés</b>. <span>Le bloc orange te dit quoi regarder en priorité. Tout ce qui est cliquable ouvre une fiche détaillée.</span></p>
         <button type="button">Compris</button></div>
@@ -100,7 +100,7 @@
       </div>
       <div class="box mk-block" id="marche-secteurs" hidden></div>
       <h2 class="section">Les plus grosses cryptos <span class="muted">hors stablecoins · clique sur un titre de colonne pour trier, sur une crypto pour ouvrir sa fiche</span></h2>
-      <div class="wrap">
+      <div class="wrap" tabindex="0" role="region" aria-label="Tableau des plus grosses cryptos">
         <table class="static">
           <thead id="marche-head"><tr><th class="l">#</th><th class="l">Actif</th><th class="l">Tendance</th><th>Prix</th><th>24 h</th><th>7 j</th><th>30 j</th><th>Market cap</th><th>Volume 24 h</th></tr></thead>
           <tbody id="marche-top"></tbody>
@@ -161,7 +161,7 @@
         </select>
       </div>
       <p class="count" id="count"></p>
-      <div class="wrap">
+      <div class="wrap" tabindex="0" role="region" aria-label="Tableau des projets">
         <table>
           <thead><tr>
             <th class="l">#</th><th class="l">Projet</th><th class="l">Revenus 90j</th><th>Score</th><th>Market cap</th><th>Prix 7j</th>
@@ -225,6 +225,7 @@
       <div class="tools" id="news-themes" role="group" aria-label="Thèmes"></div>
       <div class="tools" id="news-levels" role="group" aria-label="Importance"></div>
       <p class="count" id="news-count"></p>
+      <h2 class="sr-only">Les news</h2>
       <div class="news" id="news-list"></div>
       <button type="button" class="more-btn" id="news-more" hidden>Afficher plus</button>
       <p class="fine" id="news-sources"></p>
@@ -268,14 +269,14 @@
       <div class="box join prem" id="history-more"><p class="txt"><span class="ptag">Premium</span> Le bilan sur 12 mois et tous les trades de l'année.</p>
         <div class="links"><a class="buy" href="#premium">Voir Premium</a></div></div>
       <p class="sub" id="history-sub"></p>
-      <div class="wrap">
+      <div class="wrap" tabindex="0" role="region" aria-label="Bilan par détecteur">
         <table>
           <thead><tr><th class="l">Détecteur</th><th>Signaux</th><th>Gagnants</th><th>Moitié prise / stop</th><th>Gain du capital</th><th class="l">Meilleur actif</th></tr></thead>
           <tbody id="history-body"></tbody>
         </table>
       </div>
       <h2 class="section">Derniers signaux terminés <span class="muted">clique sur un trade pour son explication complète</span></h2>
-      <div class="wrap">
+      <div class="wrap" tabindex="0" role="region" aria-label="Derniers signaux terminés">
         <table class="static">
           <thead><tr><th class="l">Signal</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>R:R</th><th class="l">Résultat</th><th>Capital</th></tr></thead>
           <tbody id="history-list"></tbody>
@@ -334,6 +335,7 @@
 
   <footer>
     <p><b>Ceci n'est pas un conseil financier.</b> Dinexo est un outil d'information. Le trading de cryptomonnaies et de matières premières comporte un risque élevé de perte en capital. Données : DefiLlama, CoinGecko, Binance, OKX. Actu : sources officielles, agences de presse via Google News, médias crypto, Whale Alert. Les taux de réussite passés ne garantissent pas les résultats futurs.</p>
+    <div class="legal-links" role="navigation" aria-label="Informations légales"><a href="legal/mentions-legales.html">Mentions légales</a> · <a href="legal/confidentialite.html">Confidentialité</a> · <a href="legal/cookies.html">Cookies et stockage</a> · <a href="legal/cgu.html">Conditions d'utilisation</a> · <a href="legal/accessibilite.html">Accessibilité</a></div>
     <!-- seo:fiches -->
   </footer>
 

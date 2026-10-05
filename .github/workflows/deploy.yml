@@ -214,7 +214,7 @@ jobs:
       # ne mélange pas la nouvelle page avec les anciens scripts gardés en cache (10 minutes sur GitHub Pages).
       - name: Assembler le site
         run: |
-          cp -r index.html css js mockup icon.svg apple-touch-icon.png og-image.png _site/
+          cp -r index.html css js fonts legal mockup icon.svg apple-touch-icon.png og-image.png _site/
           v="${GITHUB_SHA::8}"
           sed -i -E "s#\"(css/style\.css|js/app\.js)\"#\"\1?v=$v\"#g" _site/index.html
           sed -i -E "s#^(import .*'\./[a-z0-9-]+\.js)';#\1?v=$v';#" _site/js/*.js

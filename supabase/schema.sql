@@ -90,9 +90,11 @@ $$;
 revoke all on function public.is_premium() from public, anon;
 grant execute on function public.is_premium() to authenticated;
 
--- Bouton « Supprimer mon compte » : efface le compte de la personne connectée (et sa ligne, par cascade).
+-- Bouton « Supprimer mon compte » : efface le compte de la personne connectée (et sa ligne, par cascade),
+-- et sa ligne Premium s'il en a une : rien ne reste de lui (promis dans legal/confidentialite.html).
 create or replace function public.delete_my_account() returns void
 language sql security definer set search_path = '' as $$
+  delete from public.premium p where lower(p.email) = lower(auth.jwt() ->> 'email');
   delete from auth.users where id = auth.uid()
 $$;
 
@@ -100,3 +102,21 @@ revoke all on function public.is_admin() from public, anon;
 grant execute on function public.is_admin() to authenticated;
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+-- Comptes inactifs : supprimés après 3 ans sans visite connectée (durée annoncée dans legal/confidentialite.html).
+-- Tâche planifiée chaque lundi à 3 h 30 (UTC) avec pg_cron ; les comptes admins ne sont jamais supprimés.
+create extension if not exists pg_cron with schema pg_catalog;
+create or replace function public.purge_inactive_accounts() returns integer
+language sql security definer set search_path = '' as $$
+  with gone as (
+    delete from auth.users u
+    where greatest(u.created_at, u.last_sign_in_at, (select p.last_seen from public.profiles p where p.id = u.id)) < now() - interval '3 years'
+      and not exists (select 1 from public.admins a where lower(a.email) = lower(u.email))
+    returning u.email
+  ), premium as (
+    delete from public.premium p where lower(p.email) in (select lower(g.email) from gone g)
+  )
+  select count(*)::int from gone
+$$;
+revoke all on function public.purge_inactive_accounts() from public, anon, authenticated;
+select cron.schedule('dinexo-comptes-inactifs', '30 3 * * 1', 'select public.purge_inactive_accounts()');

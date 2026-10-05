@@ -134,7 +134,7 @@ function table() {
   const more = list.length - shown.length;
   return `<div class="tools" role="group" aria-label="Filtrer">${FILTERS.map(([k, l]) => `<button type="button" class="chip" data-sf="${k}" aria-pressed="${state.filter === k}">${l}</button>`).join('')}
       <span class="sep"></span><button type="button" class="chip" data-ss="${state.sort === 'volume' ? 'distance' : 'volume'}">Trier par ${state.sort === 'volume' ? 'distance' : 'volume'}</button></div>
-    <div class="wrap"><table class="sc-table"><thead><tr><th class="l">Crypto</th><th>Prix ($)</th><th>24 h</th><th class="l">Tendance</th><th class="l">Prochain signal</th><th>Distance</th><th>Volume 24 h</th></tr></thead>
+    <div class="wrap" tabindex="0" role="region" aria-label="Tableau du scanner"><table class="sc-table"><thead><tr><th class="l">Crypto</th><th>Prix ($)</th><th>24 h</th><th class="l">Tendance</th><th class="l">Prochain signal</th><th>Distance</th><th>Volume 24 h</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="7"><div class="empty">Aucune crypto ne correspond à ce filtre.</div></td></tr>'}
       ${more > 0 ? `<tr class="sc-more"><td colspan="7"><a href="#premium"><span class="ptag">Premium</span> Et ${more} autre${more > 1 ? 's' : ''} : tout le tableau avec Premium →</a></td></tr>` : ''}</tbody></table></div>`;
 }

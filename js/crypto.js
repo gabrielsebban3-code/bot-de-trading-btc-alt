@@ -100,7 +100,7 @@ function page({ d, ratio }) {
   const ch = (r, label, id = '') => `<span>${label} <b${id ? ` id="${id}"` : ''}>${pct(r ?? null)}</b></span>`;
   const img = safeUrl(m.image);
   return `
-    <div class="ph cx-ph">${img ? `<img class="cx-logo" src="${img}" alt="" width="32" height="32" loading="lazy">` : ''}<h1>${esc(d.name)}</h1>
+    <div class="ph cx-ph">${img ? `<img class="cx-logo" src="${img}" alt="${esc(`Logo ${d.name}`)}" width="32" height="32" loading="lazy">` : ''}<h1>${esc(d.name)}</h1>
       <span class="mono muted">${esc(sym)}</span>${m.rank ? `<span class="tag">n°${m.rank} au classement</span>` : ''}${star(sym, { text: true })}</div>
     <div class="ind-head"><span class="v num" id="cx-price">${usd(live?.last ?? m.price ?? last)}</span>
       <span class="chg num">${ch(live?.change ?? m.change24h, '24 h', 'cx-24h')}${ch(m.change7d, '7 j')}${ch(m.change30d, '30 j')}${ch(m.change1y, '1 an')}</span>

@@ -34,15 +34,26 @@ const num = v => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 // de plus en plus vif jusqu'à `full` % (même esprit que les heatmaps de Finviz ou Coin360).
 export const NEUTRAL = [59, 63, 74];
 const UP = [[28, 95, 57], [28, 156, 81], [23, 207, 99]]; // petit, moyen, fort
-const DOWN = [[119, 34, 41], [191, 34, 47], [238, 43, 59]];
+const DOWN = [[119, 34, 41], [191, 34, 47], [226, 36, 52]]; // rouge franc assez sombre pour du texte blanc lisible
 const rgb = c => `rgb(${c.join(', ')})`;
 const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
 
-export function tileColor(change, full) {
-  if (change === null || change === undefined || Math.abs(change) < 0.05) return rgb(NEUTRAL);
+function tileRgb(change, full) {
+  if (change === null || change === undefined || Math.abs(change) < 0.05) return NEUTRAL;
   const t = Math.min(1, Math.abs(change) / full) ** 0.7;
   const [small, mid, strong] = change > 0 ? UP : DOWN;
-  return rgb(t < 0.5 ? mix(small, mid, t * 2) : mix(mid, strong, (t - 0.5) * 2));
+  return t < 0.5 ? mix(small, mid, t * 2) : mix(mid, strong, (t - 0.5) * 2);
+}
+export const tileColor = (change, full) => rgb(tileRgb(change, full));
+
+// Couleur du texte d'une tuile : blanc ou presque noir, celui qui se lit le mieux sur le fond
+// (contraste WCAG ; le vert franc est trop clair pour du texte blanc).
+const lum = c => c.map(v => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; })
+  .reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+export const DARK_INK = '#0c0d10';
+export function tileInk(change, full) {
+  const l = lum(tileRgb(change, full));
+  return 1.05 / (l + 0.05) >= (l + 0.05) / (lum([12, 13, 16]) + 0.05) ? '#fff' : DARK_INK;
 }
 
 // Moyenne pondérée par la market cap, et nombre de hausses et de baisses.
