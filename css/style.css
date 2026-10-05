@@ -77,9 +77,6 @@ nav a.on, nav button.on { color: var(--fg); background: var(--panel2); }
 /* Bouton Connexion / Mon compte, en haut à droite */
 .me { display: flex; align-items: center; gap: 8px; font: 600 13px var(--sans); white-space: nowrap; padding: 7px 16px; border-radius: 999px; background: var(--accent); color: #1a0f00; border: 1px solid var(--accent); }
 .me:hover { text-decoration: none; filter: brightness(1.1); }
-/* Visiteur : « Connexion » reste discret, le seul bouton orange de la page est l'inscription. */
-.me:not(.in) { background: transparent; color: var(--fg); border-color: var(--line2); }
-.me:not(.in):hover { border-color: var(--fg2); filter: none; }
 /* Bouton soleil / lune : passe du thème sombre au thème clair. */
 .theme { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line2); background: transparent; color: var(--fg2); cursor: pointer; padding: 0; }
 .theme:hover { color: var(--fg); border-color: var(--fg2); }
