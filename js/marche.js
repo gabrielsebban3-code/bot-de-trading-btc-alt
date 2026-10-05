@@ -150,13 +150,16 @@ function direction(d) {
     <ul class="signals">${d.signals.map(s => `<li><span class="sig ${s.dir > 0 ? 'up' : s.dir < 0 ? 'down' : 'flat'}">${s.dir > 0 ? '▲' : s.dir < 0 ? '▼' : '•'}</span><span><b>${esc(s.label)}.</b> ${esc(s.text)}</span></li>`).join('')}</ul>`;
 }
 
-// Agenda macro : les grosses annonces à venir, à l'heure de Paris ; celles de l'heure passée restent affichées.
+// Agenda macro : les annonces à venir, à l'heure de Paris ; celles de l'heure passée restent affichées.
+// Les grosses d'abord (8 au plus), puis les moyennes, en discret, jusqu'à 12 lignes.
 function agenda(a) {
   const box = $('marche-agenda');
   box.hidden = !a?.events;
   if (box.hidden) return;
   const now = Date.now();
-  const list = a.events.filter(e => Date.parse(e.t) > now - 3_600_000).slice(0, 8);
+  const coming = a.events.filter(e => Date.parse(e.t) > now - 3_600_000);
+  const big = coming.filter(e => !e.minor).slice(0, 8);
+  const list = [...big, ...coming.filter(e => e.minor).slice(0, 12 - big.length)].sort((x, y) => x.t.localeCompare(y.t));
   const paris = (t, o) => new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', ...o });
   const dayKey = t => paris(t, { year: 'numeric', month: 'numeric', day: 'numeric' });
   const day = t => (dayKey(t) === dayKey(now) ? "Aujourd'hui" : dayKey(t) === dayKey(now + DAY) ? 'Demain' : paris(t, { weekday: 'short', day: 'numeric', month: 'short' }));
@@ -166,10 +169,10 @@ function agenda(a) {
   };
   const figures = e => [e.forecast && `prévu\u00a0${esc(e.forecast)}`, e.previous && `avant\u00a0${esc(e.previous)}`].filter(Boolean).join(' · ');
   box.innerHTML = `<div class="bh"><h2>Agenda macro</h2><span class="muted">heure de Paris</span></div>
-    <p class="tally">Les annonces qui font le plus bouger BTC, souvent de plusieurs % dans l'heure qui suit.</p>
-    ${list.length ? `<ul class="agenda">${list.map(e => `<li><span class="when"><b>${day(e.t)}</b> ${paris(e.t, { hour: '2-digit', minute: '2-digit' })}</span>
-      <span class="what">${esc(e.title)}${figures(e) ? `<small>${figures(e)}</small>` : ''}</span>${soon(e.t) ? `<span class="tag mid">${soon(e.t)}</span>` : ''}</li>`).join('')}</ul>`
-      : `<p class="empty">Aucune grosse annonce ${a.nextWeek ? 'dans les prochains jours' : "d'ici la fin de la semaine"}.</p>`}`;
+    <p class="tally">En blanc, les annonces qui font le plus bouger BTC, souvent de plusieurs % dans l'heure qui suit. En gris, les annonces moyennes, qui le bougent moins souvent.</p>
+    ${list.length ? `<ul class="agenda">${list.map(e => `<li${e.minor ? ' class="minor"' : ''}><span class="when"><b>${day(e.t)}</b> ${paris(e.t, { hour: '2-digit', minute: '2-digit' })}</span>
+      <span class="what">${esc(e.title)}${figures(e) ? `<small>${figures(e)}</small>` : ''}</span>${soon(e.t) ? `<span class="tag ${e.minor ? 'flat' : 'mid'}">${soon(e.t)}</span>` : ''}</li>`).join('')}</ul>`
+      : `<p class="empty">Aucune annonce ${a.nextWeek ? 'dans les prochains jours' : "d'ici la fin de la semaine"}.</p>`}`;
 }
 
 // Saison des altcoins : jauge de 0 (saison du Bitcoin) à 100 (saison des altcoins) et les cryptos les plus fortes face à BTC.

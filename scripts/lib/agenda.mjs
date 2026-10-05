@@ -1,6 +1,6 @@
 // Agenda économique sur Discord : les annonces qui font bouger le marché (inflation US, Fed, emploi, BCE, BoJ).
 // Les événements viennent de data/marche.json (`agenda.events`, rempli par l'onglet Marché depuis ForexFactory,
-// seulement les annonces à fort impact). Ici : le bloc du résumé du matin et l'alerte 30 min avant.
+// grosses annonces, plus les annonces moyennes marquées « minor » que Discord ignore pour rester discret). Ici : le bloc du résumé du matin et l'alerte 30 min avant.
 
 import { DIGEST, clip, parisClock } from './digest.mjs';
 
@@ -19,7 +19,7 @@ const FLAG = { USD: '🇺🇸', EUR: '🇪🇺', JPY: '🇯🇵' };
 export function agendaEvents(marche) {
   return (marche?.agenda?.events || [])
     .map(e => ({ ...e, time: Date.parse(e.t) }))
-    .filter(e => Number.isFinite(e.time) && e.title)
+    .filter(e => Number.isFinite(e.time) && e.title && !e.minor)
     .sort((a, b) => a.time - b.time);
 }
 const idOf = e => `${e.t}|${e.en || e.title}`;

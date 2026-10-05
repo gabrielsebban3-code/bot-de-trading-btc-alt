@@ -114,8 +114,10 @@ test('script Marché : open interest du jour en direct, dérivés, saison des al
   assert.ok(Math.abs(meme.change7d - 0.2) < 1e-12);
   assert.equal(meme.history.length, 3);
   assert.equal(ai.change24h, null);
-  // Agenda : annonces fortes américaines et décision de la BCE, en français ; la semaine prochaine n'est pas publiée.
-  assert.deepEqual(m.agenda.events.map(e => e.title), ['Communiqué de la Fed', 'Inflation (CPI) sur un mois', 'Décision de taux de la BCE']);
+  // Agenda : annonces fortes américaines et décision de la BCE, plus les moyennes américaines en discret, en français ;
+  // la semaine prochaine n'est pas publiée.
+  assert.deepEqual(m.agenda.events.map(e => e.title), ['Communiqué de la Fed', 'Inflation (CPI) sur un mois', 'Inscriptions au chômage de la semaine', 'Décision de taux de la BCE']);
+  assert.deepEqual(m.agenda.events.map(e => Boolean(e.minor)), [false, false, true, false]);
   assert.equal(m.agenda.events[1].t.slice(11), '12:30:00.000Z');
   assert.equal(m.agenda.nextWeek, false);
   assert.equal(m.sources.agenda, 'ok');
@@ -138,7 +140,7 @@ test('altSeason : part des 50 plus grosses qui battent BTC sur 30 jours, sans BT
   assert.equal(altSeason([coin('BTC', 0.1), ...alts.slice(0, 9)]), null); // trop peu d'altcoins
 });
 
-test('agendaEvents : annonces américaines fortes et décisions de taux, en français, triées', () => {
+test('agendaEvents : annonces américaines fortes et décisions de taux, puis moyennes en discret, en français, triées', () => {
   const rows = [
     { title: 'CPI m/m', country: 'USD', date: '2026-10-14T08:30:00-04:00', impact: 'High', forecast: '0.3%', previous: '0.4%' },
     { title: 'Non-Farm Employment Change', country: 'USD', date: '2026-10-09T08:30:00-04:00', impact: 'High', forecast: '180K', previous: '-4K' },
@@ -149,13 +151,18 @@ test('agendaEvents : annonces américaines fortes et décisions de taux, en fran
     { title: 'Mystery Index', country: 'USD', date: 'pas une date', impact: 'High' },
   ];
   const ev = agendaEvents(rows);
-  assert.deepEqual(ev.map(e => e.title), ["Créations d'emplois (NFP)", 'Inflation (CPI) sur un mois', 'Discours du président de la Fed (Waller)', 'Décision de taux de la Banque du Japon']);
+  assert.deepEqual(ev.map(e => e.title), ["Créations d'emplois (NFP)", 'Inscriptions au chômage de la semaine', 'Inflation (CPI) sur un mois', 'Discours du président de la Fed (Waller)', 'Décision de taux de la Banque du Japon']);
+  // Les annonces américaines moyennes sont gardées mais marquées « minor » (en gris sur le site, jamais sur Discord).
+  assert.deepEqual(ev.map(e => Boolean(e.minor)), [false, true, false, false, false]);
+  ev.splice(1, 1);
   assert.equal(ev[0].t, '2026-10-09T12:30:00.000Z');
   assert.deepEqual([ev[0].forecast, ev[0].previous], ['180\u00a0k', '-4\u00a0k']);
   assert.deepEqual([ev[1].forecast, ev[1].previous, ev[1].en], ['0,3\u00a0%', '0,4\u00a0%', 'CPI m/m']);
   assert.equal(ev[2].forecast, null);
   assert.equal(agendaFr('Retail Sales m/m'), 'Ventes au détail sur un mois');
   assert.equal(agendaFr('Unknown Thing'), 'Unknown Thing');
+  assert.equal(agendaFr('FOMC Member Bowman Speaks'), "Discours d'un membre de la Fed (Bowman)");
+  assert.equal(agendaFr('10-y Bond Auction'), 'Adjudication de dette à 10 ans');
   assert.deepEqual(agendaEvents(null), []);
 });
 

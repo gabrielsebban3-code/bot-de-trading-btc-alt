@@ -9,10 +9,11 @@ const marche = { agenda: { fetchedAt: '2026-10-07T05:00:00Z', nextWeek: false, e
   { t: '2026-10-07T18:00:00.000Z', title: 'Compte rendu de la réunion de la Fed', en: 'FOMC Meeting Minutes', cur: 'USD', forecast: null, previous: null },
   { t: '2026-10-07T12:30:00.000Z', title: 'Inflation US (CPI)', en: 'CPI m/m', cur: 'USD', forecast: '0,3 %', previous: '0,4 %' },
   { t: '2026-10-08T12:15:00.000Z', title: 'Taux de la BCE', en: 'Main Refinancing Rate', cur: 'EUR', forecast: null, previous: null },
+  { t: '2026-10-07T14:00:00.000Z', title: 'Stocks de pétrole américains', en: 'Crude Oil Inventories', cur: 'USD', minor: true },
   { t: 'pas une date', title: 'Cassé' },
 ] } };
 
-test('événements triés par heure, entrées invalides ignorées, fichier absent = liste vide', () => {
+test('événements triés par heure, entrées invalides et annonces moyennes ignorées, fichier absent = liste vide', () => {
   const ev = agendaEvents(marche);
   assert.deepEqual(ev.map(e => e.en), ['CPI m/m', 'FOMC Meeting Minutes', 'Main Refinancing Rate']);
   assert.deepEqual(agendaEvents(null), []);
