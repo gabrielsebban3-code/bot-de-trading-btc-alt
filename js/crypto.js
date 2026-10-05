@@ -106,7 +106,6 @@ function page({ d, ratio }) {
       <span class="chg num">${ch(live?.change ?? m.change24h, '24 h', 'cx-24h')}${ch(m.change7d, '7 j')}${ch(m.change30d, '30 j')}${ch(m.change1y, '1 an')}</span>
       <span class="muted cx-when" id="cx-live">${live ? 'OKX en direct' : `mis à jour ${ago(d.generatedAt)}`}</span></div>
     ${setup || project ? `<div class="tools cx-cross">${setup ? `<a class="chip" href="#setup/${encodeURIComponent(setup.id)}">Setup ${esc(setup.dir)} en jeu sur ${esc(sym)} →</a>` : ''}${project ? `<a class="chip" href="#projet/${encodeURIComponent(project.id)}">Fiche projet →</a>` : ''}</div>` : ''}
-    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     <div class="box mk cx-box">
       <div class="tools" id="cx-periods" role="group" aria-label="Période"></div>
       <div class="tools mk-toggles" id="cx-toggles" role="group" aria-label="Courbes et panneaux affichés"></div>
@@ -126,6 +125,7 @@ function page({ d, ratio }) {
         ${linksBox(d)}
       </div>
     </div>
+    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     <p class="fine">${d.candles.line
       ? 'Source gratuite : CoinGecko (cours, chiffres clés, présentation). Cette crypto n\'est pas sur OKX : courbe des clôtures quotidiennes sur un an.'
       : `Sources gratuites : OKX (bougies ${esc(d.okx?.candles || '')}${d.okx?.swap ? ', funding, open interest, comptes long / short' : ''}), CoinGecko (chiffres clés, présentation).`} Fiche mise à jour toutes les heures.</p>`;

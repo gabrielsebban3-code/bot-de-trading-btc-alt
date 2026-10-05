@@ -173,7 +173,6 @@ export function renderProject(id) {
     <div class="ph"><h1>${esc(p.name)}</h1><span class="mono muted">${esc(p.symbol || '')}</span>
       <span class="tag">${esc(p.category || '')}</span><span class="tags">${badges(p)}</span>${star(p.symbol, { text: true })}</div>
     <p class="sub">${esc(p.chains.join(', '))}${p.chainsTotal > p.chains.length ? ` et ${p.chainsTotal - p.chains.length} autres` : ''} · n°${p.rank} au classement général</p>
-    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     <div class="detail">
       <div class="stack">
         <div class="box"><h2>Revenus quotidiens · 90 jours <span class="muted" style="font-weight:400;font-size:12px">ligne = moyenne 7 jours</span></h2>
@@ -215,7 +214,8 @@ export function renderProject(id) {
           ${link(p.links.coingecko, 'CoinGecko')}
         </div></div>
       </div>
-    </div>`;
+    </div>
+    <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>`;
   const canvas = document.getElementById('rev-chart');
   if (canvas) revenueChart(canvas, p.series, p.seriesStart);
 }
