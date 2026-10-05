@@ -10,3 +10,11 @@ export const SUPABASE = {
   // (Authentication → Emails, possible seulement avec un SMTP perso). Sinon l'e-mail ne contient que le lien.
   code: false,
 };
+
+// Liens partenaires (affiliation) des plateformes : colle ici le lien de parrainage donné par chaque plateforme.
+// Une plateforme sans lien n'est pas affichée ; sans aucun lien, l'encadré « Plateformes partenaires » est caché.
+export const PARTNERS = {
+  okx: 'https://my.okx.com/fr-fr/join/33GLPEFF',
+  bitget: '',
+  binance: '',
+};
