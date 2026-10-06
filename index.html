@@ -37,11 +37,12 @@
         <a href="#projets" data-tab="projets">Projets</a>
         <a href="#setups" data-tab="setups">Setups</a>
         <a href="#actu" data-tab="actu">Actu</a>
-        <a href="#heatmap" data-tab="heatmap">Heatmap</a>
+        <a href="#heatmap" data-tab="heatmap" class="bar-only">Heatmap</a>
         <a href="#outils" data-tab="outils" class="bar-only">Outils</a>
         <span class="more">
           <button id="more" aria-expanded="false" aria-controls="menu">Plus ▾</button>
           <span class="menu" id="menu" hidden>
+            <a href="#heatmap" data-tab="heatmap" class="menu-only">Heatmap</a>
             <a href="#outils" data-tab="outils" class="menu-only">Outils</a>
             <a href="#academie" data-tab="academie">Académie <span class="ptag new-tag">nouveau</span></a>
             <a href="#historique" data-tab="historique">Historique <span class="lock guest-only">membres</span></a>
@@ -185,7 +186,7 @@
     <!-- Setups -->
     <section class="page" id="page-setups">
       <div class="intro" data-intro="setups"><span class="i">i</span>
-        <p>3 indicateurs sur bougies 4h (<b>Cassure 20 jours, Cassure 10 jours, MACD</b>) sur <b>BTC, ETH, SOL et le pétrole Brent</b> (perpétuels OKX), retenus parmi plus de 200 000 combinaisons testées sur 3 ans et demi. <b>Un signal ne compte que s'il va dans le sens de la tendance journalière</b> : long quand le marché monte, short quand il baisse. <span>Cassure 20 jours : une bougie 4h clôture au-dessus du plus haut des 20 derniers jours (sous le plus bas pour un short). Cassure 10 jours : pareil sur 10 jours. MACD : l'histogramme 4h repasse au-dessus de zéro (en dessous pour un short). Un seul trade à la fois par paire, et seulement s'il y a au moins 2R de marge avant le prochain niveau. Stop serré à 0,75 ATR journalier. À 5R on prend la moitié et le stop remonte au prix d'entrée. Le reste sort quand une journée clôture sous le plus bas des 7 derniers jours (au-dessus du plus haut pour un short). Beaucoup de petits stops, quelques gros gains qui les paient. « En cours » : la bougie 4h n'est pas fermée, le signal peut disparaître.</span></p>
+        <p>Des signaux pour acheter ou vendre <b>BTC, ETH, SOL et le pétrole</b>, <b>toujours dans le sens de la tendance</b>. <span>3 indicateurs sur bougies 4h (Cassure 20 jours, Cassure 10 jours, MACD) sur les perpétuels OKX, retenus parmi plus de 200 000 combinaisons testées sur 3 ans et demi. Un signal ne compte que s'il va dans le sens de la tendance journalière : long (pari à la hausse) quand le marché monte, short (pari à la baisse) quand il baisse. Cassure 20 jours : une bougie 4h clôture au-dessus du plus haut des 20 derniers jours (sous le plus bas pour un short). Cassure 10 jours : pareil sur 10 jours. MACD : l'histogramme 4h repasse au-dessus de zéro (en dessous pour un short). Un seul trade à la fois par paire, et seulement s'il y a au moins 2R de marge avant le prochain niveau. Stop serré à 0,75 ATR journalier. À 5R on prend la moitié et le stop remonte au prix d'entrée. Le reste sort quand une journée clôture sous le plus bas des 7 derniers jours (au-dessus du plus haut pour un short). Beaucoup de petits stops, quelques gros gains qui les paient. « En cours » : la bougie 4h n'est pas fermée, le signal peut disparaître.</span></p>
         <button type="button">Compris</button></div>
       <h1>Setups dans le sens de la tendance · BTC, ETH, SOL, pétrole</h1>
       <div class="tools cats" id="setups-cats" role="group" aria-label="Catégorie">
@@ -249,7 +250,7 @@
     <!-- Heatmap -->
     <section class="page" id="page-heatmap">
       <div class="intro" data-intro="heatmap"><span class="i">i</span>
-        <p>Les plus grosses cryptos d'un coup d'œil : <b>plus la tuile est grande, plus la market cap est grosse</b>, et <b>sa couleur donne la variation du prix</b> sur la période choisie. <span>Vert franc : forte hausse, rouge franc : forte baisse, gris : presque rien. Les stablecoins et les copies d'un autre actif (WBTC, stETH…) sont retirés. Touche une tuile pour voir le détail. Prix CoinGecko, mis à jour toutes les 2 minutes ; un contour orange signale un actif de ta watchlist.</span></p>
+        <p><b>Plus la tuile est grande, plus la crypto pèse lourd</b> ; <b>sa couleur montre si son prix monte ou baisse</b>. <span>La taille suit la market cap (la valeur totale de la crypto) et la couleur la variation sur la période choisie. Vert franc : forte hausse, rouge franc : forte baisse, gris : presque rien. Les stablecoins et les copies d'un autre actif (WBTC, stETH…) sont retirés. Touche une tuile pour voir le détail. Prix CoinGecko, mis à jour toutes les 2 minutes ; un contour orange signale un actif de ta watchlist.</span></p>
         <button type="button">Compris</button></div>
       <h1>Heatmap du marché crypto</h1>
       <p class="sub" id="heatmap-sub"></p>
@@ -263,7 +264,7 @@
     <!-- Outils -->
     <section class="page" id="page-outils">
       <div class="intro" data-intro="outils"><span class="i">i</span>
-        <p>Deux familles d'outils. <b>Simulateurs</b> : DCA (rejouer le passé ou projeter l'avenir), intérêts composés, séries de pertes, prix moyen, risque / rendement et convertisseur. <b>Données du marché</b> : flux des ETF bitcoin et ether, funding des perpétuels et ratio long / short, mis à jour toutes les heures. <span>Les simulations sont calculées sur ton appareil, rien n'est envoyé, et tes valeurs sont gardées pour ta prochaine visite. Les valeurs de départ reprennent la méthode des Setups : 1 % du compte risqué par trade, 32 % de trades gagnants.</span></p>
+        <p>Des <b>simulateurs</b> pour préparer tes investissements et des <b>données du marché</b> mises à jour toutes les heures. <span>Simulateurs : DCA (rejouer le passé ou projeter l'avenir), intérêts composés, séries de pertes, prix moyen, risque / rendement et convertisseur. Données du marché : flux des ETF bitcoin et ether, funding des perpétuels et ratio long / short. Les simulations sont calculées sur ton appareil, rien n'est envoyé, et tes valeurs sont gardées pour ta prochaine visite. Les valeurs de départ reprennent la méthode des Setups : 1 % du compte risqué par trade, 32 % de trades gagnants.</span></p>
         <button type="button">Compris</button></div>
       <h1>Nos outils</h1>
       <div id="outils-tabs" role="group" aria-label="Outils"></div>

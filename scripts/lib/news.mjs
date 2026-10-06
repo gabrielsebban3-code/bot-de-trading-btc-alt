@@ -14,7 +14,7 @@ export const THEMES = {
 
 export const LEVEL = { critical: 3, medium: 2, low: 1 };
 // À changer quand les règles de classement changent : les news déjà dans le fil sont alors reclassées.
-export const RULES_VERSION = 3;
+export const RULES_VERSION = 4;
 
 export const NEWS = {
   keepHours: 72,          // une news reste 3 jours dans le fil
@@ -552,6 +552,10 @@ export function matchProject(text, projects, crypto) {
   return null;
 }
 
+// À-côtés d'un conflit ou d'une crise (visite d'un élu, plainte d'un métier, reportage, procès…) : rien à voir avec les marchés.
+// Ne retire que les news de conflit ou de tensions déjà classées en faible importance.
+const SIDE_STORY = /\b(visits?|visited|visiting|tour(s|ed)?|campaign\w*|rall(y|ies)|town hall|interviews?|podcast|op-ed|opinion|voters?|polls?|midterms?|truckers?|farmers?|unions?|press(es|ed)? \w+ on|calls? for|urges?|speaker|senators?|congressm[ae]n|lawmakers?|governor|mayor|in pictures|photos?|video|documentary|film|book|funeral|memorial|tribute|executes?|executed|sentenced|trial|court|arrest\w*|plot|threats? to kill|condemns?|on cnn|on fox|sailors|veterans?|families|students?|protests?|protesters?)\b/i;
+
 // Classe un titre. `ctx.crypto` : la source est un média crypto. `ctx.prefix` : précise l'émetteur (ex. « ECB »).
 export function classify(title, ctx = {}) {
   const text = ctx.prefix ? `${ctx.prefix} ${title}` : title;
@@ -562,6 +566,7 @@ export function classify(title, ctx = {}) {
     if (!hit) continue;
     if (commentary(text)) hit.importance = 'low'; // prévision, analyse, fil en direct : gardé mais en faible importance
     if (ctx.theme && hit.theme !== ctx.theme && hit.importance === 'low') continue;
+    if (['conflit', 'tensions'].includes(rule) && hit.importance === 'low' && SIDE_STORY.test(text)) return null;
     // Sur une news de faible importance, la flèche serait surtout du bruit.
     const impacts = hit.importance === 'low' && rule !== 'stocks-petrole' ? [] : hit.impacts;
     return { rule, ...hit, impacts, projectId: project?.id ?? null };
@@ -724,15 +729,17 @@ export function cluster(items) {
 // contexte de leur source. Une news qu'aucune règle ne garde plus passe en faible importance (elle quitte le fil
 // au bout de 72 h). Les baleines ne changent pas.
 export function reclassify(items, ctxOf) {
-  return (items || []).map(i => {
-    if (i.kind === 'whale' || !i.titleEn) return i;
+  return (items || []).flatMap(i => {
+    if (i.kind === 'whale' || !i.titleEn) return [i];
     const hit = classify(i.titleEn, ctxOf(i));
+    // Un à-côté de conflit (SIDE_STORY) déjà en ligne quitte le fil.
+    if (!hit && ['conflit', 'tensions'].includes(i.rule)) return [];
     const next = hit ? { theme: hit.theme, raw: hit.importance, importance: hit.importance, impacts: hit.impacts, why: hit.why || i.why, rule: hit.rule }
       : { raw: 'low', importance: 'low', impacts: [] };
     const out = { ...i, ...next };
     if (hit?.key) out.key = hit.key; else delete out.key;
     if (out.rule !== 'guerre') delete out.calm;
-    return out;
+    return [out];
   });
 }
 

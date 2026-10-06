@@ -136,6 +136,9 @@ h1 { font-size: 22px; }
 .intro .i { width: 22px; height: 22px; flex: none; border-radius: 50%; background: var(--panel2); color: var(--fg2); font: 600 12px var(--sans); display: grid; place-items: center; }
 .intro p { margin: 0; font-size: 13px; max-width: 80ch; flex: 1; min-width: 0; }
 .intro p span { color: var(--muted); }
+.intro:not(.open) p > span { display: none; }
+.intro.open p > span:not(.legend) { display: block; margin-top: 6px; }
+.intro .intro-more { background: none; padding: 0; border-radius: 0; color: var(--accent-ink, var(--fg)); font: 500 13px var(--sans); text-decoration: underline; text-underline-offset: 2px; }
 .intro button { background: var(--panel2); border: 0; color: var(--fg); font: 500 12px var(--sans); padding: 6px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 12px; color: var(--muted); }
 .legend span { display: inline-flex; gap: 6px; align-items: center; }
@@ -402,13 +405,13 @@ body.seo .bar { justify-content: space-between; }
   /* backdrop-filter ferait de l'en-tête le repère de la barre fixe : on le retire sur mobile */
   header { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }
   nav { position: fixed; bottom: 0; left: 0; right: 0; border-radius: 0; border-width: 1px 0 0; justify-content: space-around; padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--panel); z-index: 10; }
-  /* 6 onglets + Plus : on resserre pour que tout tienne jusqu'aux petits iPhone */
+  /* 5 onglets + Plus : on resserre pour que tout tienne jusqu'aux petits iPhone */
   nav { gap: 0; }
   nav a, nav > .more > button { padding: 8px 5px; font-size: 12px; }
   @media (max-width: 370px) { nav a, nav > .more > button { padding: 8px 3px; } }
   @media (max-width: 340px) { nav a, nav > .more > button { font-size: 11px; } }
   .menu { top: auto; bottom: calc(100% + 8px); }
-  /* Outils passe dans le menu Plus : 6 onglets + Plus tiennent déjà tout juste */
+  /* Heatmap et Outils passent dans le menu Plus : le bas d'écran garde les 5 onglets principaux */
   nav > a.bar-only { display: none; }
   .menu a.menu-only { display: block; }
   footer { padding-block: 20px 90px; }
@@ -1004,3 +1007,10 @@ body.jb-locked { overflow: hidden; }
 .ac-why { font-size: 14px; color: var(--fg2); margin-top: 10px; }
 .ac-score { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .ac-chev { transition: none; } }
+
+/* Setups : aucun trade ouvert, derniers trades terminés */
+.wait .empty { padding: 16px 16px 10px; text-align: left; color: var(--fg2); }
+.wait .wait-sum { margin: 0; padding: 0 16px 12px; font-size: 13px; color: var(--fg2); }
+.wait-list { list-style: none; margin: 0; padding: 0 16px 12px; display: grid; gap: 6px; font-size: 13px; }
+.wait-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.wait-list .r { margin-left: auto; font-family: var(--mono); }
