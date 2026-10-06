@@ -39,7 +39,7 @@ function route() {
   const tab = { projet: 'projets', setup: 'setups', paire: 'setups', indicateur: $('ind-back').hash.slice(1), crypto: 'marche' }[target] || target;
   document.querySelectorAll('#nav [data-tab]').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   // Sur mobile, Outils est rangé dans Plus pour que la barre du bas tienne.
-  $('more').classList.toggle('on', ['historique', 'scanner', 'impots', 'premium', 'academie'].includes(tab) || (tab === 'outils' && matchMedia('(max-width: 700px)').matches));
+  $('more').classList.toggle('on', ['historique', 'scanner', 'impots', 'premium', 'academie'].includes(tab) || (['outils', 'heatmap'].includes(tab) && matchMedia('(max-width: 700px)').matches));
   $('me').classList.toggle('on', tab === 'compte');
   $('menu').hidden = true;
   $('more').setAttribute('aria-expanded', 'false');
@@ -99,10 +99,21 @@ $('theme').addEventListener('click', () => {
 });
 
 // Encadrés « À savoir » : masqués une fois lus, sur cet appareil.
+// Seule la première phrase est visible : le détail (les <span> du texte) s'ouvre avec « En savoir plus ».
 document.querySelectorAll('.intro').forEach(el => {
   const key = `dinexo-intro-${el.dataset.intro}`;
+  const p = el.querySelector('p');
+  if (p.querySelector(':scope > span')) {
+    p.insertAdjacentHTML('beforeend', ' <button type="button" class="intro-more" aria-expanded="false">En savoir plus</button>');
+    const more = p.lastElementChild;
+    more.addEventListener('click', () => {
+      const open = el.classList.toggle('open');
+      more.setAttribute('aria-expanded', String(open));
+      more.textContent = open ? 'Réduire' : 'En savoir plus';
+    });
+  }
   try { if (localStorage.getItem(key)) el.hidden = true; } catch { /* stockage indisponible */ }
-  el.querySelector('button').addEventListener('click', () => {
+  el.querySelector(':scope > button').addEventListener('click', () => {
     el.hidden = true;
     try { localStorage.setItem(key, '1'); } catch { /* stockage indisponible */ }
   });

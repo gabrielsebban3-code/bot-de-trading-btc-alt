@@ -59,12 +59,12 @@ function renderPlan(root) {
   root.innerHTML = `
   <h1>Académie Dinexo</h1>
   <div class="ac-intro">
-    <p>Apprendre à trader et à investir, de zéro à votre propre méthode. ${MODS.length} modules en français simple : comment marche le marché, lire un graphique, protéger son argent, la price action avancée, puis investir sur le long terme.</p>
+    <p>Apprendre à trader et à investir, de zéro à ta propre méthode. ${MODS.length} modules en français simple : comment marche le marché, lire un graphique, protéger son argent, la price action avancée, puis investir sur le long terme.</p>
     <div class="ac-stats"><span><b>${total}</b> leçons</span><span><b>${nQuiz}</b> quiz</span><span><b>${Object.keys(EX).length}</b> exercices</span><span><b>1</b> examen final</span><span><b>${pct} %</b> terminé</span></div>
     <div class="ac-track" aria-hidden="true"><i style="width:${pct}%"></i></div>
   </div>
   <div class="ac-parts">${PARTS.map(p => `<section><h2>${esc(p.name)}</h2><div class="ac-mods">${p.mods.map(mod).join('')}</div></section>`).join('')}</div>
-  <div class="nfa">⚠ Formation éducative, pas un conseil financier. Les cryptos sont très volatiles : n'investissez que ce que vous pouvez vous permettre de perdre.</div>`;
+  <div class="nfa">⚠ Formation éducative, pas un conseil financier. Les cryptos sont très volatiles : n'investis que ce que tu peux te permettre de perdre.</div>`;
   root.querySelectorAll('.ac-mod > button').forEach(b => b.addEventListener('click', () => {
     const n = Number(b.dataset.m);
     if (openMods.has(n)) openMods.delete(n); else openMods.add(n);
@@ -120,9 +120,9 @@ function setupCalc() {
   const run = () => {
     const r = positionSize(Number($('c-cap').value), Number($('c-risk').value), Number($('c-stop').value));
     const out = $('c-out');
-    if (!r) { out.textContent = 'Remplissez les trois cases avec des nombres plus grands que zéro.'; return; }
-    const lev = r.leverage ? ` Elle est plus grosse que votre capital : il faudrait un levier d'au moins ${r.leverage}.` : ' Pas besoin de levier.';
-    out.innerHTML = `Vous risquez <b>${f(r.risk)} €</b>. Taille de position : <b>${f(r.size)} €</b>.${lev}`;
+    if (!r) { out.textContent = 'Remplis les trois cases avec des nombres plus grands que zéro.'; return; }
+    const lev = r.leverage ? ` Elle est plus grosse que ton capital : il faudrait un levier d'au moins ${r.leverage}.` : ' Pas besoin de levier.';
+    out.innerHTML = `Tu risques <b>${f(r.risk)} €</b>. Taille de position : <b>${f(r.size)} €</b>.${lev}`;
   };
   ['c-cap', 'c-risk', 'c-stop'].forEach(i => $(i).addEventListener('input', run));
   run();
@@ -152,7 +152,7 @@ function renderTest(root, kind, n) {
   <article class="ac-lesson">
     ${crumb(kind === 'exam' ? 'Examen final' : `Module ${n} · ${esc(m.t)}`)}
     <h1>${esc(title)}</h1>
-    <div class="ac-meta">${qs.length} ${kind === 'x' ? 'situations' : 'questions'} · touchez une réponse</div>
+    <div class="ac-meta">${qs.length} ${kind === 'x' ? 'situations' : 'questions'} · touche une réponse</div>
     ${intro}
     <div class="ac-qs">${qs.map((q, i) => `
       <div class="ac-q" data-i="${i}"><p>${i + 1}. ${esc(q.q)}</p><div class="ac-opts">${q.o.map((o, j) => `<button type="button" class="ac-opt" data-j="${j}">${esc(o)}</button>`).join('')}</div><div class="ac-why" hidden></div></div>`).join('')}
@@ -177,7 +177,7 @@ function renderTest(root, kind, n) {
       sc.textContent = `${good} / ${qs.length}`;
       if (Object.keys(answers).length === qs.length) {
         const ok = good >= pass;
-        sc.textContent += ok ? (kind === 'exam' ? ' · examen réussi, bravo !' : ' · validé') : ' · relisez les leçons citées';
+        sc.textContent += ok ? (kind === 'exam' ? ' · examen réussi, bravo !' : ' · validé') : ' · relis les leçons citées';
         if (ok) { done[id] = true; save(); }
       }
     }));
@@ -189,7 +189,7 @@ export async function renderAcademie(id = '') {
   if (!data) {
     root.innerHTML = '<p class="muted">Chargement de la formation…</p>';
     try { data = await import('./academie-data.js'); } catch {
-      root.innerHTML = '<p class="muted">La formation n\'a pas pu se charger. Vérifiez votre connexion puis rechargez la page.</p>';
+      root.innerHTML = '<p class="muted">La formation n\'a pas pu se charger. Vérifie ta connexion puis recharge la page.</p>';
       return;
     }
     if (location.hash.split('/')[0] !== '#academie') return; // on a quitté l'onglet pendant le chargement

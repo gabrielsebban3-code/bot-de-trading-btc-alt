@@ -60,6 +60,10 @@ test('amountUsd trouve le plus gros montant en dollars', () => {
 
 // [titre, contexte, règle attendue, importance, impacts]
 const CASES = [
+  // À-côtés d'un conflit, sans effet sur les marchés : retirés du fil.
+  ['Truckers press Collins on diesel prices, call for end to Iran war', {}, null],
+  ['Speaker Mike Johnson talks economy, Iran war during Harrisburg visit', {}, null],
+  ['UK base faced Iran-linked threats to kill US troops', {}, null],
   ['Fed cuts rates by a quarter point, signals two more cuts this year', {}, 'taux', 'medium', [['BTC', 1], ['Or', 1]]],
   ['Fed holds rates steady, Powell says no rush to cut', {}, 'taux', 'medium', []],
   ['Federal Reserve raises interest rates by 25 basis points', {}, 'taux', 'medium', [['BTC', -1]]],
@@ -113,7 +117,7 @@ const CASES = [
   ['Bitget "doesn\'t expect to recover much" of $388 million hack, CEO tells CNBC', { crypto: true }, 'hack', 'low', []],
   ['NEAR Intents says it identified the hacker, gives 48-hour ultimatum', { crypto: true }, 'hack', 'low', []],
   ['Pentagon announces combat pay raise amid war with Iran', {}, 'conflit', 'low', []],
-  ['Trump says it is possible the war with Iran costs him the midterm elections', {}, 'tensions', 'low', []],
+  ['Trump says it is possible the war with Iran costs him the midterm elections', {}, null],
   ['Pentagon identifies 6 US troops killed in Kuwait during Iran war', {}, 'conflit', 'low', []],
   ['Third carrier for Iran? USS Theodore Roosevelt deploys from San Diego', {}, 'tensions', 'medium', []],
   ['Natural Gas, WTI Oil, Brent Oil Forecasts – Oil Rebounds as Trump Signals More Strikes on Iran', {}, 'guerre', 'low', []],
@@ -132,8 +136,8 @@ const CASES = [
   ['IMF approves $120 million for El Salvador despite bitcoin breach', {}, 'regulation', 'low', []],
   ['Hormuz oil exports recover as blockade eases', {}, 'cessez-le-feu', 'medium', [['Pétrole', -1], ['Or', -1]]],
   ['Crude oil exports from strait of Hormuz largely return to pre-war levels', {}, 'cessez-le-feu', 'medium', [['Pétrole', -1], ['Or', -1]]],
-  ['On CNN, Gallego Condemns Trump and Hegseth’s War in Iran, Attacks on the Free Press', {}, 'conflit', 'low', []],
-  ["Türkiye condemns Houthis' attack on holy city of Medina", {}, 'conflit', 'low', []],
+  ['On CNN, Gallego Condemns Trump and Hegseth’s War in Iran, Attacks on the Free Press', {}, null],
+  ["Türkiye condemns Houthis' attack on holy city of Medina", {}, null],
   ["US sanctions target Iran's auto, rail sectors as blockade chokes ship lanes", {}, 'sanctions', 'low', []],
   ["Treasury sanctions operation targets Iran's auto, rail industries in latest economic attack", {}, 'sanctions', 'low', []],
   ['Evernorth shareholders approve $1 billion XRP treasury deal, clearing path to Nasdaq debut', {}, 'regulation', 'low', []],
@@ -166,7 +170,7 @@ const CASES = [
   ['Hackers breach Coinbase hot wallet, withdrawals paused', { crypto: true }, 'hack', 'medium', []],
   ['California Subpoenas OpenAI Over AI Models That Hacked Their Way Out of a Test', { crypto: true }, null],
   ['Oil prices drop as G7 nations pledge to release diesel stocks; Saudis said planning attack on Houthis', {}, 'guerre', 'medium', [['Pétrole', 1], ['Or', 1], ['BTC', -1]]],
-  ['Iran Executes Man Detained During January Protests Over Alleged Attack on Police', {}, 'conflit', 'low', []],
+  ['Iran Executes Man Detained During January Protests Over Alleged Attack on Police', {}, null],
   ['US Further Targets Iran-Linked Russian A7 Financial Network', {}, null],
   ['Crude oil tanker struck by unknown projectile off Oman, UKMTO says', {}, 'infra-petrole', 'medium', [['Pétrole', 1]]],
   ['Breaking down Trump’s new ‘drug factories’ claim about Iranian nuclear sites', {}, 'tensions', 'low', []],
@@ -193,7 +197,7 @@ const CASES = [
   ['Oil Heads for Weekly Decline as Hormuz Supply Concerns Ease', {}, 'cessez-le-feu', 'low', []],
   ['Euro-area Inflation: Headline pressures rise – Nordea', {}, 'inflation', 'low', []],
   ['How Trump’s strikes against Houthis foreshadowed struggles in Iran war', {}, 'guerre', 'low', []],
-  ['In pictures: Inside a US warship, young sailors adapt to demands of war with Iran', {}, 'tensions', 'low', []],
+  ['In pictures: Inside a US warship, young sailors adapt to demands of war with Iran', {}, null],
   ['US Equity Indexes Advance as Weak Jobs Report Cuts Hawkish Outlook for Fed Policy in October', {}, 'taux', 'low', []],
   ['Labor market faltered in September as jobs increased by just 29,000, unemployment rate rose to 4.2%', {}, 'inflation', 'medium', [['BTC', 1]]],
 ];
@@ -222,6 +226,8 @@ test('reclassify : les news déjà en ligne suivent les nouvelles règles', () =
   assert.deepEqual([a.importance, a.raw, a.impacts], ['low', 'low', []]);
   assert.deepEqual([b.importance, b.impacts, b.key], ['low', [], undefined], 'plus aucune règle : faible');
   assert.equal(c, old[2], 'baleine inchangée');
+  const side = { id: 'd', kind: 'feed', titleEn: 'Speaker Mike Johnson talks economy, Iran war during Harrisburg visit', importance: 'low', raw: 'low', impacts: [], rule: 'conflit', theme: 'geo', why: 'x' };
+  assert.equal(reclassify([side], () => ({})).length, 0, 'à-côté de conflit retiré du fil');
 });
 
 test('réaction du prix : mouvement de l\'actif concerné dans l\'heure qui suit', () => {

@@ -199,8 +199,25 @@ function renderList() {
     ? `${list.length} setup${list.length > 1 ? 's' : ''} affiché${list.length > 1 ? 's' : ''} sur ${total} · ${data.assets.length} marchés surveillés`
     : `${data.assets.length} marchés surveillés`;
   document.getElementById('setups-grid').innerHTML = list.length ? list.map(card).join('')
-    : `<div class="box"><div class="empty">${!total ? 'Aucun signal en jeu pour le moment : regarde au-dessus les prix qui déclencheraient le prochain. Le signal est rare exprès, environ deux par mois sur les 4 paires.'
-      : state.watch ? 'Aucun setup en ce moment sur les actifs de ta watchlist.' : 'Aucun setup ne correspond à ces filtres.'} <a href="#historique">Voir l'historique →</a></div></div>`;
+    : !total ? waiting()
+      : `<div class="box"><div class="empty">${state.watch ? 'Aucun setup en ce moment sur les actifs de ta watchlist.' : 'Aucun setup ne correspond à ces filtres.'} <a href="#historique">Voir l'historique →</a></div></div>`;
+}
+
+// Aucun trade ouvert : on le dit simplement et on montre les derniers trades terminés, pour que la page ne paraisse pas vide.
+function waiting() {
+  const from = Date.now() - historyDays() * 86_400_000;
+  const done = data.history.filter(s => s.status === 'confirmé' && s.outcome !== 'open' && s.time >= from && !delayed(s));
+  const total = Math.round(done.reduce((t, s) => t + s.r, 0) * 10) / 10;
+  const wins = done.filter(s => s.r > 0).length;
+  const months = historyDays() > 100 ? '12 derniers mois' : '3 derniers mois';
+  const rows = done.slice(0, 3).map(s => `<li><b class="mono">${esc(s.symbol)}</b> ${dirTag(s.dir)} <span class="muted">${parisDay(s.time)}</span>
+    <span class="r ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r)} du capital</span></li>`).join('');
+  return `<div class="box wait"><div class="empty"><b>Aucun trade en ce moment : la méthode attend un bon moment.</b>
+    C'est normal, le signal est rare exprès (environ deux par mois sur les 4 paires). Les prix qui déclencheraient le prochain sont juste au-dessus.</div>
+    ${done.length ? `<p class="wait-sum">Sur les ${months} : <b>${done.length} trade${done.length > 1 ? 's' : ''} terminé${done.length > 1 ? 's' : ''}</b>, ${wins} gagnant${wins > 1 ? 's' : ''},
+      <b class="${total > 0 ? 'up' : total < 0 ? 'down' : ''}">${cap(total)} du capital</b> au total (${fmt(data.rules.riskPct ?? 1, 0)} % du compte risqué par trade).</p>
+    <ul class="wait-list">${rows}</ul>` : ''}
+    <p class="wait-sum"><a href="#historique">Voir tout l'historique →</a></p></div>`;
 }
 
 export function initSetups(setupsData, projects) {
@@ -272,7 +289,7 @@ function renderResume() {
   const focus = document.getElementById('focus');
   focus?.querySelector('[data-sfocus]')?.remove();
   if (best && focus) {
-    const html = `<a class="card" data-sfocus href=""#setup/${encodeURIComponent(best.id)}"><span class="k">SETUP DANS LE SENS DE LA TENDANCE</span>
+    const html = `<a class="card" data-sfocus href="#setup/${encodeURIComponent(best.id)}"><span class="k">SETUP DANS LE SENS DE LA TENDANCE</span>
       <span class="hd"><b class="mono">${esc(best.symbol)}</b><span class="tag">${esc(data.detectors[best.detector])}</span>${dirTag(best.dir)}</span>
       <span class="why">${esc(best.why)} R:R 1:${fmt(best.rr, 1)}.</span></a>`;
     if (focus.querySelector('.card .why')?.textContent.startsWith('Rien de particulier')) focus.innerHTML = html;

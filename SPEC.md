@@ -165,7 +165,7 @@ Pied de page : avertissement « pas un conseil financier »
 
 - Chaque page commence par un encadré « À savoir » qui explique ce qu'on voit (masquable).
 - Les onglets sont reliés : un setup sur un projet du top l'indique, une news qui touche un actif apparaît sur ses setups.
-- Mobile : barre d'onglets en bas de l'écran, tableaux défilants horizontalement.
+- Mobile : barre d'onglets en bas de l'écran (Résumé, Marché, Projets, Setups, Actu, puis Heatmap, Outils et le reste dans « Plus »), tableaux défilants horizontalement. Les encadrés « À savoir » ne montrent que leur première phrase, le détail s'ouvre avec « En savoir plus ».
 
 ## 7. Style
 
