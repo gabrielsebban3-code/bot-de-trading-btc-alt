@@ -99,7 +99,7 @@ const TOOLS = [
       "À lire avec la tendance (onglet Marché) : il sert surtout à repérer un excès d'optimisme ou de pessimisme.",
     ] },
   { id: 'gros', cat: 'data', name: 'Gros traders', calc: topTool, fields: () => ['lsAsset'],
-    intro: () => "Ce que font les traders qui ont les plus grosses positions sur OKX (les 5 % les plus gros), comparé à la foule. Ici on compte l'argent misé, pas le nombre de comptes.",
+    intro: () => "Ce que font les traders qui ont les plus grosses positions sur OKX (les 5 % les plus gros), comparé à la foule. Ici, on compte l'argent misé, pas le nombre de comptes.",
     how: [
       'Ratio 1,5 : les gros traders ont 1,5 fois plus d\'argent en long qu\'en short.',
       "Le plus parlant, c'est l'écart avec la foule : quand les gros achètent et que les petits vendent (ou l'inverse), on dit souvent que les gros ont raison.",
@@ -670,6 +670,19 @@ function oiTool() {
   ].join('');
 }
 
+// Une phrase honnête : après la zone du jour, le prix a-t-il fait mieux, moins bien ou pareil que d'habitude ?
+// On compare sur 30 jours (7 jours s'il n'y a pas assez de cas), et on le dit quand les cas sont trop peu nombreux.
+function verdict(zone, all, sym) {
+  const i = zone && zone.after[1].n >= 10 ? 1 : 0;
+  const a = zone?.after[i];
+  if (!a || a.n < 10 || zone.episodes < 4) return "Pas encore assez de cas dans cette zone pour en tirer une conclusion.";
+  const ref = all.after[i].median;
+  const d = a.median - ref;
+  const both = `${spc(a.median, 1)} sur ${a.h} jours au milieu des cas, contre ${spc(ref, 1)} d'habitude`;
+  if (Math.abs(d) < 2) return `Après cette zone, le prix ${sym} a fait à peu près comme d'habitude (${both}). Cet indicateur seul ne suffit pas pour prévoir le prix : sers-t'en pour repérer les excès, pas comme un signal.`;
+  return `Après cette zone, le prix ${sym} a fait ${d > 0 ? 'mieux' : 'moins bien'} que d'habitude (${both}). C'est une tendance sur le passé, pas une garantie.`;
+}
+
 // « Ce que ça implique » : la zone du jour en clair, toutes les zones, puis ce qu'a fait le prix après chaque zone
 // sur les données disponibles (médiane et nombre de fois en hausse, à 7 et 30 jours).
 function implies(zones, { pts, zoneOf }, asset, span) {
@@ -683,9 +696,11 @@ function implies(zones, { pts, zoneOf }, asset, span) {
   const line = (label, s, cls = '') => `<tr class="${cls}"><td class="l">${label}${s ? `<small>${s.days} jour${s.days > 1 ? 's' : ''}${s.episodes > 1 ? `, ${s.episodes} périodes` : ''}</small>` : ''}</td>${
     s ? s.after.map(a => `<td class="num">${cell(a)}</td>`).join('') : '<td class="num muted">—</td><td class="num muted">—</td>'}</tr>`;
   const few = stats && z && (stats[now]?.episodes ?? 0) < 4;
+  const short = stats && stats.all.days < 180 ? ` Seulement ${stats.all.days} jours d'historique pour l'instant : il s'allonge à chaque mise à jour, et ces chiffres deviendront plus fiables.` : '';
   return `<h3 class="t-h3">Ce que ça implique</h3>
     ${z ? `<div class="t-imp"><span class="k">En ce moment : ${z.name}</span>
-      <p><b>Ce que ça veut dire</b>${z.means}</p><p><b>Effet habituel sur le prix</b>${z.price}</p><p><b>Comment t'en servir</b>${z.use}</p></div>` : ''}
+      <p><b>Ce que ça veut dire</b>${z.means}</p><p><b>Ce qui peut arriver au prix</b>${z.price}</p><p><b>Comment t'en servir</b>${z.use}</p>
+      ${stats ? `<p><b>Ce que disent nos chiffres</b>${verdict(stats[now], stats.all, sym)}</p>` : ''}</div>` : ''}
     <div class="t-sub">Toutes les zones</div>
     <ul class="t-zones">${zones.map(x => `<li${x.id === now ? ' class="on" aria-current="true"' : ''}><b>${x.name}</b><span class="r">${x.range}</span><span>${x.price}</span></li>`).join('')}</ul>
     ${stats ? `<div class="t-sub">Ce qu'a fait le prix ${asset === 'eth' ? "de l'ETH" : 'du BTC'} ensuite, sur nos données (${span})</div>
@@ -693,7 +708,7 @@ function implies(zones, { pts, zoneOf }, asset, span) {
       ${zones.map(x => line(x.name, stats[x.id], x.id === now ? 'on' : '')).join('')}
       ${line('Tous les jours (pour comparer)', stats.all, 'ref')}
     </tbody></table></div>
-    ${note(`Variation du prix ${sym} au milieu des cas (médiane). Les jours d'une même zone se suivent souvent : regarde le nombre de périodes, pas seulement de jours.${few ? ' Peu de périodes dans la zone actuelle : ces chiffres sont fragiles.' : ''} Le passé ne garantit pas l'avenir.`)}` : ''}`;
+    ${note(`Variation du prix ${sym} au milieu des cas (médiane). Les jours d'une même zone se suivent souvent : regarde le nombre de périodes, pas seulement de jours.${few ? ' Peu de périodes dans la zone actuelle : ces chiffres sont fragiles.' : ''}${short} Le passé ne garantit pas l'avenir.`)}` : ''}`;
 }
 
 // Graphiques : même moteur que l'onglet Marché (js/chart.js), valeurs au-dessus et croix qui suit le curseur.

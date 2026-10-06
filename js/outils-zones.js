@@ -52,7 +52,7 @@ export const ZONES = {
   fng: [
     { id: 'pe', name: 'Peur extrême', range: '0 à 25',
       means: 'Le marché panique : fortes baisses, prix qui bouge beaucoup, réseaux sociaux très pessimistes.',
-      price: 'Ces périodes ont souvent été proches des points bas. Mais la panique peut durer des semaines et le prix peut encore baisser avant de repartir.',
+      price: "Beaucoup de traders y voient une occasion, car les points bas arrivent souvent dans la peur. Mais la panique peut durer des semaines et le prix peut encore baisser avant de repartir.",
       use: "Mauvais moment pour vendre sous le coup de la peur. Bon moment pour acheter petit à petit (DCA) si tu vises le long terme, pas pour tout miser d'un coup." },
     { id: 'p', name: 'Peur', range: '26 à 44',
       means: 'Le marché est inquiet.',
@@ -68,7 +68,7 @@ export const ZONES = {
       use: "Suis la tendance, mais n'augmente pas ton levier parce que tout le monde est confiant." },
     { id: 'ae', name: 'Avidité extrême', range: '75 à 100',
       means: 'Euphorie : presque tout le monde est confiant, souvent après une forte hausse.',
-      price: "Souvent proche d'un sommet à quelques semaines près. En marché haussier, l'euphorie peut quand même durer, avec des replis brutaux plus fréquents.",
+      price: "Les sommets arrivent souvent dans l'euphorie. En marché haussier, elle peut quand même durer, avec des replis brutaux plus fréquents.",
       use: "Évite d'entrer gros maintenant. Si tu as des gains, c'est le moment de remonter tes stops ou d'en encaisser une partie." },
   ],
   oi: [
@@ -86,7 +86,7 @@ export const ZONES = {
       use: "Méfiance avant d'acheter en haut. Attends de voir de l'argent frais arriver (contrats qui remontent avec le prix)." },
     { id: 'down-down', name: 'Nettoyage du levier', range: 'contrats en baisse, prix en baisse',
       means: 'Le prix baisse et des contrats se ferment : des acheteurs à levier sortent ou se font liquider.',
-      price: "C'est souvent la fin d'une vague de baisse : une fois le levier parti, le risque de chute en chaîne diminue.",
+      price: "Ça arrive souvent en fin de vague de baisse : une fois le levier parti, le risque de chute en chaîne diminue.",
       use: "Pas forcément le moment d'acheter tout de suite, mais le pire de la vague est souvent passé." },
     { id: 'flat', name: 'Levier stable', range: 'contrats à moins de 5 % de variation',
       means: 'Le nombre de contrats ouverts bouge peu sur la semaine.',
@@ -96,7 +96,7 @@ export const ZONES = {
   funding: [
     { id: 'neg', name: 'Négatif', range: 'sous 0 %',
       means: 'Les vendeurs à découvert paient les acheteurs : la majorité du levier parie sur la baisse.',
-      price: "Si le prix monte, ces vendeurs doivent racheter, ce qui peut accélérer la hausse (squeeze). C'est souvent proche d'un point bas.",
+      price: "Si le prix monte, ces vendeurs doivent racheter, ce qui peut accélérer la hausse (squeeze).",
       use: 'Pas le moment de vendre à découvert avec tout le monde. Un retournement à la hausse peut être brutal.' },
     { id: 'calme', name: 'Calme', range: '0 à 0,01 %',
       means: 'Peu de déséquilibre entre acheteurs et vendeurs à levier.',
