@@ -11,8 +11,7 @@ export const DEFAULTS = {
   lowFloat: 0.3,          // flottant < 30 % = faible flottant
   lowFloatPenalty: 0.85,  // la note d'un projet à faible flottant perd 15 %
   minVolume24h: 100_000,  // moins de 100 k$ échangés par jour : trop dur à acheter ou revendre
-  oldAthYears: 3,         // plus haut historique vieux de plus de 3 ans…
-  deepDrop: -0.9,         // … prix à plus de 90 % sous ce plus haut…
+  deepDrop: -0.85,        // prix à plus de 85 % sous son plus haut historique, et toujours en baisse : écarté
 };
 
 const DAY = 86_400;
@@ -169,7 +168,7 @@ export function percentiles(values) {
 }
 
 // Note sur 100 : revenus 35 %, croissance 25 %, prix bas par rapport aux revenus 15 %,
-// revenus reversés aux détenteurs 10 %, tendance du prix sur 200 jours 15 %. Faible flottant : −15 %.
+// revenus reversés aux détenteurs 10 %, tendance du prix 15 %. Faible flottant : −15 %.
 export const WEIGHTS = { revenue: 0.35, growth: 0.25, valuation: 0.15, holders: 0.1, trend: 0.15 };
 
 export function scoreProjects(projects, opts = DEFAULTS) {
@@ -178,7 +177,7 @@ export function scoreProjects(projects, opts = DEFAULTS) {
   const pRevG = percentiles(projects.map(p => p.revenueGrowth));
   const pTvlG = percentiles(projects.map(p => p.tvlGrowth));
   const pVal = percentiles(projects.map(p => (p.psRatio === null ? null : -p.psRatio)));
-  const pTrend = percentiles(projects.map(p => p.change200d ?? p.change1y ?? null));
+  const pTrend = percentiles(projects.map(priceTrend));
   return projects.map((p, i) => {
     const g = [pRevG[i], pTvlG[i]].filter(v => v !== null);
     const parts = {
@@ -198,11 +197,14 @@ export function scoreProjects(projects, opts = DEFAULTS) {
   }).sort((a, b) => b.score - a.score || b.revenue30d - a.revenue30d);
 }
 
-// Projets écartés après l'analyse détaillée : trop peu échangés, ou en baisse depuis des années.
-export function exclusionReason(p, now = new Date(), opts = DEFAULTS) {
+// Tendance du prix : sur 200 jours, ou sur 30 jours pour un token trop jeune (en %).
+export const priceTrend = p => p.change200d ?? p.change30d ?? null;
+
+// Projets écartés après l'analyse détaillée : trop peu échangés, ou effondrés et toujours en baisse.
+export function exclusionReason(p, opts = DEFAULTS) {
   if (p.volume24h !== null && p.volume24h < opts.minVolume24h) return 'volume';
-  const oldAth = p.athDate && now - new Date(p.athDate) > opts.oldAthYears * 365 * DAY * 1000;
-  if (oldAth && p.athChange !== null && p.athChange <= opts.deepDrop && !(p.change1y > 0)) return 'decline';
+  const trend = priceTrend(p);
+  if (p.athChange !== null && p.athChange <= opts.deepDrop && trend !== null && trend < 0) return 'decline';
   return null;
 }
 

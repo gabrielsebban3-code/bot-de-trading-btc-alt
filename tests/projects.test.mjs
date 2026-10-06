@@ -107,16 +107,16 @@ test('scoreProjects : revenus 35 %, croissance 25 %, valorisation 15 %, rachats 
   assert.equal(diluted.score, Math.round(same.score * 0.85), 'faible flottant : −15 %');
 });
 
-test('exclusionReason écarte les tokens peu échangés et ceux en baisse depuis des années', () => {
-  const now = new Date('2026-10-06T00:00:00Z');
-  const ok = { volume24h: 5e6, athDate: '2025-01-01', athChange: -0.5, change1y: -20 };
-  assert.equal(exclusionReason(ok, now), null);
-  assert.equal(exclusionReason({ ...ok, volume24h: 50_000 }, now), 'volume');
-  assert.equal(exclusionReason({ ...ok, volume24h: null }, now), null, 'volume inconnu : gardé');
-  assert.equal(exclusionReason({ ...ok, athDate: '2018-01-08', athChange: -0.97 }, now), 'decline');
-  assert.equal(exclusionReason({ ...ok, athDate: '2021-11-01', athChange: -0.95, change1y: 40 }, now), null, 'reprend depuis un an');
-  assert.equal(exclusionReason({ ...ok, athDate: '2021-11-01', athChange: -0.7 }, now), null, 'chute moins forte');
-  assert.equal(exclusionReason({ ...ok, athDate: '2025-03-01', athChange: -0.95 }, now), null, 'plus haut récent');
+test('exclusionReason écarte les tokens peu échangés et ceux effondrés qui baissent encore', () => {
+  const ok = { volume24h: 5e6, athChange: -0.5, change200d: -20, change30d: 5 };
+  assert.equal(exclusionReason(ok), null);
+  assert.equal(exclusionReason({ ...ok, volume24h: 50_000 }), 'volume');
+  assert.equal(exclusionReason({ ...ok, volume24h: null }), null, 'volume inconnu : gardé');
+  assert.equal(exclusionReason({ ...ok, athChange: -0.97 }), 'decline');
+  assert.equal(exclusionReason({ ...ok, athChange: -0.95, change200d: 40 }), null, 'reprend depuis 200 jours');
+  assert.equal(exclusionReason({ ...ok, athChange: -0.95, change200d: null, change30d: -10 }), 'decline', 'token jeune : tendance 30 jours');
+  assert.equal(exclusionReason({ ...ok, athChange: -0.95, change200d: null, change30d: null }), null, 'tendance inconnue : gardé');
+  assert.equal(exclusionReason({ ...ok, athChange: -0.7 }), null, 'chute moins forte');
 });
 
 test('revenueStats : la croissance ignore les 3 plus gros jours de chaque mois', () => {
