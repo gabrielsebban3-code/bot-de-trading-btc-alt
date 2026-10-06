@@ -253,5 +253,14 @@ test('legState suit la jambe en cours, son creux de départ et son plus haut', (
   assert.equal(s.ext.price, 221);
   assert.ok(s.since.t > daily[59].t, 'le croisement arrive après le creux');
   assert.equal(s.past[0].dir, 'down');
-  assert.equal(s.series.length, 100);
+});
+
+test('toWeeks regroupe les journées par semaine du lundi', async () => {
+  const { toWeeks, legsOf } = await import('../js/legs-lib.js');
+  const MON = Date.UTC(2026, 8, 7); // lundi 7 sept. 2026
+  const days = Array.from({ length: 14 }, (_, i) => ({ t: MON + i * DAY, o: 100 + i, h: 110 + i, l: 90 + i, c: 101 + i, v: 1 }));
+  const w = toWeeks(days);
+  assert.equal(w.length, 2);
+  assert.deepEqual(w[0], { t: MON, o: 100, h: 116, l: 90, c: 107, v: 7 });
+  assert.equal(legsOf(w), null, 'pas assez de semaines pour les moyennes');
 });

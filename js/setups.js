@@ -2,6 +2,7 @@
 import { ago, esc, fmt } from './format.js';
 import { linkedNews, linkedText } from './news.js';
 import { watchlist } from './watchlist.js';
+import { TF, drawLegChart, tfNote } from './jambe.js';
 import { delayed, historyDays, hoursText, isPremium, onTier, visibleIn } from './premium.js';
 
 const BAR = 4 * 3600_000;
@@ -15,7 +16,7 @@ export const TREND = { haussière: 'up', baissière: 'down', neutre: '' };
 
 let data = null;
 let projectsBySymbol = new Map();
-const state = { detectors: null, kind: 'all', dir: 'all', watch: false, cat: 'setups' };
+const state = { detectors: null, kind: 'all', dir: 'all', watch: false, cat: 'setups', jbSym: null, jbTf: 'd1' };
 const store = {
   get() { try { return JSON.parse(localStorage.getItem('dinexo-setups')) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem('dinexo-setups', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
@@ -137,36 +138,17 @@ const VERDICT = { 'plutôt haussier': 'up', 'plutôt baissier': 'down', partagé
 // Indicateur Jambe : petit graphique des 6 derniers mois, vert en jambe haussière, rouge en jambe baissière,
 // avec le creux (ou le sommet) d'où part la jambe en cours et l'extrême atteint depuis.
 const shortDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-function legChart(leg) {
-  const pts = leg.series;
-  const W = 300, H = 90, P = 4;
-  const lo = Math.min(...pts.map(p => p[1])), hi = Math.max(...pts.map(p => p[1]));
-  const t0 = pts[0][0], t1 = pts.at(-1)[0];
-  const x = t => P + ((t - t0) / (t1 - t0 || 1)) * (W - 2 * P);
-  const y = v => P + (1 - (v - lo) / (hi - lo || 1)) * (H - 2 * P);
-  let paths = '', seg = [], d0 = pts[0][2];
-  const flush = dir => { if (seg.length > 1) paths += `<polyline class="${dir > 0 ? 'lg-up' : 'lg-down'}" points="${seg.join(' ')}"/>`; };
-  for (const [t, c, d] of pts) {
-    const pt = `${x(t).toFixed(1)},${y(c).toFixed(1)}`;
-    if (d !== d0) { seg.push(pt); flush(d0); seg = [pt]; d0 = d; } else seg.push(pt);
-  }
-  flush(d0);
-  const dot = (m, cls) => (m && m.t >= t0 ? `<circle class="${cls}" cx="${x(m.t).toFixed(1)}" cy="${y(Math.min(hi, Math.max(lo, m.price))).toFixed(1)}" r="3.5"/>` : '');
-  const up = leg.dir === 'up';
-  return `<svg class="leg-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Prix des 6 derniers mois, coloré selon la jambe">${paths}${dot(leg.origin, up ? 'lg-lo' : 'lg-hi')}${dot(leg.ext, up ? 'lg-hi' : 'lg-lo')}</svg>`;
-}
-
-export function legBlock(leg) {
+export function legBlock(leg, sym) {
   if (!leg) return '';
   const up = leg.dir === 'up';
   const o = leg.origin;
   const past = leg.past.map(l => `<li><span class="${l.dir === 'up' ? 'up' : 'down'}">${l.dir === 'up' ? '▲' : '▼'}</span> ${shortDay(l.from)} → ${shortDay(l.to)} <b class="mono">${plainPct(l.move)}</b></li>`).join('');
   return `<div class="leg ${up ? 'up' : 'down'}">
-    <span class="leg-hd"><b>${up ? 'Jambe haussière' : 'Jambe baissière'}</b> depuis le ${shortDay(leg.since.t)} <span class="muted">(${leg.days} j)</span></span>
-    ${legChart(leg)}
+    <span class="leg-hd"><b>${up ? 'Jambe haussière' : 'Jambe baissière'}</b> depuis le ${shortDay(leg.since.t)} <span class="muted">(${leg.days} j, bougies journalières)</span></span>
     <span class="leg-txt">${o ? `Elle part du ${up ? 'creux' : 'sommet'} du ${shortDay(o.t)} à <b class="mono">${px(o.price)}</b> : ${plainPct(leg.fromOrigin)} depuis. ` : ''}${up ? 'Plus haut' : 'Plus bas'} atteint le ${shortDay(leg.ext.t)} : <b class="mono">${px(leg.ext.price)}</b>.</span>
     <span class="leg-txt">${up ? 'On reste dans la jambe tant que la moyenne 9 jours reste au-dessus de la 21 jours.' : 'On reste à l\'écart (ou short) tant que la moyenne 9 jours reste sous la 21 jours.'}</span>
     ${past ? `<details><summary>Jambes précédentes</summary><ul class="leg-past">${past}</ul></details>` : ''}
+    <button type="button" class="jb-go" data-jb-sym="${esc(sym)}">Voir les jambes de ${esc(sym)} sur le graphique ↑</button>
   </div>`;
 }
 
@@ -176,20 +158,46 @@ export function indicatorCard(a) {
   if (!ind) return `<div class="card">${head}<span class="sm">Pas assez de données pour le moment.</span></div>`;
   const rows = ind.items.map(x => `<li><span class="ik">${esc(x.label)}</span><span class="iv ${x.tone}">${esc(x.value)}</span><span class="it">${esc(x.text)}</span></li>`).join('');
   return `<div class="card">${head}
-    ${legBlock(a.leg)}
+    ${legBlock(a.leg, a.symbol)}
     <span class="ind-sum">Dans l'ensemble : <b class="${VERDICT[ind.verdict] ?? ''}">${esc(ind.verdict)}</b> <span class="muted">(${ind.ups} vert${ind.ups > 1 ? 's' : ''}, ${ind.downs} rouge${ind.downs > 1 ? 's' : ''})</span></span>
     <ul class="ind-list">${rows}</ul>
     <a class="go" href="#paire/${encodeURIComponent(a.symbol)}">Voir la fiche ${esc(a.symbol)} →</a></div>`;
 }
 
+function legBox() {
+  const syms = data.assets.map(a => a.symbol);
+  if (!syms.includes(state.jbSym)) state.jbSym = syms[0];
+  if (!TF.some(t => t.key === state.jbTf)) state.jbTf = 'd1';
+  return `<div class="box jb">
+    <h2>Les jambes sur le graphique</h2>
+    <div class="tools" id="jb-syms" role="group" aria-label="Paire">${syms.map(s => `<button type="button" class="chip" data-jb-sym="${esc(s)}" aria-pressed="${s === state.jbSym}">${esc(s)}</button>`).join('')}</div>
+    <div class="tools" id="jb-tfs" role="group" aria-label="Unité de temps">${TF.map(t => `<button type="button" class="chip" data-jb-tf="${t.key}" aria-pressed="${t.key === state.jbTf}">${t.label}${t.key === 'd1' ? ' (conseillé)' : ''}</button>`).join('')}</div>
+    <div class="jb-key"><span><i class="k-up"></i>Jambe haussière</span><span><i class="k-down"></i>Jambe baissière</span><span><i class="k-bot"></i>Creux</span><span><i class="k-top"></i>Sommet</span><span>▲ ▼ début d'une jambe</span></div>
+    <div class="cx-chart" id="jb-chart"><div class="empty">Chargement du graphique…</div></div>
+    <p class="jb-note" id="jb-note">${tfNote(state.jbTf)}</p>
+  </div>`;
+}
+
+function drawLegs() {
+  const box = document.getElementById('jb-chart');
+  if (!box || state.cat !== 'ind') return;
+  for (const b of document.querySelectorAll('#jb-syms .chip')) b.setAttribute('aria-pressed', String(b.dataset.jbSym === state.jbSym));
+  for (const b of document.querySelectorAll('#jb-tfs .chip')) b.setAttribute('aria-pressed', String(b.dataset.jbTf === state.jbTf));
+  document.getElementById('jb-note').textContent = tfNote(state.jbTf);
+  drawLegChart(box, state.jbSym, state.jbTf);
+}
+
 function renderIndicators() {
   document.getElementById('setups-ind').innerHTML = data.assets.map(indicatorCard).join('');
+  document.getElementById('setups-legs').innerHTML = legBox();
+  drawLegs();
 }
 
 function renderCat() {
   for (const b of document.querySelectorAll('#setups-cats .chip')) b.setAttribute('aria-pressed', String(b.dataset.cat === state.cat));
   document.getElementById('setups-cat-setups').hidden = state.cat !== 'setups';
   document.getElementById('setups-cat-ind').hidden = state.cat !== 'ind';
+  drawLegs();
 }
 
 function renderRadar() {
@@ -251,6 +259,17 @@ export function initSetups(setupsData, projects) {
     store.set(state);
     renderCat();
   });
+  document.getElementById('setups-cat-ind').addEventListener('click', e => {
+    const b = e.target.closest('[data-jb-sym], [data-jb-tf]');
+    if (!b) return;
+    if (b.dataset.jbSym) state.jbSym = b.dataset.jbSym;
+    if (b.dataset.jbTf) state.jbTf = b.dataset.jbTf;
+    store.set(state);
+    drawLegs();
+    if (b.classList.contains('jb-go')) document.getElementById('setups-legs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  let resizeT;
+  window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(drawLegs, 150); });
   watchlist.subscribe(() => { if (state.watch) renderList(); });
   document.getElementById('setups-warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
   if (!['setups', 'ind'].includes(state.cat)) state.cat = 'setups';

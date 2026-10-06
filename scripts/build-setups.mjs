@@ -139,11 +139,11 @@ async function main() {
     assets: ok.map(r => r.asset), live: shown, stats, history, charts,
   }));
 
-  // Une fiche par paire (#paire/<symbole>) : 3 mois de bougies 4h et 14 mois de bougies journalières.
+  // Une fiche par paire (#paire/<symbole>) : 3 mois de bougies 4h et 20 mois de bougies journalières.
   // Le 7e nombre vaut 1 quand la bougie est fermée.
   await mkdir(join(OUT, 'paire'), { recursive: true });
   const row = b => [b.t, b.o, b.h, b.l, b.c, b.v, b.closed === false ? 0 : 1];
-  const pairs = ok.map(r => ({ symbol: r.asset.symbol, generatedAt: new Date(now).toISOString(), h4: r.bars.slice(-540).map(row), d1: r.daily.slice(-430).map(row) }));
+  const pairs = ok.map(r => ({ symbol: r.asset.symbol, generatedAt: new Date(now).toISOString(), h4: r.bars.slice(-540).map(row), d1: r.daily.slice(-600).map(row) }));
   for (const p of pairs) await writeFile(join(OUT, 'paire', `${p.symbol}.json`), JSON.stringify(p));
   // Sur une branche de test, les données sont compressées dans paire-gz.txt, recopié à la fin du journal pour les aperçus.
   if (process.env.PUBLISH === 'false') {

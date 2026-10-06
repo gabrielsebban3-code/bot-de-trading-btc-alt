@@ -882,3 +882,22 @@ p.lead { font-size: 13px; color: var(--fg2); margin: 0 0 14px; max-width: 720px;
 .leg-past { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 3px; }
 .leg-past .up { color: var(--up); }
 .leg-past .down { color: var(--down); }
+/* Graphique des jambes */
+.cx-chart .zone.up { fill: var(--up-soft); opacity: .55; }
+.cx-chart .zone.down { fill: var(--down-soft); opacity: .55; }
+.cx-chart .mark.top { fill: var(--accent); }
+.cx-chart .mark.bottom { fill: var(--up); }
+.cx-chart .mark-t { font: 500 10.5px var(--sans); text-anchor: middle; paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
+.cx-chart .mark-t.top { fill: var(--accent-ink); }
+.cx-chart .mark-t.bottom { fill: var(--up); }
+.jb { padding: 14px; display: grid; gap: 10px; margin-bottom: 16px; }
+.jb h2 { margin: 0; }
+.jb .tools { margin: 0; }
+.jb-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.jb-key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.jb-key .k-up { background: var(--up-soft); border: 1px solid var(--up); }
+.jb-key .k-down { background: var(--down-soft); border: 1px solid var(--down); }
+.jb-key .k-top { background: var(--accent); border-radius: 50%; }
+.jb-key .k-bot { background: var(--up); border-radius: 50%; }
+.jb-note { font-size: 12px; color: var(--fg2); margin: 0; }
+.leg .jb-go { font: 500 12px var(--sans); color: var(--accent-ink); background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }

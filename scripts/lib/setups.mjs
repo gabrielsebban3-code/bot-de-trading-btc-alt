@@ -1,3 +1,5 @@
+import { LEG, legSummary } from '../../js/legs-lib.js';
+
 // Logique de l'onglet Setups : 3 indicateurs de cassure et d'élan sur bougies 4h (BTC, ETH, SOL, Brent),
 // gardés seulement dans le sens de la tendance journalière, puis gérés en suivi de tendance :
 // stop à 0,75 ATR journalier, moitié prise à 5R, reste gardé tant que la tendance tient.
@@ -485,44 +487,11 @@ export function indicatorState(bars4h, dailyAll) {
 }
 const TONE = { haussière: 'up', baissière: 'down', neutre: '' };
 
-// ---------- Indicateur Jambe : début et fin des grosses jambes, moyennes 9 et 21 jours ----------
-// Jambe haussière tant que la moyenne 9 jours est au-dessus de la 21 jours (baissière sinon), sur clôtures journalières.
-// Retenu en octobre 2026 parmi 32 méthodes testées sur BTC, ETH et SOL depuis 2023 : la plus régulière d'une période à l'autre.
-export const LEG = { fast: 9, slow: 21, days: 180 };
+// ---------- Indicateur Jambe (logique partagée avec le site : js/legs-lib.js) ----------
 
 export function legState(dailyAll) {
   const daily = dailyAll.filter(d => d.closed !== false);
   if (daily.length < LEG.slow * 3) return null;
-  const c = daily.map(d => d.c);
-  const f = ema(c, LEG.fast), s = ema(c, LEG.slow);
-  const dir = f.map((x, k) => (x > s[k] ? 1 : -1));
-  // Découpe en jambes : chaque changement de sens ouvre une nouvelle jambe.
-  const legs = [];
-  for (let k = LEG.slow; k < daily.length; k++) {
-    if (k === LEG.slow || dir[k] !== dir[k - 1]) legs.push({ dir: dir[k] > 0 ? 'up' : 'down', from: k, to: k });
-    else legs.at(-1).to = k;
-  }
-  // Creux (jambe baissière) ou sommet (jambe haussière) atteint pendant chaque jambe.
-  for (const l of legs) {
-    let x = l.from;
-    for (let k = l.from; k <= l.to; k++) if (l.dir === 'up' ? daily[k].h > daily[x].h : daily[k].l < daily[x].l) x = k;
-    l.ext = { t: daily[x].t, price: l.dir === 'up' ? daily[x].h : daily[x].l };
-    l.start = { t: daily[l.from].t, price: daily[l.from].c };
-    l.end = { t: daily[l.to].t, price: daily[l.to].c };
-    l.move = l.end.price / l.start.price - 1;
-  }
-  const cur = legs.at(-1), prev = legs.at(-2);
-  const price = daily.at(-1).c;
-  const from = Math.max(0, daily.length - LEG.days);
-  return {
-    dir: cur.dir,
-    since: cur.start, move: price / cur.start.price - 1,
-    // Le creux d'une jambe haussière est l'extrême de la jambe baissière d'avant (et inversement).
-    origin: prev ? prev.ext : null,
-    fromOrigin: prev ? price / prev.ext.price - 1 : null,
-    ext: cur.ext,
-    days: cur.to - cur.from + 1,
-    past: legs.slice(-5, -1).reverse().map(l => ({ dir: l.dir, from: l.start.t, to: l.end.t, move: l.move })),
-    series: daily.slice(from).map((d, k) => [d.t, d.c, dir[from + k]]),
-  };
+  const r = legSummary(daily);
+  return r && { ...r, days: r.bars };
 }
