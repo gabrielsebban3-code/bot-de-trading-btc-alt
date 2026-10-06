@@ -111,7 +111,7 @@ function renderTable() {
   const shown = list.slice(0, TOP);
   const c = data.counts || {};
   document.getElementById('count').textContent = list.length
-    ? `${shown.length} projets affichés sur ${list.length} qui passent les filtres · ${data.projects.length} analysés en détail parmi ${c.total ?? '?'} protocoles`
+    ? `${shown.length} projets affichés sur ${list.length} qui passent les filtres · ${data.projects.length} analysés en détail parmi ${c.total ?? '?'} protocoles${excludedText(c)}`
     : '';
   document.getElementById('projects-body').innerHTML = shown.length ? shown.map((p, i) => `
     <tr data-id="${esc(p.id)}">
@@ -155,6 +155,16 @@ function renderResume() {
     || '<div class="card"><span class="why">Rien de particulier à signaler pour le moment.</span></div>';
 }
 
+const excludedText = c => {
+  const parts = [c.lowVolume ? `${c.lowVolume} trop peu échangés` : '', c.decline ? `${c.decline} effondrés et toujours en baisse` : ''].filter(Boolean);
+  return parts.length ? ` · écartés : ${parts.join(', ')}` : '';
+};
+const year = d => (d ? d.slice(0, 4) : null);
+const trendText = (p, v) => {
+  const [chg, days] = p.change200d != null ? [p.change200d, 200] : p.change30d != null ? [p.change30d, 30] : [null, 0];
+  return chg === null ? 'Évolution du prix inconnue.' : `Prix ${pctText(chg / 100)} sur ${days} jours${days === 30 ? ' (token trop jeune pour 200 jours)' : ''}. Mieux que ${v} % des projets analysés.`;
+};
+
 const pctText = r => (r === null || r === undefined ? '—' : `${r >= 0 ? '+' : ''}${fmt(r * 100, 0)} %`);
 
 export function renderProject(id) {
@@ -165,6 +175,7 @@ export function renderProject(id) {
     return;
   }
   const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
+  const bar = (label, weight, v = 0, text) => `<div class="bar-row"><span>${label} · ${weight} %</span><i style="--w:${v}%"></i><span class="num">${v}</span><p>${text}</p></div>`;
   const parts = p.scoreParts;
   const link = (url, label, cls = '') => (safeUrl(url) ? `<a class="${cls}" href="${safeUrl(url)}" target="_blank" rel="noopener">${label}</a>` : '');
   const buy = p.links.okx ? link(p.links.okx, 'Acheter sur OKX', 'buy') : link(`${p.links.coingecko}#markets`, "Voir où l'acheter (DEX)", 'buy');
@@ -178,18 +189,21 @@ export function renderProject(id) {
         <div class="box"><h2>Revenus quotidiens · 90 jours <span class="muted" style="font-weight:400;font-size:12px">ligne = moyenne 7 jours</span></h2>
           <div class="chart">${p.series.length ? '<canvas id="rev-chart" role="img" aria-label="Revenus quotidiens sur 90 jours"></canvas>' : '<div class="empty">Historique des revenus indisponible.</div>'}</div></div>
         <div class="box"><h2>Pourquoi ce score : ${p.score}/100</h2><div class="why-score">
-          <div class="bar-row"><span>Revenus · 50 %</span><i style="--w:${parts.revenue}%"></i><span class="num">${parts.revenue}</span>
-            <p>${money(p.revenue30d)} sur 30 jours, soit ${money(p.revenueAnnualized)} par an. Plus que ${parts.revenue} % des projets analysés.</p></div>
-          <div class="bar-row"><span>Croissance · 30 %</span><i style="--w:${parts.growth}%"></i><span class="num">${parts.growth}</span>
-            <p>Revenus ${pctText(p.revenueGrowth)} et TVL ${pctText(p.tvlGrowth)} sur 30 jours.</p></div>
-          <div class="bar-row"><span>Valorisation · 20 %</span><i style="--w:${parts.valuation}%"></i><span class="num">${parts.valuation}</span>
-            <p>${p.psRatio === null ? 'Valorisation inconnue.' : `Le marché valorise le projet ${fmt(p.psRatio, 1)}× ses revenus annuels. Moins cher que ${parts.valuation} % des projets analysés.`}</p></div>
+          ${bar('Revenus', 35, parts.revenue, `${money(p.revenue30d)} sur 30 jours, soit ${money(p.revenueAnnualized)} par an. Plus que ${parts.revenue} % des projets analysés.`)}
+          ${bar('Croissance', 25, parts.growth, `Revenus ${pctText(p.revenueGrowth)} sur 30 jours (sans compter les 3 plus gros jours, pour qu'un seul jour exceptionnel ne fausse rien) et argent déposé ${pctText(p.tvlGrowth)}.`)}
+          ${bar('Prix par rapport aux revenus', 15, parts.valuation, p.psRatio === null ? 'Valorisation inconnue.' : `Le marché valorise le projet ${fmt(p.psRatio, 1)}× ses revenus annuels. Moins cher que ${parts.valuation} % des projets analysés.`)}
+          ${bar('Revenus reversés', 10, parts.holders, p.holdersShare ? `${fmt(p.holdersShare * 100, 0)} % des revenus reviennent aux détenteurs du token (rachats ou distributions). Note pleine à partir de 50 %.` : 'Le projet ne reverse rien aux détenteurs du token.')}
+          ${bar('Tendance du prix', 15, parts.trend, trendText(p, parts.trend))}
+          ${p.badges.lowFloat ? '<p class="muted">Faible flottant : la note perd 15 %, car beaucoup de tokens peuvent encore arriver sur le marché.</p>' : ''}
         </div></div>
       </div>
       <div class="stack">
         <div class="box"><h2>Chiffres clés</h2><dl>
           ${row('Prix', `${price(p.price)} $ ${p.change24h === null ? '' : pct(p.change24h, false)}`)}
           ${row('Prix sur 7 jours', pct(p.change7d ?? null, false))}
+          ${row('Prix sur 200 jours', pct(p.change200d ?? null, false))}
+          ${row('Plus haut historique', p.athDate ? `${price(p.ath)} $ en ${year(p.athDate)} · ${pct(p.athChange ?? null)}` : '—')}
+          ${row('Actif depuis', year(p.since) ?? '—')}
           ${row('Market cap', money(p.mcap))}
           ${row('Valorisation diluée', money(p.fdv))}
           ${row('Volume 24h', money(p.volume24h))}
