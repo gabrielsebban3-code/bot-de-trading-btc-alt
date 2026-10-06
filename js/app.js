@@ -15,9 +15,10 @@ import { renderPlans } from './plans.js';
 import { renderImpots } from './fiscal.js';
 import { renderScanner } from './scanner.js';
 import { onTier } from './premium.js';
+import { renderAcademie } from './academie.js';
 
 const $ = id => document.getElementById(id);
-const PAGES = ['resume', 'marche', 'projets', 'setups', 'actu', 'heatmap', 'outils', 'historique', 'scanner', 'impots', 'premium', 'compte'];
+const PAGES = ['resume', 'marche', 'projets', 'setups', 'actu', 'heatmap', 'outils', 'historique', 'scanner', 'impots', 'premium', 'academie', 'compte'];
 // Actifs connus du site, par symbole : projets, marchés des setups, setup en jeu. Servent au ticker et à Mon compte.
 const known = { projects: new Map(), assets: new Map(), live: new Map() };
 const quotes = new Map(); // derniers prix OKX du ticker
@@ -38,7 +39,7 @@ function route() {
   const tab = { projet: 'projets', setup: 'setups', paire: 'setups', indicateur: $('ind-back').hash.slice(1), crypto: 'marche' }[target] || target;
   document.querySelectorAll('#nav [data-tab]').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   // Sur mobile, Outils est rangé dans Plus pour que la barre du bas tienne.
-  $('more').classList.toggle('on', ['historique', 'scanner', 'impots', 'premium'].includes(tab) || (tab === 'outils' && matchMedia('(max-width: 700px)').matches));
+  $('more').classList.toggle('on', ['historique', 'scanner', 'impots', 'premium', 'academie'].includes(tab) || (tab === 'outils' && matchMedia('(max-width: 700px)').matches));
   $('me').classList.toggle('on', tab === 'compte');
   $('menu').hidden = true;
   $('more').setAttribute('aria-expanded', 'false');
@@ -58,6 +59,7 @@ function route() {
   if (target === 'outils') showTool(decodeURIComponent(id || ''));
   if (target === 'impots') renderImpots();
   if (target === 'scanner') renderScanner();
+  if (target === 'academie') renderAcademie(decodeURIComponent(id || ''));
 }
 
 $('more').addEventListener('click', () => {
