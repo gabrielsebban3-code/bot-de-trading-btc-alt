@@ -91,6 +91,10 @@ function shell() {
     <details class="jb-layers"><summary>Afficher sur le graphique</summary>
       <div class="jb-checks">${LAYERS.map(([k, l]) => `<label><input type="checkbox" data-layer="${k}" ${st.layers[k] ? 'checked' : ''}> ${l}</label>`).join('')}</div>
     </details>
+    <div class="jb-key">
+      <p><b class="up">▲</b> <b class="down">▼</b> <b>Flèche = le signal en direct.</b> Elle apparaît à la clôture de la bougie où la moyenne 9 croise la 21 : ▲ une jambe haussière commence, ▼ une jambe baissière commence. C'est la seule alerte à suivre.</p>
+      <p><b class="dot-bot">●</b> <b class="dot-top">●</b> <b>Rond = placé après coup.</b> Il marque le vrai creux (vert) ou le vrai sommet (orange) d'une jambe terminée : on ne le connaît qu'une fois la flèche suivante apparue. Sur la jambe en cours, le rond suit le plus haut (ou le plus bas) atteint pour l'instant et peut encore bouger (marqué « Provisoire »).</p>
+    </div>
     <div class="jb-read" aria-live="polite"></div>
     <div class="jb-chart" role="img" aria-label="Graphique des jambes"><div class="empty">Chargement du graphique…</div></div>
     <p class="jb-hint">Pince ou fais défiler pour zoomer, fais glisser pour te déplacer. Touche une bougie pour voir sa jambe.</p>
@@ -242,7 +246,8 @@ function markersFor() {
       const swing = prev ? Math.abs(l.ext.price / prev - 1) : 0;
       const i = bars.findIndex(b => b.t === l.ext.t);
       out.push({ time: T(bars[i]), position: l.dir === 'up' ? 'aboveBar' : 'belowBar', shape: 'circle', color: l.dir === 'up' ? col.acc : col.up, size: 0.8,
-        text: swing >= big || l.open || k === legs.length - 2 ? `${l.dir === 'up' ? 'Sommet' : 'Creux'} ${px(l.ext.price)}` : '', id: `e${k}` });
+        text: l.open ? `Provisoire ${px(l.ext.price)}`
+          : swing >= big || k === legs.length - 2 ? `${l.dir === 'up' ? 'Sommet' : 'Creux'} ${px(l.ext.price)}` : '', id: `e${k}` });
     }
   });
   return out.sort((a, b) => a.time - b.time);

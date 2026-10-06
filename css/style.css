@@ -923,3 +923,7 @@ body.jb-locked { overflow: hidden; }
 .jb-table th, .jb-table td { padding: 8px 6px; font-size: 12px; white-space: nowrap; }
 .jb-sum { font-size: 13px; margin: 0; color: var(--fg2); }
 .jb-sum .up { color: var(--up); } .jb-sum .down { color: var(--down); }
+.jb-key { display: grid; gap: 6px; font-size: 12px; color: var(--fg2); background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+.jb-key p { margin: 0; }
+.jb-key .up { color: var(--up); } .jb-key .down { color: var(--down); }
+.jb-key .dot-bot { color: var(--up); } .jb-key .dot-top { color: var(--accent); }
