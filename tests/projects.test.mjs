@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
-  findToken, floatRatio, groupFees, holdersRevenueByKey, investorStats, markNew, mergeDaily, percentiles, preselect,
-  revenueStats, scoreProjects, tvlStats,
+  DEFAULTS, findToken, floatRatio, groupFees, holdersRevenueByKey, investorStats, markNew, mergeDaily, percentiles, preselect,
+  revenueStats, scoreProjects, tvlStats, exclusionReason,
 } from '../scripts/lib/projects.mjs';
 
 const DAY = 86_400;
@@ -92,17 +92,37 @@ test('percentiles gère les égalités et les valeurs nulles', () => {
   assert.deepEqual(percentiles([7]), [1]);
 });
 
-test('scoreProjects pondère 50 % revenus, 30 % croissance, 20 % valorisation', () => {
-  const base = { revenueGrowth: 0, tvlGrowth: null, psRatio: 10 };
+test('scoreProjects : revenus 35 %, croissance 25 %, valorisation 15 %, rachats 10 %, tendance 15 %', () => {
+  const base = { revenueGrowth: 0, tvlGrowth: null, psRatio: 10, holdersShare: 0, change200d: 0, badges: {} };
   const [best, worst] = scoreProjects([
-    { id: 'low', revenue30d: 1, ...base, revenueGrowth: -0.5, psRatio: 50 },
-    { id: 'high', revenue30d: 100, ...base, revenueGrowth: 0.5, psRatio: 5 },
+    { ...base, id: 'low', revenue30d: 1, revenueGrowth: -0.5, psRatio: 50, change200d: -60 },
+    { ...base, id: 'high', revenue30d: 100, revenueGrowth: 0.5, psRatio: 5, holdersShare: 0.6, change200d: 40 },
   ]);
   assert.equal(best.id, 'high');
   assert.equal(best.score, 100);
   assert.equal(worst.score, 0);
-  const [onlyRevenue] = scoreProjects([{ id: 'a', revenue30d: 1, revenueGrowth: null, tvlGrowth: null, psRatio: null }]);
-  assert.equal(onlyRevenue.score, Math.round(100 * (0.5 + 0.3 * 0.3 + 0.2 * 0.3)));
+  const [onlyRevenue] = scoreProjects([{ id: 'a', revenue30d: 1, revenueGrowth: null, tvlGrowth: null, psRatio: null, change200d: null, badges: {} }]);
+  assert.equal(onlyRevenue.score, Math.round(100 * (0.35 + 0.25 * 0.3 + 0.15 * 0.3 + 0.15 * 0.3)));
+  const [same, diluted] = scoreProjects([{ ...base, id: 'x', revenue30d: 1 }, { ...base, id: 'y', revenue30d: 1, badges: { lowFloat: true } }]);
+  assert.equal(diluted.score, Math.round(same.score * 0.85), 'faible flottant : −15 %');
+});
+
+test('exclusionReason écarte les tokens peu échangés et ceux en baisse depuis des années', () => {
+  const now = new Date('2026-10-06T00:00:00Z');
+  const ok = { volume24h: 5e6, athDate: '2025-01-01', athChange: -0.5, change1y: -20 };
+  assert.equal(exclusionReason(ok, now), null);
+  assert.equal(exclusionReason({ ...ok, volume24h: 50_000 }, now), 'volume');
+  assert.equal(exclusionReason({ ...ok, volume24h: null }, now), null, 'volume inconnu : gardé');
+  assert.equal(exclusionReason({ ...ok, athDate: '2018-01-08', athChange: -0.97 }, now), 'decline');
+  assert.equal(exclusionReason({ ...ok, athDate: '2021-11-01', athChange: -0.95, change1y: 40 }, now), null, 'reprend depuis un an');
+  assert.equal(exclusionReason({ ...ok, athDate: '2021-11-01', athChange: -0.7 }, now), null, 'chute moins forte');
+  assert.equal(exclusionReason({ ...ok, athDate: '2025-03-01', athChange: -0.95 }, now), null, 'plus haut récent');
+});
+
+test('revenueStats : la croissance ignore les 3 plus gros jours de chaque mois', () => {
+  const spike = revenueStats(daily(60, i => (i === 50 ? 100_000 : 100)));
+  assert.equal(spike.growth, 0, 'un seul jour exceptionnel ne compte pas');
+  assert.ok(spike.revenue30d > 100_000, 'le revenu affiché reste le vrai total');
 });
 
 test('markNew date l\'entrée dans le top et ne marque rien au premier passage', () => {
@@ -133,6 +153,15 @@ test('preselect exclut les projets sans token, trop gros, trop petits ou déjà 
   const { kept, counts } = preselect([g('ok', 1e6), g('big', 1e6), g('bn', 1e6), g('small', 10), g('none', 1e6)], { tokens, markets, binance: new Set(['BN']) });
   assert.deepEqual(kept.map(k => k.group.key), ['ok']);
   assert.deepEqual(counts, { total: 5, noToken: 1, smallRevenue: 1, noMcap: 0, tooBig: 1, onBinance: 1, kept: 1 });
+});
+
+test('preselect garde les plus gros revenus puis ceux qui grimpent le plus vite', () => {
+  const g = (key, revenue30d, revenuePrev30d) => ({ key, revenue30d, revenuePrev30d, hasPrev: true });
+  const groups = [g('a', 9e6, 9e6), g('b', 8e6, 8e6), g('c', 1e5, 2e4), g('d', 2e5, 1e5), g('e', 3e5, 4e5)];
+  const tokens = new Map(groups.map(x => [x.key, { geckoId: x.key }]));
+  const markets = new Map(groups.map(x => [x.key, { market_cap: 1e8, symbol: x.key }]));
+  const { kept } = preselect(groups, { tokens, markets, binance: null, opts: { ...DEFAULTS, shortlist: 2, growers: 1 } });
+  assert.deepEqual(kept.map(k => k.group.key), ['a', 'b', 'c']);
 });
 
 test('build-data.mjs produit des fichiers complets à partir des API simulées', async () => {

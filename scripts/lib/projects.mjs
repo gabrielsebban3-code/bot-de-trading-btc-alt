@@ -4,10 +4,15 @@
 export const DEFAULTS = {
   maxMcap: 1e9,           // market cap max
   minRevenue30d: 50_000,  // en dessous, trop petit pour être significatif
-  shortlist: 60,          // projets analysés en détail
+  shortlist: 60,          // projets analysés en détail : les 60 plus gros revenus…
+  growers: 20,            // … plus les 20 revenus qui grimpent le plus parmi les autres
   topSize: 25,            // taille du top affiché
   newDays: 3,             // un projet reste « nouveau » 3 jours
   lowFloat: 0.3,          // flottant < 30 % = faible flottant
+  lowFloatPenalty: 0.85,  // la note d'un projet à faible flottant perd 15 %
+  minVolume24h: 100_000,  // moins de 100 k$ échangés par jour : trop dur à acheter ou revendre
+  oldAthYears: 3,         // plus haut historique vieux de plus de 3 ans…
+  deepDrop: -0.9,         // … prix à plus de 90 % sous ce plus haut…
 };
 
 const DAY = 86_400;
@@ -64,21 +69,27 @@ export function holdersRevenueByKey(holderProtocols) {
 export function findToken(group, llamaProtocols, parentProtocols = []) {
   if (group.key.startsWith('parent#')) {
     const parent = parentProtocols.find(p => p.id === group.key);
-    if (parent?.gecko_id) return { geckoId: parent.gecko_id, symbol: clean(parent.symbol), mcap: num(parent.mcap) };
     const ids = new Set(group.children.map(c => c.id));
     const kids = llamaProtocols.filter(p => p.parentProtocol === group.key || ids.has(String(p.id)));
+    const listedAt = firstListed(kids);
+    if (parent?.gecko_id) return { geckoId: parent.gecko_id, symbol: clean(parent.symbol), mcap: num(parent.mcap), listedAt };
     const gecko = [...new Set(kids.map(k => k.gecko_id).filter(Boolean))];
     if (gecko.length === 1) {
       const k = kids.find(x => x.gecko_id === gecko[0]);
-      return { geckoId: gecko[0], symbol: clean(k.symbol), mcap: num(k.mcap) };
+      return { geckoId: gecko[0], symbol: clean(k.symbol), mcap: num(k.mcap), listedAt };
     }
     return null;
   }
   const child = group.children[0];
   const p = llamaProtocols.find(x => String(x.id) === child.id) || llamaProtocols.find(x => x.slug === child.slug);
-  return p?.gecko_id ? { geckoId: p.gecko_id, symbol: clean(p.symbol), mcap: num(p.mcap) } : null;
+  return p?.gecko_id ? { geckoId: p.gecko_id, symbol: clean(p.symbol), mcap: num(p.mcap), listedAt: firstListed([p]) } : null;
 }
 const clean = s => (s && s !== '-' ? String(s).toUpperCase() : null);
+// Date d'arrivée la plus ancienne sur DefiLlama (secondes), ou null.
+const firstListed = list => {
+  const ts = list.map(p => num(p.listedAt)).filter(Boolean);
+  return ts.length ? Math.min(...ts) : null;
+};
 
 // Fusionne plusieurs séries [[timestamp, valeur], ...] en une seule série journalière triée.
 export function mergeDaily(charts) {
@@ -99,7 +110,10 @@ export function revenueStats(daily) {
   const last30 = vals.slice(-30), prev30 = vals.slice(-60, -30), last7 = vals.slice(-7);
   const revenue30d = sum(last30);
   const revenuePrev30d = prev30.length === 30 ? sum(prev30) : null;
-  const growth = revenuePrev30d && revenuePrev30d >= 1000 ? revenue30d / revenuePrev30d - 1 : null;
+  // Croissance sans les 3 plus gros jours de chaque mois : un seul jour exceptionnel ne la gonfle plus.
+  const trimmed = a => sum([...a].sort((x, y) => x - y).slice(0, -3));
+  const prevT = prev30.length === 30 ? trimmed(prev30) : null;
+  const growth = revenuePrev30d && revenuePrev30d >= 1000 && prevT > 0 ? trimmed(last30) / prevT - 1 : null;
   const avg7 = sum(last7) / 7, avg30 = revenue30d / 30;
   return {
     revenue30d,
@@ -154,27 +168,42 @@ export function percentiles(values) {
   return out;
 }
 
-// Score /100 : 50 % revenus, 30 % croissance, 20 % valorisation.
-export function scoreProjects(projects) {
+// Note sur 100 : revenus 35 %, croissance 25 %, prix bas par rapport aux revenus 15 %,
+// revenus reversés aux détenteurs 10 %, tendance du prix sur 200 jours 15 %. Faible flottant : −15 %.
+export const WEIGHTS = { revenue: 0.35, growth: 0.25, valuation: 0.15, holders: 0.1, trend: 0.15 };
+
+export function scoreProjects(projects, opts = DEFAULTS) {
   const missing = 0.3; // une donnée absente pénalise sans éliminer
   const pRev = percentiles(projects.map(p => p.revenue30d));
   const pRevG = percentiles(projects.map(p => p.revenueGrowth));
   const pTvlG = percentiles(projects.map(p => p.tvlGrowth));
   const pVal = percentiles(projects.map(p => (p.psRatio === null ? null : -p.psRatio)));
+  const pTrend = percentiles(projects.map(p => p.change200d ?? p.change1y ?? null));
   return projects.map((p, i) => {
     const g = [pRevG[i], pTvlG[i]].filter(v => v !== null);
     const parts = {
       revenue: pRev[i] ?? missing,
       growth: g.length ? sum(g) / g.length : missing,
       valuation: pVal[i] ?? missing,
+      holders: Math.min(1, (p.holdersShare || 0) * 2), // 50 % des revenus reversés ou plus = note pleine
+      trend: pTrend[i] ?? missing,
     };
-    const score = Math.round(100 * (0.5 * parts.revenue + 0.3 * parts.growth + 0.2 * parts.valuation));
+    const raw = Object.entries(WEIGHTS).reduce((t, [k, w]) => t + w * parts[k], 0);
+    const score = Math.round(100 * raw * (p.badges?.lowFloat ? opts.lowFloatPenalty : 1));
     return {
       ...p,
       score,
       scoreParts: Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, Math.round(v * 100)])),
     };
   }).sort((a, b) => b.score - a.score || b.revenue30d - a.revenue30d);
+}
+
+// Projets écartés après l'analyse détaillée : trop peu échangés, ou en baisse depuis des années.
+export function exclusionReason(p, now = new Date(), opts = DEFAULTS) {
+  if (p.volume24h !== null && p.volume24h < opts.minVolume24h) return 'volume';
+  const oldAth = p.athDate && now - new Date(p.athDate) > opts.oldAthYears * 365 * DAY * 1000;
+  if (oldAth && p.athChange !== null && p.athChange <= opts.deepDrop && !(p.change1y > 0)) return 'decline';
+  return null;
 }
 
 // Garde la date d'entrée dans le top d'une mise à jour à l'autre, pour repérer les nouveaux.
@@ -204,6 +233,10 @@ export function buildProject({ group, token, market, holdersRevenue30d, daily, d
   const fl = floatRatio(market);
   const symbol = (market?.symbol || token.symbol || '').toUpperCase() || null;
   const holders = holdersRevenue30d > 0 ? holdersRevenue30d : 0;
+  // Ancienneté : la plus vieille trace du protocole (arrivée sur DefiLlama, premier TVL, premier revenu).
+  const firstTvl = num(Number(detail?.tvl?.[0]?.date));
+  const starts = [token.listedAt, firstTvl, daily?.length ? num(Number(daily[0][0])) : null].filter(Boolean);
+  const since = starts.length ? new Date(Math.min(...starts) * 1000).toISOString().slice(0, 10) : null;
   return {
     id: group.detailSlug,
     name: group.name,
@@ -215,6 +248,13 @@ export function buildProject({ group, token, market, holdersRevenue30d, daily, d
     price: num(market?.current_price),
     change24h: num(market?.price_change_percentage_24h),
     change7d: num(market?.price_change_percentage_7d_in_currency),
+    change30d: num(market?.price_change_percentage_30d_in_currency),
+    change200d: num(market?.price_change_percentage_200d_in_currency),
+    change1y: num(market?.price_change_percentage_1y_in_currency),
+    ath: num(market?.ath),
+    athDate: market?.ath_date ? String(market.ath_date).slice(0, 10) : null,
+    athChange: num(market?.ath_change_percentage) === null ? null : market.ath_change_percentage / 100,
+    since,
     mcap,
     fdv: num(market?.fully_diluted_valuation),
     volume24h: num(market?.total_volume),
@@ -267,5 +307,8 @@ export function preselect(groups, { tokens, markets, binance, opts = DEFAULTS })
   }
   kept.sort((a, b) => b.group.revenue30d - a.group.revenue30d);
   counts.kept = kept.length;
-  return { kept: kept.slice(0, opts.shortlist), counts };
+  // Les plus gros revenus, puis ceux qui grimpent le plus vite : un petit projet en pleine croissance a sa chance.
+  const rise = k => (k.group.hasPrev && k.group.revenuePrev30d >= 10_000 ? k.group.revenue30d / k.group.revenuePrev30d : 0);
+  const rest = kept.slice(opts.shortlist).filter(k => rise(k) > 1).sort((a, b) => rise(b) - rise(a));
+  return { kept: [...kept.slice(0, opts.shortlist), ...rest.slice(0, opts.growers)], counts };
 }

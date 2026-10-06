@@ -7,7 +7,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { attempt, fetchJson, mapLimit } from './lib/http.mjs';
 import {
-  DEFAULTS, buildProject, findToken, groupFees, holdersRevenueByKey, markNew, mergeDaily, preselect, scoreProjects,
+  DEFAULTS, buildProject, exclusionReason, findToken, groupFees, holdersRevenueByKey, markNew, mergeDaily, preselect, scoreProjects,
 } from './lib/projects.mjs';
 
 const argv = process.argv.slice(2);
@@ -82,7 +82,7 @@ async function main() {
   const cg = await attempt('CoinGecko marchés', async () => {
     for (let i = 0; i < geckoIds.length; i += 200) {
       const ids = geckoIds.slice(i, i + 200).join(',');
-      const page = await fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=250&price_change_percentage=24h,7d&ids=${ids}`, { headers: cgHeaders, retries: 4 });
+      const page = await fetchJson(`${CG}/coins/markets?vs_currency=usd&per_page=250&price_change_percentage=24h,7d,30d,200d,1y&ids=${ids}`, { headers: cgHeaders, retries: 4 });
       page.forEach(m => markets.set(m.id, m));
       if (i + 200 < geckoIds.length) await sleep(2500);
     }
@@ -110,17 +110,29 @@ async function main() {
   // 5. Score, nouveaux entrants, écriture.
   let previous = null;
   if (args.previous) previous = await readFile(args.previous, 'utf8').then(JSON.parse).catch(() => null);
-  const projects = markNew(scoreProjects(detailed), previous, now);
+  // Écartés : trop peu échangés, ou en baisse depuis des années sans reprise.
+  const excluded = [];
+  const analysed = detailed.filter(p => {
+    const reason = exclusionReason(p, now);
+    if (reason) excluded.push({ id: p.id, name: p.name, symbol: p.symbol, reason, volume24h: p.volume24h, athDate: p.athDate, athChange: p.athChange, change1y: p.change1y });
+    return !reason;
+  });
+  counts.lowVolume = excluded.filter(e => e.reason === 'volume').length;
+  counts.decline = excluded.filter(e => e.reason === 'decline').length;
+  counts.analysed = analysed.length;
+  const projects = markNew(scoreProjects(analysed), previous, now);
 
   const market = await buildMarket();
 
   await mkdir(OUT, { recursive: true });
-  await writeFile(join(OUT, 'projects.json'), JSON.stringify({ generatedAt: now.toISOString(), sample: Boolean(args.sample), sources, warnings, counts, projects }));
+  await writeFile(join(OUT, 'projects.json'), JSON.stringify({ generatedAt: now.toISOString(), sample: Boolean(args.sample), sources, warnings, counts, excluded, projects }));
   await writeFile(join(OUT, 'market.json'), JSON.stringify({ generatedAt: now.toISOString(), sample: Boolean(args.sample), ...market }));
 
   console.log(`\n${projects.length} projets écrits dans ${OUT}/projects.json. Sources :`, sources);
-  for (const p of projects.slice(0, 10)) {
-    console.log(`#${p.rank} ${p.name} (${p.symbol}) score ${p.score} · MC ${(p.mcap / 1e6).toFixed(0)} M$ · rev 30j ${(p.revenue30d / 1e3).toFixed(0)} k$ · ${Object.entries(p.badges).filter(([, v]) => v).map(([k]) => k).join(' ')}`);
+  const pc = v => (v === null || v === undefined ? '—' : `${v >= 0 ? '+' : ''}${Math.round(v * 100)} %`);
+  for (const e of excluded) console.log(`Écarté (${e.reason === 'volume' ? 'volume trop faible' : 'baisse de long terme'}) : ${e.name} (${e.symbol}) · volume ${Math.round((e.volume24h ?? 0) / 1e3)} k$ · plus haut ${e.athDate ?? '?'} · ${pc(e.athChange)} depuis · 1 an ${pc(e.change1y === null ? null : e.change1y / 100)}`);
+  for (const p of projects.slice(0, DEFAULTS.topSize)) {
+    console.log(`#${p.rank} ${p.name} (${p.symbol}) score ${p.score} [${Object.values(p.scoreParts).join('/')}] · MC ${(p.mcap / 1e6).toFixed(0)} M$ · rev 30j ${(p.revenue30d / 1e3).toFixed(0)} k$ · croiss. ${pc(p.revenueGrowth)} · 200j ${pc(p.change200d === null ? null : p.change200d / 100)} · depuis ${p.since ?? '?'} · plus haut ${p.athDate ?? '?'} ${pc(p.athChange)} · ${Object.entries(p.badges).filter(([, v]) => v).map(([k]) => k).join(' ')}`);
   }
   const missing = k => projects.filter(p => p[k] === null || (Array.isArray(p[k]) && !p[k].length)).length;
   console.log(`Données manquantes sur ${projects.length} projets : série de revenus ${missing('series')}, croissance des revenus ${missing('revenueGrowth')}, `
