@@ -2,7 +2,7 @@
 import { ago, esc, fmt } from './format.js';
 import { linkedNews, linkedText } from './news.js';
 import { watchlist } from './watchlist.js';
-import { TF, drawLegChart, tfNote } from './jambe.js';
+import { mountLegs, showLegs } from './jambe.js';
 import { delayed, historyDays, hoursText, isPremium, onTier, visibleIn } from './premium.js';
 
 const BAR = 4 * 3600_000;
@@ -16,7 +16,7 @@ export const TREND = { haussière: 'up', baissière: 'down', neutre: '' };
 
 let data = null;
 let projectsBySymbol = new Map();
-const state = { detectors: null, kind: 'all', dir: 'all', watch: false, cat: 'setups', jbSym: null, jbTf: 'd1' };
+const state = { detectors: null, kind: 'all', dir: 'all', watch: false, cat: 'setups' };
 const store = {
   get() { try { return JSON.parse(localStorage.getItem('dinexo-setups')) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem('dinexo-setups', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
@@ -164,40 +164,21 @@ export function indicatorCard(a) {
     <a class="go" href="#paire/${encodeURIComponent(a.symbol)}">Voir la fiche ${esc(a.symbol)} →</a></div>`;
 }
 
-function legBox() {
-  const syms = data.assets.map(a => a.symbol);
-  if (!syms.includes(state.jbSym)) state.jbSym = syms[0];
-  if (!TF.some(t => t.key === state.jbTf)) state.jbTf = 'd1';
-  return `<div class="box jb">
-    <h2>Les jambes sur le graphique</h2>
-    <div class="tools" id="jb-syms" role="group" aria-label="Paire">${syms.map(s => `<button type="button" class="chip" data-jb-sym="${esc(s)}" aria-pressed="${s === state.jbSym}">${esc(s)}</button>`).join('')}</div>
-    <div class="tools" id="jb-tfs" role="group" aria-label="Unité de temps">${TF.map(t => `<button type="button" class="chip" data-jb-tf="${t.key}" aria-pressed="${t.key === state.jbTf}">${t.label}${t.key === 'd1' ? ' (conseillé)' : ''}</button>`).join('')}</div>
-    <div class="jb-key"><span><i class="k-up"></i>Jambe haussière</span><span><i class="k-down"></i>Jambe baissière</span><span><i class="k-bot"></i>Creux</span><span><i class="k-top"></i>Sommet</span><span>▲ ▼ début d'une jambe</span></div>
-    <div class="cx-chart" id="jb-chart"><div class="empty">Chargement du graphique…</div></div>
-    <p class="jb-note" id="jb-note">${tfNote(state.jbTf)}</p>
-  </div>`;
-}
-
-function drawLegs() {
-  const box = document.getElementById('jb-chart');
-  if (!box || state.cat !== 'ind') return;
-  for (const b of document.querySelectorAll('#jb-syms .chip')) b.setAttribute('aria-pressed', String(b.dataset.jbSym === state.jbSym));
-  for (const b of document.querySelectorAll('#jb-tfs .chip')) b.setAttribute('aria-pressed', String(b.dataset.jbTf === state.jbTf));
-  document.getElementById('jb-note').textContent = tfNote(state.jbTf);
-  drawLegChart(box, state.jbSym, state.jbTf);
-}
-
+let legsMounted = false;
 function renderIndicators() {
   document.getElementById('setups-ind').innerHTML = data.assets.map(indicatorCard).join('');
-  document.getElementById('setups-legs').innerHTML = legBox();
-  drawLegs();
+  // Le graphique se charge à la première ouverture de la catégorie (moteur de graphique et bougies).
+  if (state.cat === 'ind' && !legsMounted) {
+    legsMounted = true;
+    mountLegs(document.getElementById('setups-legs'), data.assets.map(a => a.symbol));
+  }
 }
 
 function renderCat() {
   for (const b of document.querySelectorAll('#setups-cats .chip')) b.setAttribute('aria-pressed', String(b.dataset.cat === state.cat));
   document.getElementById('setups-cat-setups').hidden = state.cat !== 'setups';
   document.getElementById('setups-cat-ind').hidden = state.cat !== 'ind';
-  drawLegs();
+  if (data) renderIndicators();
 }
 
 function renderRadar() {
@@ -259,17 +240,10 @@ export function initSetups(setupsData, projects) {
     store.set(state);
     renderCat();
   });
-  document.getElementById('setups-cat-ind').addEventListener('click', e => {
-    const b = e.target.closest('[data-jb-sym], [data-jb-tf]');
-    if (!b) return;
-    if (b.dataset.jbSym) state.jbSym = b.dataset.jbSym;
-    if (b.dataset.jbTf) state.jbTf = b.dataset.jbTf;
-    store.set(state);
-    drawLegs();
-    if (b.classList.contains('jb-go')) document.getElementById('setups-legs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('setups-ind').addEventListener('click', e => {
+    const b = e.target.closest('.jb-go');
+    if (b) showLegs(b.dataset.jbSym);
   });
-  let resizeT;
-  window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(drawLegs, 150); });
   watchlist.subscribe(() => { if (state.watch) renderList(); });
   document.getElementById('setups-warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
   if (!['setups', 'ind'].includes(state.cat)) state.cat = 'setups';

@@ -31,8 +31,7 @@ export function niceTicks(lo, hi, count = 4) {
 //   bars : [[temps, o, h, l, c, volume]], line : true pour une courbe des clôtures,
 //   label(i) : date longue de la bougie i (survol), ticks : [[i, texte]] pour l'axe du temps,
 //   price : { title, h, fmt, overlays : [{ key, label, cls, vals }],
-//             levels : [{ v, label, cls }] (lignes horizontales du plan), marks : [{ i, dir : 'long' | 'short', cls }] (flèches sous ou sur les bougies)
-//             ou [{ i, v, cls, label? }] (rond à un prix, avec étiquette), zones : [{ from, to, cls }] (bandes verticales de fond) },
+//             levels : [{ v, label, cls }] (lignes horizontales du plan), marks : [{ i, dir : 'long' | 'short', cls }] (flèches sous ou sur les bougies) },
 //   panes : [{ title, h, fmt, kind : 'volume' | 'line' | 'bars' | 'macd', series : [{ key, label, cls, vals }],
 //              lo, hi, ticks, refs, bands }],
 // }
@@ -94,11 +93,6 @@ export function drawCandles(box, spec) {
     }
     for (const r of p.refs || []) svg.append(el('line', { x1: L, x2: W - R, y1: y(r), y2: y(r), class: 'ref' }));
 
-    // Zones de fond (jambes haussières ou baissières) : bandes verticales derrière les bougies.
-    for (const z of p.zones || []) {
-      const x1 = clamp(L + z.from * slot, L, W - R), x2 = clamp(L + (z.to + 1) * slot, L, W - R);
-      if (x2 > x1) svg.append(el('rect', { x: x1.toFixed(1), width: (x2 - x1).toFixed(1), y: top - 2, height: bottom - top + 4, class: `zone ${z.cls || ''}` }));
-    }
     if (p.kind === 'candles') {
       // Quatre tracés en tout (mèches et corps, hausse et baisse) : léger même avec des centaines de bougies.
       const bw = Math.max(1, Math.min(slot * 0.7, 14));
@@ -160,16 +154,7 @@ export function drawCandles(box, spec) {
     for (const m of p.marks || []) {
       const b = bars[m.i];
       if (!b) continue;
-      if (m.v != null) {
-        svg.append(el('circle', { cx: x(m.i).toFixed(1), cy: y(m.v).toFixed(1), r: 4.5, class: `mark dot ${m.cls || ''}` }));
-        // Étiquette facultative (prix d'un creux ou d'un sommet) : au-dessus du rond, ou en dessous près du haut.
-        if (m.label) {
-          const below = m.below ?? (y(m.v) < top + 16);
-          const tx = clamp(x(m.i), L + 20, W - R - 20);
-          svg.append(el('text', { x: tx.toFixed(1), y: (y(m.v) + (below ? 16 : -9)).toFixed(1), class: `mark-t ${m.cls || ''}` }, m.label));
-        }
-        continue;
-      }
+      if (m.v != null) { svg.append(el('circle', { cx: x(m.i).toFixed(1), cy: y(m.v).toFixed(1), r: 4.5, class: `mark dot ${m.cls || ''}` })); continue; }
       const cx = x(m.i), long = m.dir === 'long';
       const yy = long ? y(b[3]) + 5 : y(b[2]) - 5, s = long ? 1 : -1;
       svg.append(el('path', { d: `M${cx.toFixed(1)},${yy.toFixed(1)}l4.5,${8 * s}h-9Z`, class: `mark ${m.cls || ''}` }));

@@ -70,3 +70,30 @@ export function legSummary(bars) {
     past: r.legs.slice(-5, -1).reverse().map(l => ({ dir: l.dir, from: l.start.t, to: l.end.t, move: l.move })),
   };
 }
+
+// Détail de chaque jambe pour la fiche et la liste : creux (ou sommet) de départ, signal, extrême atteint,
+// et résultat en suivant le signal (achat au début d'une jambe haussière, vente au début de la suivante ;
+// l'inverse pour une jambe baissière, en short). La jambe en cours se mesure au dernier prix.
+export function legDetails(bars, r = legsOf(bars)) {
+  if (!r) return [];
+  const last = bars.at(-1);
+  return r.legs.map((l, k) => {
+    const prev = r.legs[k - 1], next = r.legs[k + 1];
+    const s = l.dir === 'up' ? 1 : -1;
+    const signal = { t: bars[l.from].t, price: bars[l.from].c };
+    const out = next ? { t: bars[next.from].t, price: bars[next.from].c } : null;
+    const exitPx = out ? out.price : last.c;
+    return {
+      n: k + 1, dir: l.dir, from: l.from, to: l.to, open: !next,
+      origin: prev ? { t: prev.ext.t, price: prev.ext.price } : null,
+      signal,
+      lagMs: prev ? signal.t - prev.ext.t : null,
+      fromOrigin: prev ? signal.price / prev.ext.price - 1 : null,
+      ext: { t: l.ext.t, price: l.ext.price },
+      exit: out,
+      move: l.ext.price / signal.price - 1,
+      result: s * (exitPx / signal.price - 1),
+      bars: (next ? next.from : bars.length) - l.from,
+    };
+  });
+}

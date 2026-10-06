@@ -882,22 +882,44 @@ p.lead { font-size: 13px; color: var(--fg2); margin: 0 0 14px; max-width: 720px;
 .leg-past { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 3px; }
 .leg-past .up { color: var(--up); }
 .leg-past .down { color: var(--down); }
-/* Graphique des jambes */
-.cx-chart .zone.up { fill: var(--up-soft); opacity: .55; }
-.cx-chart .zone.down { fill: var(--down-soft); opacity: .55; }
-.cx-chart .mark.top { fill: var(--accent); }
-.cx-chart .mark.bottom { fill: var(--up); }
-.cx-chart .mark-t { font: 500 10.5px var(--sans); text-anchor: middle; paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
-.cx-chart .mark-t.top { fill: var(--accent-ink); }
-.cx-chart .mark-t.bottom { fill: var(--up); }
-.jb { padding: 14px; display: grid; gap: 10px; margin-bottom: 16px; }
-.jb h2 { margin: 0; }
+/* Graphique des jambes (catégorie Indicateurs) */
+.jb { padding: 14px; display: grid; gap: 10px; margin-bottom: 16px; min-width: 0; }
+.jb-head { display: flex; align-items: center; gap: 8px; }
+.jb-head h2 { margin: 0; padding: 0; flex: 1; }
+.jb-btns { display: flex; gap: 6px; }
+.jb-ico { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font-size: 18px; cursor: pointer; }
+.jb-ico:hover { border-color: var(--accent); }
 .jb .tools { margin: 0; }
-.jb-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
-.jb-key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
-.jb-key .k-up { background: var(--up-soft); border: 1px solid var(--up); }
-.jb-key .k-down { background: var(--down-soft); border: 1px solid var(--down); }
-.jb-key .k-top { background: var(--accent); border-radius: 50%; }
-.jb-key .k-bot { background: var(--up); border-radius: 50%; }
+.jb .tools.sm .chip { font-size: 11px; padding: 5px 10px; }
+.jb-layers { font-size: 13px; }
+.jb-layers summary { cursor: pointer; color: var(--fg2); }
+.jb-checks { display: flex; flex-wrap: wrap; gap: 8px 16px; padding-top: 8px; }
+.jb-checks label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.jb-checks input { accent-color: var(--accent); width: 16px; height: 16px; }
+.jb-read { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--muted); min-height: 34px; }
+.jb-read b { color: var(--fg); font-weight: 500; width: 100%; }
+.jb-read i { font-style: normal; font-family: var(--mono); color: var(--fg); }
+.jb-read i.up, .jb-read .up { color: var(--up); } .jb-read i.down, .jb-read .down { color: var(--down); }
+.jb-read .m9 { color: var(--s-ma20, #a78bfa); } .jb-read .m21 { color: var(--s-ma50); }
+.jb-chart { height: 380px; position: relative; touch-action: pan-y; }
+@media (min-width: 700px) { .jb-chart { height: 480px; } }
+.jb-hint { font-size: 11px; color: var(--muted); margin: -4px 0 0; }
 .jb-note { font-size: 12px; color: var(--fg2); margin: 0; }
+.jb-list summary { cursor: pointer; font-size: 13px; color: var(--fg2); margin-bottom: 6px; }
+.jb-table tr[data-leg] { cursor: pointer; }
+.jb-table tr[data-leg]:hover td, .jb-table tr.on td { background: var(--accent-soft); }
+.jb-table .up { color: var(--up); } .jb-table .down { color: var(--down); }
+.leg-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 4px 0 0; font-size: 13px; }
+.leg-dl dt { color: var(--muted); }
+.leg-dl dd { margin: 0; font-family: var(--mono); font-size: 12.5px; }
+.leg-dl dd .muted { font-family: var(--sans); }
+.leg-dl dd.up { color: var(--up); } .leg-dl dd.down { color: var(--down); }
+.leg-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.leg-nav .chip:disabled { opacity: .4; cursor: default; }
+.jb.full { position: fixed; inset: 0; z-index: 200; margin: 0; border-radius: 0; overflow: auto; align-content: start; }
+.jb.full .jb-chart { height: 72vh; }
+body.jb-locked { overflow: hidden; }
 .leg .jb-go { font: 500 12px var(--sans); color: var(--accent-ink); background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
+.jb-table th, .jb-table td { padding: 8px 6px; font-size: 12px; white-space: nowrap; }
+.jb-sum { font-size: 13px; margin: 0; color: var(--fg2); }
+.jb-sum .up { color: var(--up); } .jb-sum .down { color: var(--down); }

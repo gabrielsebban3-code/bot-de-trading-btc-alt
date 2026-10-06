@@ -264,3 +264,19 @@ test('toWeeks regroupe les journées par semaine du lundi', async () => {
   assert.deepEqual(w[0], { t: MON, o: 100, h: 116, l: 90, c: 107, v: 7 });
   assert.equal(legsOf(w), null, 'pas assez de semaines pour les moyennes');
 });
+
+test('legDetails mesure le retard sur le creux et le résultat de chaque jambe', async () => {
+  const { legDetails } = await import('../js/legs-lib.js');
+  const daily = Array.from({ length: 100 }, (_, i) => {
+    const c = i < 60 ? 200 - i : 140 + (i - 59) * 2;
+    return { t: T0 + i * DAY, o: c, h: c + 1, l: c - 1, c, v: 1000 };
+  });
+  const legs = legDetails(daily);
+  const cur = legs.at(-1);
+  assert.equal(cur.dir, 'up');
+  assert.equal(cur.open, true);
+  assert.equal(cur.origin.price, 140, 'plus bas de la jambe baissière d\'avant');
+  assert.ok(cur.lagMs > 0 && cur.fromOrigin > 0, 'le signal arrive après le creux, plus haut que lui');
+  assert.equal(cur.result, 220 / cur.signal.price - 1);
+  assert.equal(cur.exit, null);
+});
