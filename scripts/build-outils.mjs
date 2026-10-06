@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { attempt, fetchJson, fetchText, mapLimit } from './lib/http.mjs';
 import { mergeFlows, parseFarside } from '../js/outils-data.js';
+import { mergePoints } from '../js/marche-lib.js';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
@@ -75,6 +76,30 @@ async function longShort(ccy) {
   return rows.map(r => [Math.floor(Number(r[0]) / 86_400_000), Number(r[1])]).filter(([, v]) => v > 0).sort((a, b) => a[0] - b[0]);
 }
 
+// Part des montants en long chez les gros traders d'OKX (les 5 % de comptes aux plus grosses positions) :
+// longs ÷ shorts en valeur, une valeur par jour. OKX donne 100 jours par demande : on remonte de quelques pages.
+async function topTraders(ccy) {
+  const rows = [];
+  let end = '';
+  for (let i = 0; i < 4; i++) {
+    const page = await okx(`/rubik/stat/contracts/long-short-position-ratio-contract-top-trader?instId=${ccy}-USDT-SWAP&period=1D&limit=100${end && `&end=${end}`}`);
+    if (!page.length) break;
+    rows.push(...page);
+    const oldest = Math.min(...page.map(r => Number(r[0])));
+    if (end && oldest >= Number(end)) break;
+    end = String(oldest - 1);
+  }
+  const m = new Map(rows.map(r => [Math.floor(Number(r[0]) / 86_400_000), Number(r[1])]).filter(([, v]) => v > 0));
+  return [...m].sort((a, b) => a[0] - b[0]);
+}
+
+// Achats et ventes « au marché » (ordres qui prennent le prix tout de suite) sur les contrats : part des achats en %.
+async function taker(ccy) {
+  const rows = await okx(`/rubik/stat/taker-volume?ccy=${ccy}&instType=CONTRACTS&period=1D`);
+  return rows.map(r => [Math.floor(Number(r[0]) / 86_400_000), Number(r[2]), Number(r[1])])
+    .filter(([, b, s]) => b + s > 0).map(([d, b, s]) => [d, b / (b + s) * 100]).sort((a, b) => a[0] - b[0]);
+}
+
 async function main() {
   const now = new Date();
   console.log(`Dinexo · Outils (données) · ${now.toISOString()}`);
@@ -87,9 +112,14 @@ async function main() {
   const fund = take('funding (OKX, Hyperliquid)', await attempt('Funding', funding));
   const lsBtc = take('long/short BTC (OKX)', await attempt('Long/short BTC', () => longShort('BTC')));
   const lsEth = take('long/short ETH (OKX)', await attempt('Long/short ETH', () => longShort('ETH')));
+  const topBtc = take('gros traders BTC (OKX)', await attempt('Gros traders BTC', () => topTraders('BTC')));
+  const topEth = take('gros traders ETH (OKX)', await attempt('Gros traders ETH', () => topTraders('ETH')));
+  const tkBtc = take('acheteurs / vendeurs BTC (OKX)', await attempt('Acheteurs BTC', () => taker('BTC')));
+  const tkEth = take('acheteurs / vendeurs ETH (OKX)', await attempt('Acheteurs ETH', () => taker('ETH')));
   const eur = take('euro (BCE via frankfurter.app)', await attempt('Euro', () => fetchJson('https://api.frankfurter.app/latest?from=EUR&to=USD', { retries: 2 })));
 
   const old = previous?.etf || {};
+  const keep = (before, next) => mergePoints(before || [], next || [], 1500).map(([d, v]) => [d, Math.round(v * 1000) / 1000]);
   const out = {
     generatedAt: now.toISOString(),
     sample: Boolean(args.sample),
@@ -99,7 +129,10 @@ async function main() {
       eth: ethEtf ? mergeFlows(old.eth, ethEtf) : old.eth ?? null,
     },
     funding: fund ?? previous?.funding ?? [],
-    longShort: { btc: lsBtc ?? previous?.longShort?.btc ?? [], eth: lsEth ?? previous?.longShort?.eth ?? [] },
+    longShort: { btc: keep(previous?.longShort?.btc, lsBtc), eth: keep(previous?.longShort?.eth, lsEth) },
+    // Ces séries gardent l'historique déjà publié : OKX ne donne que les derniers mois.
+    topTraders: { btc: keep(previous?.topTraders?.btc, topBtc), eth: keep(previous?.topTraders?.eth, topEth) },
+    taker: { btc: keep(previous?.taker?.btc, tkBtc), eth: keep(previous?.taker?.eth, tkEth) },
     eur: eur?.rates?.USD ? { usd: eur.rates.USD, date: eur.date } : previous?.eur ?? null,
   };
   await mkdir(OUT, { recursive: true });
@@ -111,6 +144,7 @@ async function main() {
   }
   console.log(`Funding : ${out.funding.map(f => `${f.sym} ${f.okx?.toFixed(4)}/${f.hyperliquid?.toFixed(4) ?? '—'}`).join(', ')}`);
   console.log(`Long/short : BTC ${out.longShort.btc.length} jours (dernier ${out.longShort.btc.at(-1)?.[1]}), ETH ${out.longShort.eth.length}`);
+  for (const k of ['topTraders', 'taker']) console.log(`${k} : BTC ${out[k].btc.length} jours (dernier ${JSON.stringify(out[k].btc.at(-1))}), ETH ${out[k].eth.length}`);
   console.log(`Euro : ${JSON.stringify(out.eur)}`);
   // Sur une branche de test, une copie allégée part dans le journal pour les aperçus (bêta) : le total de chaque jour,
   // le détail par ETF sur les 20 derniers jours seulement, avec des sommes de contrôle pour vérifier la recopie.
@@ -123,8 +157,13 @@ async function main() {
       etf: { btc: etfLite(out.etf.btc), eth: etfLite(out.etf.eth) },
       funding: out.funding.map(f => ({ sym: f.sym, price: Number(f.price.toPrecision(6)), volume: Math.round(f.volume), okx: r(f.okx, 5), hyperliquid: f.hyperliquid == null ? null : r(f.hyperliquid, 5) })),
       longShort: { btc: out.longShort.btc.map(([d, v]) => [d, r(v, 2)]), eth: out.longShort.eth.map(([d, v]) => [d, r(v, 2)]) },
+      topTraders: out.topTraders,
+      taker: out.taker,
       eur: out.eur,
     };
+    // Courbes de l'onglet Marché (prix, peur et avidité, open interest, funding), si elles sont déjà prêtes à ce passage.
+    const marche = await readFile(join(OUT, 'marche.json'), 'utf8').then(JSON.parse).catch(() => null);
+    if (marche?.series) lite.series = Object.fromEntries(['btc', 'eth', 'fng', 'oi', 'funding'].map(k => [k, marche.series[k]?.points?.map(([d, v]) => [d, Number(v.toPrecision(5))])]));
     const sum = list => r(list.reduce((s, v) => s + v, 0), 2);
     console.log(`OUTILS_CHECK ${JSON.stringify({
       btc: lite.etf.btc && [lite.etf.btc.days.length, sum(lite.etf.btc.days.map(d => d[1]))],

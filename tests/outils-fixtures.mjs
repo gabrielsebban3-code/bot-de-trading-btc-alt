@@ -55,6 +55,16 @@ export function routeOutils(url) {
       const r = rand(q('ccy') === 'ETH' ? 5 : 3);
       return ok(Array.from({ length: 180 }, (_, i) => [String((END - i) * DAY), (1.6 + Math.sin(i / 17) * 0.5 + r() * 0.3).toFixed(2)]));
     }
+    if (u.pathname === '/api/v5/rubik/stat/contracts/long-short-position-ratio-contract-top-trader') {
+      const r = rand(q('instId')?.startsWith('ETH') ? 13 : 17);
+      const end = q('end') ? Math.floor(Number(q('end')) / DAY) : END;
+      if (END - end > 250) return ok([]);
+      return ok(Array.from({ length: 100 }, (_, i) => [String((end - i) * DAY), (1.2 + Math.sin((end - i) / 13) * 0.4 + r() * 0.2).toFixed(4)]));
+    }
+    if (u.pathname === '/api/v5/rubik/stat/taker-volume') {
+      const r = rand(q('ccy') === 'ETH' ? 19 : 23);
+      return ok(Array.from({ length: 180 }, (_, i) => { const b = 50 + Math.sin(i / 9) * 4 + r() * 3; return [String((END - i) * DAY), String((100 - b) * 1000), String(b * 1000)]; }));
+    }
     return undefined;
   }
   if (u.host === 'api.hyperliquid.xyz') {
