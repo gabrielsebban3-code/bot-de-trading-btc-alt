@@ -157,6 +157,7 @@ En-tête (partout) : logo · onglets · bandeau critique · ticker de la watchli
 ├── Setups → Fiche setup
 ├── Actu
 └── Plus
+    ├── Académie : formation (15 modules, 74 leçons, quiz, exercices, examen final)
     ├── Historique
     └── Mon compte (watchlist, admin)
 Pied de page : avertissement « pas un conseil financier »
