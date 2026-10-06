@@ -841,3 +841,24 @@ body:not(.premium) .premium-only, body.premium .free-only { display: none !impor
   .sc-table th, .sc-table td { padding-left: 6px; padding-right: 6px; font-size: 12px; }
   .sc-table td:nth-child(5) { white-space: normal; }
 }
+
+/* Setups : catégories Setups / Indicateurs */
+.tools.cats { margin: 4px 0 16px; }
+.tools.cats .chip { font-size: 14px; padding: 8px 18px; }
+p.lead { font-size: 13px; color: var(--fg2); margin: 0 0 14px; max-width: 720px; }
+.ind-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.ind-grid .card { gap: 10px; cursor: default; }
+.ind-grid .ind-sum { font-size: 14px; }
+.ind-grid .ind-sum b.up { color: var(--up); }
+.ind-grid .ind-sum b.down { color: var(--down); }
+.ind-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ind-list li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ind-list .ik { font-size: 13px; font-weight: 500; color: var(--fg); }
+.ind-list .iv { font: 13px var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.ind-list .iv.up { color: var(--up); }
+.ind-list .iv.down { color: var(--down); }
+.ind-list .it { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.ind-grid .px { margin-left: auto; font: 13px var(--mono); font-variant-numeric: tabular-nums; }
+.ind-grid .sm { font-size: 12px; color: var(--muted); }
+.ind-grid .go { font-size: 12px; color: var(--muted); }
+.ind-grid .go:hover { color: var(--accent-ink); }

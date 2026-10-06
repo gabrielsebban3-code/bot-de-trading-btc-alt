@@ -8,7 +8,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { fetchJson, mapLimit } from './lib/http.mjs';
-import { BAR, DETECTORS, RULES, detectorStats, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
+import { BAR, DETECTORS, RULES, detectorStats, indicatorState, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
@@ -87,6 +87,7 @@ async function main() {
           change24h: tk && Number(tk.open24h) ? last / Number(tk.open24h) - 1 : null,
           trend: trend1d(daily, now),
           radar: radar(bars, daily),
+          ind: indicatorState(bars, daily),
         },
         signals, bars, daily,
         start: bars[Math.max(RULES.warmup, bars.length - RULES.backtestBars - 1)]?.t,

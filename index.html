@@ -187,6 +187,15 @@
         <p>3 indicateurs sur bougies 4h (<b>Cassure 20 jours, Cassure 10 jours, MACD</b>) sur <b>BTC, ETH, SOL et le pétrole Brent</b> (perpétuels OKX), retenus parmi plus de 200 000 combinaisons testées sur 3 ans et demi. <b>Un signal ne compte que s'il va dans le sens de la tendance journalière</b> : long quand le marché monte, short quand il baisse. <span>Cassure 20 jours : une bougie 4h clôture au-dessus du plus haut des 20 derniers jours (sous le plus bas pour un short). Cassure 10 jours : pareil sur 10 jours. MACD : l'histogramme 4h repasse au-dessus de zéro (en dessous pour un short). Un seul trade à la fois par paire, et seulement s'il y a au moins 2R de marge avant le prochain niveau. Stop serré à 0,75 ATR journalier. À 5R on prend la moitié et le stop remonte au prix d'entrée. Le reste sort quand une journée clôture sous le plus bas des 7 derniers jours (au-dessus du plus haut pour un short). Beaucoup de petits stops, quelques gros gains qui les paient. « En cours » : la bougie 4h n'est pas fermée, le signal peut disparaître.</span></p>
         <button type="button">Compris</button></div>
       <h1>Setups dans le sens de la tendance · BTC, ETH, SOL, pétrole</h1>
+      <div class="tools cats" id="setups-cats" role="group" aria-label="Catégorie">
+        <button type="button" class="chip" data-cat="setups" aria-pressed="true">Setups</button>
+        <button type="button" class="chip" data-cat="ind" aria-pressed="false">Indicateurs</button>
+      </div>
+      <div id="setups-cat-ind" hidden>
+        <p class="lead">Où en est chaque paire, indicateur par indicateur, expliqué simplement. Ce ne sont pas des signaux d'achat ou de vente : juste l'état du marché, mis à jour à chaque bougie de 4 h.</p>
+        <div class="ind-grid" id="setups-ind"></div>
+      </div>
+      <div id="setups-cat-setups">
       <div id="setups-warnings"></div>
       <h2 class="section">Les 4 paires en ce moment <span class="muted">clique sur une paire pour ouvrir sa fiche</span></h2>
       <div class="radar" id="setups-radar"></div>
@@ -196,6 +205,7 @@
       <div class="tools" id="setups-filters" role="group" aria-label="Filtres"></div>
       <p class="count" id="setups-count"></p>
       <div class="grid" id="setups-grid"></div>
+      </div>
       <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
     </section>
 

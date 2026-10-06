@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
   BAR, RULES, atr, dailyContext, detectMacd, detectRange10, detectRange20, detectorStats, evaluate,
-  exitLevel, fmtPx, hasRoom, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, trend1d,
+  exitLevel, fmtPx, hasRoom, indicatorState, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, trend1d,
 } from '../scripts/lib/setups.mjs';
 
 const DAY = 86_400_000;
@@ -218,4 +218,25 @@ test('build-setups écrit setups.json pour BTC, ETH, SOL et le Brent seulement',
   // Peu de signaux : un trade à la fois par actif, des trades de plusieurs jours.
   const spanDays = (Math.max(...out.history.map(h => h.time)) - Math.min(...out.history.map(h => h.time))) / DAY;
   assert.ok(out.history.length <= spanDays / 3, `${out.history.length} signaux sur ${Math.round(spanDays)} jours`);
+});
+
+test('indicatorState décrit une paire en tendance haussière, sans signal', () => {
+  const daily = trendDays(0.5, 220);
+  const b = Array.from({ length: 120 }, (_, i) => {
+    const c = 95 + i * 0.05;
+    return { t: T0 - (120 - i) * BAR, o: c - 0.05, h: c + 0.2, l: c - 0.2, c, v: 1000, closed: true };
+  });
+  const s = indicatorState(b, daily);
+  const by = Object.fromEntries(s.items.map(x => [x.key, x]));
+  assert.equal(by.trend.value, 'haussière');
+  assert.equal(by.trend.tone, 'up');
+  assert.equal(by.ma200.tone, 'up');
+  assert.equal(by.macd.value, 'haussier');
+  assert.equal(by.rsi1d.tone, 'down', 'une montée sans pause = surachat, signalé en rouge');
+  assert.equal(s.verdict, 'plutôt haussier');
+  assert.ok(s.items.every(x => x.text && x.label && x.value));
+});
+
+test('indicatorState renvoie null sans assez d\'historique', () => {
+  assert.equal(indicatorState(bars(), trendDays(0.5, 30)), null);
 });

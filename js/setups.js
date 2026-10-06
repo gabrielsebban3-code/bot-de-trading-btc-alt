@@ -15,7 +15,7 @@ export const TREND = { haussière: 'up', baissière: 'down', neutre: '' };
 
 let data = null;
 let projectsBySymbol = new Map();
-const state = { detectors: null, kind: 'all', dir: 'all', watch: false };
+const state = { detectors: null, kind: 'all', dir: 'all', watch: false, cat: 'setups' };
 const store = {
   get() { try { return JSON.parse(localStorage.getItem('dinexo-setups')) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem('dinexo-setups', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
@@ -132,6 +132,29 @@ function radarCard(a) {
   return `<a class="card" href="#paire/${encodeURIComponent(a.symbol)}">${head}${radarBody(a)}${lastLine}<span class="go">Voir la fiche ${esc(a.symbol)} →</span></a>`;
 }
 
+// Catégorie Indicateurs : une carte par paire avec l'état de ses indicateurs, sans signal de trade.
+const VERDICT = { 'plutôt haussier': 'up', 'plutôt baissier': 'down', partagé: '' };
+export function indicatorCard(a) {
+  const ind = a.ind;
+  const head = `<span class="hd"><b class="mono">${esc(a.symbol)}</b><span class="muted">${esc(a.name)}</span><span class="px">${px(a.price)}</span></span>`;
+  if (!ind) return `<div class="card">${head}<span class="sm">Pas assez de données pour le moment.</span></div>`;
+  const rows = ind.items.map(x => `<li><span class="ik">${esc(x.label)}</span><span class="iv ${x.tone}">${esc(x.value)}</span><span class="it">${esc(x.text)}</span></li>`).join('');
+  return `<div class="card">${head}
+    <span class="ind-sum">Dans l'ensemble : <b class="${VERDICT[ind.verdict] ?? ''}">${esc(ind.verdict)}</b> <span class="muted">(${ind.ups} vert${ind.ups > 1 ? 's' : ''}, ${ind.downs} rouge${ind.downs > 1 ? 's' : ''})</span></span>
+    <ul class="ind-list">${rows}</ul>
+    <a class="go" href="#paire/${encodeURIComponent(a.symbol)}">Voir la fiche ${esc(a.symbol)} →</a></div>`;
+}
+
+function renderIndicators() {
+  document.getElementById('setups-ind').innerHTML = data.assets.map(indicatorCard).join('');
+}
+
+function renderCat() {
+  for (const b of document.querySelectorAll('#setups-cats .chip')) b.setAttribute('aria-pressed', String(b.dataset.cat === state.cat));
+  document.getElementById('setups-cat-setups').hidden = state.cat !== 'setups';
+  document.getElementById('setups-cat-ind').hidden = state.cat !== 'ind';
+}
+
 function renderRadar() {
   document.getElementById('setups-radar').innerHTML = data.assets.map(radarCard).join('');
 }
@@ -184,9 +207,19 @@ export function initSetups(setupsData, projects) {
     else state[b.dataset.f] = b.dataset.v;
     update();
   });
+  document.getElementById('setups-cats').addEventListener('click', e => {
+    const c = e.target.closest('.chip')?.dataset.cat;
+    if (!c) return;
+    state.cat = c;
+    store.set(state);
+    renderCat();
+  });
   watchlist.subscribe(() => { if (state.watch) renderList(); });
   document.getElementById('setups-warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
+  if (!['setups', 'ind'].includes(state.cat)) state.cat = 'setups';
   chips();
+  renderCat();
+  renderIndicators();
   renderRadar();
   renderList();
   renderHistory();
