@@ -1,3 +1,5 @@
+import { LEG, legSummary } from '../../js/legs-lib.js';
+
 // Logique de l'onglet Setups : 3 indicateurs de cassure et d'élan sur bougies 4h (BTC, ETH, SOL, Brent),
 // gardés seulement dans le sens de la tendance journalière, puis gérés en suivi de tendance :
 // stop à 0,75 ATR journalier, moitié prise à 5R, reste gardé tant que la tendance tient.
@@ -390,4 +392,106 @@ export function mergeHistory(previous, fresh, freshStart, now = Date.now(), symb
     && (freshStart[s.detector] === undefined || s.time < freshStart[s.detector]));
   const ids = new Set(fresh.map(s => s.id));
   return [...kept.filter(s => !ids.has(s.id)), ...fresh].sort((a, b) => b.time - a.time);
+}
+
+// ---------- Catégorie Indicateurs : état de chaque paire, en mots simples, sans signal de trade ----------
+
+function rsiOf(closes, p = 14) {
+  const out = new Array(closes.length).fill(null);
+  if (closes.length <= p) return out;
+  let g = 0, l = 0;
+  for (let k = 1; k <= p; k++) { const d = closes[k] - closes[k - 1]; if (d >= 0) g += d; else l -= d; }
+  g /= p; l /= p;
+  out[p] = l === 0 ? 100 : 100 - 100 / (1 + g / l);
+  for (let k = p + 1; k < closes.length; k++) {
+    const d = closes[k] - closes[k - 1];
+    g = (g * (p - 1) + Math.max(d, 0)) / p; l = (l * (p - 1) + Math.max(-d, 0)) / p;
+    out[k] = l === 0 ? 100 : 100 - 100 / (1 + g / l);
+  }
+  return out;
+}
+
+function rsiItem(key, label, v, unit) {
+  const r = Math.round(v);
+  if (v >= 70) return { key, label, value: `${r} / 100`, tone: 'down', text: `Surachat : le prix a beaucoup monté ${unit}. Une pause ou un petit repli est fréquent après.` };
+  if (v <= 30) return { key, label, value: `${r} / 100`, tone: 'up', text: `Survente : le prix a beaucoup baissé ${unit}. Un rebond est fréquent après.` };
+  if (v >= 55) return { key, label, value: `${r} / 100`, tone: 'up', text: `Les acheteurs dominent ${unit}, sans excès.` };
+  if (v <= 45) return { key, label, value: `${r} / 100`, tone: 'down', text: `Les vendeurs dominent ${unit}, sans excès.` };
+  return { key, label, value: `${r} / 100`, tone: '', text: `Équilibre entre acheteurs et vendeurs ${unit}.` };
+}
+
+// Bougies fermées seulement. Renvoie null s'il n'y a pas assez d'historique.
+export function indicatorState(bars4h, dailyAll) {
+  const bars = bars4h.filter(b => b.closed !== false);
+  const daily = dailyAll.filter(d => d.closed !== false);
+  if (daily.length < 60 || bars.length < 60) return null;
+  const dc = dailyContext(daily);
+  const j = daily.length - 1, d = daily[j], price = bars.at(-1).c;
+  const items = [];
+
+  // 1. Tendance de fond (la même que celle qui filtre les setups).
+  const t = dc.trend[j];
+  items.push({ key: 'trend', label: 'Tendance de fond', value: t, tone: TONE[t],
+    text: t === 'haussière' ? 'Le prix est au-dessus de ses moyennes 20 et 50 jours, et la courte est au-dessus de la longue : le marché monte.'
+      : t === 'baissière' ? 'Le prix est sous ses moyennes 20 et 50 jours, et la courte est sous la longue : le marché baisse.'
+        : 'Les moyennes 20 et 50 jours ne donnent pas de direction claire.' });
+
+  // 2. Moyenne 200 jours : le grand juge du long terme.
+  if (daily.length >= 200) {
+    const m200 = daily.slice(-200).reduce((a, x) => a + x.c, 0) / 200;
+    const gap = d.c / m200 - 1;
+    items.push({ key: 'ma200', label: 'Moyenne 200 jours', value: `${gap >= 0 ? '+' : '−'}${fmtN(Math.abs(gap) * 100)} %`, tone: gap >= 0 ? 'up' : 'down',
+      text: gap >= 0 ? 'Au-dessus : sur le long terme, le marché reste plutôt haussier.' : 'En dessous : sur le long terme, le marché reste plutôt baissier.' });
+  }
+
+  // 3 et 4. RSI : force des acheteurs face aux vendeurs (0 à 100).
+  items.push(rsiItem('rsi1d', 'Force (RSI jour)', rsiOf(daily.map(x => x.c)).at(-1), 'ces deux dernières semaines'));
+  items.push(rsiItem('rsi4h', 'Force (RSI 4 h)', rsiOf(bars.map(x => x.c)).at(-1), 'ces deux derniers jours'));
+
+  // 5. MACD 4h : l'élan accélère ou ralentit.
+  const h = macdHist(bars), h0 = h.at(-1), h1 = h.at(-2);
+  const up = h0 > 0, faster = Math.abs(h0) > Math.abs(h1);
+  items.push({ key: 'macd', label: 'Élan (MACD 4 h)', value: up ? 'haussier' : 'baissier', tone: up ? 'up' : 'down',
+    text: `L'élan est ${up ? 'à la hausse' : 'à la baisse'} et ${faster ? 'accélère' : 'ralentit'}.${(h1 <= 0) !== (h0 <= 0) ? ' Il vient de changer de sens.' : ''}` });
+
+  // 6. Place dans la zone du mois : près du plus haut, du plus bas, ou au milieu.
+  const hi = maxH(daily, j - 19, j + 1), lo = minL(daily, j - 19, j + 1);
+  const pos = hi > lo ? (price - lo) / (hi - lo) : 0.5;
+  items.push({ key: 'range', label: 'Place dans le mois', value: `${Math.round(pos * 100)} %`, tone: pos >= 0.8 ? 'up' : pos <= 0.2 ? 'down' : '',
+    text: pos >= 0.8 ? `Tout près du plus haut du mois (${fmtPx(hi)}).` : pos <= 0.2 ? `Tout près du plus bas du mois (${fmtPx(lo)}).`
+      : `Entre le plus bas (${fmtPx(lo)}) et le plus haut (${fmtPx(hi)}) du mois.` });
+
+  // 7. Agitation : taille moyenne des journées, comparée aux 3 derniers mois.
+  const a = dc.atr[j], past = dc.atr.slice(Math.max(14, j - 90), j).filter(Boolean).sort((x, y) => x - y);
+  const med = past[Math.floor(past.length / 2)];
+  if (a && med) {
+    const ratio = a / med;
+    items.push({ key: 'vol', label: 'Agitation', value: `${fmtN((a / d.c) * 100)} % par jour`, tone: '',
+      text: ratio >= 1.3 ? 'Le prix bouge beaucoup plus que d\'habitude : stops plus larges, prudence.'
+        : ratio <= 0.75 ? 'Le prix bouge beaucoup moins que d\'habitude : un gros mouvement se prépare souvent après un calme.'
+          : 'Le prix bouge comme d\'habitude.' });
+  }
+
+  // 8. Volume de la veille comparé à la moyenne des 20 jours.
+  const vAvg = daily.slice(-21, -1).reduce((s, x) => s + x.v, 0) / 20;
+  if (vAvg > 0) {
+    const vr = d.v / vAvg;
+    items.push({ key: 'volume', label: 'Volume d\'hier', value: `${vr >= 1 ? '+' : '−'}${Math.round(Math.abs(vr - 1) * 100)} %`, tone: '',
+      text: vr >= 1.5 ? 'Beaucoup plus d\'échanges que d\'habitude : le mouvement du jour compte.'
+        : vr <= 0.6 ? 'Peu d\'échanges : le mouvement du jour est peu fiable.' : 'Échanges normaux.' });
+  }
+
+  const ups = items.filter(x => x.tone === 'up').length, downs = items.filter(x => x.tone === 'down').length;
+  const verdict = ups - downs >= 2 ? 'plutôt haussier' : downs - ups >= 2 ? 'plutôt baissier' : 'partagé';
+  return { at: bars.at(-1).t + BAR, verdict, ups, downs, items };
+}
+const TONE = { haussière: 'up', baissière: 'down', neutre: '' };
+
+// ---------- Indicateur Jambe (logique partagée avec le site : js/legs-lib.js) ----------
+
+export function legState(dailyAll) {
+  const daily = dailyAll.filter(d => d.closed !== false);
+  if (daily.length < LEG.slow * 3) return null;
+  const r = legSummary(daily);
+  return r && { ...r, days: r.bars };
 }

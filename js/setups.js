@@ -2,6 +2,7 @@
 import { ago, esc, fmt } from './format.js';
 import { linkedNews, linkedText } from './news.js';
 import { watchlist } from './watchlist.js';
+import { mountLegs, showLegs } from './jambe.js';
 import { delayed, historyDays, hoursText, isPremium, onTier, visibleIn } from './premium.js';
 
 const BAR = 4 * 3600_000;
@@ -15,7 +16,7 @@ export const TREND = { haussière: 'up', baissière: 'down', neutre: '' };
 
 let data = null;
 let projectsBySymbol = new Map();
-const state = { detectors: null, kind: 'all', dir: 'all', watch: false };
+const state = { detectors: null, kind: 'all', dir: 'all', watch: false, cat: 'setups' };
 const store = {
   get() { try { return JSON.parse(localStorage.getItem('dinexo-setups')) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem('dinexo-setups', JSON.stringify(v)); } catch { /* stockage indisponible */ } },
@@ -132,6 +133,54 @@ function radarCard(a) {
   return `<a class="card" href="#paire/${encodeURIComponent(a.symbol)}">${head}${radarBody(a)}${lastLine}<span class="go">Voir la fiche ${esc(a.symbol)} →</span></a>`;
 }
 
+// Catégorie Indicateurs : une carte par paire avec l'état de ses indicateurs, sans signal de trade.
+const VERDICT = { 'plutôt haussier': 'up', 'plutôt baissier': 'down', partagé: '' };
+// Indicateur Jambe : petit graphique des 6 derniers mois, vert en jambe haussière, rouge en jambe baissière,
+// avec le creux (ou le sommet) d'où part la jambe en cours et l'extrême atteint depuis.
+const shortDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+export function legBlock(leg, sym) {
+  if (!leg) return '';
+  const up = leg.dir === 'up';
+  const o = leg.origin;
+  const past = leg.past.map(l => `<li><span class="${l.dir === 'up' ? 'up' : 'down'}">${l.dir === 'up' ? '▲' : '▼'}</span> ${shortDay(l.from)} → ${shortDay(l.to)} <b class="mono">${plainPct(l.move)}</b></li>`).join('');
+  return `<div class="leg ${up ? 'up' : 'down'}">
+    <span class="leg-hd"><b>${up ? 'Jambe haussière' : 'Jambe baissière'}</b> depuis le ${shortDay(leg.since.t)} <span class="muted">(${leg.days} j, bougies journalières)</span></span>
+    <span class="leg-txt">${o ? `Elle part du ${up ? 'creux' : 'sommet'} du ${shortDay(o.t)} à <b class="mono">${px(o.price)}</b> : ${plainPct(leg.fromOrigin)} depuis. ` : ''}${up ? 'Plus haut' : 'Plus bas'} atteint le ${shortDay(leg.ext.t)} : <b class="mono">${px(leg.ext.price)}</b>.</span>
+    <span class="leg-txt">${up ? 'On reste dans la jambe tant que la moyenne 9 jours reste au-dessus de la 21 jours.' : 'On reste à l\'écart (ou short) tant que la moyenne 9 jours reste sous la 21 jours.'}</span>
+    ${past ? `<details><summary>Jambes précédentes</summary><ul class="leg-past">${past}</ul></details>` : ''}
+    <button type="button" class="jb-go" data-jb-sym="${esc(sym)}">Voir les jambes de ${esc(sym)} sur le graphique ↑</button>
+  </div>`;
+}
+
+export function indicatorCard(a) {
+  const ind = a.ind;
+  const head = `<span class="hd"><b class="mono">${esc(a.symbol)}</b><span class="muted">${esc(a.name)}</span><span class="px">${px(a.price)}</span></span>`;
+  if (!ind) return `<div class="card">${head}<span class="sm">Pas assez de données pour le moment.</span></div>`;
+  const rows = ind.items.map(x => `<li><span class="ik">${esc(x.label)}</span><span class="iv ${x.tone}">${esc(x.value)}</span><span class="it">${esc(x.text)}</span></li>`).join('');
+  return `<div class="card">${head}
+    ${legBlock(a.leg, a.symbol)}
+    <span class="ind-sum">Dans l'ensemble : <b class="${VERDICT[ind.verdict] ?? ''}">${esc(ind.verdict)}</b> <span class="muted">(${ind.ups} vert${ind.ups > 1 ? 's' : ''}, ${ind.downs} rouge${ind.downs > 1 ? 's' : ''})</span></span>
+    <ul class="ind-list">${rows}</ul>
+    <a class="go" href="#paire/${encodeURIComponent(a.symbol)}">Voir la fiche ${esc(a.symbol)} →</a></div>`;
+}
+
+let legsMounted = false;
+function renderIndicators() {
+  document.getElementById('setups-ind').innerHTML = data.assets.map(indicatorCard).join('');
+  // Le graphique se charge à la première ouverture de la catégorie (moteur de graphique et bougies).
+  if (state.cat === 'ind' && !legsMounted) {
+    legsMounted = true;
+    mountLegs(document.getElementById('setups-legs'), data.assets.map(a => a.symbol));
+  }
+}
+
+function renderCat() {
+  for (const b of document.querySelectorAll('#setups-cats .chip')) b.setAttribute('aria-pressed', String(b.dataset.cat === state.cat));
+  document.getElementById('setups-cat-setups').hidden = state.cat !== 'setups';
+  document.getElementById('setups-cat-ind').hidden = state.cat !== 'ind';
+  if (data) renderIndicators();
+}
+
 function renderRadar() {
   document.getElementById('setups-radar').innerHTML = data.assets.map(radarCard).join('');
 }
@@ -184,9 +233,23 @@ export function initSetups(setupsData, projects) {
     else state[b.dataset.f] = b.dataset.v;
     update();
   });
+  document.getElementById('setups-cats').addEventListener('click', e => {
+    const c = e.target.closest('.chip')?.dataset.cat;
+    if (!c) return;
+    state.cat = c;
+    store.set(state);
+    renderCat();
+  });
+  document.getElementById('setups-ind').addEventListener('click', e => {
+    const b = e.target.closest('.jb-go');
+    if (b) showLegs(b.dataset.jbSym);
+  });
   watchlist.subscribe(() => { if (state.watch) renderList(); });
   document.getElementById('setups-warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
+  if (!['setups', 'ind'].includes(state.cat)) state.cat = 'setups';
   chips();
+  renderCat();
+  renderIndicators();
   renderRadar();
   renderList();
   renderHistory();

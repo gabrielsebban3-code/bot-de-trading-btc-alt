@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
   BAR, RULES, atr, dailyContext, detectMacd, detectRange10, detectRange20, detectorStats, evaluate,
-  exitLevel, fmtPx, hasRoom, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, trend1d,
+  exitLevel, fmtPx, hasRoom, indicatorState, legState, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, trend1d,
 } from '../scripts/lib/setups.mjs';
 
 const DAY = 86_400_000;
@@ -218,4 +218,65 @@ test('build-setups écrit setups.json pour BTC, ETH, SOL et le Brent seulement',
   // Peu de signaux : un trade à la fois par actif, des trades de plusieurs jours.
   const spanDays = (Math.max(...out.history.map(h => h.time)) - Math.min(...out.history.map(h => h.time))) / DAY;
   assert.ok(out.history.length <= spanDays / 3, `${out.history.length} signaux sur ${Math.round(spanDays)} jours`);
+});
+
+test('indicatorState décrit une paire en tendance haussière, sans signal', () => {
+  const daily = trendDays(0.5, 220);
+  const b = Array.from({ length: 120 }, (_, i) => {
+    const c = 95 + i * 0.05;
+    return { t: T0 - (120 - i) * BAR, o: c - 0.05, h: c + 0.2, l: c - 0.2, c, v: 1000, closed: true };
+  });
+  const s = indicatorState(b, daily);
+  const by = Object.fromEntries(s.items.map(x => [x.key, x]));
+  assert.equal(by.trend.value, 'haussière');
+  assert.equal(by.trend.tone, 'up');
+  assert.equal(by.ma200.tone, 'up');
+  assert.equal(by.macd.value, 'haussier');
+  assert.equal(by.rsi1d.tone, 'down', 'une montée sans pause = surachat, signalé en rouge');
+  assert.equal(s.verdict, 'plutôt haussier');
+  assert.ok(s.items.every(x => x.text && x.label && x.value));
+});
+
+test('indicatorState renvoie null sans assez d\'historique', () => {
+  assert.equal(indicatorState(bars(), trendDays(0.5, 30)), null);
+});
+
+test('legState suit la jambe en cours, son creux de départ et son plus haut', () => {
+  // 60 jours de baisse de 200 à 140, puis 40 jours de hausse jusqu'à 220.
+  const daily = Array.from({ length: 100 }, (_, i) => {
+    const c = i < 60 ? 200 - i : 140 + (i - 59) * 2;
+    return { t: T0 + i * DAY, o: c, h: c + 1, l: c - 1, c, v: 1000, closed: true };
+  });
+  const s = legState(daily);
+  assert.equal(s.dir, 'up');
+  assert.equal(s.origin.price, 140, 'le creux de la jambe baissière d\'avant');
+  assert.equal(s.ext.price, 221);
+  assert.ok(s.since.t > daily[59].t, 'le croisement arrive après le creux');
+  assert.equal(s.past[0].dir, 'down');
+});
+
+test('toWeeks regroupe les journées par semaine du lundi', async () => {
+  const { toWeeks, legsOf } = await import('../js/legs-lib.js');
+  const MON = Date.UTC(2026, 8, 7); // lundi 7 sept. 2026
+  const days = Array.from({ length: 14 }, (_, i) => ({ t: MON + i * DAY, o: 100 + i, h: 110 + i, l: 90 + i, c: 101 + i, v: 1 }));
+  const w = toWeeks(days);
+  assert.equal(w.length, 2);
+  assert.deepEqual(w[0], { t: MON, o: 100, h: 116, l: 90, c: 107, v: 7 });
+  assert.equal(legsOf(w), null, 'pas assez de semaines pour les moyennes');
+});
+
+test('legDetails mesure le retard sur le creux et le résultat de chaque jambe', async () => {
+  const { legDetails } = await import('../js/legs-lib.js');
+  const daily = Array.from({ length: 100 }, (_, i) => {
+    const c = i < 60 ? 200 - i : 140 + (i - 59) * 2;
+    return { t: T0 + i * DAY, o: c, h: c + 1, l: c - 1, c, v: 1000 };
+  });
+  const legs = legDetails(daily);
+  const cur = legs.at(-1);
+  assert.equal(cur.dir, 'up');
+  assert.equal(cur.open, true);
+  assert.equal(cur.origin.price, 140, 'plus bas de la jambe baissière d\'avant');
+  assert.ok(cur.lagMs > 0 && cur.fromOrigin > 0, 'le signal arrive après le creux, plus haut que lui');
+  assert.equal(cur.result, 220 / cur.signal.price - 1);
+  assert.equal(cur.exit, null);
 });

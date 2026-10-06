@@ -8,7 +8,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { fetchJson, mapLimit } from './lib/http.mjs';
-import { BAR, DETECTORS, RULES, detectorStats, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
+import { BAR, DETECTORS, RULES, detectorStats, indicatorState, legState, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
@@ -87,6 +87,8 @@ async function main() {
           change24h: tk && Number(tk.open24h) ? last / Number(tk.open24h) - 1 : null,
           trend: trend1d(daily, now),
           radar: radar(bars, daily),
+          ind: indicatorState(bars, daily),
+          leg: legState(daily),
         },
         signals, bars, daily,
         start: bars[Math.max(RULES.warmup, bars.length - RULES.backtestBars - 1)]?.t,
@@ -137,11 +139,11 @@ async function main() {
     assets: ok.map(r => r.asset), live: shown, stats, history, charts,
   }));
 
-  // Une fiche par paire (#paire/<symbole>) : 3 mois de bougies 4h et 14 mois de bougies journalières.
+  // Une fiche par paire (#paire/<symbole>) : 3 mois de bougies 4h et 20 mois de bougies journalières.
   // Le 7e nombre vaut 1 quand la bougie est fermée.
   await mkdir(join(OUT, 'paire'), { recursive: true });
   const row = b => [b.t, b.o, b.h, b.l, b.c, b.v, b.closed === false ? 0 : 1];
-  const pairs = ok.map(r => ({ symbol: r.asset.symbol, generatedAt: new Date(now).toISOString(), h4: r.bars.slice(-540).map(row), d1: r.daily.slice(-430).map(row) }));
+  const pairs = ok.map(r => ({ symbol: r.asset.symbol, generatedAt: new Date(now).toISOString(), h4: r.bars.slice(-540).map(row), d1: r.daily.slice(-600).map(row) }));
   for (const p of pairs) await writeFile(join(OUT, 'paire', `${p.symbol}.json`), JSON.stringify(p));
   // Sur une branche de test, les données sont compressées dans paire-gz.txt, recopié à la fin du journal pour les aperçus.
   if (process.env.PUBLISH === 'false') {
