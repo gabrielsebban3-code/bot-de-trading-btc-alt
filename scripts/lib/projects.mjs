@@ -12,6 +12,7 @@ export const DEFAULTS = {
   lowFloatPenalty: 0.85,  // la note d'un projet à faible flottant perd 15 %
   minVolume24h: 100_000,  // moins de 100 k$ échangés par jour : trop dur à acheter ou revendre
   deepDrop: -0.85,        // prix à plus de 85 % sous son plus haut historique, et toujours en baisse : écarté
+  oldAthYears: 3,         // plus haut vieux de plus de 3 ans : il faut aussi une hausse sur 1 an pour rester
 };
 
 const DAY = 86_400;
@@ -201,10 +202,14 @@ export function scoreProjects(projects, opts = DEFAULTS) {
 export const priceTrend = p => p.change200d ?? p.change30d ?? null;
 
 // Projets écartés après l'analyse détaillée : trop peu échangés, ou effondrés et toujours en baisse.
-export function exclusionReason(p, opts = DEFAULTS) {
+// Un vieux token (plus haut de plus de 3 ans) effondré doit être en hausse sur 1 an : un simple rebond ne suffit pas.
+export function exclusionReason(p, now = new Date(), opts = DEFAULTS) {
   if (p.volume24h !== null && p.volume24h < opts.minVolume24h) return 'volume';
+  if (p.athChange === null || p.athChange > opts.deepDrop) return null;
   const trend = priceTrend(p);
-  if (p.athChange !== null && p.athChange <= opts.deepDrop && trend !== null && trend < 0) return 'decline';
+  if (trend !== null && trend < 0) return 'decline';
+  const oldAth = p.athDate && now - new Date(p.athDate) > opts.oldAthYears * 365 * DAY * 1000;
+  if (oldAth && !(p.change1y > 0)) return 'decline';
   return null;
 }
 

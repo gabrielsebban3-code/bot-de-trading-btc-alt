@@ -58,7 +58,7 @@ Maquette de référence : [`mockup/index.html`](mockup/index.html).
 | Listing | **Pas encore sur Binance** (spot). Binance Alpha accepté avec un badge. Coinbase/Upbit n'excluent pas |
 | Classement | Top 25, recalculé à chaque mise à jour des données |
 | Score /100 | 35 % revenus du protocole · 25 % croissance (revenus sans les 3 plus gros jours + TVL sur 30 j) · 15 % valorisation (market cap ÷ revenu annualisé) · 10 % part des revenus reversée aux détenteurs (pleine à 50 %) · 15 % tendance du prix sur 200 j (30 j si token plus jeune) · faible flottant −15 % |
-| Écartés | volume 24 h < 100 k$ · prix à plus de 85 % sous le plus haut historique et tendance (200 j, sinon 30 j) en baisse |
+| Écartés | volume 24 h < 100 k$ · prix à plus de 85 % sous le plus haut historique et tendance (200 j, sinon 30 j) en baisse, ou plus haut de plus de 3 ans sans hausse sur 1 an |
 | Badges | **Buyback** (le protocole reverse des revenus aux détenteurs), **Accélère**, **Faible flottant** (< 30 % en circulation), **Binance Alpha**, **Sur OKX**, **Tendance** (CoinGecko) |
 | Fiche détaillée | Revenus 90 j, détail du score, TVL, investisseurs (VCs), flottant, buyback, où acheter (OKX ou DEX), liens |
 | Alertes | Nouveau projet dans le top, buyback détecté → Discord (plus tard) |

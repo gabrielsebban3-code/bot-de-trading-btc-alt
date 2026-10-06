@@ -117,6 +117,11 @@ test('exclusionReason écarte les tokens peu échangés et ceux effondrés qui b
   assert.equal(exclusionReason({ ...ok, athChange: -0.95, change200d: null, change30d: -10 }), 'decline', 'token jeune : tendance 30 jours');
   assert.equal(exclusionReason({ ...ok, athChange: -0.95, change200d: null, change30d: null }), null, 'tendance inconnue : gardé');
   assert.equal(exclusionReason({ ...ok, athChange: -0.7 }), null, 'chute moins forte');
+  const now = new Date('2026-10-06T00:00:00Z');
+  const old = { ...ok, athDate: '2021-10-08', athChange: -0.98, change200d: 25 };
+  assert.equal(exclusionReason({ ...old, change1y: -81 }, now), 'decline', 'vieux token : un rebond sur 200 jours ne suffit pas');
+  assert.equal(exclusionReason({ ...old, change1y: 30 }, now), null, 'vieux token en hausse sur 1 an : gardé');
+  assert.equal(exclusionReason({ ...old, athDate: '2024-12-13', change1y: -10 }, now), null, 'plus haut récent : le rebond suffit');
 });
 
 test('revenueStats : la croissance ignore les 3 plus gros jours de chaque mois', () => {

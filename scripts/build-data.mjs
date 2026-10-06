@@ -113,7 +113,7 @@ async function main() {
   // Écartés : trop peu échangés, ou effondrés et toujours en baisse.
   const excluded = [];
   const analysed = detailed.filter(p => {
-    const reason = exclusionReason(p);
+    const reason = exclusionReason(p, now);
     if (reason) excluded.push({ id: p.id, name: p.name, symbol: p.symbol, reason, volume24h: p.volume24h, athDate: p.athDate, athChange: p.athChange, trend: priceTrend(p) });
     return !reason;
   });
