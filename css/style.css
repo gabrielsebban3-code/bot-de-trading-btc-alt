@@ -862,3 +862,23 @@ p.lead { font-size: 13px; color: var(--fg2); margin: 0 0 14px; max-width: 720px;
 .ind-grid .sm { font-size: 12px; color: var(--muted); }
 .ind-grid .go { font-size: 12px; color: var(--muted); }
 .ind-grid .go:hover { color: var(--accent-ink); }
+/* Indicateur Jambe */
+.leg { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--bg); border-left: 3px solid var(--line); }
+.leg.up { border-left-color: var(--up); }
+.leg.down { border-left-color: var(--down); }
+.leg-hd { font-size: 14px; }
+.leg.up .leg-hd b { color: var(--up); }
+.leg.down .leg-hd b { color: var(--down); }
+.leg-txt { font-size: 12px; color: var(--fg2); }
+.leg-chart { width: 100%; height: 90px; display: block; }
+.leg-chart polyline { fill: none; stroke-width: 1.6; stroke-linejoin: round; }
+.leg-chart .lg-up { stroke: var(--up); }
+.leg-chart .lg-down { stroke: var(--down); }
+.leg-chart circle { stroke: var(--panel); stroke-width: 1.5; }
+.leg-chart .lg-lo { fill: var(--up); }
+.leg-chart .lg-hi { fill: var(--accent); }
+.leg details { font-size: 12px; color: var(--muted); }
+.leg summary { cursor: pointer; }
+.leg-past { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 3px; }
+.leg-past .up { color: var(--up); }
+.leg-past .down { color: var(--down); }

@@ -134,12 +134,49 @@ function radarCard(a) {
 
 // Catégorie Indicateurs : une carte par paire avec l'état de ses indicateurs, sans signal de trade.
 const VERDICT = { 'plutôt haussier': 'up', 'plutôt baissier': 'down', partagé: '' };
+// Indicateur Jambe : petit graphique des 6 derniers mois, vert en jambe haussière, rouge en jambe baissière,
+// avec le creux (ou le sommet) d'où part la jambe en cours et l'extrême atteint depuis.
+const shortDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+function legChart(leg) {
+  const pts = leg.series;
+  const W = 300, H = 90, P = 4;
+  const lo = Math.min(...pts.map(p => p[1])), hi = Math.max(...pts.map(p => p[1]));
+  const t0 = pts[0][0], t1 = pts.at(-1)[0];
+  const x = t => P + ((t - t0) / (t1 - t0 || 1)) * (W - 2 * P);
+  const y = v => P + (1 - (v - lo) / (hi - lo || 1)) * (H - 2 * P);
+  let paths = '', seg = [], d0 = pts[0][2];
+  const flush = dir => { if (seg.length > 1) paths += `<polyline class="${dir > 0 ? 'lg-up' : 'lg-down'}" points="${seg.join(' ')}"/>`; };
+  for (const [t, c, d] of pts) {
+    const pt = `${x(t).toFixed(1)},${y(c).toFixed(1)}`;
+    if (d !== d0) { seg.push(pt); flush(d0); seg = [pt]; d0 = d; } else seg.push(pt);
+  }
+  flush(d0);
+  const dot = (m, cls) => (m && m.t >= t0 ? `<circle class="${cls}" cx="${x(m.t).toFixed(1)}" cy="${y(Math.min(hi, Math.max(lo, m.price))).toFixed(1)}" r="3.5"/>` : '');
+  const up = leg.dir === 'up';
+  return `<svg class="leg-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Prix des 6 derniers mois, coloré selon la jambe">${paths}${dot(leg.origin, up ? 'lg-lo' : 'lg-hi')}${dot(leg.ext, up ? 'lg-hi' : 'lg-lo')}</svg>`;
+}
+
+export function legBlock(leg) {
+  if (!leg) return '';
+  const up = leg.dir === 'up';
+  const o = leg.origin;
+  const past = leg.past.map(l => `<li><span class="${l.dir === 'up' ? 'up' : 'down'}">${l.dir === 'up' ? '▲' : '▼'}</span> ${shortDay(l.from)} → ${shortDay(l.to)} <b class="mono">${plainPct(l.move)}</b></li>`).join('');
+  return `<div class="leg ${up ? 'up' : 'down'}">
+    <span class="leg-hd"><b>${up ? 'Jambe haussière' : 'Jambe baissière'}</b> depuis le ${shortDay(leg.since.t)} <span class="muted">(${leg.days} j)</span></span>
+    ${legChart(leg)}
+    <span class="leg-txt">${o ? `Elle part du ${up ? 'creux' : 'sommet'} du ${shortDay(o.t)} à <b class="mono">${px(o.price)}</b> : ${plainPct(leg.fromOrigin)} depuis. ` : ''}${up ? 'Plus haut' : 'Plus bas'} atteint le ${shortDay(leg.ext.t)} : <b class="mono">${px(leg.ext.price)}</b>.</span>
+    <span class="leg-txt">${up ? 'On reste dans la jambe tant que la moyenne 9 jours reste au-dessus de la 21 jours.' : 'On reste à l\'écart (ou short) tant que la moyenne 9 jours reste sous la 21 jours.'}</span>
+    ${past ? `<details><summary>Jambes précédentes</summary><ul class="leg-past">${past}</ul></details>` : ''}
+  </div>`;
+}
+
 export function indicatorCard(a) {
   const ind = a.ind;
   const head = `<span class="hd"><b class="mono">${esc(a.symbol)}</b><span class="muted">${esc(a.name)}</span><span class="px">${px(a.price)}</span></span>`;
   if (!ind) return `<div class="card">${head}<span class="sm">Pas assez de données pour le moment.</span></div>`;
   const rows = ind.items.map(x => `<li><span class="ik">${esc(x.label)}</span><span class="iv ${x.tone}">${esc(x.value)}</span><span class="it">${esc(x.text)}</span></li>`).join('');
   return `<div class="card">${head}
+    ${legBlock(a.leg)}
     <span class="ind-sum">Dans l'ensemble : <b class="${VERDICT[ind.verdict] ?? ''}">${esc(ind.verdict)}</b> <span class="muted">(${ind.ups} vert${ind.ups > 1 ? 's' : ''}, ${ind.downs} rouge${ind.downs > 1 ? 's' : ''})</span></span>
     <ul class="ind-list">${rows}</ul>
     <a class="go" href="#paire/${encodeURIComponent(a.symbol)}">Voir la fiche ${esc(a.symbol)} →</a></div>`;

@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
   BAR, RULES, atr, dailyContext, detectMacd, detectRange10, detectRange20, detectorStats, evaluate,
-  exitLevel, fmtPx, hasRoom, indicatorState, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, trend1d,
+  exitLevel, fmtPx, hasRoom, indicatorState, legState, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, trend1d,
 } from '../scripts/lib/setups.mjs';
 
 const DAY = 86_400_000;
@@ -239,4 +239,19 @@ test('indicatorState décrit une paire en tendance haussière, sans signal', () 
 
 test('indicatorState renvoie null sans assez d\'historique', () => {
   assert.equal(indicatorState(bars(), trendDays(0.5, 30)), null);
+});
+
+test('legState suit la jambe en cours, son creux de départ et son plus haut', () => {
+  // 60 jours de baisse de 200 à 140, puis 40 jours de hausse jusqu'à 220.
+  const daily = Array.from({ length: 100 }, (_, i) => {
+    const c = i < 60 ? 200 - i : 140 + (i - 59) * 2;
+    return { t: T0 + i * DAY, o: c, h: c + 1, l: c - 1, c, v: 1000, closed: true };
+  });
+  const s = legState(daily);
+  assert.equal(s.dir, 'up');
+  assert.equal(s.origin.price, 140, 'le creux de la jambe baissière d\'avant');
+  assert.equal(s.ext.price, 221);
+  assert.ok(s.since.t > daily[59].t, 'le croisement arrive après le creux');
+  assert.equal(s.past[0].dir, 'down');
+  assert.equal(s.series.length, 100);
 });
