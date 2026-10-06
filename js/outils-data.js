@@ -80,3 +80,65 @@ export function flowSummary(etf) {
 
 // Funding sur 8 h (en %) → rendement sur un an pour qui le reçoit (3 versements par jour).
 export const annualFunding = pct8h => pct8h * 3 * 365;
+
+// Place d'une valeur dans un historique, en % : 90 veut dire « plus haut que 90 % des jours ».
+export function rankOf(values, v) {
+  if (!values.length) return null;
+  return values.filter(x => x <= v).length / values.length * 100;
+}
+
+// Moyenne glissante sur n jours (les n − 1 premiers jours sont laissés de côté).
+export function rolling(points, n) {
+  const out = [];
+  let sum = 0;
+  points.forEach(([d, v], i) => {
+    sum += v;
+    if (i >= n) sum -= points[i - n][1];
+    if (i >= n - 1) out.push([d, sum / n]);
+  });
+  return out;
+}
+
+const median = list => {
+  const s = [...list].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+// « Ce qui s'est passé après » : pour chaque zone d'un indicateur, la variation du prix h jours plus tard
+// (médiane, part des fois en hausse), comparée à tous les jours. zoneOf(valeur, jour) renvoie l'id de la zone.
+// Les jours d'une même zone se suivent souvent : `episodes` compte les passages distincts dans la zone,
+// ce qui donne une idée plus honnête du nombre de cas vraiment différents.
+export function afterStats(points, prices, zoneOf, horizons = [7, 30]) {
+  const close = new Map(prices);
+  const acc = {};
+  const add = (z, d) => {
+    const c0 = close.get(d);
+    if (!c0) return;
+    const a = (acc[z] ??= { days: 0, episodes: 0, last: null, ch: horizons.map(() => []) });
+    a.days++;
+    if (a.last == null || d - a.last > 3) a.episodes++;
+    a.last = d;
+    horizons.forEach((h, i) => { const c1 = close.get(d + h); if (c1) a.ch[i].push((c1 / c0 - 1) * 100); });
+  };
+  for (const [d, v] of points) {
+    const z = zoneOf(v, d);
+    if (z == null) continue;
+    add(z, d);
+    add('all', d);
+  }
+  const out = {};
+  for (const [z, a] of Object.entries(acc)) {
+    out[z] = {
+      days: a.days, episodes: a.episodes,
+      after: a.ch.map((list, i) => ({ h: horizons[i], n: list.length, median: list.length ? median(list) : null, up: list.length ? list.filter(x => x > 0).length / list.length * 100 : null })),
+    };
+  }
+  return out;
+}
+
+// Variation sur n jours d'une série (en %), jour par jour : [[jour, variation]].
+export function changeOver(points, n) {
+  const at = new Map(points);
+  return points.map(([d, v]) => { const o = at.get(d - n); return o ? [d, (v / o - 1) * 100] : null; }).filter(Boolean);
+}
