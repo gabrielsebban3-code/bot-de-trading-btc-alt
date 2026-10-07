@@ -180,3 +180,27 @@ test('flowSummary et mergeFlows', () => {
   assert.deepEqual(m.days.map(d => d[1]), [10, -5, 4, 1]);
   assert.equal(mergeFlows(a, { issuers: ['A'], days: [[9, 1, [1]]] }).days.length, 1);
 });
+
+test('rankOf, rolling et changeOver', async () => {
+  const { rankOf, rolling, changeOver } = await import('../js/outils-data.js');
+  assert.equal(rankOf([1, 2, 3, 4], 3), 75);
+  assert.equal(rankOf([], 3), null);
+  assert.deepEqual(rolling([[1, 2], [2, 4], [3, 6]], 2), [[2, 3], [3, 5]]);
+  assert.deepEqual(changeOver([[1, 100], [2, 110], [3, 121]], 1), [[2, 10.000000000000009], [3, 10.000000000000009]]);
+});
+
+test('afterStats : variation du prix après chaque zone, et passages distincts', async () => {
+  const { afterStats } = await import('../js/outils-data.js');
+  // Prix qui monte de 1 % par jour ; indicateur haut les jours 0-2 et 10-11, bas sinon.
+  const prices = Array.from({ length: 60 }, (_, d) => [d, 100 * 1.01 ** d]);
+  const points = Array.from({ length: 40 }, (_, d) => [d, (d <= 2 || d === 10 || d === 11) ? 90 : 10]);
+  const s = afterStats(points, prices, v => (v > 50 ? 'haut' : 'bas'), [7, 30]);
+  assert.equal(s.haut.days, 5);
+  assert.equal(s.haut.episodes, 2);
+  assert.equal(s.all.days, 40);
+  assert.equal(s.haut.after[0].n, 5);
+  assert.equal(s.haut.after[0].up, 100);
+  assert.ok(Math.abs(s.haut.after[0].median - (1.01 ** 7 - 1) * 100) < 1e-9);
+  // 30 jours après : seuls les jours jusqu'au 29 ont un prix 30 jours plus tard.
+  assert.equal(s.bas.after[1].n, 30 - 5);
+});

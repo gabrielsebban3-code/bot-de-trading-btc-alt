@@ -4,7 +4,8 @@
 import { ago, esc, fmt, money, price } from './format.js';
 import { drawPanes } from './chart.js';
 import { averageEntry, compound, convert, dca, dcaProjection, num, percentile, riskReward, streaks } from './outils-lib.js';
-import { annualFunding, flowSummary } from './outils-data.js';
+import { afterStats, annualFunding, changeOver, flowSummary, rankOf, rolling } from './outils-data.js';
+import { ZONES, fngZone, fundingZone, oiZone, rankZone } from './outils-zones.js';
 
 const $ = id => document.getElementById(id);
 const KEY = 'dinexo-outils';
@@ -96,6 +97,35 @@ const TOOLS = [
       'Ratio 2 : deux comptes en long pour un en short. Ratio 1 : autant des deux côtés.',
       "Le ratio compte des comptes, pas des montants : un gros trader pèse autant qu'un petit.",
       "À lire avec la tendance (onglet Marché) : il sert surtout à repérer un excès d'optimisme ou de pessimisme.",
+    ] },
+  { id: 'gros', cat: 'data', name: 'Gros traders', calc: topTool, fields: () => ['lsAsset'],
+    intro: () => "Ce que font les traders qui ont les plus grosses positions sur OKX (les 5 % les plus gros), comparé à la foule. Ici, on compte l'argent misé, pas le nombre de comptes.",
+    how: [
+      'Ratio 1,5 : les gros traders ont 1,5 fois plus d\'argent en long qu\'en short.',
+      "Le plus parlant, c'est l'écart avec la foule : quand les gros achètent et que les petits vendent (ou l'inverse), on dit souvent que les gros ont raison.",
+      'Ce n\'est pas une règle : les gros se trompent aussi. À lire avec la tendance.',
+    ] },
+  { id: 'pression', cat: 'data', name: 'Acheteurs / vendeurs', calc: takerTool, fields: () => ['lsAsset'],
+    intro: () => "Qui est le plus pressé : ceux qui achètent tout de suite au prix du marché, ou ceux qui vendent tout de suite ? Mesuré sur tous les contrats d'OKX, jour par jour.",
+    how: [
+      '50 % : autant d\'achats pressés que de ventes pressées. Au-dessus : les acheteurs poussent. En dessous : les vendeurs poussent.',
+      "Un trader pressé accepte le prix affiché au lieu d'attendre : c'est lui qui fait bouger le prix.",
+      'On regarde la moyenne sur 7 jours : un seul jour ne veut pas dire grand-chose.',
+      "Le plus utile : quand la pression et le prix ne vont pas dans le même sens (achats forts mais prix qui stagne), c'est souvent le signe d'un retournement.",
+    ] },
+  { id: 'peur', cat: 'data', name: 'Peur et avidité', calc: fngTool, fields: () => [],
+    intro: () => "Un indice de 0 à 100 qui mesure l'humeur du marché crypto (Fear & Greed d'alternative.me) : 0 = panique, 100 = euphorie. Il mélange les mouvements du prix, les volumes, les réseaux sociaux et la part du bitcoin.",
+    how: [
+      'Sous 25 : peur extrême. Au-dessus de 75 : avidité extrême (euphorie).',
+      "L'idée : acheter quand les autres ont peur, être prudent quand tout le monde est euphorique.",
+      "Il suit surtout le prix : il dit où en est l'humeur, pas où va le prix demain.",
+    ] },
+  { id: 'oi', cat: 'data', name: 'Open interest', calc: oiTool, fields: () => [],
+    intro: () => "L'open interest, c'est la somme de tous les contrats à levier encore ouverts sur le bitcoin (OKX), en dollars. S'il monte, de nouveaux traders entrent avec du levier ; s'il baisse, ils sortent.",
+    how: [
+      "Il ne dit pas si les traders achètent ou vendent : chaque contrat a un acheteur et un vendeur. C'est en le comparant au prix qu'on comprend qui entre.",
+      'Contrats en hausse et prix en hausse : argent frais à l\'achat. Contrats en hausse et prix en baisse : nouveaux vendeurs.',
+      'Un record de contrats ouverts = beaucoup de levier dans le marché : les mouvements brutaux deviennent plus probables, dans les deux sens.',
     ] },
 ];
 
@@ -460,6 +490,7 @@ function etfTool() {
     `<div class="t-sub">Par émetteur, 20 derniers jours de bourse</div><div class="wrap flat"><table class="static"><thead><tr><th class="l">ETF</th><th>Dernier jour</th><th>20 jours</th></tr></thead><tbody>${
       s.byIssuer.slice(0, 8).map(i => `<tr><td class="l">${esc(i.name)}</td><td class="num">${smus(i.last)}</td><td class="num">${smus(i.d20)}</td></tr>`).join('')}</tbody></table></div>`,
     note(`Source : farside.co.uk, en millions de dollars. Mis à jour ${ago(state.outils.generatedAt)}.`),
+    implies(ZONES.etf, byRank(rolling(etf.days.map(d => [d[0], d[1] * 5]), 5)), state.v.etfAsset, `${etf.days.length} jours de bourse`),
   ].join('');
 }
 
@@ -483,6 +514,20 @@ function fundingTool() {
     `<div class="wrap flat"><table class="static"><thead><tr><th class="l">Actif</th><th>OKX / 8 h</th><th>Hyperliquid / 8 h</th><th>Sur un an</th></tr></thead><tbody>${
       sorted.map(f => `<tr><td class="l">${esc(f.sym)}</td><td class="num">${f4(f.okx)}</td><td class="num">${f4(f.hyperliquid)}</td><td class="num">${spc(annualFunding(f.okx), 1)}</td></tr>`).join('')}</tbody></table></div>`,
     note(`En rouge : funding élevé, beaucoup de longs à levier (risque de chute en chaîne). En vert : funding négatif, beaucoup de shorts (risque de squeeze à la hausse). « Sur un an » : ce que toucherait un short gardé un an à ce taux. Mis à jour ${ago(state.outils.generatedAt)}.`),
+    btcFunding(),
+  ].join('');
+}
+
+// Funding du BTC jour par jour (courbe de l'onglet Marché) : son historique et ce qu'il implique.
+function btcFunding() {
+  const pts = state.marche?.series?.funding?.points;
+  if (!pts?.length) return '';
+  const last = pts.at(-1)[1];
+  return [
+    `<h3 class="t-h3">Le funding du bitcoin, jour par jour</h3>`,
+    hero('Funding BTC, moyenne du jour', `${last >= 0 ? '+' : '−'}${fmt(Math.abs(last), 4)} %`, `par 8 h sur OKX · ${ZONES.funding.find(z => z.id === fundingZone(last)).name.toLowerCase()}`),
+    chart([{ name: 'Funding BTC', cls: 'c-main', pts }], { title: 'Funding BTC, en % par 8 h', y: y => `${fmt(y, 4)} %`, x: day, dates: true, ref: 0 }),
+    implies(ZONES.funding, { pts, zoneOf: fundingZone }, 'btc', `${pts.length} jours de funding`),
   ].join('');
 }
 
@@ -504,7 +549,166 @@ function longShortTool() {
     ]),
     chart([{ name: 'Ratio long / short', cls: 'c-main', pts }], { title: 'Comptes en long pour un compte en short', y: y => fmt(y, 2), x: day, dates: true, ref: 1 }),
     note(`${read} Mis à jour ${ago(state.outils.generatedAt)}.`),
+    implies(ZONES.longshort, byRank(pts), state.v.lsAsset, `${pts.length} jours de données OKX`),
   ].join('');
+}
+
+// Une zone par jour, selon le rang de sa valeur dans tout l'historique.
+function byRank(pts) {
+  const sorted = pts.map(p => p[1]).sort((a, b) => a - b);
+  const rank = v => {
+    let lo = 0, hi = sorted.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] <= v) lo = m + 1; else hi = m; }
+    return lo / sorted.length * 100;
+  };
+  return { pts, zoneOf: v => rankZone(rank(v)) };
+}
+
+// Gros traders
+function topTool() {
+  const a = state.v.lsAsset;
+  const pts = state.outils?.topTraders?.[a];
+  if (!pts?.length) return noData();
+  const crowd = state.outils?.longShort?.[a] || [];
+  const last = pts.at(-1)[1];
+  const r = rankOf(pts.map(p => p[1]), last);
+  const cLast = crowd.at(-1)?.[1];
+  const cr = cLast != null ? rankOf(crowd.map(p => p[1]), cLast) : null;
+  const gap = cr == null ? '' : r - cr > 35 ? "Les gros traders sont bien plus acheteurs que d'habitude, la foule beaucoup moins : un écart que beaucoup voient comme un bon signe pour la hausse."
+    : cr - r > 35 ? "La foule est bien plus acheteuse que d'habitude, les gros traders beaucoup moins : un écart qui invite à la prudence."
+      : 'Gros traders et foule penchent à peu près dans le même sens que d\'habitude.';
+  const share = last / (1 + last) * 100;
+  return [
+    hero(`Gros traders ${a.toUpperCase()} sur OKX`, fmt(last, 2), `${fmt(share, 0)} % de leur argent est en long, ${fmt(100 - share, 0)} % en short`),
+    rows([
+      ['Par rapport aux derniers mois', `plus haut que ${fmt(r, 0)} % des jours`],
+      cLast != null && ['La foule (tous les comptes)', `${fmt(cLast, 2)}, plus haut que ${fmt(cr, 0)} % des jours`],
+    ]),
+    gap ? note(gap) : '',
+    chart([{ name: 'Gros traders', cls: 'c-main', pts }, crowd.length && { name: 'Foule', cls: 'c-alt', pts: crowd.filter(p => p[0] >= pts[0][0]) }].filter(Boolean),
+      { title: 'Long pour 1 short : gros traders (argent) et foule (comptes)', y: y => fmt(y, 2), x: day, dates: true, ref: 1 }),
+    note(`Source : OKX, contrats perpétuels ${a.toUpperCase()}-USDT. Mis à jour ${ago(state.outils.generatedAt)}.`),
+    implies(ZONES.top, byRank(pts), a, `${pts.length} jours de données OKX`),
+  ].join('');
+}
+
+// Acheteurs / vendeurs pressés
+function takerTool() {
+  const a = state.v.lsAsset;
+  const pts = state.outils?.taker?.[a];
+  if (!pts?.length) return noData();
+  const avg = rolling(pts, 7);
+  if (!avg.length) return noData();
+  const last = avg.at(-1)[1];
+  const r = rankOf(avg.map(p => p[1]), last);
+  const price = state.marche?.series?.[a]?.points;
+  const pCh = price ? changeOver(price, 7).at(-1)?.[1] : null;
+  const diverge = pCh == null ? '' : last > 51 && pCh < -1 ? 'Les acheteurs poussent mais le prix a baissé sur la semaine : des vendeurs patients absorbent les achats, signe de faiblesse.'
+    : last < 49 && pCh > 1 ? 'Les vendeurs poussent mais le prix a monté sur la semaine : des acheteurs patients absorbent les ventes, plutôt un signe de force.'
+      : '';
+  return [
+    hero(`Achats pressés sur ${a.toUpperCase()}, moyenne 7 jours`, `${fmt(last, 1)} %`, `${last >= 50 ? 'Les acheteurs' : 'Les vendeurs'} poussent un peu plus · hier : ${fmt(pts.at(-1)[1], 1)} %`),
+    rows([
+      ['Par rapport aux derniers mois', `plus haut que ${fmt(r, 0)} % des jours`],
+      pCh != null && [`Prix ${a.toUpperCase()} sur 7 jours`, spc(pCh, 1)],
+    ]),
+    diverge ? note(diverge, 'warn-inline') : '',
+    chart([{ name: 'Du jour', cls: 'c-paid', pts }, { name: 'Moyenne 7 jours', cls: 'c-main', pts: avg }],
+      { title: 'Part des achats pressés dans le volume', y: y => `${fmt(y, 1)} %`, x: day, dates: true, ref: 50 }),
+    note(`Source : OKX, volume des ordres « au marché » sur tous les contrats ${a.toUpperCase()}. Mis à jour ${ago(state.outils.generatedAt)}.`),
+    implies(ZONES.taker, byRank(avg), a, `${avg.length} jours de données OKX`),
+  ].join('');
+}
+
+// Peur et avidité
+function fngTool() {
+  const pts = state.marche?.series?.fng?.points;
+  if (!pts?.length) return noData();
+  const last = pts.at(-1)[1];
+  const z = ZONES.fng.find(x => x.id === fngZone(last));
+  const back = n => pts.find(p => p[0] >= pts.at(-1)[0] - n)?.[1];
+  const w = back(7);
+  const m = back(30);
+  const shown = pts.slice(-365);
+  return [
+    hero('Peur et avidité (crypto)', `${fmt(last, 0)} / 100`, z.name),
+    rows([
+      w != null && ['Il y a 7 jours', `${fmt(w, 0)} (${ZONES.fng.find(x => x.id === fngZone(w)).name.toLowerCase()})`],
+      m != null && ['Il y a 30 jours', `${fmt(m, 0)} (${ZONES.fng.find(x => x.id === fngZone(m)).name.toLowerCase()})`],
+      ['Sur un an', `de ${fmt(Math.min(...shown.map(p => p[1])), 0)} à ${fmt(Math.max(...shown.map(p => p[1])), 0)}`],
+    ]),
+    chart([{ name: 'Peur et avidité', cls: 'c-main', pts: shown }], { title: 'Indice sur un an (0 = panique, 100 = euphorie)', y: y => fmt(y, 0), x: day, dates: true, ref: 50 }),
+    note(`Source : alternative.me. Mis à jour ${ago(state.marche.generatedAt)}.`),
+    implies(ZONES.fng, { pts, zoneOf: fngZone }, 'btc', `${pts.length} jours d'indice`),
+  ].join('');
+}
+
+// Open interest
+function oiTool() {
+  const pts = state.marche?.series?.oi?.points;
+  const price = state.marche?.series?.btc?.points;
+  if (!pts?.length || !price?.length) return noData();
+  const oiCh = changeOver(pts, 7);
+  const pCh = new Map(changeOver(price, 7));
+  const days = oiCh.filter(([d]) => pCh.has(d)).map(([d, v]) => [d, oiZone(v, pCh.get(d))]);
+  const last = pts.at(-1)[1];
+  const lastCh = oiCh.at(-1)?.[1];
+  const lastP = pCh.get(oiCh.at(-1)?.[0]);
+  const r = rankOf(pts.map(p => p[1]), last);
+  const record = r >= 97 ? " C'est presque un record : beaucoup de levier dans le marché." : '';
+  const big = n => `${fmt(n / 1e9, 2)} Md$`;
+  return [
+    hero('Contrats ouverts sur le bitcoin (OKX)', big(last), `${lastCh != null ? `${lastCh >= 0 ? '+' : '−'}${fmt(Math.abs(lastCh), 1)} % en 7 jours` : ''}`),
+    rows([
+      lastP != null && ['Prix BTC sur 7 jours', spc(lastP, 1)],
+      ['Par rapport aux derniers mois', `plus haut que ${fmt(r, 0)} % des jours`],
+    ]),
+    record ? note(record.trim(), 'warn-inline') : '',
+    chart([{ name: 'Open interest', cls: 'c-main', pts }], { title: 'Contrats ouverts, en dollars', y: usdAxis, x: day, dates: true }),
+    note(`Source : OKX. Mis à jour ${ago(state.marche.generatedAt)}.`),
+    implies(ZONES.oi, { pts: days, zoneOf: z => z }, 'btc', `${pts.length} jours de données OKX`),
+  ].join('');
+}
+
+// Une phrase honnête : après la zone du jour, le prix a-t-il fait mieux, moins bien ou pareil que d'habitude ?
+// On compare sur 30 jours (7 jours s'il n'y a pas assez de cas), et on le dit quand les cas sont trop peu nombreux.
+function verdict(zone, all, sym) {
+  const i = zone && zone.after[1].n >= 10 ? 1 : 0;
+  const a = zone?.after[i];
+  if (!a || a.n < 10 || zone.episodes < 4) return "Pas encore assez de cas dans cette zone pour en tirer une conclusion.";
+  const ref = all.after[i].median;
+  const d = a.median - ref;
+  const both = `${spc(a.median, 1)} sur ${a.h} jours au milieu des cas, contre ${spc(ref, 1)} d'habitude`;
+  if (Math.abs(d) < 2) return `Après cette zone, le prix ${sym} a fait à peu près comme d'habitude (${both}). Cet indicateur seul ne suffit pas pour prévoir le prix : sers-t'en pour repérer les excès, pas comme un signal.`;
+  return `Après cette zone, le prix ${sym} a fait ${d > 0 ? 'mieux' : 'moins bien'} que d'habitude (${both}). C'est une tendance sur le passé, pas une garantie.`;
+}
+
+// « Ce que ça implique » : la zone du jour en clair, toutes les zones, puis ce qu'a fait le prix après chaque zone
+// sur les données disponibles (médiane et nombre de fois en hausse, à 7 et 30 jours).
+function implies(zones, { pts, zoneOf }, asset, span) {
+  if (!pts?.length) return '';
+  const now = zoneOf(pts.at(-1)[1], pts.at(-1)[0]);
+  const z = zones.find(x => x.id === now);
+  const prices = state.marche?.series?.[asset]?.points;
+  const stats = prices?.length ? afterStats(pts, prices, zoneOf) : null;
+  const sym = asset.toUpperCase();
+  const cell = a => (a.n < 5 ? '<span class="muted">—</span>' : `${spc(a.median, 1)}<small>en hausse ${fmt(Math.round(a.up / 10), 0)} fois sur 10</small>`);
+  const line = (label, s, cls = '') => `<tr class="${cls}"><td class="l">${label}${s ? `<small>${s.days} jour${s.days > 1 ? 's' : ''}${s.episodes > 1 ? `, ${s.episodes} périodes` : ''}</small>` : ''}</td>${
+    s ? s.after.map(a => `<td class="num">${cell(a)}</td>`).join('') : '<td class="num muted">—</td><td class="num muted">—</td>'}</tr>`;
+  const few = stats && z && (stats[now]?.episodes ?? 0) < 4;
+  const short = stats && stats.all.days < 180 ? ` Seulement ${stats.all.days} jours d'historique pour l'instant : il s'allonge à chaque mise à jour, et ces chiffres deviendront plus fiables.` : '';
+  return `<h3 class="t-h3">Ce que ça implique</h3>
+    ${z ? `<div class="t-imp"><span class="k">En ce moment : ${z.name}</span>
+      <p><b>Ce que ça veut dire</b>${z.means}</p><p><b>Ce qui peut arriver au prix</b>${z.price}</p><p><b>Comment t'en servir</b>${z.use}</p>
+      ${stats ? `<p><b>Ce que disent nos chiffres</b>${verdict(stats[now], stats.all, sym)}</p>` : ''}</div>` : ''}
+    <div class="t-sub">Toutes les zones</div>
+    <ul class="t-zones">${zones.map(x => `<li${x.id === now ? ' class="on" aria-current="true"' : ''}><b>${x.name}</b><span class="r">${x.range}</span><span>${x.price}</span></li>`).join('')}</ul>
+    ${stats ? `<div class="t-sub">Ce qu'a fait le prix ${asset === 'eth' ? "de l'ETH" : 'du BTC'} ensuite, sur nos données (${span})</div>
+    <div class="wrap flat"><table class="static t-after"><thead><tr><th class="l">Zone</th><th>7 jours après</th><th>30 jours après</th></tr></thead><tbody>
+      ${zones.map(x => line(x.name, stats[x.id], x.id === now ? 'on' : '')).join('')}
+      ${line('Tous les jours (pour comparer)', stats.all, 'ref')}
+    </tbody></table></div>
+    ${note(`Variation du prix ${sym} au milieu des cas (médiane). Les jours d'une même zone se suivent souvent : regarde le nombre de périodes, pas seulement de jours.${few ? ' Peu de périodes dans la zone actuelle : ces chiffres sont fragiles.' : ''}${short} Le passé ne garantit pas l'avenir.`)}` : ''}`;
 }
 
 // Graphiques : même moteur que l'onglet Marché (js/chart.js), valeurs au-dessus et croix qui suit le curseur.
