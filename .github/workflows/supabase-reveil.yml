@@ -1,0 +1,45 @@
+# Garde Supabase éveillé : un projet Supabase gratuit est mis en pause après une semaine sans activité, et son adresse
+# ne répond alors plus du tout (vu le 2026-10-29 : « Continuer avec Google » menait à une page « Ce site est inaccessible »).
+# Deux fois par jour, ce workflow interroge la connexion et la base du projet, avec la clé publique de js/config.js.
+# S'il ne répond pas, le passage échoue avec un message qui dit quoi faire.
+name: Réveil Supabase
+
+on:
+  schedule:
+    - cron: '41 5,17 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-reveil
+  cancel-in-progress: true
+
+jobs:
+  reveil:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: js/config.js
+          sparse-checkout-cone-mode: false
+      - name: Interroger Supabase
+        run: |
+          url=$(sed -nE "s/^\s*url: '([^']*)'.*/\1/p" js/config.js | head -1)
+          key=$(sed -nE "s/^\s*key: '([^']*)'.*/\1/p" js/config.js | head -1)
+          if [ -z "$url" ] || [ -z "$key" ]; then
+            echo "Comptes non branchés (js/config.js vide) : rien à faire."
+            exit 0
+          fi
+          # Connexion (Auth), puis une vraie requête à la base : refusée sans compte, mais elle passe bien par Postgres.
+          auth=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$url/auth/v1/health" -H "apikey: $key" || true)
+          base=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$url/rest/v1/profiles?select=id&limit=1" \
+            -H "apikey: $key" -H "Authorization: Bearer $key" || true)
+          auth=${auth:-000}; base=${base:-000}
+          echo "Connexion : HTTP $auth, base : HTTP $base"
+          if [ "$auth" = 000 ] || [ "$base" = 000 ] || [ "${auth:0:1}" = 5 ] || [ "${base:0:1}" = 5 ]; then
+            echo "::error::Supabase ne répond pas : le projet est sans doute en pause. Ouvre https://supabase.com/dashboard, ouvre le projet et clique sur « Restore project »."
+            exit 1
+          fi
