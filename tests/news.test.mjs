@@ -374,6 +374,18 @@ test('guerre en cours : seule la première frappe d\'une zone en 24 h reste crit
   assert.equal(level(later, 'e'), 'critical', 'plus de 24 h sans frappe : nouvelle escalade');
 });
 
+test('guerre en cours : une frappe d\'un seul petit média reste faible, un bilan du mois aussi', () => {
+  const strike = (id, hoursAgo, titleEn, extra = {}) => ({ ...item(id, titleEn, { time: NOW - hoursAgo * HOUR, ...extra }), ...classify(titleEn) });
+  const feed = buildFeed([], [
+    strike('a', 10, 'Israel strikes Iran nuclear sites', { rank: 2, source: 'Reuters' }),
+    strike('b', 6, 'US strikes Iranian missile bases', { rank: 1, source: 'Energies Media' }),
+  ], NOW);
+  const b = feed.find(i => i.id === 'b');
+  assert.deepEqual([b.importance, b.impacts], ['low', []], 'un blog seul ne remonte pas en moyenne');
+  const recap = classify('Brent crude settles near $118 as US-Iran military uncertainty and Strait of Hormuz tanker attacks push oil to a fourth consecutive monthly gain');
+  assert.equal(recap?.importance ?? 'low', 'low', 'bilan mensuel : faible');
+});
+
 test('buildFeed : les news faibles laissent la place aux importantes un jour chargé', () => {
   const lows = Array.from({ length: NEWS.maxItems + 20 }, (_, k) => item(`l${k}`, `w${k}a w${k}b w${k}c w${k}d`, { importance: 'low', time: NOW - k * 60_000 }));
   const crit = item('c', 'Iran launches missile attack on Israel', { importance: 'critical', theme: 'geo', rule: 'guerre', time: NOW - 30 * HOUR });

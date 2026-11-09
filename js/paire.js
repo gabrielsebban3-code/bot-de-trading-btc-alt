@@ -144,13 +144,13 @@ function manageBox(a, d, live) {
   const exitNow = days.length ? (short ? Math.max(...days.map(b => b[2])) : Math.min(...days.map(b => b[3]))) : null;
   const risk = data.rules.riskPct ?? 1, P = data.rules.partialR ?? 5;
   return `<div class="box"><h2>Gestion du trade</h2><ol class="txt">
-    <li><b>Stop</b> : ${stopPct ? `environ ${fmt(stopPct * 100, 1)} % sous le prix d'entrée en ce moment` : 'placé selon l\'agitation habituelle du prix'}. Si le prix y arrive, on coupe : on perd ${fmt(risk, 0)} % du capital, pas plus.</li>
-    <li><b>Objectif</b> : quand le gain atteint ${fmt(P, 0)} fois cette distance, on vend la moitié (+${fmt(P * risk / 2, 1).replace(',0', '')} % du capital assuré) et le stop remonte au prix d'entrée.</li>
-    <li><b>Le reste</b> : on le garde tant que le marché ${short ? 'baisse' : 'monte'}. On vend quand une journée clôture ${short ? 'au-dessus de son plus haut' : 'sous son plus bas'} des ${data.rules.exitDays ?? 7} derniers jours${exitNow ? ` (${px(exitNow)} en ce moment)` : ''}.</li>
+    <li><b>Stop</b> : ${stopPct ? `environ ${fmt(stopPct * 100, 1)} % ${short ? 'au-dessus du' : 'sous le'} prix d'entrée en ce moment` : 'placé selon l\'agitation habituelle du prix'}. Si le prix y arrive, on coupe : on perd ${fmt(risk, 0)} % du capital, pas plus.</li>
+    <li><b>Objectif</b> : quand le gain atteint ${fmt(P, 0)} fois cette distance, on encaisse la moitié (+${fmt(P * risk / 2, 1).replace(',0', '')} % du capital assuré) et le stop ${short ? 'descend' : 'remonte'} au prix d'entrée.</li>
+    <li><b>Le reste</b> : on le garde tant que le marché ${short ? 'baisse' : 'monte'}. On ${short ? 'rachète' : 'vend'} quand une journée clôture ${short ? 'au-dessus de son plus haut' : 'sous son plus bas'} des ${data.rules.exitDays ?? 7} derniers jours${exitNow ? ` (${px(exitNow)} en ce moment)` : ''}.</li>
   </ol></div>`;
 }
 
-// Trades terminés de la paire sur 12 mois (historique réservé aux membres, comme l'onglet Historique).
+// Trades terminés de la paire : 3 mois pour tout le monde, 12 mois avec Premium (montrer les pertes inspire confiance).
 // Sans Premium : 3 mois au lieu de 12, et sans les signaux des dernières 24 h sur SOL et le pétrole.
 const shownTrades = sym => setupsData().history.filter(s => s.symbol === sym && Date.now() - s.time < historyDays() * DAY && !delayed(s));
 const doneTrades = sym => shownTrades(sym).filter(s => s.outcome !== 'open' && s.at);
@@ -162,15 +162,13 @@ function statsBox(a) {
   const total = list.reduce((t, s) => t + s.r, 0);
   const last = lastTradeOf(a.symbol);
   return `<div class="box"><h2>Bilan sur ${esc(a.symbol)} · ${periodText()}</h2>
-    <div class="guest-only"><p class="txt">Le bilan de la paire et ses trades passés sont réservés aux membres. Le compte est gratuit et sans mot de passe.</p>
-      <div class="links"><a class="buy" href="#compte/connexion">Se connecter</a></div></div>
-    <dl class="members-only">
+    <dl>
       ${row('Trades terminés', String(list.length))}
-      ${row('Trades gagnants', list.length ? `${fmt(wins / list.length * 100, 0)} %` : '—')}
+      ${row('Trades gagnants', list.length ? `${wins} sur ${list.length}` : '—')}
       ${row('Gain du capital', list.length ? cap(total) : '—', total > 0 ? 'up' : total < 0 ? 'down' : '')}
       ${row('Dernier trade', last ? `${esc(OUTCOME[last.outcome][0])} le ${parisDay(last.at)}` : '—', last ? outcomeCls(last) : '')}
     </dl>
-    <p class="txt muted members-only free-only">Le bilan sur 12 mois est inclus dans <a href="#premium">Premium</a>.</p></div>`;
+    <p class="txt muted free-only">Le bilan sur 12 mois est inclus dans <a href="#premium">Premium</a>.</p></div>`;
 }
 
 function tradesBox(a) {
@@ -186,12 +184,11 @@ function tradesBox(a) {
       <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${s.outcome === 'open' ? '—' : cap(s.r)}</td>
     </tr>`).join('');
   return `<h2 class="section">Trades passés sur ${esc(a.symbol)} <span class="muted">clique sur un trade pour son explication complète</span></h2>
-    <div class="members-only"><div class="wrap" tabindex="0" role="region" aria-label="Historique des trades"><table class="static">
+    <div><div class="wrap" tabindex="0" role="region" aria-label="Historique des trades"><table class="static">
       <thead><tr><th class="l">Signal</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>Stop</th><th class="l">Résultat</th><th>Capital</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="7"><div class="empty">Aucun trade sur cette paire pour le moment.</div></td></tr>'}</tbody>
     </table></div></div>
-    <div class="box join guest-only"><p class="txt">Connecte-toi (gratuit, sans mot de passe) pour voir les trades passés sur ${esc(a.symbol)}, avec leur résultat.</p>
-      <div class="links"><a class="buy" href="#compte/connexion">Se connecter</a></div></div>`;
+`;
 }
 
 // Graphique : bougies, moyennes 20 et 50 jours, niveaux du plan, trades passés ; MACD 4h sous les bougies 4h.

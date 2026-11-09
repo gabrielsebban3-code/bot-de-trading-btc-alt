@@ -152,7 +152,12 @@ async function load() {
   refreshAccount([...new Set([...known.assets.keys(), ...known.projects.keys()])].sort());
   ticker();
   const latest = [projects, setups, news].map(d => d?.generatedAt).filter(Boolean).sort().at(-1);
-  if (latest) $('updated').textContent = `Données mises à jour ${ago(latest)}`;
+  if (latest) {
+    // Données de plus de 2 h : la mise à jour automatique a raté, on le dit au lieu de laisser croire que c'est frais.
+    const late = Date.now() - new Date(latest) > 2 * 3_600_000;
+    $('updated').textContent = late ? `Données en retard : dernière mise à jour ${ago(latest)}` : `Données mises à jour ${ago(latest)}`;
+    $('updated').classList.toggle('late', late);
+  }
   route();
 
   const brent = setups?.assets.find(a => a.symbol === 'BZ');

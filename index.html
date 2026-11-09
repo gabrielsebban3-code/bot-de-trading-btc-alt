@@ -45,7 +45,7 @@
             <a href="#heatmap" data-tab="heatmap" class="menu-only">Heatmap</a>
             <a href="#outils" data-tab="outils" class="menu-only">Outils</a>
             <a href="#academie" data-tab="academie">Académie <span class="ptag new-tag">nouveau</span></a>
-            <a href="#historique" data-tab="historique">Historique <span class="lock guest-only">membres</span></a>
+            <a href="#historique" data-tab="historique">Historique</a>
             <a href="#scanner" data-tab="scanner">Scanner <span class="ptag free-only">✦</span></a>
             <a href="#impots" data-tab="impots">Impôts crypto <span class="ptag free-only">✦</span></a>
             <a href="#premium" data-tab="premium">Premium <span class="ptag free-only">✦</span></a>
@@ -71,7 +71,7 @@
       <h2>À regarder maintenant</h2>
       <div class="focus" id="focus"></div>
       <div class="box new" id="new-resume" hidden></div>
-      <div class="box join guest-only"><p class="txt"><b>Membres :</b> quoi de neuf sur tes actifs depuis ta dernière visite, historique des setups sur 3 mois et 3 alertes de prix. Gratuit, sans mot de passe.</p>
+      <div class="box join guest-only"><p class="txt"><b>Membres :</b> quoi de neuf sur tes actifs depuis ta dernière visite, alertes Discord et 3 alertes de prix. Gratuit, sans mot de passe.</p>
         <div class="links"><a class="buy" href="#compte/connexion">Recevoir mes alertes gratuites</a><a class="chip" href="#premium">Voir Premium</a></div></div>
       <div class="macro" id="macro"></div>
       <div class="cols">
@@ -186,7 +186,7 @@
     <!-- Setups -->
     <section class="page" id="page-setups">
       <div class="intro" data-intro="setups"><span class="i">i</span>
-        <p>Des signaux pour acheter ou vendre <b>BTC, ETH, SOL et le pétrole</b>, <b>toujours dans le sens de la tendance</b>. <span>3 indicateurs sur bougies 4h (Cassure 20 jours, Cassure 10 jours, MACD) sur les perpétuels OKX, retenus parmi plus de 200 000 combinaisons testées sur 3 ans et demi. Un signal ne compte que s'il va dans le sens de la tendance journalière : long (pari à la hausse) quand le marché monte, short (pari à la baisse) quand il baisse. Cassure 20 jours : une bougie 4h clôture au-dessus du plus haut des 20 derniers jours (sous le plus bas pour un short). Cassure 10 jours : pareil sur 10 jours. MACD : l'histogramme 4h repasse au-dessus de zéro (en dessous pour un short). Un seul trade à la fois par paire, et seulement s'il y a au moins 2R de marge avant le prochain niveau. Stop serré à 0,75 ATR journalier. À 5R on prend la moitié et le stop remonte au prix d'entrée. Le reste sort quand une journée clôture sous le plus bas des 7 derniers jours (au-dessus du plus haut pour un short). Beaucoup de petits stops, quelques gros gains qui les paient. « En cours » : la bougie 4h n'est pas fermée, le signal peut disparaître.</span></p>
+        <p>Des signaux pour acheter ou vendre <b>BTC, ETH, SOL et le pétrole</b>, <b>toujours dans le sens de la tendance</b>. <span>Un signal arrive quand le prix sort de sa zone des 10 ou des 20 derniers jours, ou quand son élan repart (indicateur MACD), sur des bougies de 4 heures. Long : pari à la hausse, seulement quand le marché monte. Short : pari à la baisse, seulement quand il baisse. Chaque trade risque 1 % du compte : le stop est placé selon l'agitation habituelle du prix. Quand le gain atteint 5 fois ce risque, on encaisse la moitié et le stop passe au prix d'entrée. Le reste sort quand une journée clôture de l'autre côté des 7 derniers jours. Beaucoup de petits stops, quelques gros gains qui les paient. Ces règles ont été choisies en testant le passé sur 3 ans et demi. Attention : une méthode choisie ainsi marche souvent moins bien ensuite, c'est pour ça que le bilan réel est affiché juste en dessous. « En cours » : la bougie de 4 heures n'est pas fermée, le signal peut disparaître.</span></p>
         <button type="button">Compris</button></div>
       <h1>Setups dans le sens de la tendance · BTC, ETH, SOL, pétrole</h1>
       <div class="tools cats" id="setups-cats" role="group" aria-label="Catégorie">
@@ -200,6 +200,7 @@
       </div>
       <div id="setups-cat-setups">
       <div id="setups-warnings"></div>
+      <div id="setups-track"></div>
       <h2 class="section">Les 4 paires en ce moment <span class="muted">clique sur une paire pour ouvrir sa fiche</span></h2>
       <div class="radar" id="setups-radar"></div>
       <a class="sc-link" href="#scanner"><span class="ptag free-only">Premium</span> La même méthode sur les 80 cryptos les plus échangées : <b>ouvrir le scanner →</b></a>
@@ -274,13 +275,10 @@
 
     <section class="page" id="page-historique">
       <div class="intro" data-intro="historique"><span class="i">i</span>
-        <p>Le bilan des setups, indicateur par indicateur : 3 mois avec le compte gratuit, 12 mois avec Premium. <span>Il sert à savoir si on peut faire confiance aux signaux. Les gains sont en % du capital, avec 1 % du compte risqué par trade : un stop touché coûte 1 %, un trade qui va à 5 fois le risque rapporte 5 %. Les trades gagnants rapportent souvent plus : c'est ce qui paie les stops.</span></p>
+        <p>Le bilan des setups, indicateur par indicateur : 3 mois pour tout le monde, 12 mois avec Premium. <span>Il sert à savoir si on peut faire confiance aux signaux. Les gains sont en % du capital, avec 1 % du compte risqué par trade : un stop touché coûte 1 %, un trade qui va à 5 fois le risque rapporte 5 %. Les trades gagnants rapportent souvent plus : c'est ce qui paie les stops.</span></p>
         <button type="button">Compris</button></div>
       <h1>Bilan des setups</h1>
-      <div class="box join guest-only"><h2>Réservé aux membres</h2>
-        <p class="txt">Le bilan des setups et la liste des signaux terminés sont réservés aux membres. Le compte est gratuit et sans mot de passe.</p>
-        <div class="links"><a class="buy" href="#compte/connexion">Se connecter</a></div></div>
-      <div class="members-only">
+      <div>
       <p class="period">Sur les <b id="history-period">3 derniers mois</b></p>
       <div class="box join prem" id="history-more"><p class="txt"><span class="ptag">Premium</span> Le bilan sur 12 mois et tous les trades de l'année.</p>
         <div class="links"><a class="buy" href="#premium">Voir Premium</a></div></div>

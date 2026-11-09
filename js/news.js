@@ -215,7 +215,9 @@ export function focusNews(id) {
 export function linkedNews(symbol, kind = 'crypto') {
   if (!data) return null;
   const since = Date.now() - 24 * HOUR;
-  const recent = data.items.filter(i => i.time >= since && i.importance !== 'low' && i.impacts.length);
+  // Pour un setup crypto, seules les news crypto ou de taux comptent : une news de guerre ou de pétrole n'explique pas un trade sur ETH.
+  const recent = data.items.filter(i => i.time >= since && i.importance !== 'low' && i.impacts.length
+    && (kind === 'commodity' || !['geo', 'energy'].includes(i.theme)));
   const targets = kind === 'commodity' ? [COMMODITY[symbol]].filter(Boolean) : [symbol, 'Crypto', 'BTC'];
   for (const asset of targets) {
     const hit = recent.filter(i => i.impacts.some(([a]) => a === asset)).sort((a, b) => LEVEL[b.importance] - LEVEL[a.importance] || b.time - a.time)[0];
@@ -240,7 +242,7 @@ export function newsWhere(test, limit = 5) {
 }
 
 export function newsRows(items) {
-  return items.map(i => `<a class="row" href="#actu/${encodeURIComponent(i.id)}">${dot(i)}<span class="d fg">${title(i)}</span><span class="r muted">${ago(new Date(i.time).toISOString())}</span></a>`).join('');
+  return items.map(i => `<a class="row" href="#actu/${encodeURIComponent(i.id)}">${dot(i)}<span class="d fg">${title(i)}${i.source ? ` <span class="muted">· ${esc(i.source)}</span>` : ''}</span><span class="r muted">${ago(new Date(i.time).toISOString())}</span></a>`).join('');
 }
 
 // Bloc « À regarder maintenant » : la dernière news critique, et le setup en jeu qu'elle touche s'il y en a un.

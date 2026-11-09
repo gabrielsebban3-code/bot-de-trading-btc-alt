@@ -136,7 +136,7 @@ function planBox(s) {
     ${row('Stop', `${px(s.sl)} <small class="muted">${plainPct((s.sl - s.entry) / s.entry)} : si le prix ${up ? 'descend' : 'monte'} jusque-là, on coupe</small>`, 'down')}
     ${row('Perte maximale', `${fmt(risk, 0)} % du capital`, 'txt')}
     ${row(up ? 'Combien acheter' : 'Combien vendre', `${fmt(size * 100, 0)} % du capital <small class="muted">avec 1 000 $ : ${fmt(size * 1000, 0)} $</small>`)}
-    ${row('Objectif', `${px(tp)} <small class="muted">${plainPct((tp - s.entry) / s.entry)} : on vend la moitié, ${capOf(P / 2)} de gain déjà assuré</small>`, 'up')}
+    ${row('Objectif', `${px(tp)} <small class="muted">${plainPct((tp - s.entry) / s.entry)} : on encaisse la moitié, ${capOf(P / 2)} de gain déjà assuré</small>`, 'up')}
     ${row('Le reste', `gardé tant que le marché ${up ? 'monte' : 'baisse'}`, 'txt')}
   </dl><p class="txt muted">Le stop est placé à une distance qui suit l'agitation habituelle du prix (0,75 fois sa variation moyenne sur une journée). L'objectif est à ${fmt(P, 0)} fois cette distance.</p></div>`;
 }
@@ -148,13 +148,13 @@ function storyBox(s, a) {
   const up = s.dir === 'long';
   const days = data.rules.exitDays ?? 7;
   const steps = [[s.time + BAR, `${up ? 'Achat' : 'Vente'} à <b>${px(s.entry)}</b>, stop à ${px(s.sl)}.`]];
-  if (s.tpHit) steps.push([s.halfAt, `Le prix atteint l'objectif (${px(tpOf(s))}) : on vend la moitié et on gagne déjà <b class="up">${capOf(P / 2)}</b>. Le stop remonte au prix d'entrée : le reste ne peut plus faire perdre d'argent.`]);
+  if (s.tpHit) steps.push([s.halfAt, `Le prix atteint l'objectif (${px(tpOf(s))}) : on encaisse la moitié et on gagne déjà <b class="up">${capOf(P / 2)}</b>. Le stop ${up ? 'remonte' : 'descend'} au prix d'entrée : le reste ne peut plus faire perdre d'argent.`]);
   if (s.outcome === 'sl') steps.push([s.at, `Le prix ${up ? 'redescend' : 'remonte'} jusqu'au stop (${px(s.sl)}) : on coupe. Perte de <b class="down">${capOf(-1)}</b>, comme prévu.`]);
-  if (s.outcome === 'be') steps.push([s.at, `Le prix revient au prix d'entrée (${px(s.entry)}) : le reste est vendu sans gain ni perte.`]);
+  if (s.outcome === 'be') steps.push([s.at, `Le prix revient au prix d'entrée (${px(s.entry)}) : on sort du reste sans gain ni perte.`]);
   if (s.outcome === 'exit') {
     // Gain du reste en % du capital : sur une moitié de la position si l'objectif a été atteint.
     const rest = s.tpHit ? s.r - P / 2 : s.r;
-    steps.push([s.at + BAR, `Le prix clôture la journée ${up ? 'sous son plus bas' : 'au-dessus de son plus haut'} des ${days} derniers jours${s.exitLvl ? ` (${px(s.exitLvl)})` : ''} : ${up ? 'la hausse' : 'la baisse'} s'arrête. On vend ${s.tpHit ? 'le reste' : 'tout'} à ${px(s.exitPx ?? s.entry)} : <b class="${rest >= 0 ? 'up' : 'down'}">${capOf(rest)}</b>${s.tpHit ? ' de plus' : ''}.`]);
+    steps.push([s.at + BAR, `Le prix clôture la journée ${up ? 'sous son plus bas' : 'au-dessus de son plus haut'} des ${days} derniers jours${s.exitLvl ? ` (${px(s.exitLvl)})` : ''} : ${up ? 'la hausse' : 'la baisse'} s'arrête. On ${up ? 'vend' : 'rachète'} ${s.tpHit ? 'le reste' : 'tout'} à ${px(s.exitPx ?? s.entry)} : <b class="${rest >= 0 ? 'up' : 'down'}">${capOf(rest)}</b>${s.tpHit ? ' de plus' : ''}.`]);
   }
   if (s.outcome === 'open' && s.status === 'confirmé') {
     const live = liveOf(s.symbol);

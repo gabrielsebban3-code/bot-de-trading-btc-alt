@@ -74,6 +74,10 @@ nav a.on, nav button.on { color: var(--fg); background: var(--panel2); }
 .menu a { border-radius: 8px; }
 .menu a.menu-only { display: none; }
 .updated { margin-left: auto; font-size: 12px; color: var(--muted); }
+.box.track { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.box.track h2 { margin: 0; padding: 0; }
+.box.track p { margin: 0; font-size: 14px; line-height: 1.5; }
+.updated.late { color: var(--down); font-weight: 600; }
 /* Bouton Connexion / Mon compte, en haut à droite */
 .me { display: flex; align-items: center; gap: 8px; font: 600 13px var(--sans); white-space: nowrap; padding: 7px 16px; border-radius: 999px; background: var(--accent); color: #1a0f00; border: 1px solid var(--accent); }
 .me:hover { text-decoration: none; filter: brightness(1.1); }
