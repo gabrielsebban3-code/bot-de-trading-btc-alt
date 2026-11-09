@@ -164,7 +164,7 @@ function statsBox(a) {
   return `<div class="box"><h2>Bilan sur ${esc(a.symbol)} · ${periodText()}</h2>
     <dl>
       ${row('Trades terminés', String(list.length))}
-      ${row('Trades gagnants', list.length ? `${fmt(wins / list.length * 100, 0)} %` : '—')}
+      ${row('Trades gagnants', list.length ? `${wins} sur ${list.length}` : '—')}
       ${row('Gain du capital', list.length ? cap(total) : '—', total > 0 ? 'up' : total < 0 ? 'down' : '')}
       ${row('Dernier trade', last ? `${esc(OUTCOME[last.outcome][0])} le ${parisDay(last.at)}` : '—', last ? outcomeCls(last) : '')}
     </dl>
