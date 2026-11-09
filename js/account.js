@@ -1,6 +1,6 @@
 // Onglet Mon compte : watchlist, connexion sans mot de passe (Google, ou code / lien reçu par e-mail, via Supabase),
 // watchlist synchronisée entre appareils, liste des inscrits pour l'admin.
-// Réservé aux membres : Historique, lien du Discord (alertes), « Quoi de neuf pour toi » et alertes de prix.
+// Réservé aux membres : lien du Discord (alertes), « Quoi de neuf pour toi » et alertes de prix. L'historique 3 mois est public.
 import { ago, esc, pct, price } from './format.js';
 import { SUPABASE } from './config.js';
 import { clean, MAX, merge, normalize, star, valid, watchlist } from './watchlist.js';
@@ -54,7 +54,6 @@ const discordUrl = u => (/^https:\/\/(discord\.gg|(www\.)?discord\.com\/invite)\
 const setPending = email => local.set(PENDING, email ? JSON.stringify({ email, at: Date.now() }) : null);
 const PERKS = `<ul class="perks">
   <li><b>Quoi de neuf pour toi</b> : ce qui a bougé sur tes actifs depuis ta dernière visite</li>
-  <li><b>Historique</b> des setups sur 3 mois, avec leur bilan</li>
   <li><b>Discord</b> : les nouveaux setups et les news critiques en notification</li>
   <li><b>${ALERTS.free} alertes de prix</b> sur n'importe quel actif</li>
   <li>Ta <b>watchlist</b> sur tous tes appareils</li></ul>

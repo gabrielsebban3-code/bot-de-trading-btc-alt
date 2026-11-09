@@ -429,12 +429,12 @@ export function indicatorState(bars4h, dailyAll) {
   const j = daily.length - 1, d = daily[j], price = bars.at(-1).c;
   const items = [];
 
-  // 1. Tendance de fond (la même que celle qui filtre les setups).
+  // 1. Tendance sur 1 à 2 mois (la même que celle qui filtre les setups).
   const t = dc.trend[j];
-  items.push({ key: 'trend', label: 'Tendance de fond', value: t, tone: TONE[t],
-    text: t === 'haussière' ? 'Le prix est au-dessus de ses moyennes 20 et 50 jours, et la courte est au-dessus de la longue : le marché monte.'
-      : t === 'baissière' ? 'Le prix est sous ses moyennes 20 et 50 jours, et la courte est sous la longue : le marché baisse.'
-        : 'Les moyennes 20 et 50 jours ne donnent pas de direction claire.' });
+  items.push({ key: 'trend', label: 'Tendance sur 1 à 2 mois', value: t, tone: TONE[t],
+    text: t === 'haussière' ? 'Le prix est au-dessus de ses moyennes 20 et 50 jours, et la courte est au-dessus de la longue : le marché monte. C\'est cette tendance que suivent les signaux.'
+      : t === 'baissière' ? 'Le prix est sous ses moyennes 20 et 50 jours, et la courte est sous la longue : le marché baisse. C\'est cette tendance que suivent les signaux.'
+        : 'Les moyennes 20 et 50 jours ne donnent pas de direction claire : pas de signal tant que ça dure.' });
 
   // 2. Moyenne 200 jours : le grand juge du long terme.
   if (daily.length >= 200) {

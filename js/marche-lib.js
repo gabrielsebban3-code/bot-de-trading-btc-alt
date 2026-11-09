@@ -70,7 +70,7 @@ export function signals(series) {
     const m50 = sma(btc, 50).at(-1)[1], m200 = sma(btc, 200).at(-1)[1];
     const gap = last / m200 - 1;
     const dir = last > m200 && m50 > m200 ? 1 : last < m200 && m50 < m200 ? -1 : 0;
-    out.push({ key: 'trend', label: 'Tendance de fond', dir,
+    out.push({ key: 'trend', label: 'Tendance sur un an', dir,
       text: dir === 1 ? `BTC est ${abs(gap)} au-dessus de sa moyenne 200 jours et la moyenne 50 jours est au-dessus : tendance haussière.`
         : dir === -1 ? `BTC est ${abs(gap)} sous sa moyenne 200 jours et la moyenne 50 jours est en dessous : tendance baissière.`
         : `BTC est à ${pctFr(gap)} de sa moyenne 200 jours, mais les moyennes ne sont pas alignées : pas de tendance nette.` });

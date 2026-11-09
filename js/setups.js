@@ -41,9 +41,12 @@ export const parisDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'num
 export const cap = r => `${r > 0 ? '+' : ''}${fmt(r * (data.rules.riskPct ?? 1), r * (data.rules.riskPct ?? 1) >= 10 || r * (data.rules.riskPct ?? 1) <= -10 ? 0 : 1)} %`;
 export const outcomeCls = s => (s.outcome === 'exit' ? (s.r > 0 ? 'up' : s.r < 0 ? 'down' : '') : OUTCOME[s.outcome][1]);
 
+// Sous 20 trades terminés, un pourcentage de gagnants ne veut rien dire : on donne le nombre et le gain, sans taux.
+export const MIN_TRADES = 20;
 function winLine(key) {
   const s = data.stats[key];
   if (!s || s.winRate === null) return `${esc(data.detectors[key])} : pas encore assez de trades pour un bilan`;
+  if (s.resolved < MIN_TRADES) return `${esc(data.detectors[key])} : ${s.resolved} trade${s.resolved > 1 ? 's' : ''} terminé${s.resolved > 1 ? 's' : ''} sur 12 mois, trop peu pour juger (${cap(s.totalR)} du capital)`;
   return `${esc(data.detectors[key])} : ${fmt(s.winRate * 100, 0)} % de trades gagnants sur ${s.resolved}, ${cap(s.totalR)} du capital sur 12 mois (${fmt(data.rules.riskPct ?? 1, 0)} % risqué par trade)`;
 }
 
@@ -203,6 +206,42 @@ function renderList() {
       : `<div class="box"><div class="empty">${state.watch ? 'Aucun setup en ce moment sur les actifs de ta watchlist.' : 'Aucun setup ne correspond à ces filtres.'} <a href="#historique">Voir l'historique →</a></div></div>`;
 }
 
+// Bilan public des 12 derniers mois et série en cours (gains ou stops d'affilée), du trade fermé le plus récent au plus ancien.
+// Les pertes restent visibles pour tout le monde : c'est ce qui permet de juger la méthode.
+export function trackRecord(history, now = Date.now()) {
+  const done = history.filter(s => s.outcome !== 'open' && s.at && now - s.at < 365 * 86_400_000).sort((a, b) => b.at - a.at);
+  const wins = done.filter(s => s.r > 0).length;
+  const total = Math.round(done.reduce((t, s) => t + s.r, 0) * 10) / 10;
+  const first = done[0];
+  let streak = { kind: null, n: 0, sum: 0, since: null };
+  if (first && first.r !== 0) {
+    const kind = first.r > 0 ? 'win' : 'loss';
+    let i = 0;
+    while (i < done.length && (kind === 'win' ? done[i].r > 0 : done[i].r < 0)) { streak.sum += done[i].r; i++; }
+    // Depuis quand : la date du dernier trade de l'autre sorte (le dernier gain pour une série de stops).
+    streak = { kind, n: i, sum: Math.round(streak.sum * 10) / 10, since: done[i]?.at ?? null };
+  }
+  return { n: done.length, wins, total, streak };
+}
+
+function renderTrack() {
+  const el = document.getElementById('setups-track');
+  if (!el) return;
+  const t = trackRecord(data.history);
+  if (!t.n) { el.innerHTML = ''; return; }
+  const risk = fmt(data.rules.riskPct ?? 1, 0);
+  const st = t.streak;
+  const day = new Date(st.since || 0).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const serie = st.n >= 3 && st.kind === 'loss'
+    ? `<p><b>Série en cours : ${st.n} stops d'affilée</b> ${st.since ? `depuis le dernier gain du ${day}` : 'sur les 12 derniers mois'} (<b class="down">${cap(st.sum)} du capital</b>). C'est normal pour cette méthode : la plupart des trades perdent un peu, quelques-uns gagnent beaucoup et paient les stops.</p>`
+    : st.n >= 2 && st.kind === 'win' ? `<p><b>Série en cours : ${st.n} gains d'affilée</b> (<b class="up">${cap(st.sum)} du capital</b>). Les séries de stops reviennent toujours : garde le même risque par trade.</p>` : '';
+  el.innerHTML = `<div class="box track"><h2>Le bilan réel des signaux</h2>
+    <p>Sur les 12 derniers mois : <b>${t.n} trades terminés</b>, ${t.wins} gagnants, <b class="${t.total > 0 ? 'up' : t.total < 0 ? 'down' : ''}">${cap(t.total)} du capital</b> au total, avec ${risk} % du compte risqué par trade.</p>
+    ${serie}
+    <p class="muted">Short et contrats perpétuels : tu peux y utiliser un effet de levier. Avec un levier de 10, une hausse de 10 % efface toute ta mise sur un short. Ne risque jamais plus de ${risk} % de ton compte par trade.</p>
+    <p><a href="#historique">Voir tous les trades des 3 derniers mois →</a></p></div>`;
+}
+
 // Aucun trade ouvert : on le dit simplement et on montre les derniers trades terminés, pour que la page ne paraisse pas vide.
 function waiting() {
   const from = Date.now() - historyDays() * 86_400_000;
@@ -269,6 +308,7 @@ export function initSetups(setupsData, projects) {
   renderIndicators();
   renderRadar();
   renderList();
+  renderTrack();
   renderHistory();
   renderResume();
   // Statut Premium connu après la connexion : on redessine ce qui en dépend.
@@ -291,7 +331,7 @@ function renderResume() {
   if (best && focus) {
     const html = `<a class="card" data-sfocus href="#setup/${encodeURIComponent(best.id)}"><span class="k">SETUP DANS LE SENS DE LA TENDANCE</span>
       <span class="hd"><b class="mono">${esc(best.symbol)}</b><span class="tag">${esc(data.detectors[best.detector])}</span>${dirTag(best.dir)}</span>
-      <span class="why">${esc(best.why)} R:R 1:${fmt(best.rr, 1)}.</span></a>`;
+      <span class="why">${esc(best.why)} Gain visé : ${fmt(best.rr, 0)} fois la perte possible.</span></a>`;
     if (focus.querySelector('.card .why')?.textContent.startsWith('Rien de particulier')) focus.innerHTML = html;
     else focus.insertAdjacentHTML('afterbegin', html);
     while (focus.children.length > 4) focus.lastElementChild.remove();
