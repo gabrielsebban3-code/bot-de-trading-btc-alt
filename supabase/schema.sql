@@ -90,11 +90,96 @@ $$;
 revoke all on function public.is_premium() from public, anon;
 grant execute on function public.is_premium() to authenticated;
 
+-- Liens d'invitation Premium : l'admin crée un lien (bouton dans Mon compte), la personne l'ouvre, se connecte
+-- et devient Premium toute seule. Chaque lien a un nombre de places, une durée de Premium et une date de fin.
+--   days    : jours de Premium à compter de l'activation (vide = sans fin)
+--   expires : dernier jour où le lien marche (vide = sans fin)
+-- Le site ne lit ni n'écrit ces tables directement : tout passe par les fonctions ci-dessous.
+create table if not exists public.premium_invites (
+  code text primary key check (code ~ '^[A-Z0-9]{8,32}$'),
+  max_uses int not null default 10 check (max_uses between 1 and 1000),
+  uses int not null default 0,
+  days int check (days between 1 and 3650),
+  expires date,
+  active boolean not null default true,
+  note text check (char_length(note) <= 80),
+  created_at timestamptz not null default now()
+);
+create table if not exists public.premium_invite_uses (
+  code text not null references public.premium_invites (code) on delete cascade,
+  email text not null,
+  used_at timestamptz not null default now(),
+  primary key (code, email)
+);
+alter table public.premium_invites enable row level security;
+alter table public.premium_invite_uses enable row level security;
+drop policy if exists "invitations : admin" on public.premium_invites;
+create policy "invitations : admin" on public.premium_invites for select to authenticated using ((select public.is_admin()));
+drop policy if exists "invitations utilisées : admin" on public.premium_invite_uses;
+create policy "invitations utilisées : admin" on public.premium_invite_uses for select to authenticated using ((select public.is_admin()));
+revoke all on public.premium_invites, public.premium_invite_uses from anon, authenticated;
+grant select on public.premium_invites, public.premium_invite_uses to authenticated;
+
+-- Activer une invitation pour le compte connecté. Réponse : { ok, until } ou { ok: false, reason }.
+-- reason : login (pas connecté), invalid (lien inconnu ou arrêté), expired (date passée), full (plus de place).
+-- Rouvrir le même lien ne prend pas une deuxième place. Un Premium déjà plus long (ou sans fin) n'est jamais raccourci.
+create or replace function public.redeem_premium_invite(invite text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  mail text := lower(auth.jwt() ->> 'email');
+  inv public.premium_invites;
+  ends date;
+begin
+  if coalesce(mail, '') = '' then return jsonb_build_object('ok', false, 'reason', 'login'); end if;
+  select * into inv from public.premium_invites where code = upper(invite) for update;
+  if not found or not inv.active then return jsonb_build_object('ok', false, 'reason', 'invalid'); end if;
+  if exists (select 1 from public.premium_invite_uses u where u.code = inv.code and u.email = mail) then
+    select p.until into ends from public.premium p where lower(p.email) = mail;
+    return jsonb_build_object('ok', true, 'again', true, 'until', ends);
+  end if;
+  if inv.expires is not null and inv.expires < current_date then return jsonb_build_object('ok', false, 'reason', 'expired'); end if;
+  if inv.uses >= inv.max_uses then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  ends := case when inv.days is null then null else current_date + inv.days end;
+  insert into public.premium as p (email, until, note) values (mail, ends, 'invitation ' || inv.code)
+  on conflict (email) do update
+    set until = case when p.until is null or excluded.until is null then null else greatest(p.until, excluded.until) end;
+  insert into public.premium_invite_uses (code, email) values (inv.code, mail);
+  update public.premium_invites set uses = uses + 1 where code = inv.code;
+  select p.until into ends from public.premium p where lower(p.email) = mail;
+  return jsonb_build_object('ok', true, 'until', ends);
+end $$;
+revoke all on function public.redeem_premium_invite(text) from public, anon;
+grant execute on function public.redeem_premium_invite(text) to authenticated;
+
+-- Créer un lien (admin seulement). Le code est tiré au hasard : 16 caractères, impossible à deviner.
+create or replace function public.create_premium_invite(places int, days int, expires date, note text) returns text
+language plpgsql security definer set search_path = '' as $$
+declare c text := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 16));
+begin
+  if not public.is_admin() then raise exception 'réservé à l''admin'; end if;
+  insert into public.premium_invites (code, max_uses, days, expires, note)
+  values (c, places, create_premium_invite.days, create_premium_invite.expires, nullif(trim(create_premium_invite.note), ''));
+  return c;
+end $$;
+revoke all on function public.create_premium_invite(int, int, date, text) from public, anon;
+grant execute on function public.create_premium_invite(int, int, date, text) to authenticated;
+
+-- Arrêter un lien (admin seulement) : plus personne ne peut l'utiliser, ceux qui l'ont déjà utilisé gardent Premium.
+create or replace function public.stop_premium_invite(invite text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then raise exception 'réservé à l''admin'; end if;
+  update public.premium_invites set active = false where code = upper(invite);
+end $$;
+revoke all on function public.stop_premium_invite(text) from public, anon;
+grant execute on function public.stop_premium_invite(text) to authenticated;
+
 -- Bouton « Supprimer mon compte » : efface le compte de la personne connectée (et sa ligne, par cascade),
 -- et sa ligne Premium s'il en a une : rien ne reste de lui (promis dans legal/confidentialite.html).
 create or replace function public.delete_my_account() returns void
 language sql security definer set search_path = '' as $$
   delete from public.premium p where lower(p.email) = lower(auth.jwt() ->> 'email');
+  delete from public.premium_invite_uses u where u.email = lower(auth.jwt() ->> 'email');
   delete from auth.users where id = auth.uid()
 $$;
 
@@ -115,6 +200,8 @@ language sql security definer set search_path = '' as $$
     returning u.email
   ), premium as (
     delete from public.premium p where lower(p.email) in (select lower(g.email) from gone g)
+  ), invites as (
+    delete from public.premium_invite_uses u where u.email in (select lower(g.email) from gone g)
   )
   select count(*)::int from gone
 $$;

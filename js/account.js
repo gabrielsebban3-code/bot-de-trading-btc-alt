@@ -7,6 +7,7 @@ import { clean, MAX, merge, normalize, star, valid, watchlist } from './watchlis
 import { since, whatsNew } from './whatsnew.js';
 import { MAX_ALERTS, checkAlerts, guessDir, normalizeAlerts, parsePrice } from './pricealerts.js';
 import { ALERTS, alertLimit, delayed, isPremium, setPremium } from './premium.js';
+import { DURATIONS, INVITE_KEY, durationText, inviteLink, inviteState, redeemText, storedInvite } from './invite.js';
 
 const $ = id => document.getElementById(id);
 export const accountsOn = Boolean(SUPABASE.url && SUPABASE.key);
@@ -37,6 +38,8 @@ let badgeSeen = false; // le membre a ouvert Résumé ou Mon compte : plus de pa
 let alerts = null; // alertes de prix du compte ; null tant qu'elles ne sont pas lues (ou colonne absente dans Supabase)
 let alertsUnseen = 0; // alertes déclenchées depuis le dernier passage sur Mon compte
 let premium = false; // compte Premium (table premium dans Supabase, ou admin)
+let invite = null; // invitation Premium : { state: 'wait' | 'busy' | 'done' | 'error', text }
+let newInvite = ''; // dernier lien créé par l'admin, montré en haut de sa liste
 
 const local = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -85,6 +88,8 @@ export function initAccount(assetInfo) {
   });
   $('account').addEventListener('click', onAction);
   $('admin').addEventListener('click', onAction);
+  $('admin').addEventListener('submit', createInvite);
+  $('premium-invite').addEventListener('click', onAction);
   $('alerts').addEventListener('submit', addAlert);
   $('alerts').addEventListener('input', e => { if (e.target.name === 'target' || e.target.name === 'symbol') suggestDir(); });
   $('alerts').addEventListener('click', onAlertAction);
@@ -213,6 +218,7 @@ async function onSession(session) {
     // Fonction absente (schema.sql pas relancé) : le compte reste en gratuit.
     premium = Boolean((await sb.rpc('is_premium')).data);
     applyTier();
+    await redeemInvite();
   } catch {
     notice = 'Ta watchlist n\'a pas pu être lue dans ton compte. Celle de cet appareil reste affichée.';
   }
@@ -236,6 +242,45 @@ async function memberData() {
   alerts = alErr ? null : normalizeAlerts(al?.alerts);
   const { data: links } = await sb.from('member_links').select('name, url');
   discord = discordUrl(links?.find(l => l.name === 'discord')?.url);
+}
+
+// Lien d'invitation ouvert (#premium/CODE) : gardé sur l'appareil, puis activé dès que la personne est connectée.
+export function takeInvite(code) {
+  local.set(INVITE_KEY, JSON.stringify({ code, at: Date.now() }));
+  if (user && sb) redeemInvite();
+  else { invite = { state: 'wait' }; renderInvite(); }
+}
+
+async function redeemInvite() {
+  const code = storedInvite(local.get(INVITE_KEY));
+  if (!code || !user || !sb) return;
+  invite = { state: 'busy' };
+  renderInvite();
+  const { data, error } = await sb.rpc('redeem_premium_invite', { invite: code });
+  local.set(INVITE_KEY, null);
+  const res = error ? null : data;
+  invite = { state: res?.ok ? 'done' : 'error', text: redeemText(res) };
+  if (res?.ok) {
+    premium = true;
+    applyTier();
+    $('toast').innerHTML = `<span>✦ ${esc(invite.text)}</span><a href="#premium">Voir Premium</a><button type="button" aria-label="Fermer">×</button>`;
+    $('toast').hidden = false;
+  }
+  renderInvite();
+  renderAccount();
+}
+
+// Encadré en haut de la page Premium quand on arrive par un lien d'invitation.
+function renderInvite() {
+  const el = $('premium-invite');
+  if (!invite) { el.hidden = true; return; }
+  const body = invite.state === 'busy' ? '<p class="txt">Activation de ton invitation…</p>'
+    : invite.state === 'wait' ? `<p class="txt"><span class="ptag">Premium</span> <b>Tu as reçu une invitation Premium.</b> Connecte-toi (c'est gratuit et sans mot de passe) : Premium s'activera tout seul.</p>
+      <div class="links"><a class="buy" href="#compte/connexion">Me connecter</a></div>`
+      : `<p class="txt">${invite.state === 'done' ? '<span class="ptag">Premium</span> ' : ''}${esc(invite.text)}</p>`;
+  el.className = `box join prem${invite.state === 'error' ? ' off' : ''}`;
+  el.innerHTML = body;
+  el.hidden = false;
 }
 
 function applyTier() {
@@ -308,6 +353,14 @@ async function onAction(e) {
     local.set(VIEW_FREE, local.get(VIEW_FREE) ? null : '1');
     applyTier();
     renderAccount();
+  } else if (act === 'invite-copy') {
+    const link = e.target.closest('[data-link]').dataset.link;
+    if (navigator.share) { try { await navigator.share({ title: 'Invitation Dinexo Premium', url: link }); } catch { /* fermé */ } return; }
+    try { await navigator.clipboard.writeText(link); e.target.textContent = 'Copié ✓'; } catch { prompt('Copie ce lien :', link); }
+  } else if (act === 'invite-stop') {
+    if (!confirm('Arrêter ce lien ? Plus personne ne pourra l\'utiliser. Ceux qui l\'ont déjà utilisé gardent Premium.')) return;
+    await sb.rpc('stop_premium_invite', { invite: e.target.closest('[data-code]').dataset.code });
+    renderAdmin();
   } else if (act === 'delete') {
     if (!confirm('Supprimer ton compte ? Ta watchlist restera sur cet appareil, mais ne sera plus synchronisée.')) return;
     const { error } = await sb.rpc('delete_my_account');
@@ -520,5 +573,46 @@ async function renderAdmin() {
     <div class="wrap flat"><table class="static">
       <thead><tr><th class="l">Adresse</th><th class="l">Inscrit le</th><th>Actifs suivis</th></tr></thead>
       <tbody>${data.map(p => `<tr><td class="l">${esc(p.email || '—')}${premSet.has((p.email || '').toLowerCase()) ? ' <span class="ptag">Premium</span>' : ''}</td><td class="l muted">${day(p.created_at)}</td><td class="n">${p.watchlist.length}</td></tr>`).join('')}</tbody>
-    </table></div>`;
+    </table></div>
+    ${await invitesHtml()}`;
+}
+
+// Liens d'invitation Premium : formulaire de création et liste (places prises, durée, date de fin).
+const plus = n => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+async function invitesHtml() {
+  const { data, error } = await sb.from('premium_invites').select('code, max_uses, uses, days, expires, active, note, created_at').order('created_at', { ascending: false });
+  if (error) return '<h2>Liens d\'invitation Premium</h2><p class="txt muted">Indisponible : relance le fichier supabase/schema.sql dans Supabase (SQL Editor).</p>';
+  const base = `${location.origin}${location.pathname}`;
+  const rows = data.map(i => {
+    const state = inviteState(i);
+    const link = inviteLink(base, i.code);
+    return `<div class="row inv" data-code="${esc(i.code)}" data-link="${esc(link)}">
+      <span class="t">${esc(i.note || 'Sans nom')} <span class="tag ${state === 'actif' ? 'up' : 'mid'}">${state}</span></span>
+      <span class="d muted">${i.uses}/${i.max_uses} place${i.max_uses > 1 ? 's' : ''} · Premium ${durationText(i.days)} · lien ${i.expires ? `jusqu'au ${day(i.expires)}` : 'sans fin'}</span>
+      ${i.code === newInvite ? `<input class="mono" readonly value="${esc(link)}" aria-label="Lien d'invitation">` : ''}
+      ${state === 'actif' ? '<span class="links"><button type="button" class="btn" data-act="invite-copy">Copier le lien</button><button type="button" class="btn danger" data-act="invite-stop">Arrêter</button></span>' : ''}
+    </div>`;
+  }).join('');
+  return `<h2>Liens d'invitation Premium</h2>
+    <p class="txt">Crée un lien, envoie-le : la personne se connecte et devient Premium toute seule.</p>
+    <form class="login inv-form" id="invite-form">
+      <label>Nom du lien, pour t'y retrouver<input name="note" maxlength="80" placeholder="Testeurs novembre"></label>
+      <label>Nombre de personnes<input name="places" type="number" min="1" max="1000" value="10" required></label>
+      <label>Durée de Premium<select name="days">${DURATIONS.map(([v, t]) => `<option value="${v}"${v === '30' ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label>Lien valable jusqu'au<input name="expires" type="date" min="${plus(0)}" value="${plus(30)}"></label>
+      <button class="btn primary">Créer le lien</button></form>
+    ${rows || '<p class="txt muted">Aucun lien pour le moment.</p>'}`;
+}
+
+async function createInvite(e) {
+  if (e.target.id !== 'invite-form') return;
+  e.preventDefault();
+  const f = e.target;
+  f.querySelector('button').disabled = true;
+  const { data, error } = await sb.rpc('create_premium_invite', {
+    places: Number(f.places.value) || 10, days: f.days.value ? Number(f.days.value) : null, expires: f.expires.value || null, note: f.note.value,
+  });
+  if (error) { f.querySelector('button').disabled = false; alert('Le lien n\'a pas pu être créé. As-tu relancé supabase/schema.sql ?'); return; }
+  newInvite = data;
+  renderAdmin();
 }
