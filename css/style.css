@@ -1030,3 +1030,14 @@ body.jb-locked { overflow: hidden; }
 .t-after tr.ref td { color: var(--muted); }
 .t-after th, .t-after td { padding: 8px 10px; white-space: normal; vertical-align: top; }
 .t-after th:not(.l) { width: 30%; }
+/* Liens d'invitation Premium : encadré de la page Premium, et liste de l'admin dans Mon compte */
+#premium-invite > .txt:last-child { padding-bottom: 14px; }
+#premium-invite.off { border-color: var(--mid); }
+.inv-form label { display: flex; flex-direction: column; gap: 4px; }
+.inv-form input, .inv-form select { background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: 16px var(--sans); }
+.inv-form .btn { align-self: flex-start; margin-top: 4px; }
+.row.inv { flex-wrap: wrap; row-gap: 6px; }
+.row.inv .t { max-width: none; }
+.row.inv .d { flex-basis: 100%; }
+.row.inv input { flex-basis: 100%; min-width: 0; background: var(--bg); color: var(--fg); border: 1px solid var(--accent-line); border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+.row.inv .links { padding: 0; }
