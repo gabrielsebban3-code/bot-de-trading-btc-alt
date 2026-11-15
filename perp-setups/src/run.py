@@ -102,6 +102,10 @@ def cmd_validate(args) -> None:
              "Volume nul | high<low | close hors [low,high] | Bougies >30 % | Lignes funding |",
              "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for s in stats:
+        if s["received"] == 0:      # listed after the readable limit: nothing to check yet
+            lines.append(f"| {s['symbol']} | aucune bougie dans le périmètre | 0 | 0 | 0 | - | 0 | - | 0 | 0 | 0 | 0 | "
+                         f"{s['funding_rows']} |")
+            continue
         lines.append(f"| {s['symbol']} | {s['first_candle'][:16]} | {s['expected']} | {s['received']} | {s['missing']} | "
                      f"{s['missing_pct']:.4f} | {len(s['gaps'])} | {s['duplicates_removed']} | {s['zero_volume']} | "
                      f"{s['high_lt_low']} | {s['close_outside_range']} | {len(s['big_moves'])} | {s['funding_rows']} |")
@@ -149,6 +153,9 @@ def load_market(cfg: dict, symbols: list[str]) -> tuple[dict, dict]:
     market, ctxs = {}, {}
     for sym in symbols:
         df = data.load_klines(cfg, sym)
+        if len(df) == 0:            # pair listed after the readable limit (e.g. listed during TEST while locked)
+            log(f"{sym}: no candle before the readable limit, pair skipped for this run")
+            continue
         fd = data.load_funding(cfg, sym)
         ctx = setups.SymbolContext(sym, df, fd, cfg)
         sd = engine.SymbolData(sym, df, fd)
@@ -329,6 +336,7 @@ def cmd_backtest(args) -> None:
     symbols = [p["symbol"] for p in pairs]
     configs = setups.all_configs(cfg)
     market, ctxs = load_market(cfg, symbols)
+    symbols = sorted(market)
     last_loaded = max(int(sd.ot[-1]) for sd in market.values())
     log(f"loaded {len(symbols)} pairs; last candle in memory {data.ms_to_ts(last_loaded)}")
     _G.update(cfg=cfg, market=market, ctxs=ctxs, configs=configs)

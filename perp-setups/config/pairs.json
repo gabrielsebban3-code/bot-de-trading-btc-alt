@@ -1,0 +1,131 @@
+{
+  "selected_on": "2026-11-15",
+  "volume_window": [
+    "2026-08-17",
+    "2026-11-14"
+  ],
+  "n_candidates": 329,
+  "n_without_volume_data": 0,
+  "pairs": [
+    {
+      "symbol": "BTCUSDT",
+      "onboardDate": 1567965300000,
+      "onboardDateUTC": "2019-09-08 17:55:00+00:00",
+      "avg_daily_quote_volume_90d": 11742985318.07
+    },
+    {
+      "symbol": "ETHUSDT",
+      "onboardDate": 1574840700000,
+      "onboardDateUTC": "2019-11-27 07:45:00+00:00",
+      "avg_daily_quote_volume_90d": 8737285823.31
+    },
+    {
+      "symbol": "ZECUSDT",
+      "onboardDate": 1580889600000,
+      "onboardDateUTC": "2020-02-05 08:00:00+00:00",
+      "avg_daily_quote_volume_90d": 1920052381.79
+    },
+    {
+      "symbol": "SOLUSDT",
+      "onboardDate": 1600066800000,
+      "onboardDateUTC": "2020-09-14 07:00:00+00:00",
+      "avg_daily_quote_volume_90d": 1909043755.56
+    },
+    {
+      "symbol": "XRPUSDT",
+      "onboardDate": 1578298800000,
+      "onboardDateUTC": "2020-01-06 08:20:00+00:00",
+      "avg_daily_quote_volume_90d": 1055815298.97
+    },
+    {
+      "symbol": "NEARUSDT",
+      "onboardDate": 1602748800000,
+      "onboardDateUTC": "2020-10-15 08:00:00+00:00",
+      "avg_daily_quote_volume_90d": 526509577.87
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "onboardDate": 1594371600000,
+      "onboardDateUTC": "2020-07-10 09:00:00+00:00",
+      "avg_daily_quote_volume_90d": 451446502.29
+    },
+    {
+      "symbol": "BNBUSDT",
+      "onboardDate": 1581321600000,
+      "onboardDateUTC": "2020-02-10 08:00:00+00:00",
+      "avg_daily_quote_volume_90d": 381219657.77
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "onboardDate": 1683244800000,
+      "onboardDateUTC": "2023-05-05 00:00:00+00:00",
+      "avg_daily_quote_volume_90d": 323486030.15
+    },
+    {
+      "symbol": "ENAUSDT",
+      "onboardDate": 1712061000000,
+      "onboardDateUTC": "2024-04-02 12:30:00+00:00",
+      "avg_daily_quote_volume_90d": 308807108.65
+    },
+    {
+      "symbol": "SUIUSDT",
+      "onboardDate": 1683072000000,
+      "onboardDateUTC": "2023-05-03 00:00:00+00:00",
+      "avg_daily_quote_volume_90d": 295227858.26
+    },
+    {
+      "symbol": "UNIUSDT",
+      "onboardDate": 1600412400000,
+      "onboardDateUTC": "2020-09-18 07:00:00+00:00",
+      "avg_daily_quote_volume_90d": 284410330.49
+    },
+    {
+      "symbol": "WLDUSDT",
+      "onboardDate": 1690200000000,
+      "onboardDateUTC": "2023-07-24 12:00:00+00:00",
+      "avg_daily_quote_volume_90d": 222609763.17
+    },
+    {
+      "symbol": "TRUMPUSDT",
+      "onboardDate": 1737205200000,
+      "onboardDateUTC": "2025-01-18 13:00:00+00:00",
+      "avg_daily_quote_volume_90d": 191071371.49
+    },
+    {
+      "symbol": "ADAUSDT",
+      "onboardDate": 1580457600000,
+      "onboardDateUTC": "2020-01-31 08:00:00+00:00",
+      "avg_daily_quote_volume_90d": 184999447.54
+    },
+    {
+      "symbol": "LINKUSDT",
+      "onboardDate": 1579248000000,
+      "onboardDateUTC": "2020-01-17 08:00:00+00:00",
+      "avg_daily_quote_volume_90d": 167608506.03
+    },
+    {
+      "symbol": "QNTUSDT",
+      "onboardDate": 1666076400000,
+      "onboardDateUTC": "2022-10-18 07:00:00+00:00",
+      "avg_daily_quote_volume_90d": 164582949.75
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "onboardDate": 1600844400000,
+      "onboardDateUTC": "2020-09-23 07:00:00+00:00",
+      "avg_daily_quote_volume_90d": 147600786.64
+    },
+    {
+      "symbol": "TAOUSDT",
+      "onboardDate": 1712845800000,
+      "onboardDateUTC": "2024-04-11 14:30:00+00:00",
+      "avg_daily_quote_volume_90d": 143578389.01
+    },
+    {
+      "symbol": "ARBUSDT",
+      "onboardDate": 1679554800000,
+      "onboardDateUTC": "2023-03-23 07:00:00+00:00",
+      "avg_daily_quote_volume_90d": 136342616.14
+    }
+  ]
+}

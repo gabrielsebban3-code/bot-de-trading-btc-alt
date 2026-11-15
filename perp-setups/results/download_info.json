@@ -1,0 +1,222 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "months": 82,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 239616,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 239616,
+    "funding_rows": 7488
+  },
+  {
+    "symbol": "ETHUSDT",
+    "months": 82,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 239616,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 239616,
+    "funding_rows": 7488
+  },
+  {
+    "symbol": "ZECUSDT",
+    "months": 81,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 235744,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 235744,
+    "funding_rows": 7385
+  },
+  {
+    "symbol": "SOLUSDT",
+    "months": 74,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 214436,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 214436,
+    "funding_rows": 6793
+  },
+  {
+    "symbol": "XRPUSDT",
+    "months": 82,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 238623,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 238623,
+    "funding_rows": 7472
+  },
+  {
+    "symbol": "NEARUSDT",
+    "months": 73,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 211456,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 211456,
+    "funding_rows": 6625
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "months": 76,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 221244,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 221244,
+    "funding_rows": 6914
+  },
+  {
+    "symbol": "BNBUSDT",
+    "months": 81,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 235744,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 235744,
+    "funding_rows": 7367
+  },
+  {
+    "symbol": "1000PEPEUSDT",
+    "months": 42,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 122430,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 122430,
+    "funding_rows": 3826
+  },
+  {
+    "symbol": "ENAUSDT",
+    "months": 31,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 90478,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 90478,
+    "funding_rows": 5653
+  },
+  {
+    "symbol": "SUIUSDT",
+    "months": 42,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 122624,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 122624,
+    "funding_rows": 3832
+  },
+  {
+    "symbol": "UNIUSDT",
+    "months": 74,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 214532,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 214532,
+    "funding_rows": 6707
+  },
+  {
+    "symbol": "WLDUSDT",
+    "months": 40,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 114768,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 114768,
+    "funding_rows": 3586
+  },
+  {
+    "symbol": "TRUMPUSDT",
+    "months": 22,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 62540,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 62540,
+    "funding_rows": 3907
+  },
+  {
+    "symbol": "ADAUSDT",
+    "months": 82,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 236704,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 236704,
+    "funding_rows": 7432
+  },
+  {
+    "symbol": "LINKUSDT",
+    "months": 82,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 238048,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 238048,
+    "funding_rows": 7439
+  },
+  {
+    "symbol": "QNTUSDT",
+    "months": 49,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 141398,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 141398,
+    "funding_rows": 4418
+  },
+  {
+    "symbol": "AVAXUSDT",
+    "months": 74,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 214052,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 214052,
+    "funding_rows": 6691
+  },
+  {
+    "symbol": "TAOUSDT",
+    "months": 31,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 89606,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 89606,
+    "funding_rows": 5599
+  },
+  {
+    "symbol": "ARBUSDT",
+    "months": 44,
+    "missing_kline_months": [],
+    "missing_funding_months": [],
+    "raw_rows": 126564,
+    "duplicates": 0,
+    "misaligned": 0,
+    "rows": 126564,
+    "funding_rows": 3956
+  }
+]

@@ -1,0 +1,412 @@
+{
+  "volume_window": [
+    "2026-08-17",
+    "2026-11-14"
+  ],
+  "n_candidates": 329,
+  "n_without_volume_data": 0,
+  "dropped": {
+    "not_usdt_perp_trading": 424,
+    "stablecoin": [
+      "USDCUSDT",
+      "USTCUSDT",
+      "FRAXUSDT"
+    ],
+    "index": [
+      "BTCDOMUSDT",
+      "ALLUSDT",
+      "PREDICTUSDT"
+    ],
+    "too_recent": [
+      "NXPCUSDT",
+      "CVCUSDT",
+      "AGTUSDT",
+      "AWEUSDT",
+      "BUSDT",
+      "SOONUSDT",
+      "HUMAUSDT",
+      "AUSDT",
+      "SOPHUSDT",
+      "MERLUSDT",
+      "HYPEUSDT",
+      "LAUSDT",
+      "HOMEUSDT",
+      "RESOLVUSDT",
+      "TAIKOUSDT",
+      "SQDUSDT",
+      "SPKUSDT",
+      "MYXUSDT",
+      "FUSDT",
+      "NEWTUSDT",
+      "HUSDT",
+      "SAHARAUSDT",
+      "ICNTUSDT",
+      "BULLAUSDT",
+      "IDOLUSDT",
+      "MUSDT",
+      "PUMPUSDT",
+      "CROSSUSDT",
+      "AINUSDT",
+      "CUSDT",
+      "VELVETUSDT",
+      "TACUSDT",
+      "ERAUSDT",
+      "TAUSDT",
+      "CVXUSDT",
+      "SLPUSDT",
+      "ZORAUSDT",
+      "TAGUSDT",
+      "ESPORTSUSDT",
+      "TREEUSDT",
+      "PLAYUSDT",
+      "NAORISUSDT",
+      "TOWNSUSDT",
+      "PROVEUSDT",
+      "INUSDT",
+      "CARVUSDT",
+      "AIOUSDT",
+      "XNYUSDT",
+      "USELESSUSDT",
+      "SAPIENUSDT",
+      "XPLUSDT",
+      "WLFIUSDT",
+      "SOMIUSDT",
+      "BASUSDT",
+      "BTRUSDT",
+      "HEMIUSDT",
+      "LINEAUSDT",
+      "QUSDT",
+      "ARIAUSDT",
+      "TAKEUSDT",
+      "OPENUSDT",
+      "FLOCKUSDT",
+      "SKYUSDT",
+      "AVNTUSDT",
+      "HOLOUSDT",
+      "XPINUSDT",
+      "UBUSDT",
+      "ZKCUSDT",
+      "TOSHIUSDT",
+      "STBLUSDT",
+      "0GUSDT",
+      "BARDUSDT",
+      "ASTERUSDT",
+      "TRADOORUSDT",
+      "BLESSUSDT",
+      "FLUIDUSDT",
+      "COAIUSDT",
+      "HANAUSDT",
+      "MIRAUSDT",
+      "AKEUSDT",
+      "ORDERUSDT",
+      "LIGHTUSDT",
+      "XANUSDT",
+      "FFUSDT",
+      "EDENUSDT",
+      "NOMUSDT",
+      "TRUTHUSDT",
+      "2ZUSDT",
+      "EVAAUSDT",
+      "LYNUSDT",
+      "KGENUSDT",
+      "4USDT",
+      "GIGGLEUSDT",
+      "MONUSDT",
+      "YBUSDT",
+      "METUSDT",
+      "EULUSDT",
+      "ENSOUSDT",
+      "CLOUSDT",
+      "RECALLUSDT",
+      "ZBTUSDT",
+      "LABUSDT",
+      "RIVERUSDT",
+      "\u5e01\u5b89\u4eba\u751fUSDT",
+      "BLUAIUSDT",
+      "TURTLEUSDT",
+      "APRUSDT",
+      "ONUSDT",
+      "KITEUSDT",
+      "ATUSDT",
+      "CCUSDT",
+      "MMTUSDT",
+      "TRUSTUSDT",
+      "UAIUSDT",
+      "FOLKSUSDT",
+      "STABLEUSDT",
+      "JCTUSDT",
+      "ALLOUSDT",
+      "CLANKERUSDT",
+      "BEATUSDT",
+      "PIEVERSEUSDT",
+      "SENTUSDT",
+      "IRYSUSDT",
+      "POWERUSDT",
+      "WETUSDT",
+      "NIGHTUSDT",
+      "USUSDT",
+      "CYSUSDT",
+      "RAVEUSDT",
+      "ZKPUSDT",
+      "GUAUSDT",
+      "LITUSDT",
+      "BREVUSDT",
+      "COLLECTUSDT",
+      "MAGMAUSDT",
+      "ZAMAUSDT",
+      "FOGOUSDT",
+      "SPORTFUNUSDT",
+      "AIAUSDT",
+      "ACUUSDT",
+      "\u6211\u8e0f\u9a6c\u6765\u4e86USDT",
+      "ELSAUSDT",
+      "SKRUSDT",
+      "SPACEUSDT",
+      "FIGHTUSDT",
+      "BIRBUSDT",
+      "GWEIUSDT",
+      "MEGAUSDT",
+      "INXUSDT",
+      "TRIAUSDT",
+      "ESPUSDT",
+      "AZTECUSDT",
+      "OPNUSDT",
+      "ROBOUSDT",
+      "KATUSDT",
+      "MANTRAUSDT",
+      "\u9f99\u867eUSDT",
+      "CFGUSDT",
+      "EDGEUSDT",
+      "BSBUSDT",
+      "XAUTUSDT",
+      "BASEDUSDT",
+      "PRLUSDT",
+      "GENIUSUSDT",
+      "CHIPUSDT",
+      "OPGUSDT",
+      "AIGENSYNUSDT",
+      "BILLUSDT",
+      "PHAROSUSDT",
+      "STARUSDT",
+      "CTRUSDT",
+      "SLXUSDT",
+      "ZESTUSDT",
+      "BTWUSDT",
+      "REUSDT",
+      "ARXUSDT",
+      "OUSDT",
+      "CAPUSDT",
+      "GRAMUSDT",
+      "DATAIPUSDT",
+      "GRVTUSDT",
+      "DOSUSDT",
+      "\u725b\u6765USDT",
+      "MARSCOINUSDT",
+      "PONSUSDT",
+      "\u54c8\u57fa\u7c73USDT",
+      "CTUSDT"
+    ]
+  },
+  "ranking_top40": [
+    {
+      "symbol": "BTCUSDT",
+      "avg_daily_quote_volume_90d": 11742985318.072004,
+      "onboardDate": 1567965300000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "avg_daily_quote_volume_90d": 8737285823.313044,
+      "onboardDate": 1574840700000
+    },
+    {
+      "symbol": "ZECUSDT",
+      "avg_daily_quote_volume_90d": 1920052381.7871745,
+      "onboardDate": 1580889600000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "avg_daily_quote_volume_90d": 1909043755.5566127,
+      "onboardDate": 1600066800000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "avg_daily_quote_volume_90d": 1055815298.9662735,
+      "onboardDate": 1578298800000
+    },
+    {
+      "symbol": "NEARUSDT",
+      "avg_daily_quote_volume_90d": 526509577.8660778,
+      "onboardDate": 1602748800000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "avg_daily_quote_volume_90d": 451446502.2921341,
+      "onboardDate": 1594371600000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "avg_daily_quote_volume_90d": 381219657.7671445,
+      "onboardDate": 1581321600000
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "avg_daily_quote_volume_90d": 323486030.1465894,
+      "onboardDate": 1683244800000
+    },
+    {
+      "symbol": "ENAUSDT",
+      "avg_daily_quote_volume_90d": 308807108.64925987,
+      "onboardDate": 1712061000000
+    },
+    {
+      "symbol": "SUIUSDT",
+      "avg_daily_quote_volume_90d": 295227858.2614351,
+      "onboardDate": 1683072000000
+    },
+    {
+      "symbol": "UNIUSDT",
+      "avg_daily_quote_volume_90d": 284410330.4867556,
+      "onboardDate": 1600412400000
+    },
+    {
+      "symbol": "WLDUSDT",
+      "avg_daily_quote_volume_90d": 222609763.1724611,
+      "onboardDate": 1690200000000
+    },
+    {
+      "symbol": "TRUMPUSDT",
+      "avg_daily_quote_volume_90d": 191071371.4865588,
+      "onboardDate": 1737205200000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "avg_daily_quote_volume_90d": 184999447.54112,
+      "onboardDate": 1580457600000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "avg_daily_quote_volume_90d": 167608506.02792233,
+      "onboardDate": 1579248000000
+    },
+    {
+      "symbol": "QNTUSDT",
+      "avg_daily_quote_volume_90d": 164582949.75433332,
+      "onboardDate": 1666076400000
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "avg_daily_quote_volume_90d": 147600786.64297777,
+      "onboardDate": 1600844400000
+    },
+    {
+      "symbol": "TAOUSDT",
+      "avg_daily_quote_volume_90d": 143578389.0055048,
+      "onboardDate": 1712845800000
+    },
+    {
+      "symbol": "ARBUSDT",
+      "avg_daily_quote_volume_90d": 136342616.139671,
+      "onboardDate": 1679554800000
+    },
+    {
+      "symbol": "LSKUSDT",
+      "avg_daily_quote_volume_90d": 129720268.74332623,
+      "onboardDate": 1706192100000
+    },
+    {
+      "symbol": "AAVEUSDT",
+      "avg_daily_quote_volume_90d": 122572335.55660002,
+      "onboardDate": 1602831600000
+    },
+    {
+      "symbol": "FILUSDT",
+      "avg_daily_quote_volume_90d": 120233007.91906667,
+      "onboardDate": 1602828000000
+    },
+    {
+      "symbol": "ONDOUSDT",
+      "avg_daily_quote_volume_90d": 115404846.77653132,
+      "onboardDate": 1705755600000
+    },
+    {
+      "symbol": "BCHUSDT",
+      "avg_daily_quote_volume_90d": 114827256.59449266,
+      "onboardDate": 1576745700000
+    },
+    {
+      "symbol": "LTCUSDT",
+      "avg_daily_quote_volume_90d": 96433466.63600877,
+      "onboardDate": 1578557100000
+    },
+    {
+      "symbol": "STRKUSDT",
+      "avg_daily_quote_volume_90d": 84064785.0501414,
+      "onboardDate": 1708448400000
+    },
+    {
+      "symbol": "BRUSDT",
+      "avg_daily_quote_volume_90d": 78958029.99183178,
+      "onboardDate": 1742561100000
+    },
+    {
+      "symbol": "INJUSDT",
+      "avg_daily_quote_volume_90d": 78544371.15345111,
+      "onboardDate": 1660633200000
+    },
+    {
+      "symbol": "PAXGUSDT",
+      "avg_daily_quote_volume_90d": 72332834.25657144,
+      "onboardDate": 1743071400000
+    },
+    {
+      "symbol": "PENGUUSDT",
+      "avg_daily_quote_volume_90d": 70993136.04445198,
+      "onboardDate": 1734452100000
+    },
+    {
+      "symbol": "XLMUSDT",
+      "avg_daily_quote_volume_90d": 68936338.79250988,
+      "onboardDate": 1579507200000
+    },
+    {
+      "symbol": "DASHUSDT",
+      "avg_daily_quote_volume_90d": 67455327.09541266,
+      "onboardDate": 1580803500000
+    },
+    {
+      "symbol": "ONEUSDT",
+      "avg_daily_quote_volume_90d": 67302214.52984016,
+      "onboardDate": 1615964400000
+    },
+    {
+      "symbol": "XMRUSDT",
+      "avg_daily_quote_volume_90d": 62032096.37873033,
+      "onboardDate": 1580716800000
+    },
+    {
+      "symbol": "DOTUSDT",
+      "avg_daily_quote_volume_90d": 61943710.02178356,
+      "onboardDate": 1598079600000
+    },
+    {
+      "symbol": "SANDUSDT",
+      "avg_daily_quote_volume_90d": 59567564.166763335,
+      "onboardDate": 1610953200000
+    },
+    {
+      "symbol": "TIAUSDT",
+      "avg_daily_quote_volume_90d": 56444947.99745111,
+      "onboardDate": 1698769800000
+    },
+    {
+      "symbol": "HBARUSDT",
+      "avg_daily_quote_volume_90d": 56407578.143037446,
+      "onboardDate": 1615964400000
+    },
+    {
+      "symbol": "TRXUSDT",
+      "avg_daily_quote_volume_90d": 51191946.782650776,
+      "onboardDate": 1579075500000
+    }
+  ]
+}
