@@ -8,7 +8,7 @@ Toutes ces décisions ont été prises et codées **avant** le premier backtest 
 
 | # | Date | Point | Décision | Raison |
 |---|---|---|---|---|
-| D1 | 2026-11-15 | `fapi.binance.com` répond HTTP 451 (restriction géographique du serveur cloud) | `exchangeInfo` fourni par Gabriel (fichier) ; tout le reste vient de `data.binance.vision` | La mission impose de s'arrêter et de demander les fichiers plutôt que de contourner |
+| D1 | 2026-11-15 | `fapi.binance.com` répond HTTP 451 (restriction géographique du serveur cloud) | `exchangeInfo` fourni par Gabriel : réponse JSON complète de `fapi/v1/exchangeInfo` collée dans la conversation, enregistrée telle quelle dans `data/raw/exchangeInfo.json` (946 contrats, `serverTime` = 2026-11-13 06:02 UTC) ; tout le reste vient de `data.binance.vision` | La mission impose de s'arrêter et de demander les fichiers plutôt que de contourner |
 | D2 | 2026-11-15 | Mois en cours impossible à compléter par l'API ; archive funding de novembre 2026 inexistante | Fin des données = **2026-10-31 23:45 UTC** (dernier mois complet où klines ET funding existent en archive) | Sans funding réel on ne peut pas simuler ; aucune donnée inventée |
 | D3 | 2026-11-15 | Volume 90 jours pour le classement des paires | Klines 1d des archives `data.binance.vision` (mensuelles août-octobre 2026 + journalières 1er-14 novembre), fenêtre 2026-08-17 → 2026-11-14 | Même donnée officielle que l'API klines 1d, seule source accessible |
 | D4 | 2026-11-15 | Transparence | En vérifiant le format CSV j'ai vu l'en-tête et 2 bougies BTC d'octobre 2026 (jeu TEST). Aucun calcul, aucun résultat | Signalé par honnêteté ; sans effet sur les règles |
