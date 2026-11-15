@@ -45,7 +45,8 @@ def sandbox(tmp_path, monkeypatch):
         fd["funding_time"] = pd.to_datetime(fd["funding_time"], unit="ms", utc=True)
         df.to_parquet(tmp_path / "parquet" / "klines" / f"{sym}.parquet", index=False)
         fd.to_parquet(tmp_path / "parquet" / "funding" / f"{sym}.parquet", index=False)
-        pairs.append({"symbol": sym, "onboardDate": start})
+        pairs.append({"symbol": sym, "onboardDate": start, "onboardDateUTC": "2024-08-01 00:00:00+00:00",
+                      "avg_daily_quote_volume_90d": 1.0e9})
     (tmp_path / "pairs.json").write_text(json.dumps({"pairs": pairs}))
     return tmp_path, state
 
@@ -89,6 +90,11 @@ def test_pipeline_dev_val_then_locked_test(sandbox):
         p.unlink()
     run.main(["backtest", "--set", "dev,val", "--workers", "2"])
     assert _hashes(res) == first and len(first) >= 100
+    # the report can be generated while TEST is locked
+    run.main(["report"])
+    report = (tmp / "REPORT.md").read_text()
+    assert "TEST : **verrouillé**" in report and "## Limites" in report and "## Ce que ces résultats ne prouvent pas" in report
+    assert (tmp / "SETUPS_RETENUS.md").exists() and (res / "comparaison_familles.png").exists()
     # TEST is refused while locked
     with pytest.raises(data.TestSetLockedError):
         run.main(["backtest", "--set", "test", "--workers", "1"])
@@ -115,3 +121,5 @@ def test_pipeline_dev_val_then_locked_test(sandbox):
         {"family": "C", "config_id": "C_tf1h_dc20_voloff", "params": json.loads(test["params"].iloc[0])}])
     with pytest.raises(RuntimeError):
         run.main(["backtest", "--set", "test", "--workers", "1"])          # the final test runs once
+    run.main(["report"])
+    assert "ouvert une seule fois" in (tmp / "REPORT.md").read_text()
