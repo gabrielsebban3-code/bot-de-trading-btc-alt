@@ -23,3 +23,15 @@
 2026-11-15 19:33:39Z | validate-data: readable limit 2025-01-01 00:00:00+00:00 (final_test_unlocked=False)
 2026-11-15 19:34:01Z | validate-data: readable limit 2025-01-01 00:00:00+00:00 (final_test_unlocked=False)
 2026-11-15 19:34:01Z | data_quality.md written; excluded pairs: []
+2026-11-15 19:35:21Z | backtest --set dev,val | final_test_unlocked=False | data readable strictly before 2025-01-01 00:00:00+00:00
+2026-11-15 19:35:22Z | TRUMPUSDT: no candle before the readable limit, pair skipped for this run
+2026-11-15 19:35:23Z | loaded 19 pairs; last candle in memory 2024-12-31 23:45:00+00:00
+2026-11-15 19:36:15Z | DEV done: 100 configurations, 21 pass DEV, 21 pass DEV + plateau
+2026-11-15 19:36:27Z | VAL done: 21 configurations evaluated; survivors of VAL: none
+2026-11-15 19:37:09Z | backtest --set dev,val | final_test_unlocked=False | data readable strictly before 2025-01-01 00:00:00+00:00
+2026-11-15 19:37:10Z | TRUMPUSDT: no candle before the readable limit, pair skipped for this run
+2026-11-15 19:37:10Z | loaded 19 pairs; last candle in memory 2024-12-31 23:45:00+00:00
+2026-11-15 19:38:02Z | DEV done: 100 configurations, 21 pass DEV, 21 pass DEV + plateau
+2026-11-15 19:38:14Z | VAL done: 21 configurations evaluated; survivors of VAL: none
+2026-11-15 19:38:24Z | report written: REPORT.md, SETUPS_RETENUS.md, 8 family charts
+2026-11-15 19:40:22Z | report written: REPORT.md, SETUPS_RETENUS.md, 8 family charts

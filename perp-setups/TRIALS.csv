@@ -1,0 +1,143 @@
+family,config_id,params,set,cost_mult,n_trades,expectancy_r,profit_factor,win_rate,max_dd_pct
+A,A_tf15m_n3_deplacement_FVG_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,198,-0.301842,0.625769,0.257576,46.1419
+A,A_tf15m_n3_deplacement_FVG_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,115,-0.213671,0.724337,0.286957,22.7711
+A,A_tf15m_n3_deplacement_FVG_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,197,-0.350668,0.606377,0.182741,51.3148
+A,A_tf15m_n3_deplacement_FVG_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,115,-0.283861,0.67501,0.2,29.1774
+A,A_tf15m_n3_deplacement_OB_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,117,-0.539834,0.414392,0.196581,47.4853
+A,A_tf15m_n3_deplacement_OB_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,62,-0.542297,0.409777,0.193548,28.9762
+A,A_tf15m_n3_deplacement_OB_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,117,-0.552834,0.435928,0.145299,48.4438
+A,A_tf15m_n3_deplacement_OB_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,62,-0.546436,0.439087,0.145161,31.1857
+A,A_tf15m_n3_simple_FVG_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,562,-0.0403682,0.943466,0.343416,43.5408
+A,A_tf15m_n3_simple_FVG_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,310,-0.0389897,0.94542,0.345161,31.7031
+A,A_tf15m_n3_simple_FVG_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,556,-0.0766437,0.906185,0.25,46.7279
+A,A_tf15m_n3_simple_FVG_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,309,-0.0338163,0.95819,0.262136,32.648
+A,A_tf15m_n3_simple_OB_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,638,-0.199772,0.747741,0.304075,76.8863
+A,A_tf15m_n3_simple_OB_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,351,-0.165005,0.788608,0.316239,57.4089
+A,A_tf15m_n3_simple_OB_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,635,-0.211793,0.759191,0.226772,79.7598
+A,A_tf15m_n3_simple_OB_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,350,-0.161815,0.813514,0.24,58.467
+A,A_tf15m_n5_deplacement_FVG_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,68,-0.40185,0.520041,0.220588,24.458
+A,A_tf15m_n5_deplacement_FVG_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,45,-0.403318,0.521041,0.222222,16.9614
+A,A_tf15m_n5_deplacement_FVG_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,68,-0.546276,0.417527,0.132353,31.6105
+A,A_tf15m_n5_deplacement_FVG_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,45,-0.642722,0.337508,0.111111,26.8552
+A,A_tf15m_n5_deplacement_OB_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,45,-0.644318,0.319097,0.155556,25.5214
+A,A_tf15m_n5_deplacement_OB_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,30,-0.406425,0.527058,0.233333,13.1898
+A,A_tf15m_n5_deplacement_OB_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,45,-0.670684,0.327488,0.111111,26.4697
+A,A_tf15m_n5_deplacement_OB_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,30,-0.445973,0.523467,0.166667,15.9523
+A,A_tf15m_n5_simple_FVG_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,173,-0.143028,0.807723,0.306358,25.4759
+A,A_tf15m_n5_simple_FVG_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,97,-0.170266,0.775339,0.298969,16.771
+A,A_tf15m_n5_simple_FVG_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,173,-0.309859,0.64555,0.190751,45.7355
+A,A_tf15m_n5_simple_FVG_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,97,-0.296668,0.661276,0.195876,28.8108
+A,A_tf15m_n5_simple_OB_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,185,-0.218941,0.721932,0.291892,38.1669
+A,A_tf15m_n5_simple_OB_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,103,-0.283307,0.651398,0.271845,30.1812
+A,A_tf15m_n5_simple_OB_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,185,-0.344188,0.618391,0.189189,51.8274
+A,A_tf15m_n5_simple_OB_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""15m"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,103,-0.487013,0.484544,0.15534,42.2799
+A,A_tf1h_n3_deplacement_FVG_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,23,-0.122846,0.831206,0.304348,6.44581
+A,A_tf1h_n3_deplacement_FVG_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,10,-0.141818,0.807929,0.3,3.1581
+A,A_tf1h_n3_deplacement_FVG_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,23,-0.169274,0.794273,0.217391,11.1084
+A,A_tf1h_n3_deplacement_FVG_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,10,-0.244597,0.711838,0.2,4.30779
+A,A_tf1h_n3_deplacement_OB_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,13,0.306078,1.52051,0.461538,5.40378
+A,A_tf1h_n3_deplacement_OB_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,5,0.10995,1.16978,0.4,2.14987
+A,A_tf1h_n3_deplacement_OB_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,13,-0.168453,0.801157,0.230769,6.73101
+A,A_tf1h_n3_deplacement_OB_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,5,-0.301259,0.659727,0.2,2.25239
+A,A_tf1h_n3_simple_FVG_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,72,-0.21178,0.72225,0.277778,23.8964
+A,A_tf1h_n3_simple_FVG_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,37,-0.325237,0.596804,0.243243,15.4708
+A,A_tf1h_n3_simple_FVG_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,71,-0.201409,0.757688,0.211268,23.4179
+A,A_tf1h_n3_simple_FVG_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,37,-0.193158,0.769088,0.216216,14.741
+A,A_tf1h_n3_simple_OB_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,78,-0.144567,0.806807,0.307692,16.8282
+A,A_tf1h_n3_simple_OB_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,34,-0.368666,0.554616,0.235294,13.1905
+A,A_tf1h_n3_simple_OB_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,78,-0.148215,0.822115,0.230769,19.3093
+A,A_tf1h_n3_simple_OB_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 3, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,34,-0.489305,0.47034,0.147059,17.1898
+A,A_tf1h_n5_deplacement_FVG_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,7,-0.19978,0.739291,0.285714,5.25026
+A,A_tf1h_n5_deplacement_FVG_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,2,-1.12603,0,0,2.23939
+A,A_tf1h_n5_deplacement_FVG_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,7,0.0871954,1.11379,0.285714,5.25026
+A,A_tf1h_n5_deplacement_FVG_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,2,-1.12603,0,0,2.23939
+A,A_tf1h_n5_deplacement_OB_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,5,0.733559,2.7363,0.6,2.10127
+A,A_tf1h_n5_deplacement_OB_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,1,1.83042,inf,1,0
+A,A_tf1h_n5_deplacement_OB_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,5,-0.279937,0.680032,0.2,4.30327
+A,A_tf1h_n5_deplacement_OB_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""deplacement"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,1,-1.1887,0,0,1.1887
+A,A_tf1h_n5_simple_FVG_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,19,-0.257316,0.669573,0.263158,12.0334
+A,A_tf1h_n5_simple_FVG_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""FVG""}",dev,1,7,-0.651655,0.301859,0.142857,6.35868
+A,A_tf1h_n5_simple_FVG_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,19,-0.205544,0.753298,0.210526,12.9431
+A,A_tf1h_n5_simple_FVG_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""FVG""}",dev,1,7,-0.509332,0.454335,0.142857,6.35868
+A,A_tf1h_n5_simple_OB_tp2_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,23,-0.136592,0.812872,0.304348,6.31442
+A,A_tf1h_n5_simple_OB_tp2_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 2, ""zone"": ""OB""}",dev,1,9,-0.408493,0.506632,0.222222,3.68215
+A,A_tf1h_n5_simple_OB_tp3_htfoff,"{""htf_filter"": ""off"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,23,-0.360076,0.588986,0.173913,12.0809
+A,A_tf1h_n5_simple_OB_tp3_htfon,"{""htf_filter"": ""on"", ""pivot_n"": 5, ""structure"": ""simple"", ""timeframe"": ""1h"", ""tp_r"": 3, ""zone"": ""OB""}",dev,1,9,-0.632818,0.340846,0.111111,6.38883
+B,B_tf1h_rsi40-60_stopatr_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""1h""}",dev,1,2553,-0.00126138,0.998174,0.353702,78.4496
+B,B_tf1h_rsi40-60_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""1h""}",dev,1,2656,0.049819,1.08312,0.323419,70.97
+B,B_tf1h_rsi40-60_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",dev,1,1827,0.0128137,1.01876,0.356869,57.6061
+B,B_tf1h_rsi40-60_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",dev,1,2308,0.0495003,1.09793,0.343588,62.6331
+B,B_tf1h_rsi45-55_stopatr_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""1h""}",dev,1,4204,-0.0136503,0.980369,0.349429,86.879
+B,B_tf1h_rsi45-55_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""1h""}",dev,1,4494,0.0361466,1.05979,0.318647,81.0626
+B,B_tf1h_rsi45-55_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",dev,1,2921,0.0158391,1.02315,0.359124,68.7429
+B,B_tf1h_rsi45-55_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",dev,1,4082,0.0264995,1.04832,0.327291,80.4667
+B,B_tf4h_rsi40-60_stopatr_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""4h""}",dev,1,493,0.189973,1.30921,0.409736,17.3782
+B,B_tf4h_rsi40-60_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""4h""}",dev,1,502,0.387256,1.7452,0.390438,14.8584
+B,B_tf4h_rsi40-60_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",dev,1,298,0.217706,1.36077,0.422819,17.678
+B,B_tf4h_rsi40-60_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",dev,1,319,0.389716,1.75921,0.39185,15.7247
+B,B_tf4h_rsi45-55_stopatr_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""4h""}",dev,1,794,0.145149,1.22933,0.396725,25.0582
+B,B_tf4h_rsi45-55_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""4h""}",dev,1,832,0.355589,1.67678,0.382212,23.2826
+B,B_tf4h_rsi45-55_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",dev,1,639,0.128638,1.20152,0.392801,20.4011
+B,B_tf4h_rsi45-55_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",dev,1,726,0.307509,1.54005,0.348485,33.9077
+C,C_tf1h_dc20_voloff,"{""donchian_n"": 20, ""timeframe"": ""1h"", ""volume_filter"": ""off""}",dev,1,5199,0.00462409,1.00917,0.347567,87.135
+C,C_tf1h_dc20_volon,"{""donchian_n"": 20, ""timeframe"": ""1h"", ""volume_filter"": ""on""}",dev,1,4656,-0.00746852,0.985341,0.337199,91.2119
+C,C_tf1h_dc55_voloff,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""volume_filter"": ""off""}",dev,1,3352,0.0122943,1.02454,0.345764,80.2468
+C,C_tf1h_dc55_volon,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""volume_filter"": ""on""}",dev,1,3095,0.0161834,1.03237,0.347658,77.3737
+C,C_tf4h_dc20_voloff,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""volume_filter"": ""off""}",dev,1,861,0.177044,1.3898,0.38676,29.2638
+C,C_tf4h_dc20_volon,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""volume_filter"": ""on""}",dev,1,706,0.200258,1.43698,0.392351,26.9867
+C,C_tf4h_dc55_voloff,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""volume_filter"": ""off""}",dev,1,521,0.176884,1.3816,0.383877,26.5967
+C,C_tf4h_dc55_volon,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""volume_filter"": ""on""}",dev,1,455,0.222814,1.49699,0.395604,18.8196
+D,D_tf15m_k2p0_rsi25-75,"{""bb_k"": 2.0, ""rsi_thresholds"": ""25/75"", ""timeframe"": ""15m""}",dev,1,615,-0.278543,0.645436,0.287805,84.9356
+D,D_tf15m_k2p0_rsi20-80,"{""bb_k"": 2.0, ""rsi_thresholds"": ""20/80"", ""timeframe"": ""15m""}",dev,1,68,-0.584619,0.361403,0.191176,34.2267
+D,D_tf15m_k2p5_rsi25-75,"{""bb_k"": 2.5, ""rsi_thresholds"": ""25/75"", ""timeframe"": ""15m""}",dev,1,590,-0.277034,0.64741,0.288136,83.6471
+D,D_tf15m_k2p5_rsi20-80,"{""bb_k"": 2.5, ""rsi_thresholds"": ""20/80"", ""timeframe"": ""15m""}",dev,1,66,-0.614793,0.334714,0.181818,34.7461
+D,D_tf1h_k2p0_rsi25-75,"{""bb_k"": 2.0, ""rsi_thresholds"": ""25/75"", ""timeframe"": ""1h""}",dev,1,154,-0.375196,0.534289,0.233766,45.8575
+D,D_tf1h_k2p0_rsi20-80,"{""bb_k"": 2.0, ""rsi_thresholds"": ""20/80"", ""timeframe"": ""1h""}",dev,1,28,-0.401064,0.531664,0.214286,14.4816
+D,D_tf1h_k2p5_rsi25-75,"{""bb_k"": 2.5, ""rsi_thresholds"": ""25/75"", ""timeframe"": ""1h""}",dev,1,148,-0.380091,0.530163,0.22973,45.0002
+D,D_tf1h_k2p5_rsi20-80,"{""bb_k"": 2.5, ""rsi_thresholds"": ""20/80"", ""timeframe"": ""1h""}",dev,1,28,-0.401064,0.531664,0.214286,14.4816
+E,E_z2_hold24,"{""max_hold_hours"": 24, ""z"": 2}",dev,1,1234,-0.0583175,0.892541,0.41329,68.2597
+E,E_z2_hold48,"{""max_hold_hours"": 48, ""z"": 2}",dev,1,1126,-0.0468217,0.924965,0.35968,64.177
+E,E_z3_hold24,"{""max_hold_hours"": 24, ""z"": 3}",dev,1,645,-0.0261309,0.950946,0.421705,40.8246
+E,E_z3_hold48,"{""max_hold_hours"": 48, ""z"": 3}",dev,1,617,-0.0687157,0.891814,0.358185,53.7832
+B,B_tf1h_rsi40-60_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""1h""}",val,1,2712,-0.0652178,0.895655,0.30236,96.023
+B,B_tf1h_rsi40-60_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,1,1793,-0.0577946,0.919044,0.33575,85.1969
+B,B_tf1h_rsi40-60_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,1,2474,-0.0601917,0.889537,0.312045,94.185
+B,B_tf1h_rsi45-55_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""1h""}",val,1,4063,-0.0280543,0.95448,0.312085,97.1059
+B,B_tf1h_rsi45-55_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,1,2521,-0.0230175,0.967286,0.348671,76.1669
+B,B_tf1h_rsi45-55_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,1,3820,-0.0520803,0.908552,0.31623,97.5527
+B,B_tf4h_rsi40-60_stopatr_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,1,592,0.0443105,1.06639,0.359797,33.7371
+B,B_tf4h_rsi40-60_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,1,622,0.0748566,1.12966,0.340836,46.1919
+B,B_tf4h_rsi40-60_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,1,404,0.0626401,1.09459,0.366337,23.0703
+B,B_tf4h_rsi40-60_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,1,481,0.176037,1.35781,0.37422,28.4467
+B,B_tf4h_rsi45-55_stopatr_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,1,859,0.0728063,1.111,0.371362,31.205
+B,B_tf4h_rsi45-55_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,1,915,0.0847387,1.14634,0.343169,55.9056
+B,B_tf4h_rsi45-55_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,1,642,0.0846125,1.12956,0.376947,24.6733
+B,B_tf4h_rsi45-55_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,1,806,0.124,1.22148,0.344913,38.3414
+C,C_tf1h_dc20_voloff,"{""donchian_n"": 20, ""timeframe"": ""1h"", ""volume_filter"": ""off""}",val,1,4347,-0.0519199,0.900691,0.332413,97.5425
+C,C_tf1h_dc55_voloff,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""volume_filter"": ""off""}",val,1,3156,-0.0724899,0.866013,0.315906,95.9925
+C,C_tf1h_dc55_volon,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""volume_filter"": ""on""}",val,1,2917,-0.0611878,0.887209,0.318821,93.3464
+C,C_tf4h_dc20_voloff,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""volume_filter"": ""off""}",val,1,922,0.062009,1.12811,0.349241,53.815
+C,C_tf4h_dc20_volon,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""volume_filter"": ""on""}",val,1,822,0.0715515,1.14745,0.344282,54.5644
+C,C_tf4h_dc55_voloff,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""volume_filter"": ""off""}",val,1,610,0.112294,1.22441,0.337705,39.0131
+C,C_tf4h_dc55_volon,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""volume_filter"": ""on""}",val,1,545,0.18869,1.39528,0.354128,33.3808
+B,B_tf1h_rsi40-60_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""1h""}",val,2,2712,-0.167962,0.755373,0.287242,99.686
+B,B_tf1h_rsi40-60_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,2,1768,-0.134474,0.824926,0.330317,95.7587
+B,B_tf1h_rsi40-60_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,2,2481,-0.1581,0.738361,0.296252,99.3581
+B,B_tf1h_rsi45-55_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""1h""}",val,2,4063,-0.131115,0.806318,0.295594,99.9211
+B,B_tf1h_rsi45-55_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,2,2489,-0.116131,0.848072,0.33869,96.9304
+B,B_tf1h_rsi45-55_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,2,3828,-0.154681,0.755557,0.299373,99.9389
+B,B_tf4h_rsi40-60_stopatr_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,2,590,-0.0121407,0.982693,0.352542,44.4748
+B,B_tf4h_rsi40-60_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,2,621,0.0121643,1.01998,0.330113,55.5229
+B,B_tf4h_rsi40-60_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,2,396,0.00323598,1.00463,0.358586,25.5235
+B,B_tf4h_rsi40-60_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,2,480,0.120209,1.23067,0.364583,30.7521
+B,B_tf4h_rsi45-55_stopatr_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,2,847,0.0194607,1.02827,0.364817,43.9236
+B,B_tf4h_rsi45-55_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,2,914,0.0303875,1.04996,0.329322,65.21
+B,B_tf4h_rsi45-55_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,2,633,0.0392877,1.05747,0.374408,30.1471
+B,B_tf4h_rsi45-55_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,2,805,0.0646096,1.10903,0.331677,50.0049
+C,C_tf1h_dc20_voloff,"{""donchian_n"": 20, ""timeframe"": ""1h"", ""volume_filter"": ""off""}",val,2,4345,-0.128006,0.774476,0.313003,99.8595
+C,C_tf1h_dc55_voloff,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""volume_filter"": ""off""}",val,2,3156,-0.145778,0.750732,0.300063,99.5087
+C,C_tf1h_dc55_volon,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""volume_filter"": ""on""}",val,2,2916,-0.134422,0.770657,0.302126,98.9868
+C,C_tf4h_dc20_voloff,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""volume_filter"": ""off""}",val,2,919,0.0204043,1.04021,0.337323,62.3722
+C,C_tf4h_dc20_volon,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""volume_filter"": ""on""}",val,2,819,0.0329087,1.06468,0.333333,60.9971
+C,C_tf4h_dc55_voloff,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""volume_filter"": ""off""}",val,2,606,0.0705947,1.13429,0.325083,41.1973
+C,C_tf4h_dc55_volon,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""volume_filter"": ""on""}",val,2,542,0.147111,1.29298,0.337638,36.1953

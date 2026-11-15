@@ -1,0 +1,22 @@
+family,config_id,params,set,cost_mult,n_trades,expectancy_r,profit_factor,win_rate,max_dd_pct
+B,B_tf1h_rsi40-60_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""1h""}",val,2,2712,-0.167962,0.755373,0.287242,99.686
+B,B_tf1h_rsi40-60_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,2,1768,-0.134474,0.824926,0.330317,95.7587
+B,B_tf1h_rsi40-60_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,2,2481,-0.1581,0.738361,0.296252,99.3581
+B,B_tf1h_rsi45-55_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""1h""}",val,2,4063,-0.131115,0.806318,0.295594,99.9211
+B,B_tf1h_rsi45-55_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,2,2489,-0.116131,0.848072,0.33869,96.9304
+B,B_tf1h_rsi45-55_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""1h""}",val,2,3828,-0.154681,0.755557,0.299373,99.9389
+B,B_tf4h_rsi40-60_stopatr_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,2,590,-0.0121407,0.982693,0.352542,44.4748
+B,B_tf4h_rsi40-60_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,2,621,0.0121643,1.01998,0.330113,55.5229
+B,B_tf4h_rsi40-60_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,2,396,0.00323598,1.00463,0.358586,25.5235
+B,B_tf4h_rsi40-60_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,2,480,0.120209,1.23067,0.364583,30.7521
+B,B_tf4h_rsi45-55_stopatr_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,2,847,0.0194607,1.02827,0.364817,43.9236
+B,B_tf4h_rsi45-55_stopatr_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""4h""}",val,2,914,0.0303875,1.04996,0.329322,65.21
+B,B_tf4h_rsi45-55_stoppivot_exittp2r,"{""exit"": ""tp2r"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,2,633,0.0392877,1.05747,0.374408,30.1471
+B,B_tf4h_rsi45-55_stoppivot_exittrail,"{""exit"": ""trail"", ""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""4h""}",val,2,805,0.0646096,1.10903,0.331677,50.0049
+C,C_tf1h_dc20_voloff,"{""donchian_n"": 20, ""timeframe"": ""1h"", ""volume_filter"": ""off""}",val,2,4345,-0.128006,0.774476,0.313003,99.8595
+C,C_tf1h_dc55_voloff,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""volume_filter"": ""off""}",val,2,3156,-0.145778,0.750732,0.300063,99.5087
+C,C_tf1h_dc55_volon,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""volume_filter"": ""on""}",val,2,2916,-0.134422,0.770657,0.302126,98.9868
+C,C_tf4h_dc20_voloff,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""volume_filter"": ""off""}",val,2,919,0.0204043,1.04021,0.337323,62.3722
+C,C_tf4h_dc20_volon,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""volume_filter"": ""on""}",val,2,819,0.0329087,1.06468,0.333333,60.9971
+C,C_tf4h_dc55_voloff,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""volume_filter"": ""off""}",val,2,606,0.0705947,1.13429,0.325083,41.1973
+C,C_tf4h_dc55_volon,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""volume_filter"": ""on""}",val,2,542,0.147111,1.29298,0.337638,36.1953

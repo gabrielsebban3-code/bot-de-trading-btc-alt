@@ -842,10 +842,13 @@ def cmd_report(args) -> None:
           f"- **{len(survivors)}** configuration(s) remplissent les 9 critères sur VAL : {', '.join(survivors) if survivors else 'aucune'}.",
           (f"- TEST (2025-01-01 → {data.ms_to_ts(data.data_end_ms(cfg) - data.BAR_MS).strftime('%Y-%m-%d')}) ouvert une seule fois : "
            f"**{len(retained)} setup(s) RETENU(S)** : {', '.join(retained) if retained else 'aucun'}."
-           if test_done else "- TEST : **verrouillé**, pas encore ouvert."),
+           if test_done else
+           ("- TEST : **verrouillé**, pas encore ouvert." if survivors else
+            "- TEST : **verrouillé**, jamais ouvert : aucune configuration ne survit à VAL, il n'y a rien à y évaluer.")),
           f"- Nombre total d'essais consignés dans `TRIALS.csv` : **{n_trials} lignes** pour **{n_cfg} configurations** "
           "(DEV, VAL, coûts ×2, TEST).",
-          ("- **Verdict global : aucun setup validé.** Aucune des familles testées ne montre un edge qui résiste aux 9 critères."
+          ("- **Verdict global : Aucun setup validé, scanner non construit.** Aucune des familles testées ne montre un edge "
+           "qui résiste aux 9 critères."
            if not retained and (test_done or not survivors) else
            ("- **Verdict global : " + str(len(retained)) + " setup(s) validé(s)** selon les critères fixés à l'avance."
             if retained else "- Verdict global : en attente de l'ouverture du TEST.")),
@@ -926,8 +929,10 @@ def cmd_report(args) -> None:
                 x = b[b["dimension"] == dim]
                 L.append(f"- {title} : " + " ; ".join(f"{k} {_r(e)} ({int(n)} trades)" for k, e, n in zip(x["key"], x["expectancy_r"], x["n"])) + ".")
             x = b[b["dimension"] == "pair"].sort_values("expectancy_r", ascending=False)
+            if (x["n"] >= 10).any():            # same floor as criterion 7: a pair with a handful of trades says nothing
+                x = x[x["n"] >= 10]
             if len(x):
-                L.append(f"- Meilleure paire : {x.iloc[0]['key']} {_r(x.iloc[0]['expectancy_r'])} ({int(x.iloc[0]['n'])} trades) ; "
+                L.append(f"- Meilleure paire (≥ 10 trades) : {x.iloc[0]['key']} {_r(x.iloc[0]['expectancy_r'])} ({int(x.iloc[0]['n'])} trades) ; "
                          f"pire paire : {x.iloc[-1]['key']} {_r(x.iloc[-1]['expectancy_r'])} ({int(x.iloc[-1]['n'])} trades).")
             x = b[b["dimension"] == "quarter"].sort_values("key")
             if len(x):

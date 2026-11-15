@@ -1,0 +1,2 @@
+trade_id,famille,config_id,symbole,direction,signal_time,entry_time,entry_price,stop_price,tp_price,exit_time,exit_price,exit_reason,size,notional,fees,slippage,funding,pnl_usdt,r_multiple_net,bars_held,risk_pct_actual
+1,A,A_tf1h_n5_deplacement_OB_tp2_htfon,ADAUSDT,long,2020-08-01 03:00:00+00:00,2020-08-01 10:15:00+00:00,0.1395,0.1353826712,0.1477346576,2020-08-02 03:30:00+00:00,0.1477346576,tp,24287.59144,3388.119006,1.395247602,0,15.5623421,183.0424103,1.830424103,69,0.01

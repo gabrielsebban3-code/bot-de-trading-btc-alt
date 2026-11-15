@@ -1,0 +1,59 @@
+{
+  "families": {
+    "A": {
+      "n_grid": 64,
+      "n_pass_dev": 0,
+      "n_pass_dev_and_plateau": 0,
+      "n_dev_with_100_trades": 20,
+      "selected": null,
+      "survives_val": false,
+      "val_verdict": "REJETE",
+      "val_criteria_failed": null,
+      "best_dev_only": "A_tf15m_n3_simple_FVG_tp3_htfon"
+    },
+    "B": {
+      "n_grid": 16,
+      "n_pass_dev": 14,
+      "n_pass_dev_and_plateau": 14,
+      "n_dev_with_100_trades": 16,
+      "selected": "B_tf4h_rsi40-60_stoppivot_exittrail",
+      "survives_val": false,
+      "val_verdict": "REJETE",
+      "val_criteria_failed": "c3,c7,c8"
+    },
+    "C": {
+      "n_grid": 8,
+      "n_pass_dev": 7,
+      "n_pass_dev_and_plateau": 7,
+      "n_dev_with_100_trades": 8,
+      "selected": "C_tf4h_dc55_volon",
+      "survives_val": false,
+      "val_verdict": "REJETE",
+      "val_criteria_failed": "c8"
+    },
+    "D": {
+      "n_grid": 8,
+      "n_pass_dev": 0,
+      "n_pass_dev_and_plateau": 0,
+      "n_dev_with_100_trades": 4,
+      "selected": null,
+      "survives_val": false,
+      "val_verdict": "REJETE",
+      "val_criteria_failed": null,
+      "best_dev_only": "D_tf15m_k2p5_rsi25-75"
+    },
+    "E": {
+      "n_grid": 4,
+      "n_pass_dev": 0,
+      "n_pass_dev_and_plateau": 0,
+      "n_dev_with_100_trades": 4,
+      "selected": null,
+      "survives_val": false,
+      "val_verdict": "REJETE",
+      "val_criteria_failed": null,
+      "best_dev_only": "E_z3_hold24"
+    }
+  },
+  "n_configs_tested_dev": 100,
+  "n_configs_evaluated_val": 21
+}

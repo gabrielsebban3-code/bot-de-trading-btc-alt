@@ -106,7 +106,7 @@ families:
       donchian_n: [20, 55]
       volume_filter: ["off", "on"]
   D:
-    name: "Retour a la moyenne"
+    name: "Retour à la moyenne"
     fixed:
       adx_max: 20
       stop_atr_mult: 1.5
@@ -116,7 +116,7 @@ families:
       bb_k: [2.0, 2.5]
       rsi_thresholds: ["25/75", "20/80"]
   E:
-    name: "Extremes de funding (contrarien)"
+    name: "Extrêmes de funding (contrarien)"
     fixed:
       timeframe: "1h"
       z_window: 90
