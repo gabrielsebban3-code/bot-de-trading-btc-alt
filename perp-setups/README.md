@@ -31,6 +31,21 @@ Le jeu TEST (à partir du 2025-01-01) est **verrouillé** : `backtest --set test
 `final_test_unlocked: true` n'est pas écrit dans `config/config.yaml`. Il ne s'exécute qu'une fois et seulement sur
 les configurations qui ont rempli les 9 critères sur VAL.
 
+## Études complémentaires
+
+Après le verdict de l'étude 1 (aucun setup validé), deux études ont été menées avec des protocoles enregistrés avant calcul :
+
+- **Étude 3** (`PROTOCOLE_ETUDE_3.md`, `RAPPORT_ETUDE_3.md`) : mêmes entrées de tendance avec objectif fixe à 1 R ou 1,5 R.
+  32 configurations, aucune ne remplit les 9 critères sur VAL.
+- **Étude 2** (`PROTOCOLE_ETUDE_2.md`, `RAPPORT_ETUDE_2.md`) : `C_tf4h_dc55_volon` avec 0,5 % de risque par trade,
+  test final unique sur 2025-2026. Verdict : **REJETÉ** (7 critères sur 9). Aucun setup validé, scanner non construit.
+
+```bash
+python -m src.run --study etude3 backtest --set dev,val
+```
+
+Le jeu TEST a été ouvert une seule fois, pour l'étude 2 ; il ne peut plus servir de test indépendant.
+
 ## Tests
 
 ```bash

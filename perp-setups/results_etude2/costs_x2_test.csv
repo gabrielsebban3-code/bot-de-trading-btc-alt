@@ -1,0 +1,2 @@
+family,config_id,params,set,cost_mult,n_trades,expectancy_r,profit_factor,win_rate,max_dd_pct
+C,C_tf4h_dc55_volon,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""volume_filter"": ""on""}",test,2,548,0.0626239,1.11762,0.344891,17.7898

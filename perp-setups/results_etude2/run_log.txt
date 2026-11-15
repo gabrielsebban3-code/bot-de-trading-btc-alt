@@ -3,3 +3,9 @@
 2026-11-15 20:32:57Z | loaded 19 pairs; last candle in memory 2024-12-31 23:45:00+00:00
 2026-11-15 20:32:59Z | DEV done: 1 configurations, 1 pass DEV, 1 pass DEV + plateau
 2026-11-15 20:33:01Z | VAL done: 1 configurations evaluated; survivors of VAL: ['C:C_tf4h_dc55_volon']
+2026-11-15 20:39:03Z | validate-data: readable limit 2026-11-01 00:00:00+00:00 (final_test_unlocked=True)
+2026-11-15 20:39:04Z | data_quality.md written; excluded pairs: []
+2026-11-15 20:39:09Z | backtest --set test | final_test_unlocked=True | data readable strictly before 2026-11-01 00:00:00+00:00
+2026-11-15 20:39:11Z | loaded 20 pairs; last candle in memory 2026-10-31 23:45:00+00:00
+2026-11-15 20:39:11Z | FINAL TEST on 1 surviving configuration(s): ['C_tf4h_dc55_volon']
+2026-11-15 20:39:13Z | FINAL TEST done: retained = none
