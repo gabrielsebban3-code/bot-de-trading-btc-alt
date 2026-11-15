@@ -56,8 +56,8 @@ def test_study2_overlay_changes_only_risk_and_grid():
     assert cfg["selection"] == {**base["selection"], "plateau_min_share": 0.0}
     assert cfg["families"]["C"]["fixed"] == base["families"]["C"]["fixed"]
     for key in base:
-        if key not in ("engine", "selection", "families"):
+        if key not in ("engine", "selection", "families", "final_test_unlocked"):
             assert cfg[key] == base[key]
     configs = setups.all_configs(cfg)
     assert [c["config_id"] for c in configs] == ["C_tf4h_dc55_volon"]
-    assert cfg["final_test_unlocked"] is False
+    assert base["final_test_unlocked"] is False          # studies 1 and 3 stay locked

@@ -26,3 +26,7 @@ families:
       timeframe: ["4h"]
       donchian_n: [55]
       volume_filter: ["on"]
+
+# Final test opened on 2026-11-15 after Gabriel's explicit request ("Teste final"), step 1 having met the nine
+# criteria on VAL. Only study 2 is unlocked: config.yaml keeps final_test_unlocked: false.
+final_test_unlocked: true

@@ -87,7 +87,7 @@ def cmd_validate(args) -> None:
     limit = data.max_readable_ms(cfg)
     log(f"validate-data: readable limit {data.ms_to_ts(limit)} (final_test_unlocked={cfg['final_test_unlocked']})")
     dl = {}
-    p_dl = RESULTS / "download_info.json"
+    p_dl = data.RESULTS_DIR / "download_info.json"      # written once by `download`, shared by follow-up studies
     if p_dl.exists():
         dl = {r["symbol"]: r for r in json.loads(p_dl.read_text())}
     stats = [data.quality_stats(cfg, p["symbol"], p["onboardDate"], dl.get(p["symbol"])) for p in pairs]
@@ -1113,8 +1113,8 @@ def main(argv: list[str] | None = None) -> None:
         RESULTS = ROOT / f"results_{args.study}"
         LOG_PATH = RESULTS / "run_log.txt"
         TRIALS_PATH = ROOT / f"TRIALS_{args.study}.csv"
-        if args.cmd != "backtest":
-            raise SystemExit("--study only supports the backtest command")
+        if args.cmd not in ("backtest", "validate-data"):
+            raise SystemExit("--study only supports the backtest and validate-data commands")
     {"download": cmd_download, "validate-data": cmd_validate, "backtest": cmd_backtest, "report": cmd_report}[args.cmd](args)
 
 

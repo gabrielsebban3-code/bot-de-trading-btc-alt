@@ -99,3 +99,12 @@ Toutes ces décisions ont été prises et codées **avant** le premier backtest 
 | S10 | 2026-11-15 | Coûts ×2 | Backtest complet relancé avec frais et slippage doublés (pas un simple recalcul) | Le slippage change les prix d'entrée et donc R |
 | S11 | 2026-11-15 | numba | Non utilisé (aucune étape ne dépasse 10 minutes) | Section 2 |
 | S12 | 2026-11-15 | Code du rapport | Placé dans `src/run.py` (commande `report`) | Structure de dépôt imposée, pas de fichier supplémentaire |
+
+## Études 2 et 3 (après le verdict de l'étude 1)
+
+| # | Date | Point | Décision | Raison |
+|---|---|---|---|---|
+| X1 | 2026-11-15 | Étude 3 demandée par Gabriel (taux de réussite plus élevé) | Protocole et grille (`PROTOCOLE_ETUDE_3.md`, `config/etude3.yaml`) enregistrés dans git avant le calcul ; sorties séparées (`results_etude3/`) ; TEST non lu | Ne pas modifier l'étude 1 ; garder une trace de l'ordre des décisions |
+| X2 | 2026-11-15 | Étude 2 : une seule configuration, donc aucune voisine pour le test de plateau | `plateau_min_share: 0.0` dans `config/etude2.yaml` ; le plateau de `C_tf4h_dc55_volon` a été vérifié dans l'étude 1 (3 voisines sur 3 positives sur DEV) | Les voisines ne sont pas l'objet de l'étude 2 |
+| X3 | 2026-11-15 | Ouverture du jeu TEST | Gabriel a écrit « Teste final » après l'arrêt obligatoire (étape 1 : 9 critères remplis sur VAL à 0,5 % de risque). Verrou ouvert uniquement pour l'étude 2 (`config/etude2.yaml`) ; `config.yaml` reste verrouillé | Le TEST ne sert qu'une fois, sur la seule configuration du protocole |
+| X4 | 2026-11-15 | Contrôle qualité de la période TEST | `validate-data` relancé sur DEV+VAL+TEST avant le backtest TEST ; résultat dans `results_etude2/data_quality.md` | Section 12, phase 6 |
