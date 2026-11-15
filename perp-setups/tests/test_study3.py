@@ -46,3 +46,18 @@ def test_fixed_target_variants_share_entries_with_b_and_c():
     assert (g["tp_r"] == 1.0).all() and g["trail_mult"].isna().all() and c["trail_mult"].notna().all()
     spec = setups.exit_spec(full, {"family": "G", "params": {"timeframe": "1h", "tp_r": 1.0}})
     assert spec["tp_mode"] == "r" and spec["tp_r"] == 1.0 and spec["trail_mult"] is None
+
+
+def test_study2_overlay_changes_only_risk_and_grid():
+    base = data.load_config()
+    cfg = dict(base)
+    cfg.update(yaml.safe_load((data.ROOT / "config" / "etude2.yaml").read_text()))
+    assert cfg["engine"] == {**base["engine"], "risk_per_trade": 0.005}
+    assert cfg["selection"] == {**base["selection"], "plateau_min_share": 0.0}
+    assert cfg["families"]["C"]["fixed"] == base["families"]["C"]["fixed"]
+    for key in base:
+        if key not in ("engine", "selection", "families"):
+            assert cfg[key] == base[key]
+    configs = setups.all_configs(cfg)
+    assert [c["config_id"] for c in configs] == ["C_tf4h_dc55_volon"]
+    assert cfg["final_test_unlocked"] is False
