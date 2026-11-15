@@ -1,0 +1,16 @@
+{
+  "families": {
+    "C": {
+      "n_grid": 1,
+      "n_pass_dev": 1,
+      "n_pass_dev_and_plateau": 1,
+      "n_dev_with_100_trades": 1,
+      "selected": "C_tf4h_dc55_volon",
+      "survives_val": true,
+      "val_verdict": "PASSE",
+      "val_criteria_failed": ""
+    }
+  },
+  "n_configs_tested_dev": 1,
+  "n_configs_evaluated_val": 1
+}
