@@ -1,0 +1,24 @@
+family,config_id,params,set,cost_mult,n_trades,expectancy_r,profit_factor,win_rate,max_dd_pct
+F,F_tf1h_rsi40-60_stoppivot_tp1p5,"{""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""1h"", ""tp_r"": 1.5}",val,2,2069,-0.114129,0.833607,0.403093,95.6178
+F,F_tf4h_rsi40-60_stopatr_tp1p0,"{""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""4h"", ""tp_r"": 1.0}",val,2,711,-0.0344901,0.934329,0.514768,32.2639
+F,F_tf4h_rsi40-60_stopatr_tp1p5,"{""rsi_thresholds"": ""40/60"", ""stop"": ""atr"", ""timeframe"": ""4h"", ""tp_r"": 1.5}",val,2,648,0.0047928,1.00775,0.429012,38.0122
+F,F_tf4h_rsi40-60_stoppivot_tp1p0,"{""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""4h"", ""tp_r"": 1.0}",val,2,495,0.0159775,1.03197,0.541414,23.9221
+F,F_tf4h_rsi40-60_stoppivot_tp1p5,"{""rsi_thresholds"": ""40/60"", ""stop"": ""pivot"", ""timeframe"": ""4h"", ""tp_r"": 1.5}",val,2,440,0.0157857,1.02568,0.434091,27.027
+F,F_tf4h_rsi45-55_stopatr_tp1p0,"{""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""4h"", ""tp_r"": 1.0}",val,2,1204,-0.0193595,0.962512,0.523256,41.2603
+F,F_tf4h_rsi45-55_stopatr_tp1p5,"{""rsi_thresholds"": ""45/55"", ""stop"": ""atr"", ""timeframe"": ""4h"", ""tp_r"": 1.5}",val,2,990,-0.01321,0.978894,0.423232,45.6153
+F,F_tf4h_rsi45-55_stoppivot_tp1p0,"{""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""4h"", ""tp_r"": 1.0}",val,2,893,-0.0191353,0.963053,0.527436,26.3378
+F,F_tf4h_rsi45-55_stoppivot_tp1p5,"{""rsi_thresholds"": ""45/55"", ""stop"": ""pivot"", ""timeframe"": ""4h"", ""tp_r"": 1.5}",val,2,736,0.0396664,1.06572,0.447011,28.3998
+G,G_tf1h_dc20_voloff_tp1p5,"{""donchian_n"": 20, ""timeframe"": ""1h"", ""tp_r"": 1.5, ""volume_filter"": ""off""}",val,2,4581,-0.0945304,0.858648,0.400131,99.3923
+G,G_tf1h_dc20_volon_tp1p5,"{""donchian_n"": 20, ""timeframe"": ""1h"", ""tp_r"": 1.5, ""volume_filter"": ""on""}",val,2,4494,-0.104797,0.844504,0.396751,99.5872
+G,G_tf1h_dc55_voloff_tp1p0,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""tp_r"": 1.0, ""volume_filter"": ""off""}",val,2,5063,-0.0957179,0.829365,0.497136,99.6198
+G,G_tf1h_dc55_voloff_tp1p5,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""tp_r"": 1.5, ""volume_filter"": ""off""}",val,2,3879,-0.104013,0.845545,0.396494,99.2017
+G,G_tf1h_dc55_volon_tp1p0,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""tp_r"": 1.0, ""volume_filter"": ""on""}",val,2,4652,-0.0973924,0.826708,0.496561,99.4412
+G,G_tf1h_dc55_volon_tp1p5,"{""donchian_n"": 55, ""timeframe"": ""1h"", ""tp_r"": 1.5, ""volume_filter"": ""on""}",val,2,3637,-0.111311,0.835621,0.394006,99.2225
+G,G_tf4h_dc20_voloff_tp1p0,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""tp_r"": 1.0, ""volume_filter"": ""off""}",val,2,1468,0.00189572,1.00375,0.52861,59.6048
+G,G_tf4h_dc20_voloff_tp1p5,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""tp_r"": 1.5, ""volume_filter"": ""off""}",val,2,1097,0.0366645,1.06108,0.43938,43.6185
+G,G_tf4h_dc20_volon_tp1p0,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""tp_r"": 1.0, ""volume_filter"": ""on""}",val,2,1263,0.0332689,1.06803,0.544735,35.5543
+G,G_tf4h_dc20_volon_tp1p5,"{""donchian_n"": 20, ""timeframe"": ""4h"", ""tp_r"": 1.5, ""volume_filter"": ""on""}",val,2,974,0.00693517,1.0113,0.427105,50.2035
+G,G_tf4h_dc55_voloff_tp1p0,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""tp_r"": 1.0, ""volume_filter"": ""off""}",val,2,1018,0.0202993,1.04092,0.537328,34.8562
+G,G_tf4h_dc55_voloff_tp1p5,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""tp_r"": 1.5, ""volume_filter"": ""off""}",val,2,803,0.0198878,1.03264,0.43213,41.8435
+G,G_tf4h_dc55_volon_tp1p0,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""tp_r"": 1.0, ""volume_filter"": ""on""}",val,2,887,0.0431051,1.08905,0.549042,26.9109
+G,G_tf4h_dc55_volon_tp1p5,"{""donchian_n"": 55, ""timeframe"": ""4h"", ""tp_r"": 1.5, ""volume_filter"": ""on""}",val,2,730,0.036197,1.06011,0.438356,35.7602

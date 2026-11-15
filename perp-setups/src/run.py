@@ -24,6 +24,7 @@ ROOT = data.ROOT
 RESULTS = data.RESULTS_DIR
 CACHE = ROOT / "data" / "cache"
 LOG_PATH = RESULTS / "run_log.txt"
+TRIALS_PATH: Path | None = None        # None = ROOT / "TRIALS.csv" (resolved at call time); set by --study
 SET_INDEX = {"dev": 0, "val": 1, "test": 2}
 
 # filled once in the parent process, inherited by forked workers
@@ -299,7 +300,7 @@ def write_trials() -> None:
         if p2.exists():
             frames.append(pd.read_csv(p2)[TRIAL_COLS])
     if frames:
-        pd.concat(frames, ignore_index=True).to_csv(ROOT / "TRIALS.csv", index=False, float_format="%.6g")
+        pd.concat(frames, ignore_index=True).to_csv(TRIALS_PATH or ROOT / "TRIALS.csv", index=False, float_format="%.6g")
 
 
 def write_buy_hold(cfg: dict, market: dict, sets: list[str]) -> None:
@@ -798,7 +799,7 @@ def cmd_report(args) -> None:
     pairs = data.load_pairs()
     bh = _read("buy_hold.csv")
     excluded = json.loads((RESULTS / "excluded_pairs.json").read_text())["excluded"] if (RESULTS / "excluded_pairs.json").exists() else []
-    trials = pd.read_csv(ROOT / "TRIALS.csv")
+    trials = pd.read_csv(TRIALS_PATH or ROOT / "TRIALS.csv")
     n_trials = len(trials)
     n_cfg = trials["config_id"].nunique()
     test_done = len(test) > 0 or (unlocked and (RESULTS / "summary_test.csv").exists())
@@ -1096,6 +1097,8 @@ def cmd_report(args) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m src.run")
+    parser.add_argument("--study", default=None,
+                        help="follow-up study: families from config/<study>.yaml, outputs in results_<study>/")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("download")
     sub.add_parser("validate-data")
@@ -1104,6 +1107,14 @@ def main(argv: list[str] | None = None) -> None:
     bt.add_argument("--workers", type=int, default=4)
     sub.add_parser("report")
     args = parser.parse_args(argv)
+    if args.study:
+        global RESULTS, LOG_PATH, TRIALS_PATH
+        data.OVERLAY_PATH = ROOT / "config" / f"{args.study}.yaml"
+        RESULTS = ROOT / f"results_{args.study}"
+        LOG_PATH = RESULTS / "run_log.txt"
+        TRIALS_PATH = ROOT / f"TRIALS_{args.study}.csv"
+        if args.cmd != "backtest":
+            raise SystemExit("--study only supports the backtest command")
     {"download": cmd_download, "validate-data": cmd_validate, "backtest": cmd_backtest, "report": cmd_report}[args.cmd](args)
 
 

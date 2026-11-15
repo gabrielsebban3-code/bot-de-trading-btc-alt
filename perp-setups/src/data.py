@@ -43,9 +43,16 @@ class DataUnavailableError(RuntimeError):
 
 # ---------------------------------------------------------------- config
 
+OVERLAY_PATH: Path | None = None        # follow-up study: yaml file whose top-level keys replace those of config.yaml
+
+
 def load_config(path: Path | str | None = None) -> dict:
     with open(path or CONFIG_PATH, "r", encoding="utf-8") as fh:
-        return yaml.safe_load(fh)
+        cfg = yaml.safe_load(fh)
+    if path is None and OVERLAY_PATH is not None:
+        with open(OVERLAY_PATH, "r", encoding="utf-8") as fh:
+            cfg.update(yaml.safe_load(fh))
+    return cfg
 
 
 def to_ms(ts) -> int:

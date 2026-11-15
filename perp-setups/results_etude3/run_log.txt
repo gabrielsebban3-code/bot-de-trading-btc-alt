@@ -1,0 +1,5 @@
+2026-11-15 20:16:47Z | backtest --set dev,val | final_test_unlocked=False | data readable strictly before 2025-01-01 00:00:00+00:00
+2026-11-15 20:16:47Z | TRUMPUSDT: no candle before the readable limit, pair skipped for this run
+2026-11-15 20:16:48Z | loaded 19 pairs; last candle in memory 2024-12-31 23:45:00+00:00
+2026-11-15 20:17:01Z | DEV done: 32 configurations, 23 pass DEV, 22 pass DEV + plateau
+2026-11-15 20:17:10Z | VAL done: 23 configurations evaluated; survivors of VAL: none

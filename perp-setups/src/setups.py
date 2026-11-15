@@ -233,8 +233,8 @@ def signals_A(ctx: SymbolContext, p: dict) -> pd.DataFrame:
 
 # ---------------------------------------------------------------- family B: trend pullback
 
-def signals_B(ctx: SymbolContext, p: dict) -> pd.DataFrame:
-    fx = ctx.cfg["families"]["B"]["fixed"]
+def signals_B(ctx: SymbolContext, p: dict, fam: str = "B") -> pd.DataFrame:
+    fx = ctx.cfg["families"][fam]["fixed"]
     icfg = ctx.cfg["indicators"]
     tf = p["timeframe"]
     b = ctx.bars[tf]
@@ -262,7 +262,9 @@ def signals_B(ctx: SymbolContext, p: dict) -> pd.DataFrame:
                 if not np.isfinite(level):
                     continue
                 row["stop_price"] = float(level)
-            if p["exit"] == "tp2r":
+            if "tp_r" in p:                 # family F: fixed target given by the grid
+                row["tp_r"] = float(p["tp_r"])
+            elif p["exit"] == "tp2r":
                 row["tp_r"] = float(fx["tp_r"])
             else:
                 row["trail_mult"] = float(fx["trail_atr_mult"])
@@ -272,8 +274,8 @@ def signals_B(ctx: SymbolContext, p: dict) -> pd.DataFrame:
 
 # ---------------------------------------------------------------- family C: range breakout
 
-def signals_C(ctx: SymbolContext, p: dict) -> pd.DataFrame:
-    fx = ctx.cfg["families"]["C"]["fixed"]
+def signals_C(ctx: SymbolContext, p: dict, fam: str = "C") -> pd.DataFrame:
+    fx = ctx.cfg["families"][fam]["fixed"]
     tf = p["timeframe"]
     b = ctx.bars[tf]
     n = int(p["donchian_n"])
@@ -290,9 +292,13 @@ def signals_C(ctx: SymbolContext, p: dict) -> pd.DataFrame:
     rows = []
     for direction, cond in ((1, long_c), (-1, short_c)):
         for t in np.nonzero(cond & valid & np.isfinite(atr))[0]:
-            rows.append({"order_time": int(b.ct[t]), "direction": direction, "order_type": "market",
-                         "stop_dist": float(fx["stop_atr_mult"] * atr[t]),
-                         "trail_mult": float(fx["trail_atr_mult"]), "atr": float(atr[t])})
+            row = {"order_time": int(b.ct[t]), "direction": direction, "order_type": "market",
+                   "stop_dist": float(fx["stop_atr_mult"] * atr[t]), "atr": float(atr[t])}
+            if "tp_r" in p:                 # family G: fixed target given by the grid
+                row["tp_r"] = float(p["tp_r"])
+            else:
+                row["trail_mult"] = float(fx["trail_atr_mult"])
+            rows.append(row)
     return _frame(ctx, tf, rows)
 
 
@@ -370,7 +376,9 @@ def signals_E(ctx: SymbolContext, p: dict) -> pd.DataFrame:
 
 # ---------------------------------------------------------------- grids
 
-SIGNAL_FUNCS = {"A": signals_A, "B": signals_B, "C": signals_C, "D": signals_D, "E": signals_E}
+SIGNAL_FUNCS = {"A": signals_A, "B": signals_B, "C": signals_C, "D": signals_D, "E": signals_E,
+                "F": lambda ctx, p: signals_B(ctx, p, "F"),      # study 3: entries of B, fixed target
+                "G": lambda ctx, p: signals_C(ctx, p, "G")}      # study 3: entries of C, fixed target
 
 
 _ALIAS = {"timeframe": "tf", "pivot_n": "n", "structure": "", "zone": "", "tp_r": "tp", "htf_filter": "htf",
@@ -431,6 +439,8 @@ def exit_spec(cfg: dict, config: dict) -> dict:
         spec.update(tp_mode="atr", max_hold_ms=float(fx["max_hold_bars"] * TF_MS[tf]))
     elif fam == "E":
         spec.update(tp_mode="r", tp_r=float(fx["tp_r"]), max_hold_ms=float(p["max_hold_hours"]) * 3_600_000.0)
+    elif fam in ("F", "G"):
+        spec.update(tp_mode="r", tp_r=float(p["tp_r"]))
     return spec
 
 

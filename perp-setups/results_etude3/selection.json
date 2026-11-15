@@ -1,0 +1,26 @@
+{
+  "families": {
+    "F": {
+      "n_grid": 16,
+      "n_pass_dev": 9,
+      "n_pass_dev_and_plateau": 8,
+      "n_dev_with_100_trades": 16,
+      "selected": "F_tf4h_rsi45-55_stoppivot_tp1p5",
+      "survives_val": false,
+      "val_verdict": "REJETE",
+      "val_criteria_failed": "c2,c3,c7,c8"
+    },
+    "G": {
+      "n_grid": 16,
+      "n_pass_dev": 14,
+      "n_pass_dev_and_plateau": 14,
+      "n_dev_with_100_trades": 16,
+      "selected": "G_tf4h_dc55_volon_tp1p5",
+      "survives_val": false,
+      "val_verdict": "REJETE",
+      "val_criteria_failed": "c2,c3,c8"
+    }
+  },
+  "n_configs_tested_dev": 32,
+  "n_configs_evaluated_val": 23
+}
