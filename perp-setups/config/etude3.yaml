@@ -1,0 +1,26 @@
+# Study 3 overlay: replaces the `families` block of config.yaml. Everything else (data, sets, costs, engine,
+# selection, verdict thresholds, statistics) is read unchanged from config.yaml. Frozen before any computation.
+families:
+  F:
+    name: "Repli en tendance, objectif fixe"
+    fixed:                      # same entry rules as family B
+      pullback_window_bars: 5
+      rsi_lookback_bars: 5
+      pivot_n: 3
+      stop_atr_mult: 1.5
+    grid:
+      timeframe: ["1h", "4h"]
+      rsi_thresholds: ["40/60", "45/55"]
+      stop: ["atr", "pivot"]
+      tp_r: [1.0, 1.5]
+  G:
+    name: "Cassure de range (Donchian), objectif fixe"
+    fixed:                      # same entry rules as family C
+      volume_mult: 1.5
+      volume_window_bars: 20
+      stop_atr_mult: 2.0
+    grid:
+      timeframe: ["1h", "4h"]
+      donchian_n: [20, 55]
+      volume_filter: ["off", "on"]
+      tp_r: [1.0, 1.5]
