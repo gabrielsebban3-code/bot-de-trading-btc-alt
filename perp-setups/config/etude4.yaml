@@ -1,0 +1,74 @@
+# Study 4 overlay (see PROTOCOLE_ETUDE_4.md). Each top-level key below REPLACES the same key of config.yaml;
+# everything else (data, indicators, statistics, seed) is read unchanged. Frozen before any computation.
+final_test_unlocked: false
+
+sets:                              # chronological 60 / 20 / 20 split of 2020-01-01 -> 2026-10-31
+  dev:  {start: "2020-01-01", end: "2024-01-31"}    # training
+  val:  {start: "2024-02-01", end: "2025-05-31"}    # validation
+  test: {start: "2025-06-01", end: null}            # final test, locked
+
+costs:
+  maker_fee: 0.0005                # the mission charges the taker fee on both sides, target included
+  taker_fee: 0.0005
+  slippage: 0.0002                 # adverse, on market entries and on stops
+  sensitivity_multiplier: 2.0
+
+engine:
+  initial_capital: 10000.0
+  risk_per_trade: 0.01
+  max_leverage: 5.0
+  max_positions: 5
+  max_positions_per_pair: 1
+  maintenance_margin_rate: 0.01
+  min_stop_pct: 0.003              # signal ignored if the stop is closer than 0.3 % of the entry price
+  max_stop_pct: 1.0                # no upper bound in this study
+
+families:                          # 7 methods x 8 variants = 56 configurations
+  M1:
+    name: "SMC (sweep + order block + FVG)"
+    fixed: {sl_atr: 1.5, fvg_window: 5, ob_lookback: 10, retest_window: 10}
+    grid: {timeframe: ["15m", "1h"], sweep_n: [20, 50], tp_r: [1.5, 2.5]}
+  M2:
+    name: "Breakout Donchian + volume"
+    fixed: {sl_atr: 1.5, volume_mult: 1.5, volume_window: 20}
+    grid: {timeframe: ["15m", "1h"], donchian_n: [20, 55], tp_r: [1.5, 2.5]}
+  M3:
+    name: "Suivi de tendance (repli sur EMA)"
+    fixed: {sl_atr: 1.5, ema_fast: 20, ema_mid: 50, ema_slow: 200}
+    grid: {timeframe: ["15m", "1h"], ema_pullback: [20, 50], tp_r: [1.5, 2.5]}
+  M4:
+    name: "Mean reversion (Bollinger + RSI, ADX bas)"
+    fixed: {sl_atr: 1.5, adx_max: 20, bb_k: 2.0}
+    grid: {timeframe: ["15m", "1h"], rsi_low: [30, 25], tp_r: [1.5, 2.5]}
+  M5:
+    name: "Retour au VWAP"
+    fixed: {sl_atr: 1.5, session_min_hours: 2}
+    grid: {timeframe: ["15m", "1h"], vwap_k: [2.0, 2.5], tp_r: [1.5, 2.5]}
+  M6:
+    name: "Funding extrême (contrarien)"
+    fixed: {sl_atr: 1.5, z_window: 90}
+    grid: {timeframe: ["15m", "1h"], z: [2, 3], tp_r: [1.5, 2.5]}
+  M7:
+    name: "Momentum (pic de volume + cassure)"
+    fixed: {sl_atr: 1.5, volume_window: 20, break_window: 3}
+    grid: {timeframe: ["15m", "1h"], vol_mult: [2, 3], tp_r: [1.5, 2.5]}
+
+etude4:
+  train_min_trades: 200            # a variant needs 200 training trades to be chosen for its method
+  criteria:                        # all required, on validation and then on the final test
+    min_trades: 200
+    min_expectancy_r: 0.15         # strictly greater
+    min_profit_factor: 1.3         # strictly greater
+    max_drawdown_pct: 25.0         # strictly lower
+    min_share_pairs_positive: 0.60
+    pair_min_trades: 10
+    monte_carlo_resamples: 10000
+    monte_carlo_min_positive: 0.95
+    stability_shift: 0.20          # each numeric parameter moved by -20 % and +20 %, one at a time
+  max_finalists: 3
+  walk_forward:                    # variant chosen on everything before the window, measured on the window
+    - {start: "2022-02-01", end: "2022-09-30"}
+    - {start: "2022-10-01", end: "2023-05-31"}
+    - {start: "2023-06-01", end: "2024-01-31"}
+    - {start: "2024-02-01", end: "2024-09-30"}
+    - {start: "2024-10-01", end: "2025-05-31"}
