@@ -15,7 +15,8 @@ import pandas as pd
 
 from . import data, methods, metrics, run, setups  # noqa: F401  (methods registers M1..M7)
 
-STUDY = "etude4"
+STUDY = "etude4"            # name of the criteria block in the configuration
+OVERLAY = "etude4"          # configuration overlay and output folder (changed by --study)
 PARAM = {"M1": "sweep_n", "M2": "donchian_n", "M3": "ema_pullback", "M4": "rsi_low", "M5": "vwap_k",
          "M6": "z", "M7": "vol_mult"}
 CRITERIA = ["c1_trades", "c2_expectancy", "c3_profit_factor", "c4_drawdown", "c5_pairs", "c6_monte_carlo",
@@ -24,10 +25,10 @@ CRITERIA = ["c1_trades", "c2_expectancy", "c3_profit_factor", "c4_drawdown", "c5
 
 def setup() -> dict:
     """Point the shared machinery at this study's configuration and output folder."""
-    data.OVERLAY_PATH = data.ROOT / "config" / f"{STUDY}.yaml"
-    run.RESULTS = data.ROOT / f"results_{STUDY}"
+    data.OVERLAY_PATH = data.ROOT / "config" / f"{OVERLAY}.yaml"
+    run.RESULTS = data.ROOT / f"results_{OVERLAY}"
     run.LOG_PATH = run.RESULTS / "run_log.txt"
-    run.TRIALS_PATH = data.ROOT / f"TRIALS_{STUDY}.csv"
+    run.TRIALS_PATH = data.ROOT / f"TRIALS_{OVERLAY}.csv"
     return data.load_config()
 
 
@@ -37,7 +38,7 @@ def load(cfg: dict) -> list[dict]:
     configs = setups.all_configs(cfg)
     run._G.update(cfg=cfg, market=market, ctxs=ctxs, configs=configs)
     last = max(int(sd.ot[-1]) for sd in market.values())
-    run.log(f"{STUDY}: {len(market)} pairs loaded, last candle in memory {data.ms_to_ts(last)}, "
+    run.log(f"{OVERLAY}: {len(market)} pairs loaded, last candle in memory {data.ms_to_ts(last)}, "
             f"final_test_unlocked={cfg['final_test_unlocked']}")
     return configs
 
@@ -154,9 +155,12 @@ def walk_forward(cfg: dict, configs: list[dict], trades: dict) -> pd.DataFrame:
 def shifted_configs(cfg: dict, config: dict, first_index: int) -> list[dict]:
     fam, shift = config["family"], cfg[STUDY]["criteria"]["stability_shift"]
     base = dict(config["params"])
-    base.setdefault("sl_atr", cfg["families"][fam]["fixed"]["sl_atr"])
+    fixed = cfg["families"][fam]["fixed"]
+    base.setdefault("sl_atr", fixed["sl_atr"])
+    third = "trail_atr" if base.get("exit") == "trail" else "tp_r"
+    base.setdefault(third, fixed.get(third))
     out = []
-    for key in (PARAM[fam], "sl_atr", "tp_r"):
+    for key in (PARAM[fam], "sl_atr", third):
         for factor in (1.0 - shift, 1.0 + shift):
             params = dict(base)
             params[key] = round(float(base[key]) * factor, 6)
@@ -285,7 +289,10 @@ def main(argv: list[str] | None = None) -> None:
         sp = sub.add_parser(name)
         sp.add_argument("--workers", type=int, default=4)
     sub.add_parser("report")
+    parser.add_argument("--study", default="etude4", help="configuration overlay: etude4 (default) or etude6")
     args = parser.parse_args(argv)
+    global OVERLAY
+    OVERLAY = args.study
     if args.cmd == "report":
         from . import etude4_report
         etude4_report.build()

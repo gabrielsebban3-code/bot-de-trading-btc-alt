@@ -26,8 +26,13 @@ def _emit(ctx: SymbolContext, fam: str, p: dict, long_mask: np.ndarray, short_ma
     rows = []
     for direction, mask in ((1, long_mask & ~both), (-1, short_mask & ~both)):
         for t in np.nonzero(mask & ok)[0]:
-            rows.append({"order_time": int(b.ct[t]), "direction": direction, "order_type": "market",
-                         "stop_dist": float(sl * atr[t]), "tp_r": float(p["tp_r"]), "atr": float(atr[t])})
+            row = {"order_time": int(b.ct[t]), "direction": direction, "order_type": "market",
+                   "stop_dist": float(sl * atr[t]), "atr": float(atr[t])}
+            if p.get("exit") == "trail":                # study 6: chandelier trailing stop, no target
+                row["trail_mult"] = float(p.get("trail_atr", fx["trail_atr"]))
+            else:
+                row["tp_r"] = float(p.get("tp_r", fx.get("tp_r")))
+            rows.append(row)
     return _frame(ctx, tf, rows)
 
 

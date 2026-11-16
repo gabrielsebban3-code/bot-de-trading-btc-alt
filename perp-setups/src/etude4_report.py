@@ -13,7 +13,7 @@ import pandas as pd  # noqa: E402
 
 from . import data, etude4, run  # noqa: E402
 
-PREVIOUS_CONFIGS = 133                       # studies 1 to 3, same pairs and years
+PREVIOUS = {"etude4": 133, "etude6": 192}    # configurations already tried on the same pairs and years
 INK, INK2, MUTED, GRID, AXIS, SURFACE, BLUE = "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7", "#fcfcfb", "#2a78d6"
 LABELS = {"c1_trades": "≥ 200 trades", "c2_expectancy": "espérance > 0,15 R", "c3_profit_factor": "profit factor > 1,3",
           "c4_drawdown": "drawdown < 25 %", "c5_pairs": "≥ 60 % des paires positives", "c6_monte_carlo": "Monte Carlo ≥ 95 %",
@@ -118,6 +118,9 @@ def _bars(cfg, sel, val):
 
 def build() -> None:
     cfg = etude4.setup()
+    PREVIOUS_CONFIGS = PREVIOUS[etude4.OVERLAY]
+    folder = run.RESULTS.name
+    out_name = "rapport.md" if etude4.OVERLAY == "etude4" else f"RAPPORT_{etude4.OVERLAY.upper().replace('ETUDE', 'ETUDE_')}.md"
     sel = json.loads((run.RESULTS / "selection.json").read_text())
     dev = pd.read_csv(run.RESULTS / "summary_dev.csv").set_index("config_id")
     val = pd.read_csv(run.RESULTS / "summary_val.csv").set_index("config_id")
@@ -181,7 +184,7 @@ def build() -> None:
           "« Critères » : sur la validation.", ""]
     name = _bars(cfg, sel, val)
     if name:
-        L += [f"![Espérance sur la validation](results_etude4/{name})", ""]
+        L += [f"![Espérance sur la validation]({folder}/{name})", ""]
 
     # ---- reading of the figures (all computed from the result files)
     tf15 = dev.index.str.contains("_tf15m_")
@@ -189,7 +192,9 @@ def build() -> None:
                    key=lambda f: (sum(methods[f]["validation"][k] for k in etude4.CRITERIA),
                                   float(val.loc[methods[f]["selected"], "expectancy_r"])))
     be, bv, bd = methods[best_fam], val.loc[methods[best_fam]["selected"]], dev.loc[methods[best_fam]["selected"]]
-    L += ["## Ce que montrent les chiffres", "",
+    L += ["## Ce que montrent les chiffres", ""]
+    if tf15.any():
+        L += [
           f"- **En 15m, tout perd.** Les {int(tf15.sum())} variantes en 15m sont négatives sur l'entraînement "
           f"({int((dev[tf15]['expectancy_r'] > 0).sum())} positive) et sur la validation "
           f"({int((val[tf15]['expectancy_r'] > 0).sum())} positive). Une entrée tirée au hasard y perd déjà "
@@ -197,7 +202,8 @@ def build() -> None:
           "est proche du prix.",
           f"- **En 1H, les frais pèsent moitié moins** (hasard : {_f(dev[~tf15]['baseline_median'].median(), 2)} R par trade), "
           f"mais {int((dev[~tf15]['expectancy_r'] > 0).sum())} variantes sur {int((~tf15).sum())} seulement sont positives sur "
-          f"l'entraînement et {int((val[~tf15]['expectancy_r'] > 0).sum())} sur la validation.",
+          f"l'entraînement et {int((val[~tf15]['expectancy_r'] > 0).sum())} sur la validation."]
+    L += [
           f"- **La méthode la plus proche est « {be['name']} »** (`{be['selected']}`) : {_f(bd['expectancy_r'])} R par trade sur "
           f"l'entraînement, {_f(bv['expectancy_r'])} R sur la validation, profit factor {_f(bv['profit_factor'], 2, False)}, "
           f"drawdown {_f(bv['max_dd_pct'], 1, False)} %. Elle rate : "
@@ -249,7 +255,7 @@ def build() -> None:
 
     name = _curves(cfg, sel, sets)
     if name:
-        L += ["## Courbes de capital", "", f"![Courbes par méthode](results_etude4/{name})", "",
+        L += ["## Courbes de capital", "", f"![Courbes par méthode]({folder}/{name})", "",
               "Chaque panneau a sa propre échelle verticale. La ligne pointillée marque le début de la validation"
               + (" puis du test final." if test is not None else "."), ""]
 
@@ -296,11 +302,11 @@ def build() -> None:
           "- **Baseline aléatoire** : tirée d'un réservoir d'entrées au hasard, sans la limite de 5 positions simultanées.",
           "- Aucune performance future n'est promise par ce document.", "",
           "## Fichiers", "",
-          "`PROTOCOLE_ETUDE_4.md` (règles écrites avant le calcul), `config/etude4.yaml` (grille et seuils), "
-          "`results_etude4/` (trades, tableaux, graphiques), `TRIALS_etude4.csv` (toutes les évaluations).", "",
-          "```bash", "python -m src.etude4 run && python -m src.etude4 report", "```", ""]
+          f"`PROTOCOLE_ETUDE_{etude4.OVERLAY[-1]}.md` (règles écrites avant le calcul), `config/{etude4.OVERLAY}.yaml` (grille et seuils), "
+          f"`{folder}/` (trades, tableaux, graphiques), `TRIALS_{etude4.OVERLAY}.csv` (toutes les évaluations).", "",
+          "```bash", f"python -m src.etude4 --study {etude4.OVERLAY} run && python -m src.etude4 --study {etude4.OVERLAY} report", "```", ""]
     checks = run.RESULTS / "controles.md"
     if checks.exists():
         L += ["## Contrôles", "", checks.read_text(encoding="utf-8").rstrip(), ""]
-    (data.ROOT / "rapport.md").write_text("\n".join(L), encoding="utf-8")
-    run.log("report written: rapport.md")
+    (data.ROOT / out_name).write_text("\n".join(L), encoding="utf-8")
+    run.log(f"report written: {out_name}")

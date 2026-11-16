@@ -125,3 +125,27 @@ def test_funding_signal_is_the_first_candle_opened_after_the_settlement(walk):
     for t, d in zip(sig["order_time"], sig["direction"]):
         s = int(np.searchsorted(ctx.f_time, t - 3_600_000, side="left"))     # settlement inside the signal candle
         assert t - 2 * 3_600_000 < ctx.f_time[s] <= t - 3_600_000 and abs(z[s]) >= 3 and d == -np.sign(z[s])
+
+
+def test_study6_grid_and_trailing_exit(walk):
+    _, df, fund = walk
+    cfg = data.load_config()
+    cfg.update(yaml.safe_load((data.ROOT / "config" / "etude6.yaml").read_text()))
+    e4, _ = _cfg4()
+    assert cfg["costs"] == e4["costs"] and cfg["engine"] == e4["engine"] and cfg["sets"] == e4["sets"]
+    assert cfg["etude4"] == e4["etude4"] and cfg["final_test_unlocked"] is False
+    configs = setups.all_configs(cfg)
+    assert len(configs) == 8 and {c["family"] for c in configs} == {"M7"}
+    ctx, _ = make_symbol(df, cfg, fund)
+    by_id = {c["config_id"]: c for c in configs}
+    tp = setups.generate_signals(ctx, by_id["M7_tf1h_v3_exittp"])
+    tr = setups.generate_signals(ctx, by_id["M7_tf1h_v3_exittrail"])
+    old = setups.generate_signals(ctx, {"family": "M7", "params": {"timeframe": "1h", "vol_mult": 3, "tp_r": 2.5}})
+    pd.testing.assert_frame_equal(tp, old)                                   # same as the study 4 variant
+    assert len(tr) == len(tp) > 5 and (tr["trail_mult"] == 3.0).all() and tr["tp_r"].isna().all()
+    assert setups.exit_spec(cfg, by_id["M7_tf4h_v4_exittrail"])["trail_mult"] == 3.0
+    assert setups.exit_spec(cfg, by_id["M7_tf4h_v4_exittp"])["tp_r"] == 2.5
+    from src import etude4
+    shifted = etude4.shifted_configs(cfg, by_id["M7_tf4h_v4_exittrail"], 8)
+    assert [c["shifted"] for c in shifted] == ["vol_mult"] * 2 + ["sl_atr"] * 2 + ["trail_atr"] * 2
+    assert sorted(c["params"]["trail_atr"] for c in shifted if c["shifted"] == "trail_atr") == [2.4, 3.6]
