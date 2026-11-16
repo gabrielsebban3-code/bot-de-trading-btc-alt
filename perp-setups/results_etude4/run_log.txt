@@ -1,0 +1,9 @@
+2026-11-16 18:11:39Z | etude4: 20 pairs loaded, last candle in memory 2025-05-31 23:45:00+00:00, final_test_unlocked=False
+2026-11-16 18:12:59Z | training and validation done: 56 variants
+2026-11-16 18:13:03Z | selection done: finalists = none; 56 variants + 0 shifted
+2026-11-16 18:13:47Z | etude4: 20 pairs loaded, last candle in memory 2025-05-31 23:45:00+00:00, final_test_unlocked=False
+2026-11-16 18:15:09Z | training and validation done: 56 variants
+2026-11-16 18:15:13Z | selection done: finalists = none; 56 variants + 0 shifted
+2026-11-16 18:16:06Z | report written: rapport.md
+2026-11-16 18:16:45Z | report written: rapport.md
+2026-11-16 18:17:09Z | report written: rapport.md

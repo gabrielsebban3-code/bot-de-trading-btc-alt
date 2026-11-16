@@ -46,6 +46,14 @@ python -m src.run --study etude3 backtest --set dev,val
 
 Le jeu TEST a été ouvert une seule fois, pour l'étude 2 ; il ne peut plus servir de test indépendant.
 
+- **Étude 4** (`PROTOCOLE_ETUDE_4.md`, `rapport.md`) : sept méthodes en 15m et 1H (SMC, breakout, suivi de tendance,
+  mean reversion, VWAP, funding, momentum), 56 variantes, découpe 60 / 20 / 20. Aucune ne remplit tous les critères
+  sur la validation ; le test final de cette étude n'a pas été ouvert et le scanner n'est pas construit.
+
+```bash
+python -m src.etude4 run && python -m src.etude4 report
+```
+
 ## Tests
 
 ```bash

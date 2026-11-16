@@ -72,6 +72,11 @@ def test_study4_run_selection_and_locked_test(sandbox, monkeypatch):
             assert e["validation"]["all_passed"] == all(e["validation"][c] for c in etude4.CRITERIA)
     wf = pd.read_csv(res / "walkforward.csv")
     assert len(wf) == 14 and set(wf["window"]) == {1, 2}
+    assert wf["n_trades"].sum() > 0, "walk-forward windows are empty"
+    for _, w in wf[wf["chosen"].notna() & (wf["n_trades"] > 0)].iterrows():      # trades really inside the window
+        t = pd.concat([pd.read_csv(res / f"trades_{w['chosen']}_{s}.csv", parse_dates=["entry_time"]) for s in ("dev", "val")])
+        inside = t[(t["entry_time"] >= pd.Timestamp(w["start"], tz="UTC")) & (t["entry_time"] < pd.Timestamp(w["end"], tz="UTC") + pd.Timedelta(days=1))]
+        assert len(inside) == w["n_trades"] and abs(inside["r_multiple_net"].sum() - w["sum_r"]) < 1e-4 * max(1.0, abs(w["sum_r"]))
     limit = pd.Timestamp("2025-01-01", tz="UTC")
     for p in res.glob("trades_*.csv"):                      # nothing from the final-test period
         t = pd.read_csv(p, parse_dates=["exit_time"])

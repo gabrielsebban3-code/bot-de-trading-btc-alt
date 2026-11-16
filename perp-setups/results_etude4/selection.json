@@ -1,0 +1,252 @@
+{
+  "buy_hold": {
+    "dev": {
+      "return_pct": 1069.185072005389,
+      "max_dd_pct": 77.84938565226834,
+      "ratio": 13.734020673986342,
+      "n_pairs": 2
+    },
+    "val": {
+      "return_pct": 120.6769333733705,
+      "max_dd_pct": 64.6025693289583,
+      "ratio": 1.8679896887518481,
+      "n_pairs": 17
+    }
+  },
+  "methods": {
+    "M1": {
+      "name": "SMC (sweep + order block + FVG)",
+      "n_variants": 8,
+      "n_variants_min_trades": 8,
+      "n_variants_positive_train": 0,
+      "walk_forward": {
+        "n_trades": 4261,
+        "expectancy_r": -0.1286468463086881,
+        "windows_positive": 0,
+        "windows": 5
+      },
+      "selected": "M1_tf1h_n50_tp1p5",
+      "validation": {
+        "share_pairs_positive": 0.25,
+        "pairs_counted": 20,
+        "mc_share_positive": 0.0079,
+        "mc_dd_p95_pct": 82.96311856826503,
+        "return_over_dd": -0.8863058770291599,
+        "bh_return_pct": 120.6769333733705,
+        "bh_max_dd_pct": 64.6025693289583,
+        "bh_return_over_dd": 1.8679896887518481,
+        "c1_trades": true,
+        "c2_expectancy": false,
+        "c3_profit_factor": false,
+        "c4_drawdown": false,
+        "c5_pairs": false,
+        "c6_monte_carlo": false,
+        "c7_baseline": false,
+        "c8_buy_hold": false,
+        "criteria_failed": "c2,c3,c4,c5,c6,c7,c8",
+        "all_passed": false
+      }
+    },
+    "M2": {
+      "name": "Breakout Donchian + volume",
+      "n_variants": 8,
+      "n_variants_min_trades": 8,
+      "n_variants_positive_train": 0,
+      "walk_forward": {
+        "n_trades": 7555,
+        "expectancy_r": -0.018738317324214424,
+        "windows_positive": 1,
+        "windows": 5
+      },
+      "selected": "M2_tf1h_dc55_tp1p5",
+      "validation": {
+        "share_pairs_positive": 0.55,
+        "pairs_counted": 20,
+        "mc_share_positive": 0.8236,
+        "mc_dd_p95_pct": 65.34171489309499,
+        "return_over_dd": 0.08057192987811766,
+        "bh_return_pct": 120.6769333733705,
+        "bh_max_dd_pct": 64.6025693289583,
+        "bh_return_over_dd": 1.8679896887518481,
+        "c1_trades": true,
+        "c2_expectancy": false,
+        "c3_profit_factor": false,
+        "c4_drawdown": false,
+        "c5_pairs": false,
+        "c6_monte_carlo": false,
+        "c7_baseline": true,
+        "c8_buy_hold": false,
+        "criteria_failed": "c2,c3,c4,c5,c6,c8",
+        "all_passed": false
+      }
+    },
+    "M3": {
+      "name": "Suivi de tendance (repli sur EMA)",
+      "n_variants": 8,
+      "n_variants_min_trades": 8,
+      "n_variants_positive_train": 0,
+      "walk_forward": {
+        "n_trades": 5298,
+        "expectancy_r": -0.030647591563091738,
+        "windows_positive": 1,
+        "windows": 5
+      },
+      "selected": "M3_tf1h_ema50_tp2p5",
+      "validation": {
+        "share_pairs_positive": 0.6,
+        "pairs_counted": 20,
+        "mc_share_positive": 0.5265,
+        "mc_dd_p95_pct": 75.2188039763095,
+        "return_over_dd": -0.5862799085039925,
+        "bh_return_pct": 120.6769333733705,
+        "bh_max_dd_pct": 64.6025693289583,
+        "bh_return_over_dd": 1.8679896887518481,
+        "c1_trades": true,
+        "c2_expectancy": false,
+        "c3_profit_factor": false,
+        "c4_drawdown": false,
+        "c5_pairs": true,
+        "c6_monte_carlo": false,
+        "c7_baseline": true,
+        "c8_buy_hold": false,
+        "criteria_failed": "c2,c3,c4,c6,c8",
+        "all_passed": false
+      }
+    },
+    "M4": {
+      "name": "Mean reversion (Bollinger + RSI, ADX bas)",
+      "n_variants": 8,
+      "n_variants_min_trades": 8,
+      "n_variants_positive_train": 0,
+      "walk_forward": {
+        "n_trades": 4589,
+        "expectancy_r": -0.2138216986044454,
+        "windows_positive": 0,
+        "windows": 5
+      },
+      "selected": "M4_tf15m_rsi30_tp2p5",
+      "validation": {
+        "share_pairs_positive": 0.1,
+        "pairs_counted": 20,
+        "mc_share_positive": 0.0,
+        "mc_dd_p95_pct": 99.15780965512624,
+        "return_over_dd": -0.9997790472552941,
+        "bh_return_pct": 120.6769333733705,
+        "bh_max_dd_pct": 64.6025693289583,
+        "bh_return_over_dd": 1.8679896887518481,
+        "c1_trades": true,
+        "c2_expectancy": false,
+        "c3_profit_factor": false,
+        "c4_drawdown": false,
+        "c5_pairs": false,
+        "c6_monte_carlo": false,
+        "c7_baseline": false,
+        "c8_buy_hold": false,
+        "criteria_failed": "c2,c3,c4,c5,c6,c7,c8",
+        "all_passed": false
+      }
+    },
+    "M5": {
+      "name": "Retour au VWAP",
+      "n_variants": 8,
+      "n_variants_min_trades": 8,
+      "n_variants_positive_train": 0,
+      "walk_forward": {
+        "n_trades": 10630,
+        "expectancy_r": -0.09122050402368768,
+        "windows_positive": 0,
+        "windows": 5
+      },
+      "selected": "M5_tf1h_k2p0_tp1p5",
+      "validation": {
+        "share_pairs_positive": 0.0,
+        "pairs_counted": 20,
+        "mc_share_positive": 0.0,
+        "mc_dd_p95_pct": 98.61926040021733,
+        "return_over_dd": -0.9995094091976464,
+        "bh_return_pct": 120.6769333733705,
+        "bh_max_dd_pct": 64.6025693289583,
+        "bh_return_over_dd": 1.8679896887518481,
+        "c1_trades": true,
+        "c2_expectancy": false,
+        "c3_profit_factor": false,
+        "c4_drawdown": false,
+        "c5_pairs": false,
+        "c6_monte_carlo": false,
+        "c7_baseline": false,
+        "c8_buy_hold": false,
+        "criteria_failed": "c2,c3,c4,c5,c6,c7,c8",
+        "all_passed": false
+      }
+    },
+    "M6": {
+      "name": "Funding extr\u00eame (contrarien)",
+      "n_variants": 8,
+      "n_variants_min_trades": 8,
+      "n_variants_positive_train": 0,
+      "walk_forward": {
+        "n_trades": 1273,
+        "expectancy_r": -0.06978905640455618,
+        "windows_positive": 1,
+        "windows": 5
+      },
+      "selected": "M6_tf1h_z3_tp2p5",
+      "validation": {
+        "share_pairs_positive": 0.4,
+        "pairs_counted": 20,
+        "mc_share_positive": 0.2937,
+        "mc_dd_p95_pct": 55.92312697560223,
+        "return_over_dd": -0.5694802961757928,
+        "bh_return_pct": 120.6769333733705,
+        "bh_max_dd_pct": 64.6025693289583,
+        "bh_return_over_dd": 1.8679896887518481,
+        "c1_trades": true,
+        "c2_expectancy": false,
+        "c3_profit_factor": false,
+        "c4_drawdown": false,
+        "c5_pairs": false,
+        "c6_monte_carlo": false,
+        "c7_baseline": false,
+        "c8_buy_hold": false,
+        "criteria_failed": "c2,c3,c4,c5,c6,c7,c8",
+        "all_passed": false
+      }
+    },
+    "M7": {
+      "name": "Momentum (pic de volume + cassure)",
+      "n_variants": 8,
+      "n_variants_min_trades": 8,
+      "n_variants_positive_train": 3,
+      "walk_forward": {
+        "n_trades": 3932,
+        "expectancy_r": 0.08087802104743133,
+        "windows_positive": 4,
+        "windows": 5
+      },
+      "selected": "M7_tf1h_v3_tp2p5",
+      "validation": {
+        "share_pairs_positive": 0.8,
+        "pairs_counted": 20,
+        "mc_share_positive": 0.9999,
+        "mc_dd_p95_pct": 42.226659572241296,
+        "return_over_dd": 21.391910817860815,
+        "bh_return_pct": 120.6769333733705,
+        "bh_max_dd_pct": 64.6025693289583,
+        "bh_return_over_dd": 1.8679896887518481,
+        "c1_trades": true,
+        "c2_expectancy": false,
+        "c3_profit_factor": false,
+        "c4_drawdown": false,
+        "c5_pairs": true,
+        "c6_monte_carlo": true,
+        "c7_baseline": true,
+        "c8_buy_hold": true,
+        "criteria_failed": "c2,c3,c4",
+        "all_passed": false
+      }
+    }
+  },
+  "n_variants": 56,
+  "finalists": [],
+  "n_shifted_variants": 0
+}

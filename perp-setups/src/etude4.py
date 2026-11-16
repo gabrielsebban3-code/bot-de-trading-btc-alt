@@ -44,7 +44,9 @@ def load(cfg: dict) -> list[dict]:
 
 def read_trades(config_id: str, set_name: str) -> pd.DataFrame:
     t = pd.read_csv(run.trades_path(config_id, set_name))
-    t["entry_ms"] = pd.to_datetime(t["entry_time"], utc=True).astype("int64") // 1_000_000 if len(t) else []
+    # explicit millisecond conversion: the integer unit of a parsed datetime column depends on the pandas version
+    t["entry_ms"] = ((pd.to_datetime(t["entry_time"], utc=True) - pd.Timestamp(0, tz="UTC"))
+                     // pd.Timedelta(milliseconds=1)).astype("int64") if len(t) else []
     return t
 
 
