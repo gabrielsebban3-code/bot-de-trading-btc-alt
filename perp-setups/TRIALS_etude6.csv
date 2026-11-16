@@ -1,0 +1,17 @@
+family,config_id,params,set,cost_mult,n_trades,expectancy_r,profit_factor,win_rate,max_dd_pct
+M7,M7_tf1h_v3_exittp,"{""exit"": ""tp"", ""timeframe"": ""1h"", ""vol_mult"": 3}",dev,1,3794,0.0360407,1.04927,0.314444,64.1404
+M7,M7_tf1h_v3_exittrail,"{""exit"": ""trail"", ""timeframe"": ""1h"", ""vol_mult"": 3}",dev,1,3720,0.0122705,1.0204,0.314247,81.4314
+M7,M7_tf1h_v4_exittp,"{""exit"": ""tp"", ""timeframe"": ""1h"", ""vol_mult"": 4}",dev,1,1854,0.0288207,1.03929,0.312298,59.6648
+M7,M7_tf1h_v4_exittrail,"{""exit"": ""trail"", ""timeframe"": ""1h"", ""vol_mult"": 4}",dev,1,1825,0.0153083,1.0254,0.318356,68.8202
+M7,M7_tf4h_v3_exittp,"{""exit"": ""tp"", ""timeframe"": ""4h"", ""vol_mult"": 3}",dev,1,840,0.108095,1.1559,0.32619,37.5578
+M7,M7_tf4h_v3_exittrail,"{""exit"": ""trail"", ""timeframe"": ""4h"", ""vol_mult"": 3}",dev,1,800,0.0727505,1.12703,0.33875,44.4441
+M7,M7_tf4h_v4_exittp,"{""exit"": ""tp"", ""timeframe"": ""4h"", ""vol_mult"": 4}",dev,1,373,0.117918,1.17077,0.329759,17.0891
+M7,M7_tf4h_v4_exittrail,"{""exit"": ""trail"", ""timeframe"": ""4h"", ""vol_mult"": 4}",dev,1,358,0.0583077,1.10207,0.332402,21.4788
+M7,M7_tf1h_v3_exittp,"{""exit"": ""tp"", ""timeframe"": ""1h"", ""vol_mult"": 3}",val,1,1830,0.137205,1.1963,0.342077,30.9272
+M7,M7_tf1h_v3_exittrail,"{""exit"": ""trail"", ""timeframe"": ""1h"", ""vol_mult"": 3}",val,1,1751,0.164277,1.28434,0.34209,48.1601
+M7,M7_tf1h_v4_exittp,"{""exit"": ""tp"", ""timeframe"": ""1h"", ""vol_mult"": 4}",val,1,944,0.086178,1.12067,0.327331,31.5536
+M7,M7_tf1h_v4_exittrail,"{""exit"": ""trail"", ""timeframe"": ""1h"", ""vol_mult"": 4}",val,1,892,0.100384,1.17493,0.338565,33.456
+M7,M7_tf4h_v3_exittp,"{""exit"": ""tp"", ""timeframe"": ""4h"", ""vol_mult"": 3}",val,1,397,0.187679,1.27947,0.350126,22.6327
+M7,M7_tf4h_v3_exittrail,"{""exit"": ""trail"", ""timeframe"": ""4h"", ""vol_mult"": 3}",val,1,376,0.129276,1.24453,0.367021,16.7394
+M7,M7_tf4h_v4_exittp,"{""exit"": ""tp"", ""timeframe"": ""4h"", ""vol_mult"": 4}",val,1,174,0.213123,1.32126,0.356322,11.5679
+M7,M7_tf4h_v4_exittrail,"{""exit"": ""trail"", ""timeframe"": ""4h"", ""vol_mult"": 4}",val,1,165,0.163486,1.31068,0.351515,17.2407

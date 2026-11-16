@@ -163,7 +163,7 @@ Variantes à espérance positive sur l'entraînement : 3 sur 56 ; sur la validat
 `PROTOCOLE_ETUDE_4.md` (règles écrites avant le calcul), `config/etude4.yaml` (grille et seuils), `results_etude4/` (trades, tableaux, graphiques), `TRIALS_etude4.csv` (toutes les évaluations).
 
 ```bash
-python -m src.etude4 run && python -m src.etude4 report
+python -m src.etude4 --study etude4 run && python -m src.etude4 --study etude4 report
 ```
 
 ## Contrôles

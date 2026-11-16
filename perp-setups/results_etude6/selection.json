@@ -1,0 +1,54 @@
+{
+  "buy_hold": {
+    "dev": {
+      "return_pct": 1069.185072005389,
+      "max_dd_pct": 77.84938565226834,
+      "ratio": 13.734020673986342,
+      "n_pairs": 2
+    },
+    "val": {
+      "return_pct": 120.6769333733705,
+      "max_dd_pct": 64.6025693289583,
+      "ratio": 1.8679896887518481,
+      "n_pairs": 17
+    }
+  },
+  "methods": {
+    "M7": {
+      "name": "Momentum (pic de volume + cassure)",
+      "n_variants": 8,
+      "n_variants_min_trades": 8,
+      "n_variants_positive_train": 8,
+      "walk_forward": {
+        "n_trades": 572,
+        "expectancy_r": 0.114280915137507,
+        "windows_positive": 4,
+        "windows": 5
+      },
+      "selected": "M7_tf4h_v4_exittp",
+      "validation": {
+        "share_pairs_positive": 0.75,
+        "pairs_counted": 8,
+        "mc_share_positive": 0.9535,
+        "mc_dd_p95_pct": 19.57046801499944,
+        "return_over_dd": 3.454896154601272,
+        "bh_return_pct": 120.6769333733705,
+        "bh_max_dd_pct": 64.6025693289583,
+        "bh_return_over_dd": 1.8679896887518481,
+        "c1_trades": false,
+        "c2_expectancy": true,
+        "c3_profit_factor": true,
+        "c4_drawdown": true,
+        "c5_pairs": true,
+        "c6_monte_carlo": true,
+        "c7_baseline": true,
+        "c8_buy_hold": true,
+        "criteria_failed": "c1",
+        "all_passed": false
+      }
+    }
+  },
+  "n_variants": 8,
+  "finalists": [],
+  "n_shifted_variants": 0
+}
