@@ -383,7 +383,9 @@ SIGNAL_FUNCS = {"A": signals_A, "B": signals_B, "C": signals_C, "D": signals_D, 
 
 _ALIAS = {"timeframe": "tf", "pivot_n": "n", "structure": "", "zone": "", "tp_r": "tp", "htf_filter": "htf",
           "rsi_thresholds": "rsi", "stop": "stop", "exit": "exit", "donchian_n": "dc", "volume_filter": "vol",
-          "bb_k": "k", "z": "z", "max_hold_hours": "hold"}
+          "bb_k": "k", "z": "z", "max_hold_hours": "hold",
+          # study 4 (families M1 to M7)
+          "sweep_n": "n", "ema_pullback": "ema", "rsi_low": "rsi", "vwap_k": "k", "vol_mult": "v", "sl_atr": "sl"}
 
 
 def _fmt(value) -> str:
@@ -439,7 +441,7 @@ def exit_spec(cfg: dict, config: dict) -> dict:
         spec.update(tp_mode="atr", max_hold_ms=float(fx["max_hold_bars"] * TF_MS[tf]))
     elif fam == "E":
         spec.update(tp_mode="r", tp_r=float(fx["tp_r"]), max_hold_ms=float(p["max_hold_hours"]) * 3_600_000.0)
-    elif fam in ("F", "G"):
+    elif fam in ("F", "G") or fam.startswith("M"):
         spec.update(tp_mode="r", tp_r=float(p["tp_r"]))
     return spec
 
