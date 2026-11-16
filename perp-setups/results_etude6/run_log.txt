@@ -4,3 +4,7 @@
 2026-11-16 19:24:41Z | report written: RAPPORT_ETUDE_6.md
 2026-11-16 19:34:14Z | etude6: 20 pairs loaded, last candle in memory 2025-05-31 23:45:00+00:00, final_test_unlocked=False
 2026-11-16 19:34:18Z | amendment: stability passed=True, finalists=['M7_tf4h_v4_exittp']
+2026-11-16 19:34:36Z | etude6: 20 pairs loaded, last candle in memory 2026-10-31 23:45:00+00:00, final_test_unlocked=True
+2026-11-16 19:34:36Z | FINAL TEST on ['M7_tf4h_v4_exittp']
+2026-11-16 19:34:37Z | FINAL TEST done: retained = none
+2026-11-16 19:34:46Z | report written: RAPPORT_ETUDE_6.md

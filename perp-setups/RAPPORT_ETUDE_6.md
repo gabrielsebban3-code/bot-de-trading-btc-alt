@@ -2,11 +2,13 @@
 
 ## Verdict
 
-**Aucune méthode n'est retenue.** Aucune ne remplit tous les critères sur la validation ; le test final n'a donc pas été ouvert.
+**Aucune méthode n'est retenue.** Les finalistes ne remplissent pas tous les critères sur le test final.
+
+> Avenant (voir `PROTOCOLE_ETUDE_6.md`, section 5) : la variante avait été rejetée sur la validation pour 174 trades au lieu de 200. À la demande de Gabriel, le seuil a été compté sur l'ensemble des périodes et le test final a été ouvert une fois. Le test ne confirme pas la validation.
 
 - Données : 20 paires Binance USDT-M, bougies 15m, funding réel, du 2020-01-01 au 2026-10-31.
 - Découpe : entraînement 2020-01-01 → 2024-01-31, validation 2024-02-01 → 2025-05-31, test final 2025-06-01 → 2026-10-31.
-- Variantes testées dans cette étude : **8** (7 méthodes × 8). Avec les 192 configurations des études précédentes sur les mêmes données : **200 au total**. Plus on en teste, plus un bon résultat isolé peut être dû au hasard.
+- Variantes testées dans cette étude : **8** (7 méthodes × 8), plus 6 variantes décalées pour le test de stabilité. Avec les 192 configurations des études précédentes sur les mêmes données : **206 au total**. Plus on en teste, plus un bon résultat isolé peut être dû au hasard.
 - Tous les chiffres sont nets : frais 0,05 % par côté, slippage 0,02 %, funding payé ou reçu. Risque de 1 % du capital par trade, stop à 1,5 × ATR, 5 positions au plus.
 
 ## Tableau comparatif
@@ -15,7 +17,7 @@ Une ligne par méthode : la variante gardée est celle qui a la meilleure espér
 
 | Méthode | Variante gardée | Entraînement : E[R] (trades) | Validation : E[R] (trades) | Gagnants | Profit factor | Drawdown max | Paires positives | Critères | Test final | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|
-| **Momentum (pic de volume + cassure)** | `M7_tf4h_v4_exittp` | +0,118 R (373) | +0,213 R (174) | 35,6 % | 1,32 | 11,6 % | 75 % | 7 / 8 | non ouvert | **REJETÉE** |
+| **Momentum (pic de volume + cassure)** | `M7_tf4h_v4_exittp` | +0,118 R (373) | +0,213 R (174) | 35,6 % | 1,32 | 11,6 % | 75 % | 7 / 8 | +0,013 R (161) | **REJETÉE** |
 
 E[R] = gain moyen par trade en multiples du risque, après tous les coûts. Colonnes « Gagnants » à « Critères » : sur la validation.
 
@@ -30,7 +32,7 @@ E[R] = gain moyen par trade en multiples du risque, après tous les coûts. Colo
 
 | Méthode | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | Stabilité ±20 % | Critères ratés |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Momentum (pic de volume + cassure) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | non calculée | ≥ 200 trades |
+| Momentum (pic de volume + cassure) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ≥ 200 trades |
 
 Critères : 1. ≥ 200 trades ; 2. espérance > 0,15 R ; 3. profit factor > 1,3 ; 4. drawdown < 25 % ; 5. ≥ 60 % des paires positives ; 6. Monte Carlo ≥ 95 % ; 7. mieux que le hasard ; 8. mieux que le buy & hold.
 La stabilité n'est calculée que pour une méthode qui remplit les huit autres critères.
@@ -53,11 +55,13 @@ Pour chaque fenêtre de 8 mois, la variante est choisie sur tout ce qui précèd
 
 ![Courbes par méthode](results_etude6/courbes_methodes.png)
 
-Chaque panneau a sa propre échelle verticale. La ligne pointillée marque le début de la validation.
+Chaque panneau a sa propre échelle verticale. La ligne pointillée marque le début de la validation puis du test final.
 
 ## Test final
 
-Non ouvert : aucune méthode ne remplit tous les critères sur la validation. Les données du 2025-06-01 au 2026-10-31 n'ont pas été lues dans cette étude.
+| Variante | Validation : E[R] (trades) | Test : E[R] (trades) | Profit factor | Drawdown max | Critères ratés sur le test | Verdict |
+|---|---|---|---|---|---|---|
+| `M7_tf4h_v4_exittp` | +0,213 R (174) | +0,013 R (161) | 1,02 | 25,4 % | ≥ 200 trades ; espérance > 0,15 R ; profit factor > 1,3 ; drawdown < 25 % ; ≥ 60 % des paires positives ; Monte Carlo ≥ 95 % ; mieux que le hasard ; mieux que le buy & hold | **REJETÉE** |
 
 ## Toutes les variantes
 

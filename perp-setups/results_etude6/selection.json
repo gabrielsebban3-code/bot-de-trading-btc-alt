@@ -11,6 +11,12 @@
       "max_dd_pct": 64.6025693289583,
       "ratio": 1.8679896887518481,
       "n_pairs": 17
+    },
+    "test": {
+      "return_pct": 85.02762780668725,
+      "max_dd_pct": 58.30860913738189,
+      "ratio": 1.4582345397118328,
+      "n_pairs": 20
     }
   },
   "methods": {
@@ -86,6 +92,26 @@
           }
         ],
         "passed": true
+      },
+      "test": {
+        "share_pairs_positive": 0.5,
+        "pairs_counted": 6,
+        "mc_share_positive": 0.5405,
+        "mc_dd_p95_pct": 26.945751518537897,
+        "return_over_dd": -0.08007760788799236,
+        "bh_return_pct": 85.02762780668725,
+        "bh_max_dd_pct": 58.30860913738189,
+        "bh_return_over_dd": 1.4582345397118328,
+        "c1_trades": false,
+        "c2_expectancy": false,
+        "c3_profit_factor": false,
+        "c4_drawdown": false,
+        "c5_pairs": false,
+        "c6_monte_carlo": false,
+        "c7_baseline": false,
+        "c8_buy_hold": false,
+        "criteria_failed": "c1,c2,c3,c4,c5,c6,c7,c8",
+        "all_passed": false
       }
     }
   },
@@ -94,5 +120,6 @@
     "M7_tf4h_v4_exittp"
   ],
   "n_shifted_variants": 6,
-  "amendment": "200 trades counted on training + validation + test (see PROTOCOLE_ETUDE_6.md, section 5)"
+  "amendment": "200 trades counted on training + validation + test (see PROTOCOLE_ETUDE_6.md, section 5)",
+  "retained": []
 }

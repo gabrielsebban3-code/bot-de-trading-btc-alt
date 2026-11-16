@@ -27,3 +27,4 @@ M7,M7_tf4h_v4_exittp__sl1p2,"{""exit"": ""tp"", ""sl_atr"": 1.2, ""timeframe"": 
 M7,M7_tf4h_v4_exittp__sl1p8,"{""exit"": ""tp"", ""sl_atr"": 1.8, ""timeframe"": ""4h"", ""tp_r"": 2.5, ""vol_mult"": 4}",val,1,166,0.12497,1.18173,0.331325,17.9985
 M7,M7_tf4h_v4_exittp__tp2p0,"{""exit"": ""tp"", ""sl_atr"": 1.5, ""timeframe"": ""4h"", ""tp_r"": 2.0, ""vol_mult"": 4}",val,1,177,0.193544,1.31745,0.40678,9.86257
 M7,M7_tf4h_v4_exittp__tp3p0,"{""exit"": ""tp"", ""sl_atr"": 1.5, ""timeframe"": ""4h"", ""tp_r"": 3.0, ""vol_mult"": 4}",val,1,171,0.225313,1.31946,0.315789,19.4728
+M7,M7_tf4h_v4_exittp,"{""exit"": ""tp"", ""timeframe"": ""4h"", ""vol_mult"": 4}",test,1,161,0.0131472,1.01855,0.298137,25.387
