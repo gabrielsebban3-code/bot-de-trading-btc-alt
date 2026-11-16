@@ -1,0 +1,3 @@
+2026-11-16 18:34:19Z | etude4: 20 pairs loaded, last candle in memory 2025-05-31 23:45:00+00:00, final_test_unlocked=False
+2026-11-16 18:35:53Z | 29071 candidates, 26077 scored out of sample
+2026-11-16 18:36:07Z | study 5 done: chosen=modele_top20, model_adds_value=False, final_test_allowed=False

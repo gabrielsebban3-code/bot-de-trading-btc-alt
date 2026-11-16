@@ -1,0 +1,42 @@
+{
+  "n_candidates": 29071,
+  "bounds": {
+    "dev": [
+      "2021-08-01 00:00:00+00:00",
+      "2024-02-01 00:00:00+00:00"
+    ],
+    "val": [
+      "2024-02-01 00:00:00+00:00",
+      "2025-06-01 00:00:00+00:00"
+    ]
+  },
+  "buy_hold": {
+    "dev": {
+      "return_pct": 0.6829667640747772,
+      "max_dd_pct": 84.99228353219964,
+      "ratio": 0.00803563259735259,
+      "n_pairs": 12
+    },
+    "val": {
+      "return_pct": 120.6769333733705,
+      "max_dd_pct": 64.6025693289583,
+      "ratio": 1.8679896887518481,
+      "n_pairs": 17
+    }
+  },
+  "variants_tested": 3,
+  "chosen": "modele_top20",
+  "keep_quantile": 0.8,
+  "validation": {
+    "expectancy_r": 0.09922841405189836,
+    "reference_unfiltered_r": 0.13720547698867153,
+    "standalone_kept_mean_r": 0.13418801677908104,
+    "standalone_all_mean_r": 0.025655433400796887,
+    "random_subsets_p95_r": 0.07781526702289493,
+    "random_subsets_percentile": 100.0,
+    "criteria_failed": "c2,c3,c4",
+    "all_criteria": false
+  },
+  "model_adds_value": false,
+  "final_test_allowed": false
+}
