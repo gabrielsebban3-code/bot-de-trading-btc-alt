@@ -1,6 +1,6 @@
 # Study 6 overlay (see PROTOCOLE_ETUDE_6.md): momentum only, 8 variants. Periods, costs, engine and criteria are
 # those of study 4. Frozen before any computation.
-final_test_unlocked: false
+final_test_unlocked: true   # opened once on 2026-11-16, see PROTOCOLE_ETUDE_6.md section 5
 sets:
   dev:
     start: '2020-01-01'

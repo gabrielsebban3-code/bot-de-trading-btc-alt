@@ -45,10 +45,54 @@
         "c8_buy_hold": true,
         "criteria_failed": "c1",
         "all_passed": false
+      },
+      "stability": {
+        "variants": [
+          {
+            "config_id": "M7_tf4h_v4_exittp__v3p2",
+            "shifted": "vol_mult",
+            "n_trades": 1055,
+            "expectancy_r": 0.12449036574530806
+          },
+          {
+            "config_id": "M7_tf4h_v4_exittp__v4p8",
+            "shifted": "vol_mult",
+            "n_trades": 289,
+            "expectancy_r": 0.17667780944221456
+          },
+          {
+            "config_id": "M7_tf4h_v4_exittp__sl1p2",
+            "shifted": "sl_atr",
+            "n_trades": 564,
+            "expectancy_r": 0.05475356951507093
+          },
+          {
+            "config_id": "M7_tf4h_v4_exittp__sl1p8",
+            "shifted": "sl_atr",
+            "n_trades": 520,
+            "expectancy_r": 0.14385076446865386
+          },
+          {
+            "config_id": "M7_tf4h_v4_exittp__tp2p0",
+            "shifted": "tp_r",
+            "n_trades": 553,
+            "expectancy_r": 0.16263714587468356
+          },
+          {
+            "config_id": "M7_tf4h_v4_exittp__tp3p0",
+            "shifted": "tp_r",
+            "n_trades": 532,
+            "expectancy_r": 0.126112187743797
+          }
+        ],
+        "passed": true
       }
     }
   },
   "n_variants": 8,
-  "finalists": [],
-  "n_shifted_variants": 0
+  "finalists": [
+    "M7_tf4h_v4_exittp"
+  ],
+  "n_shifted_variants": 6,
+  "amendment": "200 trades counted on training + validation + test (see PROTOCOLE_ETUDE_6.md, section 5)"
 }

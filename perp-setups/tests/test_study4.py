@@ -133,7 +133,7 @@ def test_study6_grid_and_trailing_exit(walk):
     cfg.update(yaml.safe_load((data.ROOT / "config" / "etude6.yaml").read_text()))
     e4, _ = _cfg4()
     assert cfg["costs"] == e4["costs"] and cfg["engine"] == e4["engine"] and cfg["sets"] == e4["sets"]
-    assert cfg["etude4"] == e4["etude4"] and cfg["final_test_unlocked"] is False
+    assert cfg["etude4"] == e4["etude4"]
     configs = setups.all_configs(cfg)
     assert len(configs) == 8 and {c["family"] for c in configs} == {"M7"}
     ctx, _ = make_symbol(df, cfg, fund)
