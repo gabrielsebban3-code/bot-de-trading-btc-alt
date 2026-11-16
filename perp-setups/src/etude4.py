@@ -293,6 +293,8 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     global OVERLAY
     OVERLAY = args.study
+    from . import etude4 as module          # run as a script, this file is "__main__": keep the imported copy in step
+    module.OVERLAY = args.study
     if args.cmd == "report":
         from . import etude4_report
         etude4_report.build()
