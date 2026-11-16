@@ -32,3 +32,20 @@ Le reste est celui de l'étude 4 : signal à la clôture, entrée au marché à 
 - La variante 1H, objectif fixe, volume ≥ 3× est celle de l'étude 4 (+0,137 R sur la validation, rejetée).
 - La période 2025-06 → 2026-10 n'a jamais été lue pour le momentum ; une configuration de cassure 4h y a été
   testée une fois (étude 2). C'est le dernier test encore à peu près propre.
+
+## 5. Avenant du 2026-11-16, écrit avant l'ouverture du test final
+
+Résultat de la validation : `M7_tf4h_v4_exittp` remplit 7 critères sur 8 et rate le nombre de trades
+(174 sur la validation pour 200 exigés). La mission d'origine demandait « au moins 200 trades sur la période »
+sans préciser laquelle ; le protocole l'avait appliqué à la validation seule. Gabriel, informé que c'est une
+relecture faite après avoir vu le résultat et qu'un verdict positif en vaut moins, a choisi d'ouvrir le test
+final (réponse « b »).
+
+Règles pour la suite, fixées avant de lire le test :
+
+1. Le seuil de 200 trades se compte sur l'ensemble entraînement + validation + test.
+2. Stabilité ±20 % calculée d'abord sur entraînement + validation ; si une variante décalée est négative,
+   le test n'est pas ouvert.
+3. Test final 2025-06-01 → 2026-10-31, une seule exécution, sur cette seule variante. Elle est retenue si les
+   sept autres critères y sont remplis.
+4. Le rapport mentionne cet avenant à côté du verdict, quel qu'il soit.
