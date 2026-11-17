@@ -33,6 +33,8 @@ def classify_symbol(symbol: str, cfg: dict) -> tuple[bool, str, str]:
         return False, base, "stablecoin"
     if base in set(d["index_bases"]) or any(base.endswith(s) for s in d["index_suffixes"]):
         return False, base, "index"
+    if base in set(d.get("non_crypto_bases", [])):
+        return False, base, "non_crypto"
     return True, base, ""
 
 

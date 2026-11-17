@@ -18,22 +18,29 @@ SWEEP_COLS = ["idx", "direction", "level", "source"]
 def equal_levels(piv: pd.DataFrame, tol: float, lookback: int, min_group: int = 2) -> pd.DataFrame:
     """Candidate equal-high / equal-low levels with the index at which each becomes known.
 
+    For each pivot j (in confirmation order), the group = pivots of the same kind already confirmed,
+    appeared within ``lookback`` candles before j, priced within ``tol`` of pivot j.
     Returns columns: known_idx, kind (+1 highs, -1 lows), level.
     """
+    import bisect
     rows = []
     for kind in (1, -1):
         p = piv[piv["kind"] == kind].sort_values(["confirm_idx", "idx"], kind="stable")
-        idxs, confs, prices = p["idx"].to_numpy(), p["confirm_idx"].to_numpy(), p["price"].to_numpy()
-        for j in range(len(p)):
-            recent = (idxs[:j] >= idxs[j] - lookback)
-            others = prices[:j][recent]
-            if len(others) == 0:
-                continue
-            ref = np.maximum(np.abs(others), abs(prices[j]))
-            close_ones = others[np.abs(others - prices[j]) / ref <= tol]
-            if len(close_ones) + 1 >= min_group:
-                group = np.append(close_ones, prices[j])
-                rows.append((int(confs[j]), kind, float(group.max() if kind == 1 else group.min())))
+        seen_idx: list[int] = []           # appearance indices of confirmed pivots, kept sorted
+        seen_px: list[float] = []
+        for i, cf, pr in zip(p["idx"].to_numpy(), p["confirm_idx"].to_numpy(), p["price"].to_numpy()):
+            lo = bisect.bisect_left(seen_idx, int(i) - lookback)
+            hi = bisect.bisect_left(seen_idx, int(i))
+            others = np.asarray(seen_px[lo:hi])
+            if len(others):
+                ref = np.maximum(np.abs(others), abs(pr))
+                close_ones = others[np.abs(others - pr) / ref <= tol]
+                if len(close_ones) + 1 >= min_group:
+                    group = np.append(close_ones, pr)
+                    rows.append((int(cf), kind, float(group.max() if kind == 1 else group.min())))
+            k = bisect.bisect_right(seen_idx, int(i))
+            seen_idx.insert(k, int(i))
+            seen_px.insert(k, float(pr))
     return pd.DataFrame(rows, columns=["known_idx", "kind", "level"])
 
 

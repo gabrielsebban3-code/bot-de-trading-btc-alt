@@ -1,0 +1,12 @@
+# Python >= 3.11. Versions used and tested on 2026-11-17.
+numpy==2.5.5
+pandas==3.1.1
+PyYAML==6.0.3
+requests==2.34.2
+scipy==1.18.1
+arch==9.0.0
+ccxt==4.5.93
+websockets==17.4
+matplotlib==3.11.2
+python-dotenv==1.2.4
+pytest==9.2.0

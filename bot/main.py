@@ -56,6 +56,18 @@ def cmd_catalog(cfg, args) -> None:
         log.info("held-out list already frozen, unchanged")
 
 
+def cmd_reclassify(cfg, args) -> None:
+    """Re-apply the eligibility rules of config.yaml to the catalogue (keeps months and the held-out list)."""
+    from .data.universe import classify_symbol
+    store = _store(cfg)
+    cat = store.catalog(eligible_only=False)
+    with store.tx() as con:
+        for s in cat["symbol"]:
+            ok, base, reason = classify_symbol(s, cfg)
+            con.execute("UPDATE catalog SET eligible=?, reason=?, base=? WHERE symbol=?", (int(ok), reason, base, s))
+    log.info("catalogue reclassified", eligible=int(len(store.catalog())))
+
+
 def _periods_upto(client, kind, symbol, tf, last_month):
     from .data.fetcher import month_range_closed
     return month_range_closed(client.periods(kind, symbol, tf), last_month)
@@ -190,6 +202,7 @@ def cmd_regression(cfg, args) -> None:
 
 COMMANDS = {
     "catalog": cmd_catalog,
+    "reclassify": cmd_reclassify,
     "download-daily": cmd_download_daily,
     "universe": cmd_universe,
     "download-long": cmd_download_long,

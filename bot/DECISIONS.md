@@ -1,0 +1,17 @@
+# Journal des décisions non spécifiées
+
+Règle : (1) le plus conservateur pour les résultats, (2) le plus simple à vérifier, (3) le plus standard.
+
+| # | Date | Point | Décision | Raison |
+|---|---|---|---|---|
+| D1 | 2026-11-17 | `fapi.binance.com` et `binance.com` refusent ce serveur (HTTP 451 / 403) | Historique pris des archives publiques `data.binance.vision` ; frais vérifiés par une recherche web (grille Binance et FAQ officielle : maker 0,02 %, taker 0,05 %) | Seule source accessible ; aucune donnée inventée |
+| D2 | 2026-11-17 | Fin des données lisibles | 2026-10-31 23:59 UTC ; rien n'est téléchargé ni stocké à partir du 2026-11-01 (test final, option A) | Seules données jamais vues par une étude |
+| D3 | 2026-11-17 | Résolution stockée | 15m sur tout l'historique (rééchantillonné en 1h / 4h / 1d / 1w), 1m sur les 12 derniers mois, 1d natif pour classer l'univers | 1m sur 7 ans pour ~150 symboles ≈ 100 M lignes : inutile, puisque le plan limite 1m/5m à l'affinage et à la mesure des coûts |
+| D4 | 2026-11-17 | Paires mises de côté | Règle de hachage appliquée aux noms des 915 symboles éligibles avant tout téléchargement de prix (`reports/holdout_pairs.json`, commit 57eba76) | Tirage figé, vérifiable, indépendant des résultats |
+| D5 | 2026-11-17 | Univers point-in-time | Recalculé chaque mois avec les 30 jours de volume clos avant le 1er du mois ; une paire doit avoir ≥ 27 bougies journalières dans la fenêtre (sinon suspendue ou délistée) | Pas de lookahead, inclut les délistées tant qu'elles étaient échangées |
+| D6 | 2026-11-17 | Trous de données | Jamais comblés ; trade annulé s'il rencontre un trou ; 30 jours sans signal après un trou | Repris de l'étude 1 (conservateur) |
+| D7 | 2026-11-17 | Stop d'un ordre au marché fondé sur l'ATR | Placé à partir du prix de remplissage (ouverture suivante) ∓ distance ATR connue à la clôture ; l'alerte affiche le niveau calculé sur la clôture | Même convention que l'étude 1 ; l'écart clôture / ouverture suivante est minime |
+| D8 | 2026-11-17 | Funding | Taux × taille × prix d'ouverture de la bougie du règlement (l'étude 1 utilisait le prix d'entrée, option `funding_price: entry` conservée pour la non-régression) | Plus proche du notionnel réel |
+| D9 | 2026-11-17 | Slippage | `0,01 % + 0,10 × ATR(15m)/prix + 1,0 × vol. journalière × √(notionnel / volume quotidien moyen)` ; ATR, volume et volatilité connus avant l'exécution | « Fonction du volume et de l'ATR » (Step 6) ; loi en racine carrée standard pour l'impact |
+| D10 | 2026-11-17 | Extrême du stop chandelier pour une entrée limite au milieu d'une bougie | Plus haut / plus bas des bougies de chemin depuis le remplissage seulement | N'utilise pas de prix antérieurs à l'entrée |
+| D11 | 2026-11-17 | Test de non-régression | Le moteur reproduit l'étude 1 (`C_tf4h_dc55_volon`, DEV) avec les hypothèses de l'étude 1 (slippage fixe 0,03 %, funding au prix d'entrée, pas de limite journalière ni de corrélation) : 455 trades, +0,2228 R, PF 1,497, DD 18,82 % — identique | Détecte les bugs du moteur, du rééchantillonnage et des indicateurs |
