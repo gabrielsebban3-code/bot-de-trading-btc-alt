@@ -1,0 +1,133 @@
+# Dinexo bot - every parameter lives here (rule 4). Secrets (Discord webhook) live in .env, never here.
+# Phase 1 sections: data, universe, holdout, final_test, costs, risk, indicators, structure, engine, stats.
+# Concept sections (C1..C5) are added by the pre-registered protocol of each phase, before any computation.
+
+seed: 42
+
+paths:
+  market_db: bot/var/market.sqlite      # candles, funding, open interest, catalogue (gitignored)
+  state_db: bot/var/state.sqlite        # signals, statuses, trials counter (gitignored)
+  reports: bot/reports
+
+# ---------------------------------------------------------------- data (Step 1)
+data:
+  archive_base: "https://data.binance.vision/data/futures/um"
+  listing_base: "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision"
+  history_start: "2020-01-01"
+  # Last month that may be read. Everything from final_test.start on is locked (option A, see PROTOCOLE.md).
+  last_month: "2026-10"
+  long_tf: "15m"                 # stored for the whole history, resampled to 1h / 4h / 1d / 1w
+  fine_tf: "1m"                  # stored for the last `fine_months` months only (entry refinement, cost study)
+  fine_months: 12
+  native_check_tfs: ["1h", "4h", "1d"]   # native archives used to check the resampler
+  download_workers: 16
+  http_timeout_s: 60
+  http_retries: 4
+  verify_checksum: true
+  quote_asset: "USDT"
+  # Bases that are not crypto assets with a market of their own (stablecoins, indices).
+  stablecoin_bases: [USDC, BUSD, TUSD, FDUSD, USDP, DAI, USDD, PYUSD, USD1, USDE, EUR, EURI, AEUR, UST, USTC,
+                     SUSD, GUSD, LUSD, FRAX, XUSD, BFUSD, RLUSD]
+  index_bases: [DEFI, ALL, FOOTBALL, BLUEBIRD]
+  index_suffixes: [DOM]
+
+# ---------------------------------------------------------------- universe (Step 1)
+universe:
+  top_n: 30
+  volume_window_days: 30         # trailing average daily quote volume, computed on closed daily candles
+  min_avg_daily_quote_volume: 20000000.0   # 20 M USDT per day
+  min_history_days: 30           # a pair needs this many daily candles before it can enter
+  rebalance: "monthly"           # membership fixed for the calendar month, decided on the previous month's data
+
+# ---------------------------------------------------------------- held-out pairs (PROTOCOLE.md, frozen 2026-11-17)
+holdout:
+  salt: "dinexo-holdout-2026-11-17"
+  modulo: 3                      # sha256(salt:symbol) mod 3 == 0 -> held out
+  never_holdout: [BTCUSDT, ETHUSDT]
+  # The 40 pairs already used by perp-setups studies 1-8: never held out (they are not new data).
+  already_used: [BTCUSDT, ETHUSDT, ZECUSDT, SOLUSDT, XRPUSDT, NEARUSDT, DOGEUSDT, BNBUSDT, 1000PEPEUSDT, ENAUSDT,
+                 SUIUSDT, UNIUSDT, WLDUSDT, TRUMPUSDT, ADAUSDT, LINKUSDT, QNTUSDT, AVAXUSDT, TAOUSDT, ARBUSDT,
+                 LSKUSDT, AAVEUSDT, FILUSDT, ONDOUSDT, BCHUSDT, LTCUSDT, STRKUSDT, BRUSDT, INJUSDT, PAXGUSDT,
+                 PENGUUSDT, XLMUSDT, DASHUSDT, ONEUSDT, XMRUSDT, DOTUSDT, SANDUSDT, TIAUSDT, HBARUSDT, TRXUSDT]
+
+# ---------------------------------------------------------------- final test lock (option A)
+final_test:
+  start: "2026-11-01"            # first instant never seen by any study
+  unlocked: false                # only PROTOCOLE.md's final step may set this to true
+  min_trades: 100
+  min_months: 3
+
+# ---------------------------------------------------------------- costs (Step 6), Binance grid checked 2026-11-17
+costs:
+  maker_fee: 0.0002              # 0.0200 % regular user, USDT-M
+  taker_fee: 0.0005              # 0.0500 % regular user, USDT-M
+  slippage:
+    # adverse fraction on every market fill (entries, stops, time exits):
+    # base + atr_coef * ATR(base tf)/price + impact_coef * daily_vol * sqrt(notional / avg daily quote volume)
+    base: 0.0001
+    atr_coef: 0.10
+    impact_coef: 1.0
+    atr_period: 14
+    adv_days: 30
+    vol_days: 30
+  stress_multiplier: 1.5         # fees and slippage x1.5 robustness run
+
+# ---------------------------------------------------------------- simulated risk (Step 8)
+risk:
+  initial_capital: 10000.0
+  risk_per_trade: 0.01
+  max_leverage: 5.0
+  maintenance_margin_rate: 0.01
+  max_positions: 5
+  max_positions_per_pair: 1
+  min_stop_pct: 0.003            # signal ignored if the stop is closer than 0.3 % of entry
+  max_stop_pct: 0.06             # or farther than 6 %
+  max_daily_loss_pct: 0.03       # no new entry for the rest of the UTC day once realised losses reach 3 %
+  correlation:
+    enabled: true
+    window_days: 30              # daily returns, closed days only
+    threshold: 0.7               # correlation with BTC above this -> group "btc_beta"
+    max_same_direction: 3        # at most 3 positions in the same direction inside one group
+
+# ---------------------------------------------------------------- engine (Step 6)
+engine:
+  path_tf: "15m"                 # intrabar path used for stops; "1m" where it exists and is requested
+  warmup_days: 30                # no signal during the first 30 days of history or after a data gap
+  stop_first_when_ambiguous: true
+  limit_fill: "through"          # a limit order fills only when price trades through the level
+  void_on_gap: true              # a trade that meets a data gap is cancelled (no invented prices)
+  significant_stop_move_atr: 0.5 # live: a trailing move of at least 0.5 ATR triggers a "stop moved" alert
+
+# ---------------------------------------------------------------- indicators
+indicators:
+  atr_period: 14
+  rsi_period: 14
+  adx_period: 14
+  bb_period: 20
+  bb_k: 2.0
+  macd: [12, 26, 9]
+  ema_periods: [20, 50, 200]
+  rel_volume_window: 20
+  vwap_anchor: "1d"              # session VWAP reset at 00:00 UTC
+
+# ---------------------------------------------------------------- structure (Step 4)
+structure:
+  fractal_n: 3                   # pivot = extreme of 2n+1 candles, confirmed n candles later
+  zigzag_atr_mult: 3.0           # reversal of 3 ATR from the running extreme confirms the extreme
+  hierarchy:
+    minor_n: 2
+    intermediate_n: 2            # fractal of minor pivots (n on each side, among pivots of the same type)
+    major_n: 2                   # fractal of intermediate pivots
+  equal_level_tol: 0.0015        # equal highs/lows: within 0.15 %
+  range:
+    bb_width_window: 120         # compression = BB width in the lowest 20 % of the last 120 candles
+    bb_width_pct: 0.20
+    adx_max: 20
+
+# ---------------------------------------------------------------- statistics (Step 7)
+stats:
+  bootstrap_resamples: 10000
+  ci_level: 0.95
+  spa_reps: 2000
+  spa_block: 20                  # stationary bootstrap mean block length (days)
+  inherited_trials: 232          # perp-setups studies 1-8 (206 up to study 6 + 14 + 12), see PROTOCOLE.md
