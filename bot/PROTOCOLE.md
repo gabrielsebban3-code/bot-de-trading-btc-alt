@@ -36,7 +36,7 @@ développement et en validation, les membres mis de côté sont retirés ; au te
 
 - Frais Binance USDT-M utilisateur standard, vérifiés le 2026-11-17 : maker 0,02 %, taker 0,05 %.
 - Slippage sur chaque exécution au marché (entrées, stops, sorties temporelles) :
-  `0,01 % + 0,10 × ATR(15m)/prix + 1,0 × volatilité journalière × √(notionnel / volume quotidien moyen)`.
+  `0,01 % + 0,05 × ATR(15m)/prix + 1,0 × volatilité journalière × √(notionnel / volume quotidien moyen)`.
 - Funding réel payé ou reçu à chaque règlement pendant la détention.
 - Robustesse : frais et slippage × 1,5.
 

@@ -66,3 +66,10 @@ def test_live_client_drops_candle_in_progress():
     rows = [[0, 1, 1, 1, 1, 1], [60_000, 1, 1, 1, 1, 1], [120_000, 1, 1, 1, 1, 1]]
     assert LiveClient.closed_only(rows, "1m", now_ms=150_000) == rows[:2]
     assert LiveClient.closed_only(rows, "1m", now_ms=180_000) == rows
+
+
+def test_non_crypto_contracts_are_excluded(cfg):
+    for sym in ("XAUUSDT", "NVDAUSDT", "SPYUSDT", "CLUSDT", "OPENAIUSDT", "PAXGUSDT"):
+        ok, _, reason = classify_symbol(sym, cfg)
+        assert not ok and reason == "non_crypto", sym
+    assert classify_symbol("SOLUSDT", cfg)[0]

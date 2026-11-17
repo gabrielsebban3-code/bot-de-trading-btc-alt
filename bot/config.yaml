@@ -30,6 +30,19 @@ data:
                      SUSD, GUSD, LUSD, FRAX, XUSD, BFUSD, RLUSD]
   index_bases: [DEFI, ALL, FOOTBALL, BLUEBIRD]
   index_suffixes: [DOM]
+  # Non-crypto USDT-M contracts listed since 2025 (stocks, ETFs, commodities, FX, pre-IPO). exchangeInfo
+  # (underlyingType) is unreachable from the research server, so the list is explicit (DECISIONS.md D12).
+  non_crypto_bases: [XAU, XAG, XAUT, PAXG, XPD, XPT, CL, BZ, NATGAS, COPPER, USDBRL,
+    AAOI, AAPL, ABBV, ACN, ADBE, ALAB, AMAT, AMC, AMD, AMGN, AMZN, ANET, APLD, APP, ARM, ASML, ASTS, AVGO,
+    BABA, BAC, BITO, BMNR, BRKB, BYD, CEG, CIEN, COHR, COIN, COST, CRCL, CRDO, CRM, CRWD, CRWV, CSCO,
+    CSOPSAMSUNG2L, CSOPSKHYNIX2L, CVNA, CXMT, DDOG, DELL, DIS, DJT, DKNG, DRAM, EBAY, EWJ, EWT, EWY, EWZ, EWZS,
+    GDX, GEV, GIGADEV, GLW, GME, GOOGL, GS, GTLB, HANMI, HIMS, HK0625, HK0700, HK0992, HK1810, HOOD, HPE, HUT,
+    HYUNDAI, IBKR, IBM, INTC, IONQ, IREN, IWM, JPM, KLAC, KODEX200, KORU, KUAISHOU, LGELECTRONICS, LITE, LLY,
+    LRCX, MARA, MCD, MDB, MEITUAN, MELI, META, MINIMAX, MRK, MRNA, MRVL, MSFT, MSTR, MSTU, MU, MUU, NAVER,
+    NBIS, NFLX, NKE, NVDA, NVDL, NVO, OKLO, OPENAI, ANTHROPIC, ORCL, OXY, PANW, PDD, PFE, PLTR, POPMART, PYPL,
+    QCOM, QQQ, RDDT, RIVN, RKLB, SAMSUNG, SAMSUNGEM, SHOP, SKHYNIX, SKHY, SMCI, SMH, SMR, SNDK, SNOW, SNPS,
+    SNXX, SOFI, SONY, SOXL, SOXS, SPCX, SPY, SQQQ, TEM, TENCENT, TQQQ, TSLA, TSLL, TSM, TTWO, TXN, TZA, UBER,
+    UNH, UNITREE, URNM, UVXY, VKTX, WDC, WMT, XBI, XLE, XOM, ZHIPU, TBT, TMF]
 
 # ---------------------------------------------------------------- universe (Step 1)
 universe:
@@ -65,7 +78,7 @@ costs:
     # adverse fraction on every market fill (entries, stops, time exits):
     # base + atr_coef * ATR(base tf)/price + impact_coef * daily_vol * sqrt(notional / avg daily quote volume)
     base: 0.0001
-    atr_coef: 0.10
+    atr_coef: 0.05
     impact_coef: 1.0
     atr_period: 14
     adv_days: 30

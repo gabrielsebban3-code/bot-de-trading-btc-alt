@@ -1,0 +1,2116 @@
+[
+ {
+  "symbol": "1000BONKUSDT",
+  "first_day": "2023-11-22",
+  "last_day": "2026-10-31",
+  "n_days": 1075,
+  "error": ""
+ },
+ {
+  "symbol": "1000FLOKIUSDT",
+  "first_day": "2023-05-06",
+  "last_day": "2026-10-31",
+  "n_days": 1275,
+  "error": ""
+ },
+ {
+  "symbol": "1000LUNCUSDT",
+  "first_day": "2022-09-09",
+  "last_day": "2026-10-31",
+  "n_days": 1514,
+  "error": ""
+ },
+ {
+  "symbol": "1000PEPEUSDT",
+  "first_day": "2023-05-05",
+  "last_day": "2026-10-31",
+  "n_days": 1276,
+  "error": ""
+ },
+ {
+  "symbol": "1000RATSUSDT",
+  "first_day": "2023-12-15",
+  "last_day": "2026-10-31",
+  "n_days": 1052,
+  "error": ""
+ },
+ {
+  "symbol": "1000SATSUSDT",
+  "first_day": "2023-12-12",
+  "last_day": "2026-10-31",
+  "n_days": 1055,
+  "error": ""
+ },
+ {
+  "symbol": "1000SHIBUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "1INCHUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "1MBABYDOGEUSDT",
+  "first_day": "2024-09-16",
+  "last_day": "2026-10-31",
+  "n_days": 776,
+  "error": ""
+ },
+ {
+  "symbol": "AAVEUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "ACEUSDT",
+  "first_day": "2023-12-18",
+  "last_day": "2026-10-31",
+  "n_days": 1049,
+  "error": ""
+ },
+ {
+  "symbol": "ACTUSDT",
+  "first_day": "2024-11-11",
+  "last_day": "2026-10-31",
+  "n_days": 720,
+  "error": ""
+ },
+ {
+  "symbol": "ADAUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "AERGOUSDT",
+  "first_day": "2024-09-10",
+  "last_day": "2026-07-23",
+  "n_days": 663,
+  "error": ""
+ },
+ {
+  "symbol": "AGIXUSDT",
+  "first_day": "2023-02-16",
+  "last_day": "2025-10-11",
+  "n_days": 515,
+  "error": ""
+ },
+ {
+  "symbol": "AI16ZUSDT",
+  "first_day": "2025-01-02",
+  "last_day": "2026-10-02",
+  "n_days": 401,
+  "error": ""
+ },
+ {
+  "symbol": "AIAUSDT",
+  "first_day": "2025-09-18",
+  "last_day": "2026-10-31",
+  "n_days": 409,
+  "error": ""
+ },
+ {
+  "symbol": "AIOTUSDT",
+  "first_day": "2025-04-30",
+  "last_day": "2026-10-31",
+  "n_days": 550,
+  "error": ""
+ },
+ {
+  "symbol": "AIXBTUSDT",
+  "first_day": "2024-12-20",
+  "last_day": "2026-10-31",
+  "n_days": 681,
+  "error": ""
+ },
+ {
+  "symbol": "AKEUSDT",
+  "first_day": "2025-09-26",
+  "last_day": "2026-10-31",
+  "n_days": 401,
+  "error": ""
+ },
+ {
+  "symbol": "ALCHUSDT",
+  "first_day": "2025-01-07",
+  "last_day": "2026-10-31",
+  "n_days": 663,
+  "error": ""
+ },
+ {
+  "symbol": "ALGOUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "ALICEUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "ALLOUSDT",
+  "first_day": "2025-11-11",
+  "last_day": "2026-10-31",
+  "n_days": 355,
+  "error": ""
+ },
+ {
+  "symbol": "ALPACAUSDT",
+  "first_day": "2024-08-22",
+  "last_day": "2026-10-08",
+  "n_days": 584,
+  "error": ""
+ },
+ {
+  "symbol": "ALPHAUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-01-23",
+  "n_days": 1515,
+  "error": ""
+ },
+ {
+  "symbol": "ALTUSDT",
+  "first_day": "2024-01-25",
+  "last_day": "2026-10-31",
+  "n_days": 1011,
+  "error": ""
+ },
+ {
+  "symbol": "ANIMEUSDT",
+  "first_day": "2025-01-23",
+  "last_day": "2026-10-31",
+  "n_days": 647,
+  "error": ""
+ },
+ {
+  "symbol": "ANKRUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "APEUSDT",
+  "first_day": "2022-03-17",
+  "last_day": "2026-10-31",
+  "n_days": 1690,
+  "error": ""
+ },
+ {
+  "symbol": "API3USDT",
+  "first_day": "2022-02-22",
+  "last_day": "2026-10-31",
+  "n_days": 1713,
+  "error": ""
+ },
+ {
+  "symbol": "APTUSDT",
+  "first_day": "2022-10-19",
+  "last_day": "2026-10-31",
+  "n_days": 1474,
+  "error": ""
+ },
+ {
+  "symbol": "ARBUSDT",
+  "first_day": "2023-03-23",
+  "last_day": "2026-10-31",
+  "n_days": 1319,
+  "error": ""
+ },
+ {
+  "symbol": "ARCUSDT",
+  "first_day": "2025-01-17",
+  "last_day": "2026-10-31",
+  "n_days": 653,
+  "error": ""
+ },
+ {
+  "symbol": "ARIAUSDT",
+  "first_day": "2025-09-03",
+  "last_day": "2026-10-31",
+  "n_days": 424,
+  "error": ""
+ },
+ {
+  "symbol": "ARKUSDT",
+  "first_day": "2023-09-19",
+  "last_day": "2026-10-31",
+  "n_days": 1139,
+  "error": ""
+ },
+ {
+  "symbol": "ARPAUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "ASTERUSDT",
+  "first_day": "2025-09-19",
+  "last_day": "2026-10-31",
+  "n_days": 408,
+  "error": ""
+ },
+ {
+  "symbol": "ATOMUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "AUCTIONUSDT",
+  "first_day": "2023-12-15",
+  "last_day": "2026-10-31",
+  "n_days": 1052,
+  "error": ""
+ },
+ {
+  "symbol": "AVAXUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "AXSUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "BAKEUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-01-23",
+  "n_days": 1515,
+  "error": ""
+ },
+ {
+  "symbol": "BANDUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "BANKUSDT",
+  "first_day": "2025-04-18",
+  "last_day": "2026-10-31",
+  "n_days": 562,
+  "error": ""
+ },
+ {
+  "symbol": "BASEDUSDT",
+  "first_day": "2026-03-30",
+  "last_day": "2026-10-31",
+  "n_days": 216,
+  "error": ""
+ },
+ {
+  "symbol": "BATUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "BBUSDT",
+  "first_day": "2024-05-13",
+  "last_day": "2026-10-31",
+  "n_days": 902,
+  "error": ""
+ },
+ {
+  "symbol": "BCHUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "BEATUSDT",
+  "first_day": "2025-11-12",
+  "last_day": "2026-10-31",
+  "n_days": 354,
+  "error": ""
+ },
+ {
+  "symbol": "BELUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "BERAUSDT",
+  "first_day": "2025-02-06",
+  "last_day": "2026-10-31",
+  "n_days": 633,
+  "error": ""
+ },
+ {
+  "symbol": "BICOUSDT",
+  "first_day": "2023-09-28",
+  "last_day": "2026-10-31",
+  "n_days": 1130,
+  "error": ""
+ },
+ {
+  "symbol": "BIGTIMEUSDT",
+  "first_day": "2023-10-12",
+  "last_day": "2026-10-31",
+  "n_days": 1116,
+  "error": ""
+ },
+ {
+  "symbol": "BIOUSDT",
+  "first_day": "2025-01-03",
+  "last_day": "2026-10-31",
+  "n_days": 667,
+  "error": ""
+ },
+ {
+  "symbol": "BLESSUSDT",
+  "first_day": "2025-09-23",
+  "last_day": "2026-10-31",
+  "n_days": 404,
+  "error": ""
+ },
+ {
+  "symbol": "BLURUSDT",
+  "first_day": "2023-04-28",
+  "last_day": "2026-10-31",
+  "n_days": 1283,
+  "error": ""
+ },
+ {
+  "symbol": "BLZUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2025-09-09",
+  "n_days": 1197,
+  "error": ""
+ },
+ {
+  "symbol": "BNBUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "BNTUSDT",
+  "first_day": "2023-08-10",
+  "last_day": "2026-10-31",
+  "n_days": 1179,
+  "error": ""
+ },
+ {
+  "symbol": "BNXUSDT",
+  "first_day": "2022-04-01",
+  "last_day": "2025-10-11",
+  "n_days": 1167,
+  "error": ""
+ },
+ {
+  "symbol": "BOMEUSDT",
+  "first_day": "2024-03-16",
+  "last_day": "2026-10-31",
+  "n_days": 960,
+  "error": ""
+ },
+ {
+  "symbol": "BSBUSDT",
+  "first_day": "2026-03-25",
+  "last_day": "2026-10-31",
+  "n_days": 221,
+  "error": ""
+ },
+ {
+  "symbol": "BTCUSDT",
+  "first_day": "2020-09-01",
+  "last_day": "2026-10-31",
+  "n_days": 2252,
+  "error": ""
+ },
+ {
+  "symbol": "BTRUSDT",
+  "first_day": "2025-08-27",
+  "last_day": "2026-10-31",
+  "n_days": 431,
+  "error": ""
+ },
+ {
+  "symbol": "BTWUSDT",
+  "first_day": "2026-06-04",
+  "last_day": "2026-10-31",
+  "n_days": 150,
+  "error": ""
+ },
+ {
+  "symbol": "BULLAUSDT",
+  "first_day": "2025-07-04",
+  "last_day": "2026-10-31",
+  "n_days": 485,
+  "error": ""
+ },
+ {
+  "symbol": "BUSDT",
+  "first_day": "2025-05-22",
+  "last_day": "2026-10-31",
+  "n_days": 528,
+  "error": ""
+ },
+ {
+  "symbol": "C98USDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "CAKEUSDT",
+  "first_day": "2023-11-02",
+  "last_day": "2026-10-31",
+  "n_days": 1095,
+  "error": ""
+ },
+ {
+  "symbol": "CELRUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "CFXUSDT",
+  "first_day": "2023-02-20",
+  "last_day": "2026-10-31",
+  "n_days": 1350,
+  "error": ""
+ },
+ {
+  "symbol": "CHRUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "CHZUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "CKBUSDT",
+  "first_day": "2023-02-28",
+  "last_day": "2026-10-31",
+  "n_days": 1342,
+  "error": ""
+ },
+ {
+  "symbol": "COAIUSDT",
+  "first_day": "2025-09-25",
+  "last_day": "2026-10-31",
+  "n_days": 402,
+  "error": ""
+ },
+ {
+  "symbol": "COMPUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "COTIUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "CRVUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "CTSIUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "CYBERUSDT",
+  "first_day": "2023-08-21",
+  "last_day": "2026-10-31",
+  "n_days": 1168,
+  "error": ""
+ },
+ {
+  "symbol": "CYSUSDT",
+  "first_day": "2025-12-12",
+  "last_day": "2026-10-31",
+  "n_days": 324,
+  "error": ""
+ },
+ {
+  "symbol": "DASHUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "DEGOUSDT",
+  "first_day": "2024-12-13",
+  "last_day": "2026-10-15",
+  "n_days": 661,
+  "error": ""
+ },
+ {
+  "symbol": "DENTUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-15",
+  "n_days": 1765,
+  "error": ""
+ },
+ {
+  "symbol": "DEXEUSDT",
+  "first_day": "2024-12-24",
+  "last_day": "2026-10-31",
+  "n_days": 677,
+  "error": ""
+ },
+ {
+  "symbol": "DIAUSDT",
+  "first_day": "2024-10-02",
+  "last_day": "2026-10-31",
+  "n_days": 760,
+  "error": ""
+ },
+ {
+  "symbol": "DOGEUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "DOGSUSDT",
+  "first_day": "2024-08-26",
+  "last_day": "2026-10-31",
+  "n_days": 797,
+  "error": ""
+ },
+ {
+  "symbol": "DOTUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "DUSKUSDT",
+  "first_day": "2022-01-07",
+  "last_day": "2026-10-31",
+  "n_days": 1759,
+  "error": ""
+ },
+ {
+  "symbol": "DYDXUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "EDENUSDT",
+  "first_day": "2025-09-30",
+  "last_day": "2026-10-31",
+  "n_days": 397,
+  "error": ""
+ },
+ {
+  "symbol": "EDGEUSDT",
+  "first_day": "2026-03-19",
+  "last_day": "2026-10-31",
+  "n_days": 227,
+  "error": ""
+ },
+ {
+  "symbol": "EDUUSDT",
+  "first_day": "2023-04-30",
+  "last_day": "2026-10-31",
+  "n_days": 1280,
+  "error": ""
+ },
+ {
+  "symbol": "EGLDUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "EIGENUSDT",
+  "first_day": "2024-10-01",
+  "last_day": "2026-10-31",
+  "n_days": 761,
+  "error": ""
+ },
+ {
+  "symbol": "ENAUSDT",
+  "first_day": "2024-04-02",
+  "last_day": "2026-10-31",
+  "n_days": 943,
+  "error": ""
+ },
+ {
+  "symbol": "ENJUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "ENSOUSDT",
+  "first_day": "2025-10-14",
+  "last_day": "2026-10-31",
+  "n_days": 383,
+  "error": ""
+ },
+ {
+  "symbol": "ENSUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "EOSUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-05-05",
+  "n_days": 1332,
+  "error": ""
+ },
+ {
+  "symbol": "ESPORTSUSDT",
+  "first_day": "2025-07-29",
+  "last_day": "2026-10-31",
+  "n_days": 460,
+  "error": ""
+ },
+ {
+  "symbol": "ETCUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "ETHFIUSDT",
+  "first_day": "2024-03-18",
+  "last_day": "2026-10-31",
+  "n_days": 958,
+  "error": ""
+ },
+ {
+  "symbol": "ETHUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "EVAAUSDT",
+  "first_day": "2025-10-03",
+  "last_day": "2026-10-31",
+  "n_days": 394,
+  "error": ""
+ },
+ {
+  "symbol": "FARTCOINUSDT",
+  "first_day": "2024-12-20",
+  "last_day": "2026-10-31",
+  "n_days": 681,
+  "error": ""
+ },
+ {
+  "symbol": "FETUSDT",
+  "first_day": "2023-01-17",
+  "last_day": "2026-10-31",
+  "n_days": 1384,
+  "error": ""
+ },
+ {
+  "symbol": "FHEUSDT",
+  "first_day": "2025-04-12",
+  "last_day": "2026-10-31",
+  "n_days": 568,
+  "error": ""
+ },
+ {
+  "symbol": "FILUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "FLMUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-15",
+  "n_days": 1549,
+  "error": ""
+ },
+ {
+  "symbol": "FLOWUSDT",
+  "first_day": "2022-02-10",
+  "last_day": "2026-10-31",
+  "n_days": 1725,
+  "error": ""
+ },
+ {
+  "symbol": "FOLKSUSDT",
+  "first_day": "2025-11-06",
+  "last_day": "2026-10-31",
+  "n_days": 360,
+  "error": ""
+ },
+ {
+  "symbol": "FRONTUSDT",
+  "first_day": "2023-09-22",
+  "last_day": "2025-03-10",
+  "n_days": 535,
+  "error": ""
+ },
+ {
+  "symbol": "FTMUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2025-03-10",
+  "n_days": 1196,
+  "error": ""
+ },
+ {
+  "symbol": "FTTUSDT",
+  "first_day": "2022-04-15",
+  "last_day": "2024-07-15",
+  "n_days": 275,
+  "error": ""
+ },
+ {
+  "symbol": "FUNUSDT",
+  "first_day": "2025-03-31",
+  "last_day": "2026-10-15",
+  "n_days": 553,
+  "error": ""
+ },
+ {
+  "symbol": "GALAUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "GASUSDT",
+  "first_day": "2023-10-25",
+  "last_day": "2026-10-31",
+  "n_days": 1103,
+  "error": ""
+ },
+ {
+  "symbol": "GIGGLEUSDT",
+  "first_day": "2025-10-09",
+  "last_day": "2026-10-31",
+  "n_days": 388,
+  "error": ""
+ },
+ {
+  "symbol": "GMTUSDT",
+  "first_day": "2022-03-15",
+  "last_day": "2026-10-31",
+  "n_days": 1692,
+  "error": ""
+ },
+ {
+  "symbol": "GOATUSDT",
+  "first_day": "2024-10-24",
+  "last_day": "2026-10-31",
+  "n_days": 738,
+  "error": ""
+ },
+ {
+  "symbol": "GRTUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "GUNUSDT",
+  "first_day": "2025-03-31",
+  "last_day": "2026-10-31",
+  "n_days": 580,
+  "error": ""
+ },
+ {
+  "symbol": "HBARUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "HEIUSDT",
+  "first_day": "2025-02-13",
+  "last_day": "2026-10-31",
+  "n_days": 626,
+  "error": ""
+ },
+ {
+  "symbol": "HEMIUSDT",
+  "first_day": "2025-08-29",
+  "last_day": "2026-10-31",
+  "n_days": 429,
+  "error": ""
+ },
+ {
+  "symbol": "HIFIUSDT",
+  "first_day": "2023-09-16",
+  "last_day": "2026-01-23",
+  "n_days": 861,
+  "error": ""
+ },
+ {
+  "symbol": "HIGHUSDT",
+  "first_day": "2023-02-07",
+  "last_day": "2026-10-15",
+  "n_days": 1338,
+  "error": ""
+ },
+ {
+  "symbol": "HNTUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2023-06-16",
+  "n_days": 498,
+  "error": ""
+ },
+ {
+  "symbol": "HOTUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "HUSDT",
+  "first_day": "2025-06-25",
+  "last_day": "2026-10-31",
+  "n_days": 494,
+  "error": ""
+ },
+ {
+  "symbol": "HYPERUSDT",
+  "first_day": "2025-04-22",
+  "last_day": "2026-10-31",
+  "n_days": 558,
+  "error": ""
+ },
+ {
+  "symbol": "HYPEUSDT",
+  "first_day": "2025-05-30",
+  "last_day": "2026-10-31",
+  "n_days": 520,
+  "error": ""
+ },
+ {
+  "symbol": "ICPUSDT",
+  "first_day": "2021-12-23",
+  "last_day": "2026-10-31",
+  "n_days": 1500,
+  "error": ""
+ },
+ {
+  "symbol": "ICXUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-15",
+  "n_days": 1771,
+  "error": ""
+ },
+ {
+  "symbol": "IDUSDT",
+  "first_day": "2023-03-23",
+  "last_day": "2026-10-31",
+  "n_days": 1319,
+  "error": ""
+ },
+ {
+  "symbol": "IMXUSDT",
+  "first_day": "2022-02-11",
+  "last_day": "2026-10-31",
+  "n_days": 1724,
+  "error": ""
+ },
+ {
+  "symbol": "INJUSDT",
+  "first_day": "2022-08-17",
+  "last_day": "2026-10-31",
+  "n_days": 1537,
+  "error": ""
+ },
+ {
+  "symbol": "IOSTUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "IOTXUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "IOUSDT",
+  "first_day": "2024-06-11",
+  "last_day": "2026-10-31",
+  "n_days": 873,
+  "error": ""
+ },
+ {
+  "symbol": "IPUSDT",
+  "first_day": "2025-02-13",
+  "last_day": "2026-10-15",
+  "n_days": 555,
+  "error": ""
+ },
+ {
+  "symbol": "JASMYUSDT",
+  "first_day": "2022-04-20",
+  "last_day": "2026-10-31",
+  "n_days": 1656,
+  "error": ""
+ },
+ {
+  "symbol": "JELLYJELLYUSDT",
+  "first_day": "2025-03-26",
+  "last_day": "2026-10-31",
+  "n_days": 585,
+  "error": ""
+ },
+ {
+  "symbol": "JTOUSDT",
+  "first_day": "2023-12-08",
+  "last_day": "2026-10-31",
+  "n_days": 1059,
+  "error": ""
+ },
+ {
+  "symbol": "JUPUSDT",
+  "first_day": "2024-01-31",
+  "last_day": "2026-10-31",
+  "n_days": 1005,
+  "error": ""
+ },
+ {
+  "symbol": "KAITOUSDT",
+  "first_day": "2025-02-20",
+  "last_day": "2026-10-31",
+  "n_days": 619,
+  "error": ""
+ },
+ {
+  "symbol": "KAVAUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "KEEPUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2024-05-21",
+  "n_days": 241,
+  "error": ""
+ },
+ {
+  "symbol": "KLAYUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2025-03-10",
+  "n_days": 1196,
+  "error": ""
+ },
+ {
+  "symbol": "KNCUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "KSMUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "LABUSDT",
+  "first_day": "2025-10-17",
+  "last_day": "2026-10-31",
+  "n_days": 380,
+  "error": ""
+ },
+ {
+  "symbol": "LAYERUSDT",
+  "first_day": "2025-02-11",
+  "last_day": "2026-10-31",
+  "n_days": 628,
+  "error": ""
+ },
+ {
+  "symbol": "LDOUSDT",
+  "first_day": "2022-09-22",
+  "last_day": "2026-10-31",
+  "n_days": 1501,
+  "error": ""
+ },
+ {
+  "symbol": "LENDUSDT",
+  "first_day": null,
+  "last_day": null,
+  "n_days": 0,
+  "error": ""
+ },
+ {
+  "symbol": "LEVERUSDT",
+  "first_day": "2023-03-30",
+  "last_day": "2026-01-23",
+  "n_days": 1031,
+  "error": ""
+ },
+ {
+  "symbol": "LIGHTUSDT",
+  "first_day": "2025-09-27",
+  "last_day": "2026-10-31",
+  "n_days": 400,
+  "error": ""
+ },
+ {
+  "symbol": "LINAUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2025-06-05",
+  "n_days": 1283,
+  "error": ""
+ },
+ {
+  "symbol": "LINEAUSDT",
+  "first_day": "2025-09-01",
+  "last_day": "2026-10-31",
+  "n_days": 426,
+  "error": ""
+ },
+ {
+  "symbol": "LINKUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "LITUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1596,
+  "error": ""
+ },
+ {
+  "symbol": "LPTUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "LQTYUSDT",
+  "first_day": "2023-03-10",
+  "last_day": "2026-10-31",
+  "n_days": 1332,
+  "error": ""
+ },
+ {
+  "symbol": "LRCUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-15",
+  "n_days": 1769,
+  "error": ""
+ },
+ {
+  "symbol": "LSKUSDT",
+  "first_day": "2024-01-25",
+  "last_day": "2026-10-31",
+  "n_days": 1011,
+  "error": ""
+ },
+ {
+  "symbol": "LTCUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "LUNA2USDT",
+  "first_day": "2022-09-10",
+  "last_day": "2026-10-31",
+  "n_days": 1513,
+  "error": ""
+ },
+ {
+  "symbol": "LUNAUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2024-06-20",
+  "n_days": 195,
+  "error": ""
+ },
+ {
+  "symbol": "LYNUSDT",
+  "first_day": "2025-10-06",
+  "last_day": "2026-10-31",
+  "n_days": 391,
+  "error": ""
+ },
+ {
+  "symbol": "MAGICUSDT",
+  "first_day": "2023-01-25",
+  "last_day": "2026-10-31",
+  "n_days": 1376,
+  "error": ""
+ },
+ {
+  "symbol": "MANAUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "MANTAUSDT",
+  "first_day": "2024-01-18",
+  "last_day": "2026-10-31",
+  "n_days": 1018,
+  "error": ""
+ },
+ {
+  "symbol": "MARSCOINUSDT",
+  "first_day": "2026-09-01",
+  "last_day": "2026-10-31",
+  "n_days": 61,
+  "error": ""
+ },
+ {
+  "symbol": "MASKUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "MATICUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2025-01-22",
+  "n_days": 1038,
+  "error": ""
+ },
+ {
+  "symbol": "MEMEUSDT",
+  "first_day": "2023-11-03",
+  "last_day": "2026-10-31",
+  "n_days": 1094,
+  "error": ""
+ },
+ {
+  "symbol": "MEWUSDT",
+  "first_day": "2024-06-17",
+  "last_day": "2026-10-31",
+  "n_days": 867,
+  "error": ""
+ },
+ {
+  "symbol": "MINAUSDT",
+  "first_day": "2023-02-06",
+  "last_day": "2026-10-31",
+  "n_days": 1364,
+  "error": ""
+ },
+ {
+  "symbol": "MKRUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-01-23",
+  "n_days": 1515,
+  "error": ""
+ },
+ {
+  "symbol": "MOODENGUSDT",
+  "first_day": "2024-10-25",
+  "last_day": "2026-10-31",
+  "n_days": 737,
+  "error": ""
+ },
+ {
+  "symbol": "MTLUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "MUSDT",
+  "first_day": "2025-07-07",
+  "last_day": "2026-10-31",
+  "n_days": 482,
+  "error": ""
+ },
+ {
+  "symbol": "MYXUSDT",
+  "first_day": "2025-06-18",
+  "last_day": "2026-10-31",
+  "n_days": 501,
+  "error": ""
+ },
+ {
+  "symbol": "NEARUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "NEIROETHUSDT",
+  "first_day": "2024-09-06",
+  "last_day": "2026-01-23",
+  "n_days": 505,
+  "error": ""
+ },
+ {
+  "symbol": "NEIROUSDT",
+  "first_day": "2024-09-16",
+  "last_day": "2026-10-31",
+  "n_days": 776,
+  "error": ""
+ },
+ {
+  "symbol": "NEOUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "NMRUSDT",
+  "first_day": "2023-06-22",
+  "last_day": "2026-10-31",
+  "n_days": 1228,
+  "error": ""
+ },
+ {
+  "symbol": "NOTUSDT",
+  "first_day": "2024-05-16",
+  "last_day": "2026-10-31",
+  "n_days": 899,
+  "error": ""
+ },
+ {
+  "symbol": "OCEANUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-01-22",
+  "n_days": 1217,
+  "error": ""
+ },
+ {
+  "symbol": "OGNUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "OMGUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2025-06-05",
+  "n_days": 1283,
+  "error": ""
+ },
+ {
+  "symbol": "OMUSDT",
+  "first_day": "2024-02-13",
+  "last_day": "2026-10-15",
+  "n_days": 880,
+  "error": ""
+ },
+ {
+  "symbol": "ONDOUSDT",
+  "first_day": "2024-01-20",
+  "last_day": "2026-10-31",
+  "n_days": 1016,
+  "error": ""
+ },
+ {
+  "symbol": "ONEUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "ONGUSDT",
+  "first_day": "2023-11-27",
+  "last_day": "2026-10-31",
+  "n_days": 1069,
+  "error": ""
+ },
+ {
+  "symbol": "ONTUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "OPUSDT",
+  "first_day": "2022-06-01",
+  "last_day": "2026-10-31",
+  "n_days": 1614,
+  "error": ""
+ },
+ {
+  "symbol": "ORCAUSDT",
+  "first_day": "2024-12-06",
+  "last_day": "2026-10-31",
+  "n_days": 695,
+  "error": ""
+ },
+ {
+  "symbol": "ORDIUSDT",
+  "first_day": "2023-11-07",
+  "last_day": "2026-10-31",
+  "n_days": 1090,
+  "error": ""
+ },
+ {
+  "symbol": "PENGUUSDT",
+  "first_day": "2024-12-17",
+  "last_day": "2026-10-31",
+  "n_days": 684,
+  "error": ""
+ },
+ {
+  "symbol": "PEOPLEUSDT",
+  "first_day": "2021-12-23",
+  "last_day": "2026-10-31",
+  "n_days": 1774,
+  "error": ""
+ },
+ {
+  "symbol": "PERPUSDT",
+  "first_day": "2023-03-06",
+  "last_day": "2026-10-15",
+  "n_days": 1089,
+  "error": ""
+ },
+ {
+  "symbol": "PIEVERSEUSDT",
+  "first_day": "2025-11-14",
+  "last_day": "2026-10-31",
+  "n_days": 352,
+  "error": ""
+ },
+ {
+  "symbol": "PIPPINUSDT",
+  "first_day": "2025-01-24",
+  "last_day": "2026-10-31",
+  "n_days": 646,
+  "error": ""
+ },
+ {
+  "symbol": "PIXELUSDT",
+  "first_day": "2024-02-19",
+  "last_day": "2026-10-31",
+  "n_days": 986,
+  "error": ""
+ },
+ {
+  "symbol": "PLAYUSDT",
+  "first_day": "2025-07-31",
+  "last_day": "2026-10-31",
+  "n_days": 458,
+  "error": ""
+ },
+ {
+  "symbol": "PNUTUSDT",
+  "first_day": "2024-11-11",
+  "last_day": "2026-10-31",
+  "n_days": 720,
+  "error": ""
+ },
+ {
+  "symbol": "POLYXUSDT",
+  "first_day": "2023-10-25",
+  "last_day": "2026-10-31",
+  "n_days": 1103,
+  "error": ""
+ },
+ {
+  "symbol": "POPCATUSDT",
+  "first_day": "2024-08-22",
+  "last_day": "2026-10-31",
+  "n_days": 801,
+  "error": ""
+ },
+ {
+  "symbol": "POWERUSDT",
+  "first_day": "2025-12-06",
+  "last_day": "2026-10-31",
+  "n_days": 330,
+  "error": ""
+ },
+ {
+  "symbol": "POWRUSDT",
+  "first_day": "2023-10-27",
+  "last_day": "2026-10-31",
+  "n_days": 1101,
+  "error": ""
+ },
+ {
+  "symbol": "PROMUSDT",
+  "first_day": "2025-01-15",
+  "last_day": "2026-10-31",
+  "n_days": 655,
+  "error": ""
+ },
+ {
+  "symbol": "PUMPUSDT",
+  "first_day": "2025-04-12",
+  "last_day": "2026-10-31",
+  "n_days": 568,
+  "error": ""
+ },
+ {
+  "symbol": "QNTUSDT",
+  "first_day": "2022-10-20",
+  "last_day": "2026-10-31",
+  "n_days": 1473,
+  "error": ""
+ },
+ {
+  "symbol": "QTUMUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "RAREUSDT",
+  "first_day": "2024-08-15",
+  "last_day": "2026-10-31",
+  "n_days": 808,
+  "error": ""
+ },
+ {
+  "symbol": "RAVEUSDT",
+  "first_day": "2025-12-14",
+  "last_day": "2026-10-31",
+  "n_days": 322,
+  "error": ""
+ },
+ {
+  "symbol": "REEFUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2025-06-05",
+  "n_days": 1282,
+  "error": ""
+ },
+ {
+  "symbol": "RENUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2025-03-10",
+  "n_days": 1195,
+  "error": ""
+ },
+ {
+  "symbol": "RIFUSDT",
+  "first_day": "2023-10-21",
+  "last_day": "2026-10-31",
+  "n_days": 1107,
+  "error": ""
+ },
+ {
+  "symbol": "RIVERUSDT",
+  "first_day": "2025-10-17",
+  "last_day": "2026-10-31",
+  "n_days": 380,
+  "error": ""
+ },
+ {
+  "symbol": "RLCUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "RNDRUSDT",
+  "first_day": "2023-02-03",
+  "last_day": "2025-06-29",
+  "n_days": 637,
+  "error": ""
+ },
+ {
+  "symbol": "ROSEUSDT",
+  "first_day": "2021-12-30",
+  "last_day": "2026-10-31",
+  "n_days": 1767,
+  "error": ""
+ },
+ {
+  "symbol": "RSRUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "RUNEUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "RVNUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "SAGAUSDT",
+  "first_day": "2024-04-09",
+  "last_day": "2026-10-31",
+  "n_days": 936,
+  "error": ""
+ },
+ {
+  "symbol": "SANDUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1794,
+  "error": ""
+ },
+ {
+  "symbol": "SEIUSDT",
+  "first_day": "2023-08-17",
+  "last_day": "2026-10-31",
+  "n_days": 1172,
+  "error": ""
+ },
+ {
+  "symbol": "SFPUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "SIGNUSDT",
+  "first_day": "2025-04-28",
+  "last_day": "2026-10-31",
+  "n_days": 552,
+  "error": ""
+ },
+ {
+  "symbol": "SIRENUSDT",
+  "first_day": "2025-03-22",
+  "last_day": "2026-10-31",
+  "n_days": 589,
+  "error": ""
+ },
+ {
+  "symbol": "SKYAIUSDT",
+  "first_day": "2025-05-13",
+  "last_day": "2026-10-31",
+  "n_days": 537,
+  "error": ""
+ },
+ {
+  "symbol": "SLXUSDT",
+  "first_day": "2026-06-01",
+  "last_day": "2026-10-31",
+  "n_days": 153,
+  "error": ""
+ },
+ {
+  "symbol": "SNXUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "SOLUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "SOMIUSDT",
+  "first_day": "2025-08-25",
+  "last_day": "2026-10-31",
+  "n_days": 433,
+  "error": ""
+ },
+ {
+  "symbol": "SOONUSDT",
+  "first_day": "2025-05-23",
+  "last_day": "2026-10-31",
+  "n_days": 527,
+  "error": ""
+ },
+ {
+  "symbol": "SPACEUSDT",
+  "first_day": "2026-01-23",
+  "last_day": "2026-10-31",
+  "n_days": 282,
+  "error": ""
+ },
+ {
+  "symbol": "SPKUSDT",
+  "first_day": "2025-06-17",
+  "last_day": "2026-10-31",
+  "n_days": 502,
+  "error": ""
+ },
+ {
+  "symbol": "SRMUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2023-06-16",
+  "n_days": 377,
+  "error": ""
+ },
+ {
+  "symbol": "STMXUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2025-06-05",
+  "n_days": 1283,
+  "error": ""
+ },
+ {
+  "symbol": "STORJUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-15",
+  "n_days": 1772,
+  "error": ""
+ },
+ {
+  "symbol": "STOUSDT",
+  "first_day": "2025-04-12",
+  "last_day": "2026-10-31",
+  "n_days": 568,
+  "error": ""
+ },
+ {
+  "symbol": "STRKUSDT",
+  "first_day": "2024-02-20",
+  "last_day": "2026-10-31",
+  "n_days": 985,
+  "error": ""
+ },
+ {
+  "symbol": "STXUSDT",
+  "first_day": "2023-02-21",
+  "last_day": "2026-10-31",
+  "n_days": 1348,
+  "error": ""
+ },
+ {
+  "symbol": "SUIUSDT",
+  "first_day": "2023-05-03",
+  "last_day": "2026-10-31",
+  "n_days": 1277,
+  "error": ""
+ },
+ {
+  "symbol": "SUSHIUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "SXPUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-02-25",
+  "n_days": 1548,
+  "error": ""
+ },
+ {
+  "symbol": "SYNUSDT",
+  "first_day": "2024-08-16",
+  "last_day": "2026-10-31",
+  "n_days": 807,
+  "error": ""
+ },
+ {
+  "symbol": "TAOUSDT",
+  "first_day": "2024-04-11",
+  "last_day": "2026-10-31",
+  "n_days": 934,
+  "error": ""
+ },
+ {
+  "symbol": "TAUSDT",
+  "first_day": "2025-07-21",
+  "last_day": "2026-10-31",
+  "n_days": 468,
+  "error": ""
+ },
+ {
+  "symbol": "THETAUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "TIAUSDT",
+  "first_day": "2023-10-31",
+  "last_day": "2026-10-31",
+  "n_days": 1097,
+  "error": ""
+ },
+ {
+  "symbol": "TLMUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1520,
+  "error": ""
+ },
+ {
+  "symbol": "TNSRUSDT",
+  "first_day": "2024-04-08",
+  "last_day": "2026-10-31",
+  "n_days": 937,
+  "error": ""
+ },
+ {
+  "symbol": "TOMOUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2023-12-12",
+  "n_days": 732,
+  "error": ""
+ },
+ {
+  "symbol": "TONUSDT",
+  "first_day": "2024-03-01",
+  "last_day": "2026-10-15",
+  "n_days": 955,
+  "error": ""
+ },
+ {
+  "symbol": "TRBUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "TRUMPUSDT",
+  "first_day": "2025-01-18",
+  "last_day": "2026-10-31",
+  "n_days": 652,
+  "error": ""
+ },
+ {
+  "symbol": "TRXUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "TURBOUSDT",
+  "first_day": "2024-05-30",
+  "last_day": "2026-10-31",
+  "n_days": 885,
+  "error": ""
+ },
+ {
+  "symbol": "TUTUSDT",
+  "first_day": "2025-03-20",
+  "last_day": "2026-10-31",
+  "n_days": 591,
+  "error": ""
+ },
+ {
+  "symbol": "UBUSDT",
+  "first_day": "2025-09-12",
+  "last_day": "2026-10-31",
+  "n_days": 415,
+  "error": ""
+ },
+ {
+  "symbol": "UMAUSDT",
+  "first_day": "2023-05-10",
+  "last_day": "2026-10-31",
+  "n_days": 1270,
+  "error": ""
+ },
+ {
+  "symbol": "UNFIUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2025-03-10",
+  "n_days": 1196,
+  "error": ""
+ },
+ {
+  "symbol": "UNIUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "USELESSUSDT",
+  "first_day": "2025-08-15",
+  "last_day": "2026-10-31",
+  "n_days": 443,
+  "error": ""
+ },
+ {
+  "symbol": "USUALUSDT",
+  "first_day": "2024-12-18",
+  "last_day": "2026-10-31",
+  "n_days": 683,
+  "error": ""
+ },
+ {
+  "symbol": "UXLINKUSDT",
+  "first_day": "2024-09-15",
+  "last_day": "2026-01-23",
+  "n_days": 496,
+  "error": ""
+ },
+ {
+  "symbol": "VANRYUSDT",
+  "first_day": "2024-03-13",
+  "last_day": "2026-10-15",
+  "n_days": 932,
+  "error": ""
+ },
+ {
+  "symbol": "VELVETUSDT",
+  "first_day": "2025-07-15",
+  "last_day": "2026-10-31",
+  "n_days": 474,
+  "error": ""
+ },
+ {
+  "symbol": "VETUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "VINEUSDT",
+  "first_day": "2025-01-24",
+  "last_day": "2026-10-15",
+  "n_days": 619,
+  "error": ""
+ },
+ {
+  "symbol": "VIRTUALUSDT",
+  "first_day": "2024-12-10",
+  "last_day": "2026-10-31",
+  "n_days": 691,
+  "error": ""
+ },
+ {
+  "symbol": "VOXELUSDT",
+  "first_day": "2024-08-20",
+  "last_day": "2026-10-15",
+  "n_days": 556,
+  "error": ""
+ },
+ {
+  "symbol": "VVVUSDT",
+  "first_day": "2025-01-29",
+  "last_day": "2026-10-31",
+  "n_days": 641,
+  "error": ""
+ },
+ {
+  "symbol": "WAVESUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2024-07-15",
+  "n_days": 945,
+  "error": ""
+ },
+ {
+  "symbol": "WCTUSDT",
+  "first_day": "2025-04-15",
+  "last_day": "2026-10-31",
+  "n_days": 565,
+  "error": ""
+ },
+ {
+  "symbol": "WIFUSDT",
+  "first_day": "2024-01-18",
+  "last_day": "2026-10-31",
+  "n_days": 1018,
+  "error": ""
+ },
+ {
+  "symbol": "WLDUSDT",
+  "first_day": "2023-07-24",
+  "last_day": "2026-10-31",
+  "n_days": 1195,
+  "error": ""
+ },
+ {
+  "symbol": "WLFIUSDT",
+  "first_day": "2025-08-23",
+  "last_day": "2026-10-31",
+  "n_days": 435,
+  "error": ""
+ },
+ {
+  "symbol": "XLMUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "XMRUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1794,
+  "error": ""
+ },
+ {
+  "symbol": "XPLUSDT",
+  "first_day": "2025-08-22",
+  "last_day": "2026-10-31",
+  "n_days": 436,
+  "error": ""
+ },
+ {
+  "symbol": "XRPUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "XTZUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "YFIIUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2024-02-07",
+  "n_days": 144,
+  "error": ""
+ },
+ {
+  "symbol": "YFIUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "ZBTUSDT",
+  "first_day": "2025-10-17",
+  "last_day": "2026-10-31",
+  "n_days": 380,
+  "error": ""
+ },
+ {
+  "symbol": "ZECUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1795,
+  "error": ""
+ },
+ {
+  "symbol": "ZENUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1794,
+  "error": ""
+ },
+ {
+  "symbol": "ZILUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "ZROUSDT",
+  "first_day": "2024-06-20",
+  "last_day": "2026-10-31",
+  "n_days": 864,
+  "error": ""
+ },
+ {
+  "symbol": "ZRXUSDT",
+  "first_day": "2021-12-01",
+  "last_day": "2026-10-31",
+  "n_days": 1796,
+  "error": ""
+ },
+ {
+  "symbol": "\u5e01\u5b89\u4eba\u751fUSDT",
+  "first_day": "2025-10-20",
+  "last_day": "2026-10-31",
+  "n_days": 377,
+  "error": ""
+ },
+ {
+  "symbol": "\u9f99\u867eUSDT",
+  "first_day": "2026-03-11",
+  "last_day": "2026-10-31",
+  "n_days": 235,
+  "error": ""
+ }
+]
