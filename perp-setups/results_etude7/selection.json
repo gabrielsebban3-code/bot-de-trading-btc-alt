@@ -1,0 +1,293 @@
+{
+  "buy_hold": {
+    "in_sample": {
+      "days": 1461,
+      "total_return_pct": 2014.9300675370096,
+      "cagr_pct": 114.33703761217112,
+      "vol_pct": 82.28207327700426,
+      "sharpe": 1.3392214494799715,
+      "sharpe_ci_low": 0.30411337977499897,
+      "sharpe_ci_high": 2.4369994433602216,
+      "max_dd_pct": 80.42200555837444,
+      "share_quarters_positive": 0.5625,
+      "n_quarters": 16,
+      "share_days_invested": 0.9117043121149897,
+      "avg_gross_exposure": 10.470225872689939,
+      "regime_baisse_sum_pct": -12.380664058324149,
+      "regime_hausse_sum_pct": 414.2585718018926,
+      "regime_range_sum_pct": 39.199663161090925,
+      "regimes_positive": 2
+    },
+    "oos_time": {
+      "days": 1035,
+      "total_return_pct": 59.49335124483925,
+      "cagr_pct": 17.895870164053207,
+      "vol_pct": 73.08830075029047,
+      "sharpe": 0.591468814960888,
+      "sharpe_ci_low": -0.5260683988048408,
+      "sharpe_ci_high": 1.834466788754978,
+      "max_dd_pct": 70.4098566915829,
+      "share_quarters_positive": 0.5,
+      "n_quarters": 12,
+      "share_days_invested": 1.0,
+      "avg_gross_exposure": 19.069565217391304,
+      "regime_baisse_sum_pct": 37.14297824624334,
+      "regime_hausse_sum_pct": 122.87438257447496,
+      "regime_range_sum_pct": -37.435219986720895,
+      "regimes_positive": 2
+    },
+    "oos_assets": {
+      "days": 2496,
+      "total_return_pct": 334.88677230883974,
+      "cagr_pct": 23.980187437560097,
+      "vol_pct": 76.70947172518923,
+      "sharpe": 0.6697279696721682,
+      "sharpe_ci_low": -0.0763339570258968,
+      "sharpe_ci_high": 1.4570125527238809,
+      "max_dd_pct": 83.21004652300616,
+      "share_quarters_positive": 0.4642857142857143,
+      "n_quarters": 28,
+      "share_days_invested": 0.9483173076923077,
+      "avg_gross_exposure": 13.080128205128204,
+      "regime_baisse_sum_pct": 9.721164952376107,
+      "regime_hausse_sum_pct": 368.7806390522958,
+      "regime_range_sum_pct": -27.184820531174804,
+      "regimes_positive": 2
+    }
+  },
+  "families": {
+    "TSMOM": {
+      "chosen": "TSMOM_lookback120_sidelong_only",
+      "in_sample_sharpe": 1.6516003641495087,
+      "stability": {
+        "TSMOM_lookback120_sidelong_only__lookback96": 1.254802701414248,
+        "TSMOM_lookback120_sidelong_only__lookback144": 1.3548637240341457
+      },
+      "stability_ok": true,
+      "oos_time": {
+        "metrics": {
+          "entries": 139,
+          "days": 1035,
+          "total_return_pct": 5.852867185737964,
+          "cagr_pct": 2.0261630231613204,
+          "vol_pct": 5.000808683011515,
+          "sharpe": 0.4261222468722142,
+          "sharpe_ci_low": -0.6156005012412313,
+          "sharpe_ci_high": 1.7290281377857286,
+          "max_dd_pct": 6.110589792554466,
+          "share_quarters_positive": 0.3333333333333333,
+          "n_quarters": 12,
+          "share_days_invested": 0.9256038647342996,
+          "avg_gross_exposure": 0.05593897568271279,
+          "regime_baisse_sum_pct": 0.0025898001172468006,
+          "regime_hausse_sum_pct": 9.231739123633426,
+          "regime_range_sum_pct": -3.1917555366017742,
+          "regimes_positive": 2,
+          "total_return_x2_pct": 5.697867849166172
+        },
+        "criteria": {
+          "c1_sharpe": false,
+          "c2_ci": false,
+          "c3_drawdown": true,
+          "c4_costs_x2": true,
+          "c5_quarters": false,
+          "c6_regimes": true,
+          "c7_buy_hold": false,
+          "failed": "c1,c2,c5,c7",
+          "all": false
+        }
+      },
+      "oos_assets": {
+        "metrics": {
+          "entries": 237,
+          "days": 2496,
+          "total_return_pct": 26.84379504837977,
+          "cagr_pct": 3.5384047851000133,
+          "vol_pct": 5.2155401592166015,
+          "sharpe": 0.6928153870900493,
+          "sharpe_ci_low": 0.032432979439084464,
+          "sharpe_ci_high": 1.436959212353495,
+          "max_dd_pct": 7.8435768528360095,
+          "share_quarters_positive": 0.5714285714285714,
+          "n_quarters": 28,
+          "share_days_invested": 0.8717948717948718,
+          "avg_gross_exposure": 0.05640927808898702,
+          "regime_baisse_sum_pct": -0.08682570340538107,
+          "regime_hausse_sum_pct": 25.27399464447927,
+          "regime_range_sum_pct": -0.4774085031801773,
+          "regimes_positive": 1,
+          "total_return_x2_pct": 26.32705734872467
+        },
+        "criteria": {
+          "c1_sharpe": false,
+          "c2_ci": true,
+          "c3_drawdown": true,
+          "c4_costs_x2": true,
+          "c5_quarters": false,
+          "c6_regimes": false,
+          "c7_buy_hold": true,
+          "failed": "c1,c5,c6",
+          "all": false
+        }
+      },
+      "retained": false
+    },
+    "XSMOM": {
+      "chosen": "XSMOM_lookback28_n_each_side5",
+      "in_sample_sharpe": 1.2886595076730154,
+      "stability": {
+        "XSMOM_lookback28_n_each_side5__lookback22": 1.267267336068837,
+        "XSMOM_lookback28_n_each_side5__lookback34": 0.8294375180204212
+      },
+      "stability_ok": true,
+      "oos_time": {
+        "metrics": {
+          "entries": 445,
+          "days": 1035,
+          "total_return_pct": 55.80804262249044,
+          "cagr_pct": 16.927904681544035,
+          "vol_pct": 28.23804851397231,
+          "sharpe": 0.6950021473535195,
+          "sharpe_ci_low": -0.5902098207337649,
+          "sharpe_ci_high": 1.9719493280765323,
+          "max_dd_pct": 43.498726997451364,
+          "share_quarters_positive": 0.5833333333333334,
+          "n_quarters": 12,
+          "share_days_invested": 1.0,
+          "avg_gross_exposure": 1.0,
+          "regime_baisse_sum_pct": -27.451388636264955,
+          "regime_hausse_sum_pct": 35.66859493830713,
+          "regime_range_sum_pct": 47.433196455994924,
+          "regimes_positive": 2,
+          "total_return_x2_pct": 45.23047454621223
+        },
+        "criteria": {
+          "c1_sharpe": false,
+          "c2_ci": false,
+          "c3_drawdown": false,
+          "c4_costs_x2": true,
+          "c5_quarters": false,
+          "c6_regimes": true,
+          "c7_buy_hold": true,
+          "failed": "c1,c2,c3,c5",
+          "all": false
+        }
+      },
+      "oos_assets": {
+        "metrics": {
+          "entries": 627,
+          "days": 2496,
+          "total_return_pct": -49.52900474608618,
+          "cagr_pct": -9.51540804519434,
+          "vol_pct": 26.298792439113324,
+          "sharpe": -0.24804274410778165,
+          "sharpe_ci_low": -0.9227277505706077,
+          "sharpe_ci_high": 0.5359198151129598,
+          "max_dd_pct": 69.03705044392467,
+          "share_quarters_positive": 0.35714285714285715,
+          "n_quarters": 28,
+          "share_days_invested": 0.7848557692307693,
+          "avg_gross_exposure": 0.7848557692307693,
+          "regime_baisse_sum_pct": -57.474897470577744,
+          "regime_hausse_sum_pct": -12.963967987831786,
+          "regime_range_sum_pct": 25.830732007112704,
+          "regimes_positive": 1,
+          "total_return_x2_pct": -55.58500996680718
+        },
+        "criteria": {
+          "c1_sharpe": false,
+          "c2_ci": false,
+          "c3_drawdown": false,
+          "c4_costs_x2": false,
+          "c5_quarters": false,
+          "c6_regimes": false,
+          "c7_buy_hold": false,
+          "failed": "c1,c2,c3,c4,c5,c6,c7",
+          "all": false
+        }
+      },
+      "retained": false
+    },
+    "CARRY": {
+      "chosen": "CARRY_window_days14_min_annual_funding0p0",
+      "in_sample_sharpe": 7.104526570075905,
+      "stability": {
+        "CARRY_window_days14_min_annual_funding0p0__window_days11": 7.038566887616787,
+        "CARRY_window_days14_min_annual_funding0p0__window_days17": 6.9064498783946755
+      },
+      "stability_ok": true,
+      "oos_time": {
+        "metrics": {
+          "entries": 211,
+          "days": 1035,
+          "total_return_pct": 12.68757969291292,
+          "cagr_pct": 4.302436306719271,
+          "vol_pct": 0.5944944912384338,
+          "sharpe": 7.089150429470921,
+          "sharpe_ci_low": 5.048231618099469,
+          "sharpe_ci_high": 9.057166093861717,
+          "max_dd_pct": 0.7632476066395721,
+          "share_quarters_positive": 0.75,
+          "n_quarters": 12,
+          "share_days_invested": 1.0,
+          "avg_gross_exposure": 0.6327201274950188,
+          "regime_baisse_sum_pct": -0.32271150242576774,
+          "regime_hausse_sum_pct": 9.613810405795478,
+          "regime_range_sum_pct": 2.6594956407587174,
+          "regimes_positive": 2,
+          "total_return_x2_pct": 9.305999742487113
+        },
+        "criteria": {
+          "c1_sharpe": true,
+          "c2_ci": true,
+          "c3_drawdown": true,
+          "c4_costs_x2": true,
+          "c5_quarters": true,
+          "c6_regimes": true,
+          "c7_buy_hold": true,
+          "failed": "",
+          "all": true
+        }
+      },
+      "oos_assets": {
+        "metrics": {
+          "entries": 392,
+          "days": 2496,
+          "total_return_pct": 71.22016706886853,
+          "cagr_pct": 8.181665592952815,
+          "vol_pct": 1.3479488013895562,
+          "sharpe": 5.841522513555192,
+          "sharpe_ci_low": 4.587109883279251,
+          "sharpe_ci_high": 7.2279097350854045,
+          "max_dd_pct": 1.3082040893653502,
+          "share_quarters_positive": 0.75,
+          "n_quarters": 28,
+          "share_days_invested": 0.9479166666666666,
+          "avg_gross_exposure": 0.5690440941296427,
+          "regime_baisse_sum_pct": -1.665073660140336,
+          "regime_hausse_sum_pct": 48.014816473392244,
+          "regime_range_sum_pct": 7.49597467444763,
+          "regimes_positive": 2,
+          "total_return_x2_pct": 56.27636698120959
+        },
+        "criteria": {
+          "c1_sharpe": true,
+          "c2_ci": true,
+          "c3_drawdown": true,
+          "c4_costs_x2": true,
+          "c5_quarters": true,
+          "c6_regimes": true,
+          "c7_buy_hold": true,
+          "failed": "",
+          "all": true
+        }
+      },
+      "retained": true
+    }
+  },
+  "n_variants": 14,
+  "n_shifted": 28,
+  "retained": [
+    "CARRY_window_days14_min_annual_funding0p0"
+  ]
+}
