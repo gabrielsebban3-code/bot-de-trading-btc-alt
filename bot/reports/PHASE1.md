@@ -7,7 +7,7 @@ d'un résultat déjà connu, pour vérifier le moteur).
 
 | Critère | Résultat |
 |---|---|
-| Tests verts | **55 tests passent** (`python -m pytest bot/tests -q`) |
+| Tests verts | **54 tests passent** (`python -m pytest bot/tests -q`) |
 | Test anti-lookahead obligatoire | Vert : pour chaque détecteur (pivots fractals, ZigZag ATR, hiérarchiques, BOS/CHoCH, tendance, FVG, order blocks, equal highs/lows, sweeps), les détections des N premières bougies sont identiques avec ou sans les bougies suivantes, et ne changent pas quand on remplace tout le futur par un autre chemin. Même test pour les indicateurs |
 | Moteur vérifié | Le nouveau moteur reproduit **exactement** l'étude 1 de `perp-setups` (`C_tf4h_dc55_volon`, 2020-2022) : 455 trades, +0,2228 R, PF 1,497, 39,56 % de gagnants, drawdown 18,82 %. Test automatique (`test_regression_study1.py`) |
 | Rapport généré | `reports/data_quality.md` (qualité), `reports/oi_depth.json`, `reports/cost_share_*.csv`, `reports/pivots_precision_2020_2021.csv` |
