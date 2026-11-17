@@ -70,7 +70,14 @@ def write_quality_report(cfg: dict, store: MarketStore) -> Path:
     cat = store.catalog()
     u = store.universe()
     hold = store.holdout()
-    delisted = set(cat.loc[cat["last_month"].fillna("") < cfg["data"]["last_month"], "symbol"])
+    # delisted = no traded volume during the last month of data (Binance keeps zero-volume candles after a delisting)
+    last_traded = {}
+    for sym in set(u["symbol"]) if not u.empty else []:
+        d = store.candles(sym, "1d")
+        vol = d[d["volume"] > 0]
+        last_traded[sym] = int(vol["open_time"].max()) if len(vol) else 0
+    cutoff = month_end_ms(cfg["data"]["last_month"]) - 31 * DAY_MS
+    delisted = {s for s, t in last_traded.items() if t < cutoff}
     lines.append("## Catalogue et univers\n")
     lines.append(f"- Symboles présents dans les archives USDT-M : {len(cat_all)} ; éligibles : {len(cat)} "
                  f"(exclus : {cat_all['reason'].value_counts().to_dict()}).")
@@ -84,7 +91,13 @@ def write_quality_report(cfg: dict, store: MarketStore) -> Path:
                      f"{len(ever)} symboles distincts dont {len(set(ever) & delisted)} délistés depuis.")
         lines.append(f"- Membres par mois : min {per_month['n'].min()}, max {per_month['n'].max()} ; "
                      f"dont mis de côté (jamais lus avant le test final) : en moyenne {per_month['held'].mean():.1f} par mois.")
-        lines.append(f"- Délistés présents dans l'univers à un moment : {', '.join(sorted(set(ever) & delisted)) or 'aucun'}.\n")
+        lines.append(f"- Paires de l'univers qui ne s'échangent plus (aucun volume pendant le dernier mois : délistées ou renommées) : "
+                     f"{len(set(ever) & delisted)} : {', '.join(sorted(set(ever) & delisted)) or 'aucune'}. "
+                     f"Elles sont incluses tant qu'elles étaient dans le top 30 (pas de biais de survivance).")
+        early = per_month[per_month["n"] < int(cfg["universe"]["top_n"])]
+        if len(early):
+            lines.append(f"- Mois avec moins de {cfg['universe']['top_n']} membres (volume minimum non atteint) : "
+                         f"{', '.join(f'{m} ({int(r.n)})' for m, r in early.iterrows())}.\n")
     # 15m quality
     syms = store.symbols_with(cfg["data"]["long_tf"])
     q = [symbol_quality(store, s, cfg["data"]["long_tf"], last_end) for s in syms]
@@ -103,12 +116,16 @@ def write_quality_report(cfg: dict, store: MarketStore) -> Path:
         lines.append(_table(worst, ["symbol", "first", "last", "rows", "missing", "missing_pct", "n_gaps", "largest_gap",
                                     "gaps_preview"]))
     # fine tf
-    fine = store.symbols_with(cfg["data"]["fine_tf"])
-    if fine:
-        qf = [symbol_quality(store, s, cfg["data"]["fine_tf"], last_end) for s in fine]
-        lines.append(f"\n## Bougies {cfg['data']['fine_tf']} ({len(qf)} symboles, {cfg['data']['fine_months']} derniers mois)\n")
-        mf = np.array([r["missing_pct"] for r in qf])
-        lines.append(f"- Bougies manquantes : médiane {np.median(mf):.3f} %, max {mf.max():.3f} %.\n")
+    fine_files = store.files(f"klines_{cfg['data']['fine_tf']}")
+    fine_files = fine_files[fine_files["status"] == "ok"]
+    if len(fine_files):
+        step = tf_ms(cfg["data"]["fine_tf"])
+        expected = sum((month_end_ms(p) - month_end_ms(str(pd.Period(p, freq="M") - 1))) // step for p in fine_files["period"])
+        got = int(fine_files["rows"].sum())
+        lines.append(f"\n## Bougies {cfg['data']['fine_tf']} ({fine_files['symbol'].nunique()} symboles, mois où ils étaient "
+                     f"membres de l'univers sur les {cfg['data']['fine_months']} derniers mois)\n")
+        lines.append(f"- {len(fine_files)} fichiers mensuels, {got} bougies sur {expected} attendues "
+                     f"({100 * (1 - got / expected):.3f} % manquantes).\n")
     # resampler check
     checks = []
     for s in ("BTCUSDT", "ETHUSDT", "DOGEUSDT"):

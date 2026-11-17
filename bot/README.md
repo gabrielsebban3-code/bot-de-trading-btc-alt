@@ -13,7 +13,7 @@ statistiquement significatif seront activés. Protocole : [`PROTOCOLE.md`](PROTO
 | Phase | Contenu | État |
 |---|---|---|
 | 0 | Plan | validé |
-| 1 | Données, moteur de backtest, tests anti-lookahead | **livrée** (voir `reports/PHASE1.md`) |
+| 1 | Données, moteur de backtest, tests anti-lookahead | **livrée, en attente de validation** (voir `reports/PHASE1.md`) |
 | 2 | C1 et C2 sur BTC et ETH, 1h / 4h / 1D | à faire après validation |
 | 3 | Tournoi complet C3, C4, C5, toutes les paires, ablation | — |
 | 4 | Alertes Discord, suivi, surveillance (alertes seules) | — |
