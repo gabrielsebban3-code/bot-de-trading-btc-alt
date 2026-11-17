@@ -1,0 +1,23 @@
+# Study 8 (see PROTOCOLE_ETUDE_8.md): the two retail bot families, grid and DCA. Frozen before any computation.
+periods:
+  in_sample: {start: "2020-01-01", end: "2023-12-31"}
+  oos_time:  {start: "2024-01-01", end: "2026-10-31"}
+  oos_assets: {start: "2020-01-01", end: "2026-10-31"}
+warmup_days: 30
+costs: {maker_fee: 0.0002, taker_fee: 0.0005, slippage: 0.0002, sensitivity_multiplier: 2.0}
+families:
+  DCA:
+    fixed: {rsi_period: 14, rsi_start: 30, max_safety_orders: 5, volume_scale: 1.5}
+    grid: {step: [0.02, 0.03], take_profit: [0.015, 0.03], stop: [none, 0.25]}
+  GRID:
+    fixed: {reset: weekly_monday, stop_below_range: 0.05, min_step: 0.003}
+    grid: {levels: [10, 20], lookback_days: [7, 14]}
+criteria:            # same as study 7, all required on both out-of-sample sets
+  min_sharpe: 1.0
+  sharpe_ci_low_positive: true
+  max_drawdown_pct: 25.0
+  positive_with_costs_x2: true
+  min_share_quarters_positive: 0.60
+  min_regimes_positive: 2
+  beat_buy_hold_sharpe: true
+  stability_shift: 0.20
