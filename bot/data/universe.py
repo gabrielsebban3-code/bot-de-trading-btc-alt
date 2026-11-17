@@ -56,7 +56,8 @@ def freeze_holdout(store: MarketStore, cfg: dict, symbols: list[str]) -> pd.Data
     return store.holdout()
 
 
-def monthly_universe(daily: dict[str, pd.DataFrame], month: str, cfg: dict) -> list[tuple[str, float]]:
+def monthly_universe(daily: dict[str, pd.DataFrame], month: str, cfg: dict,
+                     excluded: set[tuple[str, str]] | None = None) -> list[tuple[str, float]]:
     """Top-N symbols for ``month`` from daily candles (``open_time`` ms, ``quote_volume``).
 
     Only daily candles CLOSED before the first instant of the month are used.
@@ -66,6 +67,8 @@ def monthly_universe(daily: dict[str, pd.DataFrame], month: str, cfg: dict) -> l
     win_start = start - int(u["volume_window_days"]) * DAY_MS
     scored = []
     for sym, df in daily.items():
+        if excluded and (sym, month) in excluded:
+            continue  # e.g. funding archive missing for that month: not simulable without inventing data
         ot = df["open_time"].to_numpy()
         closed = ot + DAY_MS <= start
         if closed.sum() < int(u["min_history_days"]):
@@ -86,8 +89,10 @@ def build_universe(store: MarketStore, cfg: dict, first_month: str | None = None
     daily = {s: store.candles(s, "1d") for s in cat["symbol"]}
     daily = {s: d for s, d in daily.items() if len(d)}
     first = first_month or str((pd.Period(cfg["data"]["history_start"], freq="M") + 1))
+    f = store.files("funding")
+    excluded = set(zip(f.loc[f["status"] == "missing", "symbol"], f.loc[f["status"] == "missing", "period"]))
     for month in months_between(first, cfg["data"]["last_month"]):
-        store.set_universe(month, monthly_universe(daily, month, cfg))
+        store.set_universe(month, monthly_universe(daily, month, cfg, excluded))
     return store.universe()
 
 
