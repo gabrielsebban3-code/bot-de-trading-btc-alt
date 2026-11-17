@@ -1,0 +1,29 @@
+# Study 7 (see PROTOCOLE_ETUDE_7.md). Daily, portfolio-level strategies. Frozen before any computation.
+universe_in_sample: config/pairs.json            # the 20 pairs used by studies 1 to 6
+universe_new: [LSKUSDT, AAVEUSDT, FILUSDT, ONDOUSDT, BCHUSDT, LTCUSDT, STRKUSDT, BRUSDT, INJUSDT, PAXGUSDT,
+               PENGUUSDT, XLMUSDT, DASHUSDT, ONEUSDT, XMRUSDT, DOTUSDT, SANDUSDT, TIAUSDT, HBARUSDT, TRXUSDT]
+periods:
+  in_sample: {start: "2020-01-01", end: "2023-12-31"}     # original pairs: choice of one variant per family
+  oos_time:  {start: "2024-01-01", end: "2026-10-31"}     # original pairs, later period
+  oos_assets: {start: "2020-01-01", end: "2026-10-31"}    # the 20 never-used pairs, whole period
+warmup_days: 130
+costs: {perp_fee: 0.0005, spot_fee: 0.001, slippage: 0.0002, sensitivity_multiplier: 2.0}
+families:
+  TSMOM:      # daily trend following, volatility-scaled, weekly rebalance (Monday 00:00 UTC)
+    grid: {lookback: [20, 60, 120], side: [long_short, long_only]}
+    fixed: {vol_window: 60, target_vol_per_asset: 0.10, max_gross_leverage: 2.0}
+  XSMOM:      # cross-sectional momentum, weekly rebalance, dollar neutral, equal weights
+    grid: {lookback: [7, 28], n_each_side: [3, 5]}
+    fixed: {gross_leverage: 1.0}
+  CARRY:      # long spot + short perpetual of the same coin while trailing funding is high enough
+    grid: {window_days: [3, 14], min_annual_funding: [0.0, 0.10]}
+    fixed: {perp_margin_share: 0.25}
+criteria:     # all required on BOTH out-of-sample sets
+  min_sharpe: 1.0
+  sharpe_ci_low_positive: true      # 95 % block-bootstrap interval (20-day blocks, 5 000 resamples)
+  max_drawdown_pct: 25.0
+  positive_with_costs_x2: true
+  min_share_quarters_positive: 0.60
+  min_regimes_positive: 2           # bull / bear / range defined by BTC 90-day return beyond +-20 %
+  beat_buy_hold_sharpe: true        # equal-weight basket of the same pairs
+  stability_shift: 0.20             # in-sample: main parameter -20 % / +20 % keeps Sharpe > 0
