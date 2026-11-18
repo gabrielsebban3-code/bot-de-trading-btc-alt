@@ -10,6 +10,8 @@ import { OUTCOME, cap, dirTag, liveOf, newsLink, okxUrl, outcomeTag, plainPct, p
 
 const $ = id => document.getElementById(id);
 const DAY = 86_400_000, BAR = 4 * 3600_000;
+const ENTRY = () => setupsData()?.rules?.barMs ?? BAR; // bougie d'entrée (1h depuis novembre 2026)
+const UNIT = () => (ENTRY() === 3600_000 ? '1h' : '4h');
 const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
 const when = t => new Date(t).toLocaleString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 const dayOf = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -56,7 +58,7 @@ function page(s) {
   const open = s.outcome === 'open';
   return `
     <div class="ph"><h1>${esc(s.symbol)} · ${esc(data.detectors[s.detector])}</h1>${dirTag(s.dir)}${s.status === 'en cours' ? statusTag(s) : ''}${outcomeTag(s)}${open && s.status === 'confirmé' ? '<span class="tag acc">En jeu</span>' : ''}${star(s.symbol, { text: true })}</div>
-    <p class="sub">${esc(a.name)} · perpétuel OKX · bougie 4h du ${when(s.time)} (heure de Paris)</p>
+    <p class="sub">${esc(a.name)} · perpétuel OKX · bougie ${UNIT()} du ${when(s.time)} (heure de Paris)</p>
     <div class="box tr-brief"><h2>En bref</h2><p class="txt">${brief(s, a)}</p></div>
     <div class="box mk cx-box"><h2>Le trade sur le graphique</h2>
       <div class="cx-chart" id="tr-chart"><div class="empty">Chargement du graphique…</div></div>
@@ -90,7 +92,7 @@ function liveR(s, a) {
 
 function brief(s, a) {
   const what = `${s.dir === 'long' ? 'Achat (long)' : 'Vente à découvert (short)'} ${deSym(esc(s.symbol))} à <b>${px(s.entry)}</b> le ${dayOf(s.time)}`;
-  if (s.status === 'en cours') return `${what}, si la bougie 4h en cours ferme comme maintenant. Le signal peut encore disparaître à la clôture.`;
+  if (s.status === 'en cours') return `${what}, si la bougie ${UNIT()} en cours ferme comme maintenant. Le signal peut encore disparaître à la clôture.`;
   if (s.outcome === 'open') return `${what}. Le trade est toujours en jeu : en ce moment <b class="${liveR(s, a) >= 0 ? 'up' : 'down'}">${cap(liveR(s, a))}</b> du capital.`;
   const days = Math.max(1, Math.round((s.at - s.time) / DAY));
   return `${what}, terminé le ${dayOf(s.at)} après ${days} jour${days > 1 ? 's' : ''} : ${esc(OUTCOME[s.outcome][0].toLowerCase())}, <b class="${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r)}</b> du capital.`;
@@ -111,7 +113,7 @@ function whyBox(s) {
     range10: `Le prix est passé ${up ? 'au-dessus de son plus haut' : 'sous son plus bas'} des 10 derniers jours${lvl} : ${up ? 'les acheteurs' : 'les vendeurs'} reprennent la main.`,
     macd: `Après une petite ${up ? 'baisse' : 'hausse'}, le prix repart ${up ? 'à la hausse' : 'à la baisse'}, dans le sens du marché.`,
   }[s.detector] || esc(s.why || '');
-  const triggerSmall = s.detector === 'macd' ? 'Repéré avec l\'indicateur MACD sur les bougies de 4 heures, qui repasse de l\'autre côté de zéro.' : 'Une bougie de 4 heures a clôturé au-delà de ce niveau.';
+  const triggerSmall = s.detector === 'macd' ? `Repéré avec l'indicateur MACD sur les bougies de ${UNIT() === '1h' ? '1 heure' : '4 heures'}, qui repasse de l'autre côté de zéro.` : `Une bougie de ${UNIT() === '1h' ? '1 heure' : '4 heures'} a clôturé au-delà de ce niveau.`;
   return `<div class="box"><h2>1. Pourquoi ce trade</h2><ol class="pa-rules">
     ${li(`Le marché ${up ? 'montait' : 'baissait'}`, trend, trendSmall)}
     ${li('Le signal', trigger, triggerSmall)}
@@ -147,14 +149,14 @@ function storyBox(s, a) {
   const P = data.rules.partialR ?? 5;
   const up = s.dir === 'long';
   const days = data.rules.exitDays ?? 7;
-  const steps = [[s.time + BAR, `${up ? 'Achat' : 'Vente'} à <b>${px(s.entry)}</b>, stop à ${px(s.sl)}.`]];
+  const steps = [[s.time + ENTRY(), `${up ? 'Achat' : 'Vente'} à <b>${px(s.entry)}</b>, stop à ${px(s.sl)}.`]];
   if (s.tpHit) steps.push([s.halfAt, `Le prix atteint l'objectif (${px(tpOf(s))}) : on vend la moitié et on gagne déjà <b class="up">${capOf(P / 2)}</b>. Le stop remonte au prix d'entrée : le reste ne peut plus faire perdre d'argent.`]);
   if (s.outcome === 'sl') steps.push([s.at, `Le prix ${up ? 'redescend' : 'remonte'} jusqu'au stop (${px(s.sl)}) : on coupe. Perte de <b class="down">${capOf(-1)}</b>, comme prévu.`]);
   if (s.outcome === 'be') steps.push([s.at, `Le prix revient au prix d'entrée (${px(s.entry)}) : le reste est vendu sans gain ni perte.`]);
   if (s.outcome === 'exit') {
     // Gain du reste en % du capital : sur une moitié de la position si l'objectif a été atteint.
     const rest = s.tpHit ? s.r - P / 2 : s.r;
-    steps.push([s.at + BAR, `Le prix clôture la journée ${up ? 'sous son plus bas' : 'au-dessus de son plus haut'} des ${days} derniers jours${s.exitLvl ? ` (${px(s.exitLvl)})` : ''} : ${up ? 'la hausse' : 'la baisse'} s'arrête. On vend ${s.tpHit ? 'le reste' : 'tout'} à ${px(s.exitPx ?? s.entry)} : <b class="${rest >= 0 ? 'up' : 'down'}">${capOf(rest)}</b>${s.tpHit ? ' de plus' : ''}.`]);
+    steps.push([s.at + ENTRY(), `Le prix clôture la journée ${up ? 'sous son plus bas' : 'au-dessus de son plus haut'} des ${days} derniers jours${s.exitLvl ? ` (${px(s.exitLvl)})` : ''} : ${up ? 'la hausse' : 'la baisse'} s'arrête. On vend ${s.tpHit ? 'le reste' : 'tout'} à ${px(s.exitPx ?? s.entry)} : <b class="${rest >= 0 ? 'up' : 'down'}">${capOf(rest)}</b>${s.tpHit ? ' de plus' : ''}.`]);
   }
   if (s.outcome === 'open' && s.status === 'confirmé') {
     const live = liveOf(s.symbol);

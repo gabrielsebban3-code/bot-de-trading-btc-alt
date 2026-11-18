@@ -193,7 +193,7 @@ test('detectorStats : gagnant = trade fini en gain, et mergeHistory retire les a
   assert.deepEqual(merged.map(x => x.id), ['f1', 'p1'], 'recalcul prioritaire, ancien détecteur swing et altcoin retirés');
 });
 
-test('build-setups écrit setups.json pour BTC, ETH, SOL et le Brent seulement', async () => {
+test('build-setups écrit setups.json et setups-court.json pour les paires suivies seulement', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'dinexo-setups-'));
   await writeFile(join(dir, 'prev.json'), JSON.stringify({ history: [
     { id: 'old', detector: 'tendance', symbol: 'BTC', status: 'confirmé', time: Date.now() - 60 * DAY, outcome: 'exit', r: 2 },
@@ -202,11 +202,14 @@ test('build-setups écrit setups.json pour BTC, ETH, SOL et le Brent seulement',
   ] }));
   await promisify(execFile)('node', ['--import', './tests/mock-fetch.mjs', 'scripts/build-setups.mjs', '--out', dir, '--previous', join(dir, 'prev.json'), '--sample']);
   const out = JSON.parse(await readFile(join(dir, 'setups.json'), 'utf8'));
-  assert.deepEqual(out.assets.map(a => a.symbol), ['BTC', 'ETH', 'SOL', 'BZ']);
+  // Le faux OKX liste BTC, ETH, SOL, DOGE, le Brent et le WTI : le WTI n'est pas suivi.
+  assert.deepEqual(out.assets.map(a => a.symbol), ['BTC', 'ETH', 'SOL', 'DOGE', 'BZ']);
+  assert.equal(out.model, 'h1d1');
+  assert.equal(out.rules.barMs, 3600_000, 'signaux sur bougies 1h');
   assert.deepEqual(out.assets.filter(a => a.kind === 'commodity').map(a => a.symbol), ['BZ']);
   assert.ok(out.history.length >= 5, `historique trop court : ${out.history.length}`);
   assert.ok(!out.history.some(h => ['old', 'swing', 'alt'].includes(h.id)), 'anciens détecteurs et altcoins retirés');
-  assert.ok(out.history.every(h => ['BTC', 'ETH', 'SOL', 'BZ'].includes(h.symbol) && Object.keys(out.detectors).includes(h.detector)));
+  assert.ok(out.history.every(h => ['BTC', 'ETH', 'SOL', 'DOGE', 'BZ'].includes(h.symbol) && Object.keys(out.detectors).includes(h.detector)));
   for (const s of out.live) {
     assert.ok(s.rr >= RULES.minRR);
     assert.ok(out.charts[s.symbol]);
@@ -217,7 +220,15 @@ test('build-setups écrit setups.json pour BTC, ETH, SOL et le Brent seulement',
   assert.equal(out.rules.exitDays, 7);
   // Peu de signaux : un trade à la fois par actif, des trades de plusieurs jours.
   const spanDays = (Math.max(...out.history.map(h => h.time)) - Math.min(...out.history.map(h => h.time))) / DAY;
-  assert.ok(out.history.length <= spanDays / 3, `${out.history.length} signaux sur ${Math.round(spanDays)} jours`);
+  assert.ok(out.history.length <= spanDays, `${out.history.length} signaux sur ${Math.round(spanDays)} jours`);
+  // Court terme : même format, unité 1h / 4h, identifiants à part.
+  const court = JSON.parse(await readFile(join(dir, 'setups-court.json'), 'utf8'));
+  assert.equal(court.model, 'h1h4');
+  assert.equal(court.rules.trendMs, 4 * 3600_000);
+  assert.deepEqual(court.assets.map(a => a.symbol), out.assets.map(a => a.symbol));
+  assert.ok(court.history.length >= out.history.length, 'plus de signaux en court terme');
+  assert.ok(court.history.every(h => h.id.startsWith('ct-')));
+  assert.equal(court.detectors.range20, 'Cassure 3 jours');
 });
 
 test('indicatorState décrit une paire en tendance haussière, sans signal', () => {
