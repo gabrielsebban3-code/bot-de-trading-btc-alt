@@ -6,7 +6,8 @@ import { whatsNew } from '../js/whatsnew.js';
 globalThis.document = { body: { classList: { toggle() {} } } };
 const H = 3600_000, DAY = 24 * H;
 const NOW = Date.UTC(2026, 9, 4, 12);
-const sig = (symbol, ageH) => ({ id: `${symbol}-${ageH}`, symbol, time: NOW - ageH * H - 4 * H, status: 'confirmé', outcome: 'open', dir: 'long' });
+// Signal sur bougie 1h fermée depuis ageH heures.
+const sig = (symbol, ageH) => ({ id: `${symbol}-${ageH}`, symbol, time: NOW - ageH * H - H, status: 'confirmé', outcome: 'open', dir: 'long' });
 
 test('gratuit : SOL et pétrole avec 24 h de retard, BTC et ETH en direct', () => {
   setPremium(false);
@@ -17,7 +18,7 @@ test('gratuit : SOL et pétrole avec 24 h de retard, BTC et ETH en direct', () =
   assert.equal(delayed(sig('SOL', 24), NOW), false);
   assert.equal(visibleIn(sig('SOL', 6), NOW), 18 * H);
   // Bougie pas encore fermée : cachée aussi.
-  assert.equal(delayed({ symbol: 'SOL', time: NOW - H }, NOW), true);
+  assert.equal(delayed({ symbol: 'SOL', time: NOW - H / 2 }, NOW), true);
 });
 
 test('gratuit : 3 mois d\'historique et 3 alertes ; Premium : tout', () => {

@@ -129,7 +129,7 @@ function rulesBox(a, d) {
     : '<li>Rien à surveiller tant que le marché n\'a pas de direction.</li>';
   return `<div class="box"><h2>Comment le signal se déclenche</h2><ol class="pa-rules">
     <li>${ok(trendOn)}<div><b>1. Le marché doit ${up || !trendOn ? 'monter' : 'baisser'}${trendOn ? '' : ' ou baisser'}</b><span>${trendText}</span></div></li>
-    <li>${ok(trendOn ? null : false)}<div><b>2. Un signal parmi ces trois</b><span>Vérifié à la clôture de chaque bougie de 4 heures.</span><ul>${triggers}</ul></div></li>
+    <li>${ok(trendOn ? null : false)}<div><b>2. Un signal parmi ces trois</b><span>Vérifié à la clôture de chaque bougie de 1 heure.</span><ul>${triggers}</ul></div></li>
     <li>${ok(null)}<div><b>3. Pas d'obstacle proche</b><span>Le signal est ignoré si un ancien ${up ? 'sommet' : 'creux'} ou un chiffre rond est juste ${up ? 'au-dessus' : 'en dessous'} du prix.</span></div></li>
     <li>${ok(!live)}<div><b>4. Un seul trade à la fois sur ${esc(a.symbol)}</b><span>${live ? 'Un trade est déjà en cours : pas de nouveau signal avant sa fin.' : 'Aucun trade en cours : la paire est libre.'}</span></div></li>
   </ol><p class="txt muted">Il faut les 4 en même temps : c'est rare exprès, environ deux signaux par mois sur les 4 paires.</p></div>`;

@@ -53,12 +53,12 @@ jobs:
         if: env.PUBLISH == 'true'
         run: |
           mkdir -p previous
-          for f in projects market setups news alerts marche outils scanner; do
+          for f in projects market setups setups-court news alerts marche outils scanner; do
             curl -fsSL "${{ steps.pages.outputs.base_url }}/data/$f.json" -o "previous/$f.json" || echo "Pas encore de $f.json en ligne."
           done
           # Fiches paire déjà en ligne (onglet Setups) : reprises si les setups échouent à ce passage.
           mkdir -p previous/paire
-          for s in BTC ETH SOL BZ; do
+          for s in BTC ETH SOL XRP DOGE BNB LINK AVAX ADA BZ; do
             curl -fsSL "${{ steps.pages.outputs.base_url }}/data/paire/$s.json" -o "previous/paire/$s.json" || echo "Pas encore de paire/$s.json en ligne."
           done
           # Fiches crypto déjà en ligne : celles des cryptos du tableau de l'onglet Marché.
@@ -120,7 +120,7 @@ jobs:
         timeout-minutes: 12
         env:
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
-        run: node scripts/build-setups.mjs --out _site/data --previous previous/setups.json
+        run: node scripts/build-setups.mjs --out _site/data --previous previous/setups.json --previous-court previous/setups-court.json
 
       - name: Marché
         id: marche
@@ -164,7 +164,7 @@ jobs:
       - name: Compléter avec la version déjà en ligne
         run: |
           mkdir -p _site/data
-          for f in projects market setups news marche outils scanner; do
+          for f in projects market setups setups-court news marche outils scanner; do
             if [ ! -s "_site/data/$f.json" ] && [ -s "previous/$f.json" ]; then
               cp "previous/$f.json" "_site/data/$f.json"
               echo "$f.json : version déjà en ligne conservée."

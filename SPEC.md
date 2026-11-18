@@ -77,6 +77,21 @@ Maquette de référence : [`mockup/index.html`](mockup/index.html).
 
 ## 4. Onglet Setups
 
+**Mise à jour du 18 novembre 2026** (demande de Gabriel : intraday, plus de paires, filtre de marché, chiffres honnêtes). Tout a été retesté sur 20 perpétuels Binance de 2020 à 2026 (bougies `data.binance.vision`, frais 0,05 % + glissement 0,03 % par côté), réglages choisis sur 2020-2024 et vérifiés sur 2025-2026 (`scripts/lab/`) :
+
+| Sujet | Décision |
+|---|---|
+| Setups | Mêmes règles, mais signal cherché à la clôture de chaque **bougie de 1 h** (tendance, stop et sortie toujours en journalier). Même gain par trade qu'en 4h, environ 2 fois plus de trades |
+| Court terme (nouvelle catégorie) | Mêmes règles avec la tendance, le stop (0,75 ATR 4h) et la sortie (clôture 4h au-delà des 7 bougies 4h précédentes) **sur bougies de 4 h**, signal en 1h. Trades d'environ 1,4 jour. Fichier `data/setups-court.json` |
+| Bougies de 15 min | Testées, **perdantes** (les frais mangent le gain) : pas proposées |
+| Paires | 9 cryptos + Brent : BTC, ETH, SOL, **XRP, DOGE, BNB, LINK, AVAX, ADA** (ajoutées sur leur volume : choisir les paires sur leurs résultats passés ne marchait pas, corrélation −0,45 d'une période à l'autre) |
+| Filtre de marché | 5 testés (BTC et sa moyenne 200 j, tendance BTC, ADX > 20 ou 25, efficacité du mouvement) : tous moins bons en 2025-2026. **Aucun filtre** |
+| Chiffres affichés | Le +122 % est retiré. Encadré « Ce qu'on peut attendre » avec les chiffres 2025-2026 du vrai moteur sur les 9 cryptos : Setups +0,23R par trade, 25 % de gagnants, ~12 signaux par mois, pire baisse 43R, 34 stops d'affilée ; Court terme +0,18R, 22 %, ~48 par mois, pire baisse 134R, 12 derniers mois ≈ 0 |
+| Historique | Repart de zéro (champ `model` : `h1d1` pour les Setups, `h1h4` pour le court terme) |
+| Scanner | Garde la version 4h / jour (`MODES.classic`) |
+
+Ce qui suit décrit le cadre d'origine (octobre 2026), toujours valable sauf ce que le tableau ci-dessus change.
+
 Cadre fixé avec Gabriel le 2 octobre 2026 (questionnaire) : suivi de tendance sur BTC, ETH, SOL et le Brent, bougies 4h, **un signal ne compte que s'il va dans le sens de la tendance journalière**, un trade à la fois par paire, environ 2 signaux par mois, résultats en % du capital avec 1 % risqué par trade, **choix au gain total**. Gabriel a ensuite demandé de tester un maximum de combinaisons et de programmer la plus rentable sans lui demander de choisir.
 
 | Sujet | Décision |

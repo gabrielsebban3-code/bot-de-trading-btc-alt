@@ -8,6 +8,7 @@ import { LEG, legSummary } from '../../js/legs-lib.js';
 
 export const BAR = 4 * 3600_000;
 const DAY = 86_400_000;
+const HOUR = 3600_000;
 
 export const RULES = {
   backtestBars: 2190,     // 1 an de bougies 4h
@@ -29,6 +30,20 @@ export const DETECTORS = {
   range20: 'Cassure 20 jours',
   range10: 'Cassure 10 jours',
   macd: 'MACD',
+};
+
+// Unités de temps. E = bougie d'entrée (où l'on cherche le signal), T = bougie de tendance (tendance, stop, sortie).
+// classic : version d'origine (4h / jour), gardée pour le scanner. swing : onglet Setups (1h / jour, novembre 2026).
+// court : catégorie Court terme (1h / 4h). Mêmes règles partout, seules les unités changent (test du 2026-11-18,
+// 20 paires Binance 2020-2026, réglages choisis sur 2020-2024 et vérifiés sur 2025-2026, voir SPEC.md §4).
+export const MODES = {
+  classic: { key: 'h4d1', E: BAR, T: DAY, rangeBars: 60, pocBars: 180, warmup: 60, backtestBars: 2190, idPrefix: '', exitDays: 7,
+    eLabel: '4h', tLabel: 'jour', detectors: DETECTORS, r20: 'des 20 derniers jours', r10: 'des 10 derniers jours' },
+  swing: { key: 'h1d1', E: HOUR, T: DAY, rangeBars: 240, pocBars: 720, warmup: 240, backtestBars: 8760, idPrefix: '', exitDays: 10,
+    eLabel: '1h', tLabel: 'jour', detectors: DETECTORS, r20: 'des 20 derniers jours', r10: 'des 10 derniers jours' },
+  court: { key: 'h1h4', E: HOUR, T: 4 * HOUR, rangeBars: 40, pocBars: 120, warmup: 60, backtestBars: 8760, idPrefix: 'ct-', exitDays: 7,
+    eLabel: '1h', tLabel: '4h', detectors: { range20: 'Cassure 3 jours', range10: 'Cassure 40 heures', macd: 'MACD' },
+    r20: 'des 20 dernières bougies de 4 h (un peu plus de 3 jours)', r10: 'des 40 dernières heures' },
 };
 
 // ---------- Mise en forme (français) ----------
@@ -69,7 +84,16 @@ function ema(values, period) {
 // ---------- Niveaux ----------
 
 // Plus haut / plus bas de la veille et de la semaine précédente (UTC, semaine du lundi).
-export function priorLevels(daily, t) {
+export function priorLevels(daily, t, T = DAY) {
+  if (T !== DAY) {
+    // Unité de tendance plus courte : bougie de tendance précédente et les 7 d'avant.
+    const start = Math.floor(t / T) * T;
+    const k = daily.findIndex(d => d.t === start - T);
+    if (k < 0) return [];
+    const out = [{ price: daily[k].h, label: 'plus haut de la bougie 4h précédente', key: 'dh' }, { price: daily[k].l, label: 'plus bas de la bougie 4h précédente', key: 'dl' }];
+    if (k >= 7) out.push({ price: maxH(daily, k - 7, k), label: 'plus haut des 7 bougies 4h d\'avant', key: 'wh' }, { price: minL(daily, k - 7, k), label: 'plus bas des 7 bougies 4h d\'avant', key: 'wl' });
+    return out;
+  }
   const dayStart = Math.floor(t / DAY) * DAY;
   const out = [];
   const prev = daily.find(d => d.t === dayStart - DAY);
@@ -120,11 +144,11 @@ function pivots(bars, i, w = 5, depth = 120) {
 }
 
 // Tous les niveaux qui peuvent servir de cible ou d'obstacle à la bougie i.
-export function keyLevels(bars, i, daily, a) {
+export function keyLevels(bars, i, daily, a, cfg = MODES.classic) {
   const p = bars[i].c;
   const step = roundStep(p);
-  const levels = [...pivots(bars, i), ...priorLevels(daily, bars[i].t)];
-  const poc = volumePoc(bars, i);
+  const levels = [...pivots(bars, i), ...priorLevels(daily, bars[i].t, cfg.T)];
+  const poc = volumePoc(bars, i, cfg.pocBars);
   if (poc) levels.push({ price: poc, label: 'niveau le plus échangé sur 30 jours', key: 'poc' });
   for (let r = Math.floor((p - 10 * a) / step) * step; r <= p + 10 * a; r += step) {
     if (r > 0) levels.push({ price: Number(r.toPrecision(12)), label: `chiffre rond ${fmtPx(r)}`, key: 'round' });
@@ -156,11 +180,11 @@ export function dailyContext(daily) {
 }
 
 // Indice de la dernière journée clôturée au temps t (-1 si aucune).
-export function lastDay(dc, t) {
+export function lastDay(dc, t, T = DAY) {
   let lo = 0, hi = dc.daily.length - 1, ans = -1;
   while (lo <= hi) {
     const m = (lo + hi) >> 1;
-    if (dc.daily[m].t + DAY <= t) { ans = m; lo = m + 1; } else hi = m - 1;
+    if (dc.daily[m].t + T <= t) { ans = m; lo = m + 1; } else hi = m - 1;
   }
   return ans;
 }
@@ -177,25 +201,28 @@ export function trend1d(daily, t) {
 export function detectRange20(ctx, i) {
   const { bars, daily } = ctx;
   if (i < 1) return null;
+  const cfg = ctx.cfg ?? MODES.classic;
   const dc = ctx.dc ?? dailyContext(daily);
-  const j = lastDay(dc, bars[i].t + BAR), n = RULES.rangeDays;
+  const j = lastDay(dc, bars[i].t + cfg.E, cfg.T), n = RULES.rangeDays;
   if (j < n - 1) return null;
   const hi = maxH(daily, j - n + 1, j + 1), lo = minL(daily, j - n + 1, j + 1);
   const b = bars[i], pc = bars[i - 1].c;
-  if (b.c > hi && pc <= hi) return { dir: 'long', ref: hi, why: `Clôture 4h au-dessus du plus haut des ${n} derniers jours (${fmtPx(hi)}). Le prix sort par le haut de sa zone du mois.` };
-  if (b.c < lo && pc >= lo) return { dir: 'short', ref: lo, why: `Clôture 4h sous le plus bas des ${n} derniers jours (${fmtPx(lo)}). Le prix sort par le bas de sa zone du mois.` };
+  const zone = cfg.T === DAY ? 'de sa zone du mois' : 'de sa zone des derniers jours';
+  if (b.c > hi && pc <= hi) return { dir: 'long', ref: hi, why: `Clôture ${cfg.eLabel} au-dessus du plus haut ${cfg.r20} (${fmtPx(hi)}). Le prix sort par le haut ${zone}.` };
+  if (b.c < lo && pc >= lo) return { dir: 'short', ref: lo, why: `Clôture ${cfg.eLabel} sous le plus bas ${cfg.r20} (${fmtPx(lo)}). Le prix sort par le bas ${zone}.` };
   return null;
 }
 
 // Cassure 10 jours : la bougie 4h clôture au-dessus du plus haut des 60 bougies 4h précédentes.
 export function detectRange10(ctx, i) {
   const { bars } = ctx;
-  const n = RULES.rangeBars;
+  const cfg = ctx.cfg ?? MODES.classic;
+  const n = cfg.rangeBars;
   if (i < n) return null;
   const hi = maxH(bars, i - n, i), lo = minL(bars, i - n, i);
   const b = bars[i], pc = bars[i - 1].c;
-  if (b.c > hi && pc <= hi) return { dir: 'long', ref: hi, why: `Clôture 4h au-dessus du plus haut des 10 derniers jours (${fmtPx(hi)}). Les acheteurs reprennent la main.` };
-  if (b.c < lo && pc >= lo) return { dir: 'short', ref: lo, why: `Clôture 4h sous le plus bas des 10 derniers jours (${fmtPx(lo)}). Les vendeurs reprennent la main.` };
+  if (b.c > hi && pc <= hi) return { dir: 'long', ref: hi, why: `Clôture ${cfg.eLabel} au-dessus du plus haut ${cfg.r10} (${fmtPx(hi)}). Les acheteurs reprennent la main.` };
+  if (b.c < lo && pc >= lo) return { dir: 'short', ref: lo, why: `Clôture ${cfg.eLabel} sous le plus bas ${cfg.r10} (${fmtPx(lo)}). Les vendeurs reprennent la main.` };
   return null;
 }
 
@@ -211,9 +238,10 @@ export function macdHist(bars) {
 // MACD : l'histogramme 4h repasse au-dessus de zéro (en dessous pour un short), l'élan repart dans le sens de la tendance.
 export function detectMacd(ctx, i) {
   const h = ctx.hist ?? macdHist(ctx.bars);
+  const u = (ctx.cfg ?? MODES.classic).eLabel;
   if (i < 35) return null;
-  if (h[i - 1] <= 0 && h[i] > 0) return { dir: 'long', ref: null, why: 'L\'histogramme MACD 4h repasse au-dessus de zéro : l\'élan haussier repart.' };
-  if (h[i - 1] >= 0 && h[i] < 0) return { dir: 'short', ref: null, why: 'L\'histogramme MACD 4h repasse sous zéro : l\'élan baissier repart.' };
+  if (h[i - 1] <= 0 && h[i] > 0) return { dir: 'long', ref: null, why: `L'histogramme MACD ${u} repasse au-dessus de zéro : l'élan haussier repart.` };
+  if (h[i - 1] >= 0 && h[i] < 0) return { dir: 'short', ref: null, why: `L'histogramme MACD ${u} repasse sous zéro : l'élan baissier repart.` };
   return null;
 }
 
@@ -233,10 +261,11 @@ export function plan(dir, entry, atrD) {
   };
 }
 
-// Niveau de sortie du reste : plus bas (long) ou plus haut (short) des 7 jours clôturés avant le jour k.
-export function exitLevel(daily, k, dir) {
+// Niveau de sortie du reste : plus bas (long) ou plus haut (short) des n bougies de tendance clôturées avant k
+// (7 jours d'origine, 10 jours pour l'onglet Setups depuis le test du 18 novembre 2026).
+export function exitLevel(daily, k, dir, n = RULES.exitDays) {
   let x = dir === 'long' ? Infinity : -Infinity;
-  for (let q = Math.max(0, k - RULES.exitDays); q < k; q++) x = dir === 'long' ? Math.min(x, daily[q].l) : Math.max(x, daily[q].h);
+  for (let q = Math.max(0, k - n); q < k; q++) x = dir === 'long' ? Math.min(x, daily[q].l) : Math.max(x, daily[q].h);
   return x;
 }
 
@@ -244,10 +273,10 @@ export function exitLevel(daily, k, dir) {
 // sl : stop touché avant 5R (−1R) · be : moitié prise, reste sorti au prix d'entrée (+2,5R)
 // exit : sortie de tendance sur clôture journalière (R variable) · open : trade encore en jeu.
 
-export function evaluate(sig, bars, i, daily) {
+export function evaluate(sig, bars, i, daily, cfg = MODES.classic) {
   const s = sig.dir === 'long' ? 1 : -1;
   const R = Math.abs(sig.entry - sig.sl);
-  const P = RULES.partialR;
+  const P = RULES.partialR, N = cfg.exitDays ?? RULES.exitDays;
   const dayIndex = new Map(daily.map((d, k) => [d.t, k]));
   let stop = sig.sl, half = false, halfAt = null;
   const rOf = px => Math.round((s * (px - sig.entry) / R) * 100) / 100;
@@ -259,18 +288,18 @@ export function evaluate(sig, bars, i, daily) {
     const hitStop = s > 0 ? b.l <= stop : b.h >= stop;   // le stop compte en premier si tout arrive dans la même bougie
     if (hitStop) return done(half ? 'be' : 'sl', b.t, half ? 0 : -1, stop);
     if (!half && (s > 0 ? b.h >= sig.tp[0] : b.l <= sig.tp[0])) { half = true; halfAt = b.t; stop = sig.entry; }
-    // Dernière bougie 4h de la journée UTC : on juge la clôture journalière.
-    if ((b.t + BAR) % DAY === 0) {
-      const jd = dayIndex.get(b.t + BAR - DAY);
-      if (jd !== undefined && jd >= RULES.exitDays) {
-        const lvl = exitLevel(daily, jd, sig.dir);
+    // Dernière bougie d'entrée de la bougie de tendance (la journée UTC en swing) : on juge sa clôture.
+    if ((b.t + cfg.E) % cfg.T === 0) {
+      const jd = dayIndex.get(b.t + cfg.E - cfg.T);
+      if (jd !== undefined && jd >= N) {
+        const lvl = exitLevel(daily, jd, sig.dir, N);
         if (s > 0 ? b.c < lvl : b.c > lvl) return done('exit', b.t, rOf(b.c), b.c, lvl);
       }
     }
   }
   // Niveau de sortie du reste, affiché seulement quand il est plus serré que le stop.
   const closedDays = daily.filter(d => d.closed !== false).length;
-  const lvl = exitLevel(daily, closedDays, sig.dir);
+  const lvl = exitLevel(daily, closedDays, sig.dir, N);
   return { outcome: 'open', at: null, r: null, tpHit: half ? 1 : 0, halfAt, stop, exitAt: (s > 0 ? lvl > stop : lvl < stop) ? lvl : null };
 }
 
@@ -278,19 +307,19 @@ export function evaluate(sig, bars, i, daily) {
 
 // Prix qui déclencheraient le prochain signal, dans le sens de la tendance, à partir des bougies fermées.
 // trigger = la cassure la plus proche (10 ou 20 jours), stop = celui qu'aurait le trade s'il partait de là.
-export function radar(bars, daily) {
+export function radar(bars, daily, cfg = MODES.classic) {
   const closed = bars.filter(b => b.closed !== false);
   const i = closed.length - 1;
   const dc = dailyContext(daily);
-  if (i < RULES.rangeBars) return null;
-  const j = lastDay(dc, closed[i].t + BAR);
+  if (i < cfg.rangeBars) return null;
+  const j = lastDay(dc, closed[i].t + cfg.E, cfg.T);
   if (j < RULES.rangeDays - 1 || !dc.atr[j]) return null;
   const price = bars.at(-1).c;
   const trend = dc.trend[j];
   const out = { trend, price, atrD: dc.atr[j] };
   if (trend === 'neutre') return out;
   const dir = trend === 'haussière' ? 'long' : 'short';
-  const n = RULES.rangeDays, from = i - RULES.rangeBars + 1;
+  const n = RULES.rangeDays, from = i - cfg.rangeBars + 1;
   const levels = dir === 'long'
     ? [{ key: 'range20', price: maxH(daily, j - n + 1, j + 1) }, { key: 'range10', price: maxH(closed, from, i + 1) }]
     : [{ key: 'range20', price: minL(daily, j - n + 1, j + 1) }, { key: 'range10', price: minL(closed, from, i + 1) }];
@@ -309,36 +338,36 @@ export function radar(bars, daily) {
 
 // Renvoie tous les signaux (passés et en cours) d'un actif, avec leur résultat.
 // Un signal ne compte que dans le sens de la tendance journalière. Un seul trade à la fois par actif.
-export function scanAsset(asset, { bars, daily }) {
+export function scanAsset(asset, { bars, daily }, cfg = MODES.classic) {
   const A = atr(bars);
   const dc = dailyContext(daily);
-  const ctx = { bars, daily, dc, hist: macdHist(bars) };
+  const ctx = { bars, daily, dc, hist: macdHist(bars), cfg };
   const signals = [];
   let busyUntil = -1;
-  const start = Math.max(RULES.warmup, bars.length - RULES.backtestBars - 1);
+  const start = Math.max(cfg.warmup, bars.length - cfg.backtestBars - 1);
   for (let i = start; i < bars.length; i++) {
     if (i <= busyUntil || !A[i]) continue;
-    const j = lastDay(dc, bars[i].t + BAR);
+    const j = lastDay(dc, bars[i].t + cfg.E, cfg.T);
     if (j < 0 || !dc.atr[j]) continue;
     const trend = dc.trend[j];
     let key = null, hit = null;
     for (const [k, detect] of Object.entries(DETECT)) {
       const h = detect(ctx, i);
-      if (h && WANT[h.dir] === trend && hasRoom(h.dir, bars[i].c, A[i], keyLevels(bars, i, daily, A[i]))) { key = k; hit = h; break; }
+      if (h && WANT[h.dir] === trend && hasRoom(h.dir, bars[i].c, A[i], keyLevels(bars, i, daily, A[i], cfg))) { key = k; hit = h; break; }
     }
     if (!hit) continue;
     const entry = bars[i].c;
     const p = plan(hit.dir, entry, dc.atr[j]);
     const sig = {
-      id: `${asset.symbol}-${key}-${hit.dir}-${bars[i].t}`,
+      id: `${cfg.idPrefix}${asset.symbol}-${key}-${hit.dir}-${bars[i].t}`,
       detector: key, symbol: asset.symbol, dir: hit.dir,
       status: bars[i].closed ? 'confirmé' : 'en cours',
-      time: bars[i].t, confirmedAt: bars[i].t + BAR, entry, sl: p.sl, tp: p.tp, tpLabels: p.tpLabels, rr: p.rr, atr: dc.atr[j],
-      why: `${hit.why} Signal pris car la tendance journalière est ${trend}.`, trend,
+      time: bars[i].t, confirmedAt: bars[i].t + cfg.E, entry, sl: p.sl, tp: p.tp, tpLabels: p.tpLabels, rr: p.rr, atr: dc.atr[j],
+      why: `${hit.why} Signal pris car la tendance ${cfg.T === DAY ? 'journalière' : 'en 4h'} est ${trend}.`, trend,
       // Pour la fiche du trade : niveau cassé, clôture et moyennes de la dernière journée fermée, ATR 4h.
       ref: hit.ref, day: { t: daily[j].t, c: daily[j].c, e20: dc.e20[j], e50: dc.e50[j] }, atr4h: A[i],
     };
-    Object.assign(sig, bars[i].closed ? evaluate(sig, bars, i, daily) : { outcome: 'open', at: null, r: null, tpHit: 0 });
+    Object.assign(sig, bars[i].closed ? evaluate(sig, bars, i, daily, cfg) : { outcome: 'open', at: null, r: null, tpHit: 0 });
     signals.push(sig);
     if (!bars[i].closed) continue;
     busyUntil = sig.at === null ? bars.length : bars.findIndex(b => b.t === sig.at);
