@@ -1,0 +1,30 @@
+# Temporaire : test de robustesse de la stratégie Setups sur 20 paires Binance (méthode du labo perp-setups).
+# Ne publie rien. À supprimer avant toute fusion.
+name: Lab stress Setups
+on:
+  push:
+    branches: [claude/project-thread-syv789]
+  workflow_dispatch:
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Bougies Binance 4h et 1j (data.binance.vision)
+        run: |
+          mkdir -p lab-data lab-zip
+          PAIRS="BTCUSDT ETHUSDT ZECUSDT SOLUSDT XRPUSDT NEARUSDT DOGEUSDT BNBUSDT 1000PEPEUSDT ENAUSDT SUIUSDT UNIUSDT WLDUSDT TRUMPUSDT ADAUSDT LINKUSDT QNTUSDT AVAXUSDT TAOUSDT ARBUSDT"
+          for s in $PAIRS; do for tf in 4h 1d; do for y in 2020 2021 2022 2023 2024 2025 2026; do for m in 01 02 03 04 05 06 07 08 09 10 11 12; do
+            [ "$y$m" -gt 202610 ] && continue
+            echo "https://data.binance.vision/data/futures/um/monthly/klines/$s/$tf/$s-$tf-$y-$m.zip"
+          done; done; done; done > urls.txt
+          wc -l urls.txt
+          xargs -P 24 -n 1 sh -c 'curl -sf --retry 3 -o "lab-zip/$(basename "$0")" "$0" || true' < urls.txt
+          ls lab-zip | wc -l
+          for z in lab-zip/*.zip; do unzip -oq "$z" -d lab-data || echo "zip KO $z"; done
+          ls lab-data | wc -l
+      - name: Test de robustesse
+        run: node scripts/lab/stress-setups.mjs lab-data
