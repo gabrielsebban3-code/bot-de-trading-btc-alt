@@ -18,7 +18,7 @@ from ..indicators.volatility import atr
 from ..structure.market_structure import structure_events
 from ..structure.pivots import detect
 
-TFS = ("15m", "1h", "4h", "1d")
+TFS = ("15m", "1h", "4h", "1d", "1w")
 
 
 class Bars:
@@ -91,6 +91,9 @@ class SymbolData:
         self.cfg = cfg
         self.bars = {tf: Bars(resample(df15, "15m", tf), tf) for tf in tfs}
         self._cache: dict = {}
+        self.funding: pd.DataFrame | None = None      # time, rate (C4)
+        self.oi: pd.DataFrame | None = None           # time, oi, oi_value (C4)
+        self.xs_funding: pd.DataFrame | None = None   # time, median funding of the universe (C4 relative)
 
     def cached(self, key, fn: Callable):
         if key not in self._cache:

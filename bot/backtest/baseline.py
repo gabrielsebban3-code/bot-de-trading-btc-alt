@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from ..core.types import Direction, Signal
+from ..core.types import Direction, ExitKind, ExitRule, Signal
 from .engine import TRADE_COLS, Costs, execute_signal
 
 
@@ -55,9 +55,15 @@ def random_baseline(trades: pd.DataFrame, signals_meta: dict[str, Signal], marke
         else:
             d = 1 if direction_mode == "long" else -1
         t = int(bars.ot[k])
+        rule = s0.exit_rule
+        if rule.kind == ExitKind.MEAN and rule.tp_price is not None and np.isfinite(s0.atr) and s0.atr > 0:
+            # a fixed price target is converted into its distance in ATR at the signal (same relative target)
+            tp_atr = abs(rule.tp_price - s0.entry) / s0.atr
+            rule = ExitRule(ExitKind.MEAN, tp_price=float(bars.o[k] + d * tp_atr * a),
+                            max_hold_bars=rule.max_hold_bars, tf=rule.tf)
         sig = Signal(symbol=sym, direction=Direction(d), concept="RANDOM", variant="random", tf_signal=tf,
                      tf_context=None, generated_at=t, entry=float(bars.o[k]), order_type="market",
-                     stop=float(bars.o[k] - d * tr["stop_atr"] * a), exit_rule=s0.exit_rule,
+                     stop=float(bars.o[k] - d * tr["stop_atr"] * a), exit_rule=rule,
                      stop_offset=float(tr["stop_atr"] * a), atr=float(a))
         m = market[sym]
         j_last = int(np.searchsorted(m.ot, end)) - 1

@@ -15,6 +15,7 @@ from ..data.resampler import align_closed
 def regime_at(sd: SymbolData, signal_tf: str, t_ms: np.ndarray, p: dict) -> np.ndarray:
     ctx_tf = p["context_tf"][signal_tf]
     key = ("regime", ctx_tf, p["ema_fast"], p["ema_slow"], p["adx_period"], p["adx_min"], p["momentum_days"])
+    # ablation "no ADX": adx_min = -1 makes the ADX condition always true once ADX exists
 
     def _ctx():
         cb = sd.bars[ctx_tf]
@@ -35,6 +36,12 @@ def regime_at(sd: SymbolData, signal_tf: str, t_ms: np.ndarray, p: dict) -> np.n
     s = align_closed(t_ms, ct, state)
     m = align_closed(t_ms, dct, mom)
     out = np.zeros(len(t_ms), dtype="int8")
+    if not p.get("use_momentum", True):          # ablation: momentum component removed
+        m = np.where(np.isfinite(m), 0.0, np.nan)
+        with np.errstate(invalid="ignore"):
+            out[(s == 1.0) & np.isfinite(m)] = 1
+            out[(s == -1.0) & np.isfinite(m)] = -1
+        return out
     with np.errstate(invalid="ignore"):
         out[(s == 1.0) & (m > 0)] = 1
         out[(s == -1.0) & (m < 0)] = -1

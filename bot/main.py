@@ -189,6 +189,36 @@ def cmd_oi_depth(cfg, args) -> None:
     log.info("oi depth written", path=str(out), symbols=len(rows))
 
 
+def cmd_download_oi(cfg, args) -> None:
+    """Open interest (metrics, 5 min) of development universe members, stored hourly (last value of each hour)."""
+    import pandas as pd
+    from .data.fetcher import ArchiveClient, metrics_jobs, parse_metrics
+    from .data.universe import members
+    store, client = _store(cfg), ArchiveClient(cfg)
+    u = members(store, only_holdout=bool(args.holdout))
+    u = u[u["month"] >= "2020-09"]
+    jobs = []
+    for sym, months in u.groupby("symbol")["month"]:
+        days = set()
+        for m in months:
+            p = pd.Period(m, freq="M")
+            start = p.start_time - pd.Timedelta(days=2)
+            days |= {d.strftime("%Y-%m-%d") for d in pd.date_range(start, p.end_time.normalize(), freq="D")}
+        days = sorted(d for d in days if d < cfg["final_test"]["start"])
+        jobs += metrics_jobs(client, sym, days)
+
+    def _hourly(sym, tf, df):
+        if df.empty:
+            return 0
+        df = df.sort_values("time")
+        df = df.groupby(df["time"] // 3_600_000).tail(1)
+        return store.upsert_oi(sym, df)
+
+    log.info("open interest download", files=len(jobs))
+    st = client.ingest(store, jobs, parse_metrics, _hourly, progress_every=2000)
+    log.info("open interest", **st)
+
+
 def cmd_quality(cfg, args) -> None:
     from .data.quality import write_quality_report
     path = write_quality_report(cfg, _store(cfg))
@@ -209,6 +239,14 @@ def cmd_phase2(cfg, args) -> None:
     log.info("phase 2 report", path=str(path), seconds=round(res["seconds"]))
 
 
+def cmd_phase3(cfg, args) -> None:
+    from .backtest.report import write_phase3_report
+    from .backtest.tournament3 import run_phase3
+    res = run_phase3(cfg, _store(cfg), workers=3)
+    path = write_phase3_report(res, resolve_path(cfg, "reports") / "phase3", cfg)
+    log.info("phase 3 report", path=str(path), seconds=round(res["seconds"]))
+
+
 COMMANDS = {
     "catalog": cmd_catalog,
     "reclassify": cmd_reclassify,
@@ -218,9 +256,11 @@ COMMANDS = {
     "download-fine": cmd_download_fine,
     "native-check": cmd_native_check,
     "oi-depth": cmd_oi_depth,
+    "download-oi": cmd_download_oi,
     "quality": cmd_quality,
     "regression": cmd_regression,
     "phase2": cmd_phase2,
+    "phase3": cmd_phase3,
 }
 
 
@@ -230,6 +270,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--symbols", nargs="*")
     p.add_argument("--months", nargs="*")
     p.add_argument("--log-level", default="INFO")
+    p.add_argument("--holdout", action="store_true", help="download-oi: held-out members instead of development")
     args = p.parse_args(argv)
     cfg = load_config()
     setup_logging(args.log_level, resolve_path(cfg, "reports").parent / "var" / "bot.log")

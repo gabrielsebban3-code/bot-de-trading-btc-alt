@@ -62,9 +62,16 @@ def spa_test(benchmark: np.ndarray, models: np.ndarray, reps: int = 2000, block:
     ``models``: (T, k) losses of every tested variant (e.g. minus the daily returns).
     """
     from arch.bootstrap import SPA
-    spa = SPA(np.asarray(benchmark, dtype="float64"), np.asarray(models, dtype="float64"),
+    models = np.asarray(models, dtype="float64")
+    benchmark = np.asarray(benchmark, dtype="float64")
+    keep = (models - benchmark[:, None]).std(axis=0) > 0      # variants without any trade are not tested
+    if not keep.any():
+        return {"p_lower": float("nan"), "p_consistent": float("nan"), "p_upper": float("nan"), "n_models": 0}
+    models = models[:, keep]
+    spa = SPA(benchmark, models,
               reps=reps, block_size=block, bootstrap="stationary", studentize=True, nested=False,
               seed=seed)
     spa.compute()
     pv = spa.pvalues
-    return {"p_lower": float(pv["lower"]), "p_consistent": float(pv["consistent"]), "p_upper": float(pv["upper"])}
+    return {"p_lower": float(pv["lower"]), "p_consistent": float(pv["consistent"]), "p_upper": float(pv["upper"]),
+            "n_models": int(keep.sum()), "n_dropped": int((~keep).sum())}
