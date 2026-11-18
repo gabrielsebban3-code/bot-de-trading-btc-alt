@@ -144,3 +144,55 @@ stats:
   spa_reps: 2000
   spa_block: 20                  # stationary bootstrap mean block length (days)
   inherited_trials: 232          # perp-setups studies 1-8 (206 up to study 6 + 14 + 12), see PROTOCOLE.md
+
+# ---------------------------------------------------------------- concepts (Step 3), frozen in PROTOCOLE_PHASE2.md
+concepts:
+  common:
+    min_signal_volume: 0.0          # signal candle volume must be strictly above this
+  regime:
+    context_tf: {"1h": "4h", "4h": "1d", "1d": "1d"}
+    ema_fast: 50
+    ema_slow: 200
+    adx_period: 14
+    adx_min: 20
+    momentum_days: 60
+  c1:
+    donchian_ns: [20, 55, 100]
+    ensemble_threshold: 0.6667      # at least 2 of the 3 channels in the direction
+    volume_rel_min: 1.2
+    volume_window: 20
+    stop_atr: 2.5
+    trail_chandelier_atr: 3.0
+    trail_donchian_n: 20
+  c2:
+    trigger_tf: {"1h": "15m", "4h": "1h", "1d": "4h"}
+    pullback_window: 5
+    zone_atr: 0.5
+    stop_buffer_atr: 0.5
+    trail_chandelier_atr: 3.0
+    hierarchical_level: "intermediate"
+
+# ---------------------------------------------------------------- phase 2 grid (PROTOCOLE_PHASE2.md)
+phase2:
+  symbols: [BTCUSDT, ETHUSDT]
+  tfs: ["1h", "4h", "1d"]
+  directions: ["long", "short", "both"]
+  c1_grid: {entry_n: ["20", "55", "100", "ensemble"], trail: ["chandelier", "donchian"]}
+  c2_grid: {pullback: ["ema20", "ema50", "structure"], pivots: ["fractal", "zigzag", "hierarchical"]}
+
+walk_forward:
+  start: "2022-01-01"
+  end: "2026-11-01"
+  train_months: 24
+  test_months: 6
+  min_train_trades: 10
+
+robustness:
+  param_shift: 0.20
+  min_share_neighbors_positive: 0.75
+
+baseline:
+  pool_per_trade: 20
+  pool_min: 2000
+  draws: 1000
+  percentile: 95
