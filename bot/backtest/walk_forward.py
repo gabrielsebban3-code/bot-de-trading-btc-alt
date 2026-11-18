@@ -37,10 +37,14 @@ class Selection:
 
 
 def select(full_trades: dict[str, pd.DataFrame], train_start: int, train_end: int, min_trades: int) -> tuple[str | None, int, float]:
-    """Best training expectancy among variants with enough trades (ties: more trades, then name)."""
+    """Best training expectancy among variants with enough trades (ties: more trades, then name).
+
+    Uses only trades whose exit is strictly before ``train_end``."""
     best = None
     for vid, tr in full_trades.items():
-        w = tr[(tr["entry_time"] >= train_start) & (tr["entry_time"] < train_end)]
+        # only trades ENTERED AND CLOSED inside the training window: a trade still open at the end of the training
+        # window would carry prices of the test window into the selection (lookahead, DECISIONS D26)
+        w = tr[(tr["entry_time"] >= train_start) & (tr["exit_time"] < train_end)]
         n = len(w)
         if n < min_trades:
             continue

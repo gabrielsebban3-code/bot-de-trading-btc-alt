@@ -197,3 +197,12 @@ def test_liquidation_never_inside_a_wide_stop():
     # 25 % stop: leverage 2x, liquidation 49 % away, far beyond the stop
     assert liquidation_price(100.0, 1, risk, 0.25) == pytest.approx(51.0)
     assert liquidation_price(100.0, -1, risk, 0.25) == pytest.approx(149.0)
+
+
+def test_walk_forward_selection_ignores_trades_still_open_at_test_start():
+    from bot.backtest.walk_forward import select
+    a = pd.DataFrame({"entry_time": [10, 20], "exit_time": [15, 25], "r_multiple": [1.0, 1.0]})
+    # b: a big winner entered in the training window but closed during the test window (after 100)
+    b = pd.DataFrame({"entry_time": [10, 90], "exit_time": [15, 150], "r_multiple": [-0.5, 50.0]})
+    vid, n, e = select({"a": a, "b": b}, 0, 100, 1)
+    assert vid == "a"

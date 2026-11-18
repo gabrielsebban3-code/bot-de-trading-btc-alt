@@ -88,9 +88,27 @@ class UniverseLab:
 
     def run(self, concept: str, params: dict, start: int, end: int, cost_mult: float = 1.0,
             initial_capital: float | None = None, funding_filter: bool = False):
+        """Backtest one variant. Runs that do not depend on the walk-forward selection (no chained capital) are
+        cached on disk: they are a pure function of the code, the data and the parameters."""
+        import hashlib
+        import pickle
+        from ..core.config import config_hash, resolve_path
+        path = None
+        if initial_capital is None:
+            key = json.dumps([variant_id(concept, params), start, end, cost_mult, funding_filter, config_hash(self.cfg)])
+            d = resolve_path(self.cfg, "market_db").parent / "phase3_runs"
+            d.mkdir(parents=True, exist_ok=True)
+            path = d / (hashlib.sha256(key.encode()).hexdigest()[:24] + ".pkl")
+            if path.exists():
+                return pickle.loads(path.read_bytes())
         pf = Portfolio(self.cfg, group_fn=self.corr.group)
-        return run_backtest(self.signals(concept, params, funding_filter), self.market, self.cfg, start, end,
-                            cost_mult, portfolio=pf, initial_capital=initial_capital)
+        out = run_backtest(self.signals(concept, params, funding_filter), self.market, self.cfg, start, end,
+                           cost_mult, portfolio=pf, initial_capital=initial_capital)
+        if path is not None:
+            tmp = path.with_suffix(".tmp")
+            tmp.write_bytes(pickle.dumps(out))
+            tmp.rename(path)
+        return out
 
 
 # ---------------------------------------------------------------- grid, neighbours, ablations
@@ -245,7 +263,8 @@ def run_group(gname: str, vs: list[dict]) -> dict:
     stress = replay(mult=float(cfg["costs"]["stress_multiplier"]))
     e_stress = float(stress["r_multiple"].mean()) if len(stress) else np.nan
     windows = {k: (b, c) for k, (_, b, c) in enumerate(folds(cfg))}
-    rng = np.random.default_rng(abs(hash(gname)) % (2 ** 32))
+    import zlib
+    rng = np.random.default_rng([int(cfg["seed"]), zlib.crc32(gname.encode())])   # reproducible across runs
     base = random_baseline(oos, lab.meta, lab.market, lab.data, cfg, windows, direction, rng) if len(oos) else \
         {"n": 0, "median": np.nan, "p95": np.nan, "percentile": np.nan, "pool": 0}
     chosen = Counter(s.variant for s in sels if s.variant)

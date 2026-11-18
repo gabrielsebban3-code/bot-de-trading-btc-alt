@@ -210,7 +210,9 @@ def run_scan(cfg: dict, client, now_ms: int | None = None, dry_run: bool = False
                 continue
             mth = month_of(s.generated_at)
             if mth not in members_by_month:
-                members_by_month[mth] = set(state.universe(mth)) or set(universe)
+                # the universe of the signal's own month, decided with data closed before that month started
+                members_by_month[mth] = set(state.universe(mth)) or set(
+                    monthly_universe_live(state, client, cfg, mth, now_ms))
             if s.symbol in members_by_month[mth]:
                 keep.append(s)
         new_ids = state.add_signals(keep, hold)

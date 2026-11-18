@@ -18,7 +18,7 @@ BTC et ETH, nets de frais, hors échantillon.**
 
 - **Test SPA de Hansen** sur les 153 variantes : p = 0,96. Rien ne bat significativement le fait de rester à plat
   une fois pris en compte le nombre de variantes testées.
-- **Deflated Sharpe** ≈ 0 pour tous les groupes (907 essais comptés au total).
+- **Deflated Sharpe** ≈ 0 pour tous les groupes (1 132 essais comptés au total).
 - **Aucun résultat suspect** (taux de réussite, profit factor et Sharpe tous dans des zones normales pour du suivi
   de tendance : 24 à 42 % de gagnants, PF 0,5 à 1,5).
 
@@ -47,21 +47,22 @@ BTC et ETH, nets de frais, hors échantillon.**
    Les meilleures variantes C1 ont un drawdown bien plus faible (5 à 26 %) mais un Sharpe du même ordre (≤ 0,37) :
    aucune supériorité ajustée du risque démontrée.
 
-## Deux défauts trouvés et corrigés pendant la phase (transparence)
+## Trois défauts trouvés et corrigés pendant la phase (transparence)
 
 | Passage | Défaut | Effet | Archive |
 |---|---|---|---|
 | 1 | Plafond de distance de stop à 6 % (hérité de l'étude 1) | 275 signaux C1 1D sur 279 et 265 C1 4h sur 913 rejetés | `../phase2_run1_maxstop6/` |
 | 2 | Liquidation en marge isolée 5 × fixe avec des stops larges | 2 trades 1D « liquidés » avant leur stop à −0,8 R | `../phase2_run2_liquidation/` |
-| 3 | — | Résultat retenu | ce dossier |
+| 3 | Sélection du walk-forward utilisant des trades encore ouverts à la fin du réglage (lookahead), trouvé à la revue de code | 4 groupes sur 18 changent, tous à la baisse (de −0,03 à −0,11 R) ; aucun changement de statut | `../phase2_run3_selection_leak/` |
+| 4 | — | Résultat retenu | ce dossier |
 
-Les deux défauts ont été repérés par des contrôles de cohérence (un groupe à 0 trade, un motif de sortie anormal),
-pas en cherchant un meilleur résultat. Les trois passages donnent la même conclusion (aucun candidat, SPA p ≈ 0,96).
-Les essais des trois passages sont tous comptés (règle 8 du protocole) : **907 essais au total**.
+Les trois défauts ont été repérés par des contrôles de cohérence ou la revue de code (un groupe à 0 trade, un motif de sortie anormal),
+pas en cherchant un meilleur résultat. Les quatre passages donnent la même conclusion (aucun candidat, SPA p ≈ 0,96).
+Les essais des quatre passages sont tous comptés (règle 8 du protocole) : **1 132 essais au total**.
 
 ## Risque de surapprentissage
 
-Élevé par construction : 907 essais sur des données déjà exploitées par huit études. C'est précisément pour cela que
+Élevé par construction : 1 132 essais sur des données déjà exploitées par huit études. C'est précisément pour cela que
 le walk-forward, le test SPA et le DSR ont été utilisés. Ils disent tous la même chose : rien de ce qui a été testé
 ici ne se distingue du hasard.
 

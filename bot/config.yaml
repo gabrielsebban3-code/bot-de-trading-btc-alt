@@ -143,7 +143,7 @@ stats:
   ci_level: 0.95
   spa_reps: 2000
   spa_block: 20                  # stationary bootstrap mean block length (days)
-  inherited_trials: 682          # 232 from perp-setups studies 1-8 + 225 + 225 of phase 2 runs 1 and 2 (DECISIONS D22, D23)
+  inherited_trials: 1132         # 232 (studies 1-8) + 4 x 225 (phase 2 runs 1-4, DECISIONS D22, D23, D26)
 
 # ---------------------------------------------------------------- concepts (Step 3), frozen in PROTOCOLE_PHASE2.md
 concepts:

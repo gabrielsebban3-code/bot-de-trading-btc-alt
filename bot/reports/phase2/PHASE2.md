@@ -7,7 +7,7 @@ Protocole : `PROTOCOLE_PHASE2.md` (committé avant le calcul). Validation hors �
 **Aucun groupe ne passe les critères 1 à 8. Aucun candidat C1 ou C2 sur BTC et ETH.**
 
 - Groupes à espérance hors échantillon positive : 7 sur 18.
-- Essais comptés : 225 dans cette phase (153 variantes de la grille + 72 pour l'ablation du volume), **907 au total** avec les 682 déjà comptés (études 1-8 de perp-setups et passages précédents de cette phase, archivés dans `reports/phase2_run1_maxstop6/` et `reports/phase2_run2_liquidation/`, voir DECISIONS D22-D23).
+- Essais comptés : 225 dans cette phase (153 variantes de la grille + 72 pour l'ablation du volume), **1132 au total** avec les 907 déjà comptés (études 1-8 de perp-setups et passages précédents de cette phase, archivés dans `reports/phase2_run1_maxstop6/` et `reports/phase2_run2_liquidation/`, voir DECISIONS D22-D23).
 - Test SPA de Hansen (toutes les variantes de la grille contre « rester à plat », rendements journaliers 2022-2026) : p = 0,962 (p inférieur = 0,826, supérieur = 0,983). On ne peut pas exclure que la meilleure variante soit due au hasard du choix parmi toutes celles testées.
 - Résultats suspects (règle 6) : aucun.
 
@@ -18,23 +18,23 @@ Protocole : `PROTOCOLE_PHASE2.md` (committé avant le calcul). Validation hors �
 | C1 1h long + short | 402 | +0,050 | [-0,130 ; +0,246] | 1,09 | 28,9 % | 0,20 | 26,4 % | +0,009 | +0,099 | 100 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; stabilité annuelle | **non concluant** |
 | C1 1h long | 221 | +0,142 | [-0,130 ; +0,466] | 1,24 | 30,3 % | 0,37 | 19,8 % | +0,097 | +0,164 | 100 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; stabilité annuelle | **non concluant** |
 | C1 1h short | 241 | -0,093 | [-0,257 ; +0,091] | 0,81 | 30,3 % | -0,42 | 32,3 % | -0,131 | +0,114 | 7 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
-| C1 4h long + short | 134 | +0,021 | [-0,227 ; +0,289] | 1,04 | 29,9 % | 0,09 | 15,1 % | +0,001 | +0,348 | 100 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; stabilité annuelle | **non concluant** |
+| C1 4h long + short | 134 | +0,021 | [-0,227 ; +0,289] | 1,04 | 29,9 % | 0,09 | 15,1 % | +0,001 | +0,281 | 100 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; stabilité annuelle | **non concluant** |
 | C1 4h long | 81 | -0,102 | [-0,402 ; +0,243] | 0,83 | 23,5 % | -0,25 | 17,3 % | -0,125 | +0,621 | 43 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
 | C1 4h short | 76 | +0,190 | [-0,141 ; +0,564] | 1,45 | 39,5 % | 0,37 | 10,9 % | +0,172 | +0,371 | 100 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; stabilité annuelle | **non concluant** |
-| C1 1d long + short | 52 | +0,054 | [-0,239 ; +0,362] | 1,12 | 42,3 % | 0,13 | 7,4 % | +0,044 | +0,306 | 100 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; stabilité annuelle | **non concluant** |
-| C1 1d long | 29 | +0,036 | [-0,391 ; +0,566] | 1,08 | 41,4 % | 0,07 | 5,1 % | +0,026 | +0,497 | 100 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; stabilité annuelle | **non concluant** |
-| C1 1d short | 22 | +0,079 | [-0,384 ; +0,571] | 1,19 | 36,4 % | 0,12 | 8,3 % | +0,071 | +0,367 | 100 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; stabilité annuelle | **non concluant** |
+| C1 1d long + short | 52 | +0,054 | [-0,239 ; +0,362] | 1,12 | 42,3 % | 0,13 | 7,4 % | +0,044 | +0,353 | 100 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; stabilité annuelle | **non concluant** |
+| C1 1d long | 31 | +0,007 | [-0,418 ; +0,511] | 1,01 | 38,7 % | 0,02 | 5,1 % | -0,003 | +0,595 | 100 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; stabilité annuelle | **non concluant** |
+| C1 1d short | 22 | +0,079 | [-0,384 ; +0,571] | 1,19 | 36,4 % | 0,12 | 8,3 % | +0,071 | +0,368 | 100 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; stabilité annuelle | **non concluant** |
 | C2 1h long + short | 397 | -0,032 | [-0,149 ; +0,100] | 0,92 | 33,2 % | -0,22 | 29,3 % | -0,077 | +0,039 | 0 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
 | C2 1h long | 197 | -0,040 | [-0,190 ; +0,120] | 0,91 | 30,5 % | -0,19 | 26,4 % | -0,080 | +0,080 | 25 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
 | C2 1h short | 162 | -0,087 | [-0,298 ; +0,171] | 0,82 | 31,5 % | -0,31 | 22,2 % | -0,135 | +0,066 | 6 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
-| C2 4h long + short | 113 | -0,078 | [-0,289 ; +0,166] | 0,82 | 34,5 % | -0,28 | 14,3 % | -0,103 | +0,317 | 6 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
+| C2 4h long + short | 113 | -0,078 | [-0,289 ; +0,166] | 0,82 | 34,5 % | -0,28 | 14,3 % | -0,103 | +0,384 | 6 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
 | C2 4h long | 129 | -0,151 | [-0,398 ; +0,141] | 0,74 | 24,8 % | -0,47 | 25,6 % | -0,181 | +0,787 | 28 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
-| C2 4h short | 125 | -0,047 | [-0,311 ; +0,261] | 0,91 | 28,8 % | -0,13 | 18,7 % | -0,071 | +0,390 | 83 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; stabilité annuelle | **pas d'edge** |
-| C2 1d long + short | 65 | -0,303 | [-0,590 ; +0,028] | 0,54 | 24,6 % | -0,79 | 23,7 % | -0,318 | +0,540 | 0 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
-| C2 1d long | 33 | -0,086 | [-0,775 ; +0,948] | 0,89 | 18,2 % | -0,09 | 14,6 % | -0,102 | +0,939 | 89 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; stabilité annuelle | **pas d'edge** |
-| C2 1d short | 23 | -0,086 | [-0,558 ; +0,470] | 0,84 | 34,8 % | -0,13 | 6,6 % | -0,100 | +0,573 | 0 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
+| C2 4h short | 139 | -0,114 | [-0,356 ; +0,173] | 0,79 | 26,6 % | -0,35 | 24,8 % | -0,140 | +0,347 | 89 % | 0,00 | IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; stabilité annuelle | **pas d'edge** |
+| C2 1d long + short | 62 | -0,410 | [-0,646 ; -0,137] | 0,39 | 24,2 % | -1,21 | 25,8 % | -0,425 | +0,470 | 11 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
+| C2 1d long | 33 | -0,086 | [-0,775 ; +0,948] | 0,89 | 18,2 % | -0,09 | 14,6 % | -0,102 | +1,026 | 89 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; stabilité annuelle | **pas d'edge** |
+| C2 1d short | 27 | -0,166 | [-0,631 ; +0,377] | 0,75 | 29,6 % | -0,26 | 8,1 % | -0,181 | +0,987 | 0 % | 0,00 | ≥ 100 trades; IC 95 % > 0; SPA p < 0,05; DSR > 0,95; > 95e centile hasard; coûts × 1,5 > 0; voisines ≥ 75 %; stabilité annuelle | **pas d'edge** |
 
-E[R] = gain moyen par trade en multiples du risque, après tous les coûts. Hasard p95 = 95e centile de l'espérance d'entrées aléatoires avec les mêmes stops, la même sortie et les mêmes coûts. Voisines + = part des variantes à paramètres ±20 % qui restent positives. DSR = Deflated Sharpe Ratio, probabilité que le Sharpe soit réel compte tenu des 907 essais.
+E[R] = gain moyen par trade en multiples du risque, après tous les coûts. Hasard p95 = 95e centile de l'espérance d'entrées aléatoires avec les mêmes stops, la même sortie et les mêmes coûts. Voisines + = part des variantes à paramètres ±20 % qui restent positives. DSR = Deflated Sharpe Ratio, probabilité que le Sharpe soit réel compte tenu des 1132 essais.
 
 ## Référence : détention passive sur la même période
 
@@ -96,7 +96,7 @@ Variante retenue par fenêtre : 2022-01 → direction-short_entry_n-100_tf-1h_tr
 Variante retenue par fenêtre : 2022-01 → direction-both_entry_n-100_tf-4h_trail-donchian; 2022-07 → direction-both_entry_n-100_tf-4h_trail-donchian; 2023-01 → direction-both_entry_n-100_tf-4h_trail-donchian; 2023-07 → direction-both_entry_n-100_tf-4h_trail-chandelier; 2024-01 → direction-both_entry_n-100_tf-4h_trail-donchian; 2024-07 → direction-both_entry_n-55_tf-4h_trail-donchian; 2025-01 → direction-both_entry_n-55_tf-4h_trail-donchian; 2025-07 → direction-both_entry_n-55_tf-4h_trail-donchian; 2026-01 → direction-both_entry_n-20_tf-4h_trail-chandelier; 2026-07 → direction-both_entry_n-100_tf-4h_trail-chandelier.
 
 - 134 trades, espérance +0,021 R, profit factor 1,04, 29,9 % de gagnants, Sharpe 0,09, Sortino 0,21, drawdown max 15,1 % (durée 965 jours), plus longue série de pertes 11, durée moyenne 3,9 jours, rendement 1,9 %, coûts = 80 % du gain brut.
-- Hasard (même sortie) : médiane +0,092 R, 95e centile +0,348 R ; le groupe est au 29e centile.
+- Hasard (même sortie) : médiane +0,046 R, 95e centile +0,281 R ; le groupe est au 43e centile.
 - Ablation du filtre volume relatif > 1,2 : 133 trades, espérance -0,001 R (sans filtre : +0,021 R) → le filtre n'améliore pas : retiré.
 - Par année : 2022 +6,7 R (19); 2023 +3,3 R (24); 2024 -5,1 R (31); 2025 -5,4 R (32); 2026 +3,4 R (28).
 - Par paire : BTCUSDT +0,034 R (62); ETHUSDT +0,010 R (72).
@@ -138,8 +138,8 @@ Variante retenue par fenêtre : 2022-01 → direction-short_entry_n-20_tf-4h_tra
 Variante retenue par fenêtre : 2022-01 → direction-both_entry_n-ensemble_tf-1d_trail-donchian; 2022-07 → direction-both_entry_n-ensemble_tf-1d_trail-donchian; 2023-01 → direction-both_entry_n-20_tf-1d_trail-chandelier; 2023-07 → direction-both_entry_n-20_tf-1d_trail-chandelier; 2024-01 → direction-both_entry_n-ensemble_tf-1d_trail-chandelier; 2024-07 → direction-both_entry_n-100_tf-1d_trail-donchian; 2025-01 → direction-both_entry_n-ensemble_tf-1d_trail-donchian; 2025-07 → direction-both_entry_n-55_tf-1d_trail-donchian; 2026-01 → direction-both_entry_n-55_tf-1d_trail-donchian; 2026-07 → direction-both_entry_n-55_tf-1d_trail-donchian.
 
 - 52 trades, espérance +0,054 R, profit factor 1,12, 42,3 % de gagnants, Sharpe 0,13, Sortino 0,29, drawdown max 7,4 % (durée 1387 jours), plus longue série de pertes 7, durée moyenne 21,9 jours, rendement 2,4 %, coûts = 55 % du gain brut.
-- Hasard (même sortie) : médiane +0,055 R, 95e centile +0,306 R ; le groupe est au 50e centile.
-- Ablation du filtre volume relatif > 1,2 : 49 trades, espérance +0,157 R (sans filtre : +0,054 R) → le filtre améliore le résultat.
+- Hasard (même sortie) : médiane +0,048 R, 95e centile +0,353 R ; le groupe est au 51e centile.
+- Ablation du filtre volume relatif > 1,2 : 50 trades, espérance +0,142 R (sans filtre : +0,054 R) → le filtre améliore le résultat.
 - Par année : 2022 +0,9 R (9); 2023 -2,9 R (16); 2024 +1,0 R (11); 2025 +0,5 R (8); 2026 +3,4 R (8).
 - Par paire : BTCUSDT +0,035 R (26); ETHUSDT +0,072 R (26).
 - Par sens : long +0,063 R (27); short +0,044 R (25).
@@ -149,24 +149,24 @@ Variante retenue par fenêtre : 2022-01 → direction-both_entry_n-ensemble_tf-1
 
 ### C1 1d long : non concluant
 
-Variante retenue par fenêtre : 2022-01 → direction-long_entry_n-20_tf-1d_trail-donchian; 2022-07 → direction-long_entry_n-ensemble_tf-1d_trail-donchian; 2023-01 → direction-long_entry_n-ensemble_tf-1d_trail-chandelier; 2023-07 → direction-long_entry_n-ensemble_tf-1d_trail-chandelier; 2024-01 → direction-long_entry_n-20_tf-1d_trail-donchian; 2024-07 → direction-long_entry_n-ensemble_tf-1d_trail-donchian; 2025-01 → direction-long_entry_n-55_tf-1d_trail-donchian; 2025-07 → direction-long_entry_n-20_tf-1d_trail-donchian; 2026-01 → direction-long_entry_n-ensemble_tf-1d_trail-donchian; 2026-07 → direction-long_entry_n-55_tf-1d_trail-chandelier.
+Variante retenue par fenêtre : 2022-01 → direction-long_entry_n-20_tf-1d_trail-donchian; 2022-07 → direction-long_entry_n-ensemble_tf-1d_trail-donchian; 2023-01 → direction-long_entry_n-ensemble_tf-1d_trail-chandelier; 2023-07 → direction-long_entry_n-20_tf-1d_trail-chandelier; 2024-01 → direction-long_entry_n-20_tf-1d_trail-chandelier; 2024-07 → direction-long_entry_n-ensemble_tf-1d_trail-donchian; 2025-01 → direction-long_entry_n-55_tf-1d_trail-donchian; 2025-07 → direction-long_entry_n-20_tf-1d_trail-donchian; 2026-01 → direction-long_entry_n-ensemble_tf-1d_trail-donchian; 2026-07 → direction-long_entry_n-55_tf-1d_trail-chandelier.
 
-- 29 trades, espérance +0,036 R, profit factor 1,08, 41,4 % de gagnants, Sharpe 0,07, Sortino 0,13, drawdown max 5,1 % (durée 736 jours), plus longue série de pertes 6, durée moyenne 23,5 jours, rendement 0,9 %, coûts = 81 % du gain brut.
-- Hasard (même sortie) : médiane +0,060 R, 95e centile +0,497 R ; le groupe est au 45e centile.
-- Ablation du filtre volume relatif > 1,2 : 18 trades, espérance -0,009 R (sans filtre : +0,036 R) → le filtre n'améliore pas : retiré.
-- Par année : 2022 -2,0 R (2); 2023 +1,3 R (9); 2024 +4,5 R (8); 2025 +0,2 R (6); 2026 -3,0 R (4).
-- Par paire : BTCUSDT +0,158 R (16); ETHUSDT -0,115 R (13).
-- Par sens : long +0,036 R (29).
-- Par sortie : end +0,129 R (1); stop -1,033 R (4); trail +0,210 R (24).
-- Par régime à l'entrée : tendance +0,036 R (29) ; forte volatilité : non +0,073 R (28); oui -1,006 R (1).
-- Par trimestre (somme de R) : 2022Q1 -2,0; 2023Q1 -0,2; 2023Q2 +0,3; 2023Q4 +1,1; 2024Q1 +2,8; 2024Q2 -2,5; 2024Q4 +4,3; 2025Q2 -0,0; 2025Q3 +2,3; 2025Q4 -2,1; 2026Q3 -3,0.
+- 31 trades, espérance +0,007 R, profit factor 1,01, 38,7 % de gagnants, Sharpe 0,02, Sortino 0,03, drawdown max 5,1 % (durée 612 jours), plus longue série de pertes 6, durée moyenne 21,0 jours, rendement -0,0 %, coûts = 100 % du gain brut.
+- Hasard (même sortie) : médiane +0,147 R, 95e centile +0,595 R ; le groupe est au 30e centile.
+- Ablation du filtre volume relatif > 1,2 : 18 trades, espérance -0,009 R (sans filtre : +0,007 R) → le filtre n'améliore pas : retiré.
+- Par année : 2022 -2,0 R (2); 2023 +2,2 R (9); 2024 +2,9 R (10); 2025 +0,2 R (6); 2026 -3,0 R (4).
+- Par paire : BTCUSDT +0,077 R (17); ETHUSDT -0,077 R (14).
+- Par sens : long +0,007 R (31).
+- Par sortie : end +0,129 R (1); stop -1,038 R (7); trail +0,320 R (23).
+- Par régime à l'entrée : tendance +0,007 R (31) ; forte volatilité : non +0,120 R (28); oui -1,045 R (3).
+- Par trimestre (somme de R) : 2022Q1 -2,0; 2023Q1 -0,2; 2023Q2 +0,3; 2023Q4 +2,0; 2024Q1 +1,0; 2024Q2 -2,4; 2024Q4 +4,3; 2025Q2 -0,0; 2025Q3 +2,3; 2025Q4 -2,1; 2026Q3 -3,0.
 
 ### C1 1d short : non concluant
 
 Variante retenue par fenêtre : 2022-01 → aucune (moins de 10 trades au réglage); 2022-07 → aucune (moins de 10 trades au réglage); 2023-01 → direction-short_entry_n-20_tf-1d_trail-chandelier; 2023-07 → direction-short_entry_n-20_tf-1d_trail-chandelier; 2024-01 → direction-short_entry_n-55_tf-1d_trail-chandelier; 2024-07 → direction-short_entry_n-20_tf-1d_trail-chandelier; 2025-01 → direction-short_entry_n-20_tf-1d_trail-chandelier; 2025-07 → direction-short_entry_n-20_tf-1d_trail-chandelier; 2026-01 → direction-short_entry_n-20_tf-1d_trail-chandelier; 2026-07 → direction-short_entry_n-20_tf-1d_trail-chandelier.
 
 - 22 trades, espérance +0,079 R, profit factor 1,19, 36,4 % de gagnants, Sharpe 0,12, Sortino 0,27, drawdown max 8,3 % (durée 1091 jours), plus longue série de pertes 9, durée moyenne 14,8 jours, rendement 1,6 %, coûts = 12 % du gain brut.
-- Hasard (même sortie) : médiane +0,023 R, 95e centile +0,367 R ; le groupe est au 62e centile.
+- Hasard (même sortie) : médiane -0,008 R, 95e centile +0,368 R ; le groupe est au 66e centile.
 - Ablation du filtre volume relatif > 1,2 : 15 trades, espérance +0,201 R (sans filtre : +0,079 R) → le filtre améliore le résultat.
 - Par année : 2023 -5,3 R (6); 2024 -2,4 R (6); 2025 +2,8 R (5); 2026 +6,6 R (5).
 - Par paire : BTCUSDT -0,057 R (9); ETHUSDT +0,174 R (13).
@@ -219,7 +219,7 @@ Variante retenue par fenêtre : 2022-01 → direction-short_pivots-zigzag_pullba
 Variante retenue par fenêtre : 2022-01 → direction-both_pivots-zigzag_pullback-structure_tf-4h; 2022-07 → direction-both_pivots-hierarchical_pullback-structure_tf-4h; 2023-01 → direction-both_pivots-hierarchical_pullback-structure_tf-4h; 2023-07 → direction-both_pivots-zigzag_pullback-structure_tf-4h; 2024-01 → direction-both_pivots-fractal_pullback-ema50_tf-4h; 2024-07 → direction-both_pivots-zigzag_pullback-structure_tf-4h; 2025-01 → direction-both_pivots-hierarchical_pullback-ema50_tf-4h; 2025-07 → direction-both_pivots-hierarchical_pullback-ema50_tf-4h; 2026-01 → direction-both_pivots-zigzag_pullback-ema50_tf-4h; 2026-07 → direction-both_pivots-fractal_pullback-ema50_tf-4h.
 
 - 113 trades, espérance -0,078 R, profit factor 0,82, 34,5 % de gagnants, Sharpe -0,28, Sortino -0,57, drawdown max 14,3 % (durée 960 jours), plus longue série de pertes 10, durée moyenne 2,8 jours, rendement -9,5 %, coûts = – du gain brut.
-- Hasard (même sortie) : médiane +0,036 R, 95e centile +0,317 R ; le groupe est au 20e centile.
+- Hasard (même sortie) : médiane -0,014 R, 95e centile +0,384 R ; le groupe est au 34e centile.
 - Par année : 2022 -1,7 R (9); 2023 -2,0 R (12); 2024 -1,9 R (25); 2025 +4,4 R (34); 2026 -7,5 R (33).
 - Par paire : BTCUSDT +0,007 R (56); ETHUSDT -0,161 R (57).
 - Par sens : long -0,171 R (64); short +0,043 R (49).
@@ -242,36 +242,36 @@ Variante retenue par fenêtre : 2022-01 → direction-long_pivots-zigzag_pullbac
 
 ### C2 4h short : pas d'edge
 
-Variante retenue par fenêtre : 2022-01 → direction-short_pivots-fractal_pullback-structure_tf-4h; 2022-07 → direction-short_pivots-zigzag_pullback-ema50_tf-4h; 2023-01 → direction-short_pivots-zigzag_pullback-ema50_tf-4h; 2023-07 → direction-short_pivots-zigzag_pullback-ema50_tf-4h; 2024-01 → direction-short_pivots-fractal_pullback-ema50_tf-4h; 2024-07 → direction-short_pivots-zigzag_pullback-ema20_tf-4h; 2025-01 → direction-short_pivots-fractal_pullback-ema50_tf-4h; 2025-07 → direction-short_pivots-hierarchical_pullback-ema50_tf-4h; 2026-01 → direction-short_pivots-hierarchical_pullback-ema50_tf-4h; 2026-07 → direction-short_pivots-fractal_pullback-ema50_tf-4h.
+Variante retenue par fenêtre : 2022-01 → direction-short_pivots-fractal_pullback-structure_tf-4h; 2022-07 → direction-short_pivots-fractal_pullback-ema50_tf-4h; 2023-01 → direction-short_pivots-zigzag_pullback-ema50_tf-4h; 2023-07 → direction-short_pivots-zigzag_pullback-ema50_tf-4h; 2024-01 → direction-short_pivots-fractal_pullback-ema50_tf-4h; 2024-07 → direction-short_pivots-zigzag_pullback-ema20_tf-4h; 2025-01 → direction-short_pivots-fractal_pullback-ema50_tf-4h; 2025-07 → direction-short_pivots-hierarchical_pullback-ema50_tf-4h; 2026-01 → direction-short_pivots-hierarchical_pullback-ema50_tf-4h; 2026-07 → direction-short_pivots-fractal_pullback-ema50_tf-4h.
 
-- 125 trades, espérance -0,047 R, profit factor 0,91, 28,8 % de gagnants, Sharpe -0,13, Sortino -0,30, drawdown max 18,7 % (durée 1567 jours), plus longue série de pertes 10, durée moyenne 2,6 jours, rendement -6,8 %, coûts = – du gain brut.
-- Hasard (même sortie) : médiane +0,110 R, 95e centile +0,390 R ; le groupe est au 15e centile.
-- Par année : 2022 +3,4 R (62); 2023 -2,6 R (4); 2024 -5,7 R (12); 2025 -2,4 R (31); 2026 +1,5 R (16).
-- Par paire : BTCUSDT -0,084 R (55); ETHUSDT -0,018 R (70).
-- Par sens : short -0,047 R (125).
-- Par sortie : end +1,024 R (4); stop -1,054 R (33); trail +0,282 R (88).
-- Par régime à l'entrée : tendance -0,047 R (125) ; forte volatilité : non +0,048 R (92); oui -0,312 R (33).
-- Par trimestre (somme de R) : 2022Q1 -7,6; 2022Q2 +15,6; 2022Q3 -1,1; 2022Q4 -3,5; 2023Q3 -1,6; 2023Q4 -1,0; 2024Q3 -4,3; 2024Q4 -1,4; 2025Q1 -3,0; 2025Q2 -3,4; 2025Q4 +4,0; 2026Q1 +5,4; 2026Q2 +0,2; 2026Q3 -4,1.
+- 139 trades, espérance -0,114 R, profit factor 0,79, 26,6 % de gagnants, Sharpe -0,35, Sortino -0,76, drawdown max 24,8 % (durée 1581 jours), plus longue série de pertes 10, durée moyenne 2,5 jours, rendement -15,4 %, coûts = – du gain brut.
+- Hasard (même sortie) : médiane +0,072 R, 95e centile +0,347 R ; le groupe est au 8e centile.
+- Par année : 2022 -6,5 R (76); 2023 -2,6 R (4); 2024 -5,7 R (12); 2025 -2,4 R (31); 2026 +1,5 R (16).
+- Par paire : BTCUSDT -0,135 R (61); ETHUSDT -0,097 R (78).
+- Par sens : short -0,114 R (139).
+- Par sortie : end +0,874 R (4); stop -1,056 R (44); trail +0,299 R (91).
+- Par régime à l'entrée : tendance -0,114 R (139) ; forte volatilité : non -0,039 R (104); oui -0,336 R (35).
+- Par trimestre (somme de R) : 2022Q1 -7,6; 2022Q2 +15,6; 2022Q3 -6,7; 2022Q4 -7,8; 2023Q3 -1,6; 2023Q4 -1,0; 2024Q3 -4,3; 2024Q4 -1,4; 2025Q1 -3,0; 2025Q2 -3,4; 2025Q4 +4,0; 2026Q1 +5,4; 2026Q2 +0,2; 2026Q3 -4,1.
 
 ### C2 1d long + short : pas d'edge
 
-Variante retenue par fenêtre : 2022-01 → direction-both_pivots-fractal_pullback-ema20_tf-1d; 2022-07 → direction-both_pivots-fractal_pullback-ema20_tf-1d; 2023-01 → direction-both_pivots-fractal_pullback-ema50_tf-1d; 2023-07 → direction-both_pivots-fractal_pullback-ema20_tf-1d; 2024-01 → direction-both_pivots-zigzag_pullback-ema20_tf-1d; 2024-07 → direction-both_pivots-fractal_pullback-ema50_tf-1d; 2025-01 → direction-both_pivots-fractal_pullback-ema50_tf-1d; 2025-07 → direction-both_pivots-fractal_pullback-ema50_tf-1d; 2026-01 → direction-both_pivots-fractal_pullback-ema20_tf-1d; 2026-07 → direction-both_pivots-hierarchical_pullback-ema20_tf-1d.
+Variante retenue par fenêtre : 2022-01 → direction-both_pivots-fractal_pullback-ema50_tf-1d; 2022-07 → direction-both_pivots-fractal_pullback-ema20_tf-1d; 2023-01 → direction-both_pivots-fractal_pullback-ema20_tf-1d; 2023-07 → direction-both_pivots-fractal_pullback-ema20_tf-1d; 2024-01 → direction-both_pivots-zigzag_pullback-ema20_tf-1d; 2024-07 → direction-both_pivots-fractal_pullback-ema50_tf-1d; 2025-01 → direction-both_pivots-fractal_pullback-ema50_tf-1d; 2025-07 → direction-both_pivots-fractal_pullback-ema50_tf-1d; 2026-01 → direction-both_pivots-fractal_pullback-ema20_tf-1d; 2026-07 → direction-both_pivots-hierarchical_pullback-ema20_tf-1d.
 
-- 65 trades, espérance -0,303 R, profit factor 0,54, 24,6 % de gagnants, Sharpe -0,79, Sortino -1,29, drawdown max 23,7 % (durée 1570 jours), plus longue série de pertes 16, durée moyenne 10,8 jours, rendement -17,5 %, coûts = – du gain brut.
-- Hasard (même sortie) : médiane +0,074 R, 95e centile +0,540 R ; le groupe est au 4e centile.
-- Par année : 2022 -2,7 R (20); 2023 -2,9 R (18); 2024 -8,3 R (9); 2025 -4,6 R (6); 2026 -1,1 R (12).
-- Par paire : BTCUSDT -0,073 R (34); ETHUSDT -0,556 R (31).
-- Par sens : long -0,412 R (26); short -0,231 R (39).
-- Par sortie : end +0,862 R (10); stop -1,037 R (34); trail +0,330 R (21).
-- Par régime à l'entrée : tendance -0,303 R (65) ; forte volatilité : non -0,231 R (59); oui -1,017 R (6).
-- Par trimestre (somme de R) : 2022Q1 -1,0; 2022Q2 +6,5; 2022Q3 -4,9; 2022Q4 -3,3; 2023Q1 +0,3; 2023Q2 -3,6; 2023Q3 -5,4; 2023Q4 +5,8; 2024Q1 -2,9; 2024Q2 -1,0; 2024Q3 -1,9; 2024Q4 -2,5; 2025Q1 -2,1; 2025Q2 -1,9; 2025Q4 -0,6; 2026Q1 -3,7; 2026Q2 +3,7; 2026Q3 -0,1; 2026Q4 -1,0.
+- 62 trades, espérance -0,410 R, profit factor 0,39, 24,2 % de gagnants, Sharpe -1,21, Sortino -1,71, drawdown max 25,8 % (durée 1698 jours), plus longue série de pertes 16, durée moyenne 10,7 jours, rendement -23,4 %, coûts = – du gain brut.
+- Hasard (même sortie) : médiane +0,011 R, 95e centile +0,470 R ; le groupe est au 2e centile.
+- Par année : 2022 -8,9 R (15); 2023 -2,4 R (20); 2024 -8,3 R (9); 2025 -4,6 R (6); 2026 -1,1 R (12).
+- Par paire : BTCUSDT -0,318 R (31); ETHUSDT -0,501 R (31).
+- Par sens : long -0,315 R (26); short -0,478 R (36).
+- Par sortie : end +0,452 R (8); stop -1,040 R (33); trail +0,252 R (21).
+- Par régime à l'entrée : tendance -0,410 R (62) ; forte volatilité : non -0,344 R (56); oui -1,017 R (6).
+- Par trimestre (somme de R) : 2022Q1 -0,6; 2022Q3 -4,9; 2022Q4 -3,3; 2023Q1 -0,7; 2023Q2 -2,1; 2023Q3 -5,4; 2023Q4 +5,8; 2024Q1 -2,9; 2024Q2 -1,0; 2024Q3 -1,9; 2024Q4 -2,5; 2025Q1 -2,1; 2025Q2 -1,9; 2025Q4 -0,6; 2026Q1 -3,7; 2026Q2 +3,7; 2026Q3 -0,1; 2026Q4 -1,0.
 
 ### C2 1d long : pas d'edge
 
 Variante retenue par fenêtre : 2022-01 → direction-long_pivots-fractal_pullback-ema20_tf-1d; 2022-07 → direction-long_pivots-fractal_pullback-ema50_tf-1d; 2023-01 → direction-long_pivots-fractal_pullback-ema50_tf-1d; 2023-07 → direction-long_pivots-fractal_pullback-ema20_tf-1d; 2024-01 → direction-long_pivots-fractal_pullback-ema20_tf-1d; 2024-07 → direction-long_pivots-fractal_pullback-ema50_tf-1d; 2025-01 → direction-long_pivots-fractal_pullback-ema50_tf-1d; 2025-07 → direction-long_pivots-fractal_pullback-ema20_tf-1d; 2026-01 → direction-long_pivots-fractal_pullback-ema20_tf-1d; 2026-07 → direction-long_pivots-fractal_pullback-ema20_tf-1d.
 
 - 33 trades, espérance -0,086 R, profit factor 0,89, 18,2 % de gagnants, Sharpe -0,09, Sortino -0,26, drawdown max 14,6 % (durée 943 jours), plus longue série de pertes 9, durée moyenne 11,1 jours, rendement -4,3 %, coûts = – du gain brut.
-- Hasard (même sortie) : médiane +0,213 R, 95e centile +0,939 R ; le groupe est au 21e centile.
+- Hasard (même sortie) : médiane +0,238 R, 95e centile +1,026 R ; le groupe est au 18e centile.
 - Par année : 2022 -1,0 R (1); 2023 +0,3 R (13); 2024 +5,4 R (9); 2025 -3,1 R (5); 2026 -4,4 R (5).
 - Par paire : BTCUSDT +0,497 R (16); ETHUSDT -0,634 R (17).
 - Par sens : long -0,086 R (33).
@@ -281,16 +281,16 @@ Variante retenue par fenêtre : 2022-01 → direction-long_pivots-fractal_pullba
 
 ### C2 1d short : pas d'edge
 
-Variante retenue par fenêtre : 2022-01 → aucune (moins de 10 trades au réglage); 2022-07 → aucune (moins de 10 trades au réglage); 2023-01 → direction-short_pivots-fractal_pullback-structure_tf-1d; 2023-07 → direction-short_pivots-fractal_pullback-structure_tf-1d; 2024-01 → direction-short_pivots-zigzag_pullback-ema20_tf-1d; 2024-07 → direction-short_pivots-fractal_pullback-ema20_tf-1d; 2025-01 → direction-short_pivots-fractal_pullback-ema20_tf-1d; 2025-07 → direction-short_pivots-fractal_pullback-structure_tf-1d; 2026-01 → direction-short_pivots-zigzag_pullback-ema20_tf-1d; 2026-07 → direction-short_pivots-hierarchical_pullback-ema20_tf-1d.
+Variante retenue par fenêtre : 2022-01 → aucune (moins de 10 trades au réglage); 2022-07 → aucune (moins de 10 trades au réglage); 2023-01 → direction-short_pivots-fractal_pullback-structure_tf-1d; 2023-07 → direction-short_pivots-fractal_pullback-structure_tf-1d; 2024-01 → direction-short_pivots-zigzag_pullback-ema20_tf-1d; 2024-07 → direction-short_pivots-fractal_pullback-ema20_tf-1d; 2025-01 → direction-short_pivots-fractal_pullback-ema20_tf-1d; 2025-07 → direction-short_pivots-fractal_pullback-structure_tf-1d; 2026-01 → direction-short_pivots-fractal_pullback-ema20_tf-1d; 2026-07 → direction-short_pivots-zigzag_pullback-ema20_tf-1d.
 
-- 23 trades, espérance -0,086 R, profit factor 0,84, 34,8 % de gagnants, Sharpe -0,13, Sortino -0,24, drawdown max 6,6 % (durée 1397 jours), plus longue série de pertes 5, durée moyenne 14,4 jours, rendement -2,0 %, coûts = – du gain brut.
-- Hasard (même sortie) : médiane +0,018 R, 95e centile +0,573 R ; le groupe est au 36e centile.
-- Par année : 2023 -2,4 R (4); 2024 -1,4 R (5); 2025 -0,7 R (9); 2026 +2,5 R (5).
-- Par paire : BTCUSDT -0,193 R (9); ETHUSDT -0,017 R (14).
-- Par sens : short -0,086 R (23).
-- Par sortie : end +0,500 R (4); stop -1,024 R (8); trail +0,383 R (11).
-- Par régime à l'entrée : tendance -0,086 R (23) ; forte volatilité : non -0,162 R (19); oui +0,272 R (4).
-- Par trimestre (somme de R) : 2023Q1 -1,1; 2023Q3 -1,4; 2023Q4 +0,1; 2024Q3 +0,3; 2024Q4 -1,7; 2025Q1 +1,7; 2025Q2 -1,9; 2025Q4 -0,5; 2026Q1 +1,6; 2026Q2 +0,9.
+- 27 trades, espérance -0,166 R, profit factor 0,75, 29,6 % de gagnants, Sharpe -0,26, Sortino -0,45, drawdown max 8,1 % (durée 1397 jours), plus longue série de pertes 6, durée moyenne 12,3 jours, rendement -4,6 %, coûts = – du gain brut.
+- Hasard (même sortie) : médiane +0,260 R, 95e centile +0,987 R ; le groupe est au 12e centile.
+- Par année : 2023 -2,4 R (4); 2024 -1,4 R (5); 2025 -0,7 R (9); 2026 -0,0 R (9).
+- Par paire : BTCUSDT -0,216 R (11); ETHUSDT -0,132 R (16).
+- Par sens : short -0,166 R (27).
+- Par sortie : end +1,187 R (4); stop -1,025 R (14); trail +0,567 R (9).
+- Par régime à l'entrée : tendance -0,166 R (27) ; forte volatilité : non -0,125 R (20); oui -0,284 R (7).
+- Par trimestre (somme de R) : 2023Q1 -1,1; 2023Q3 -1,4; 2023Q4 +0,1; 2024Q3 +0,3; 2024Q4 -1,7; 2025Q1 +1,7; 2025Q2 -1,9; 2025Q4 -0,5; 2026Q1 -3,7; 2026Q2 +3,7.
 
 ## Toutes les variantes, période 2022-2026 à paramètres fixes (information, pas une validation)
 
