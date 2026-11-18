@@ -242,7 +242,7 @@ def cmd_phase2(cfg, args) -> None:
 def cmd_phase3(cfg, args) -> None:
     from .backtest.report import write_phase3_report
     from .backtest.tournament3 import run_phase3
-    res = run_phase3(cfg, _store(cfg), workers=3)
+    res = run_phase3(cfg, _store(cfg), workers=2)
     path = write_phase3_report(res, resolve_path(cfg, "reports") / "phase3", cfg)
     log.info("phase 3 report", path=str(path), seconds=round(res["seconds"]))
 

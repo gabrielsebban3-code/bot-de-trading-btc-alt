@@ -280,8 +280,25 @@ def run_group(gname: str, vs: list[dict]) -> dict:
     return res
 
 
+def _checkpoint_path(gname: str):
+    from ..core.config import resolve_path
+    d = resolve_path(_CFG, "market_db").parent / "phase3_groups"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / (gname.replace("|", "_") + ".pkl")
+
+
 def _worker(args):
-    return run_group(*args)
+    """Run one group and checkpoint it on disk, so that a restart never recomputes a finished group."""
+    import pickle
+    gname, vs = args
+    path = _checkpoint_path(gname)
+    if path.exists():
+        return gname
+    res = run_group(gname, vs)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_bytes(pickle.dumps(res))
+    tmp.rename(path)
+    return gname
 
 
 # ---------------------------------------------------------------- phase 3 driver
@@ -302,9 +319,15 @@ def run_phase3(cfg: dict, store: MarketStore, workers: int = 3, universe: pd.Dat
     variants = [v for v in variants if v["group"] in groups]
     heavy = ["C2|1h", "C5|1h", "C3|1h", "C2|4h", "C5|4h"]
     order = sorted(groups, key=lambda g: (0 if any(g.startswith(h) for h in heavy) else 1, g))
+    import pickle
+    todo = [g for g in order if not _checkpoint_path(g).exists()]
+    log.info("groups to compute", todo=len(todo), done=len(order) - len(todo))
     ctx = mp.get_context("fork")
-    with ctx.Pool(workers, maxtasksperchild=4) as pool:
-        out = pool.map(_worker, [(g, groups[g]) for g in order], chunksize=1)
+    # one fresh worker per group: memory grown by the caches of a group is released when it ends
+    with ctx.Pool(workers, maxtasksperchild=1) as pool:
+        for g in pool.imap_unordered(_worker, [(g, groups[g]) for g in todo], chunksize=1):
+            log.info("checkpoint written", group=g)
+    out = [pickle.loads(_checkpoint_path(g).read_bytes()) for g in order]
     wf_start, wf_end = to_ms(cfg["walk_forward"]["start"]), to_ms(cfg["walk_forward"]["end"])
     trials = pd.DataFrame([t for r in out for t in r["trials"]])
     trials.insert(0, "trial", np.arange(1, len(trials) + 1))

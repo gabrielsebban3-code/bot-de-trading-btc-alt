@@ -237,3 +237,16 @@ baseline:
   pool_min: 2000
   draws: 1000
   percentile: 95
+
+# ---------------------------------------------------------------- live detector (Phase 4, PROTOCOLE_PHASE4.md)
+live:
+  mode: "observation"            # observation: nothing is sent ; alerts: only variants with status "edge confirmé"
+  market_db: bot/var/live.sqlite # forward data (final test), separate from the locked backtest database
+  start: "2026-11-01"            # signals generated before this instant are never stored
+  bootstrap_days: 430            # history needed by the indicators (EMA 200 daily + warm-up)
+  observation_list: bot/reports/phase3/observation.json
+  validated_list: bot/reports/validated.json
+  scan_delay_s: 20               # websocket mode: scan this long after each 15m close
+  universe_candidates: 80        # live universe: 30-day volume computed for the 80 largest 24h volumes
+  monitor: {rolling_n: 50, dd_mult: 1.5}
+  discord: {cooldown_hours: 12, min_score: 0, chart_candles: 120}
