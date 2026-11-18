@@ -171,6 +171,39 @@ concepts:
     stop_buffer_atr: 0.5
     trail_chandelier_atr: 3.0
     hierarchical_level: "intermediate"
+  c3:
+    trend_ema: 200
+    rsi_low: 10
+    rsi_high: 90
+    bb_period: 20
+    bb_k: 2.0
+    vwap_window: 20
+    vwap_atr: 1.5
+    stop_atr: 1.5
+    max_hold_bars: 10
+  c4:
+    tf: "1h"
+    oi_lookback_h: 24
+    price_move: 0.03
+    stop_atr: 2.0
+    tp_r: 2.0
+    max_hold_bars: 48
+    filter_window_days: 30
+    filter_z: 2.0
+  c5:
+    pivot_n: 3
+    equal_tol: 0.0015
+    equal_lookback: 100
+    choch_window: 10
+    zone_lookback: 3
+    limit_validity_bars: 10
+    stop_atr: 0.25
+    divergence_rsi: 14
+    climax_mult: 2.0
+    htf_atr: 0.5
+    fast_choch_bars: 3
+    period_tf: {"1h": "1d", "4h": "1w"}
+    weights: {sweep: 25, divergence: 20, climax: 15, htf_zone: 20, fast_choch: 20}
 
 # ---------------------------------------------------------------- phase 2 grid (PROTOCOLE_PHASE2.md)
 phase2:
@@ -179,6 +212,14 @@ phase2:
   directions: ["long", "short", "both"]
   c1_grid: {entry_n: ["20", "55", "100", "ensemble"], trail: ["chandelier", "donchian"]}
   c2_grid: {pullback: ["ema20", "ema50", "structure"], pivots: ["fractal", "zigzag", "hierarchical"]}
+
+# ---------------------------------------------------------------- phase 3 grid (PROTOCOLE_PHASE3.md)
+phase3:
+  c3_grid: {tf: ["1h", "4h", "1d"], rsi_period: [2, 3, 5], deviation: ["bb", "vwap"]}
+  c4_grid:
+    funding: {signal: ["funding_abs", "funding_rel"], window_days: [7, 30], z: [2, 3]}
+    oi: {signal: ["oi_purge"], oi_drop: [0.10, 0.15]}
+  c5_grid: {tf: ["1h", "4h"], liquidity: ["equal", "period"], zone: ["fvg", "ob"], tp_r: [2, 3], min_score: [0, 60]}
 
 walk_forward:
   start: "2022-01-01"
