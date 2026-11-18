@@ -167,7 +167,7 @@ async function main() {
   }
 
   await mkdir(OUT, { recursive: true });
-  const rulesOf = cfg => ({ minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: RULES.exitDays, barMs: cfg.E, trendMs: cfg.T, riskPct: RULES.riskPct, showHours: RULES.showHours, statsDays: RULES.statsDays });
+  const rulesOf = cfg => ({ minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: cfg.exitDays ?? RULES.exitDays, barMs: cfg.E, trendMs: cfg.T, riskPct: RULES.riskPct, showHours: RULES.showHours, statsDays: RULES.statsDays });
   await writeFile(join(OUT, 'setups.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), sources, warnings, model: SWING.key,
     rules: rulesOf(SWING), expect: EXPECT.swing,

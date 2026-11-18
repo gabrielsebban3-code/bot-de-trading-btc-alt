@@ -217,7 +217,7 @@ test('build-setups écrit setups.json et setups-court.json pour les paires suivi
   }
   for (const s of out.history) assert.ok(['sl', 'be', 'exit', 'open'].includes(s.outcome));
   assert.deepEqual(Object.keys(out.stats), ['range20', 'range10', 'macd']);
-  assert.equal(out.rules.exitDays, 7);
+  assert.equal(out.rules.exitDays, 10);
   // Peu de signaux : un trade à la fois par actif, des trades de plusieurs jours.
   const spanDays = (Math.max(...out.history.map(h => h.time)) - Math.min(...out.history.map(h => h.time))) / DAY;
   assert.ok(out.history.length <= spanDays, `${out.history.length} signaux sur ${Math.round(spanDays)} jours`);

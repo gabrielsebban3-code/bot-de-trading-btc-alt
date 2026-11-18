@@ -26,7 +26,5 @@ jobs:
           ls lab-zip | wc -l
           for z in lab-zip/*.zip; do unzip -oq "$z" -d lab-data || echo "zip KO $z"; done
           ls lab-data | wc -l
-      - name: Entrées et sorties (bougies 1h, tendance jour)
-        run: node scripts/lab/lab3.mjs lab-data 1h
-      - name: Entrées et sorties (bougies 4h, tendance jour)
-        run: node scripts/lab/lab3.mjs lab-data 4h
+      - name: Chiffres honnêtes (vraie librairie du site, sortie 10 jours)
+        run: node scripts/lab/honest.mjs lab-data

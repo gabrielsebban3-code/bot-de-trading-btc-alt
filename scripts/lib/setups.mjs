@@ -37,11 +37,11 @@ export const DETECTORS = {
 // court : catégorie Court terme (1h / 4h). Mêmes règles partout, seules les unités changent (test du 2026-11-18,
 // 20 paires Binance 2020-2026, réglages choisis sur 2020-2024 et vérifiés sur 2025-2026, voir SPEC.md §4).
 export const MODES = {
-  classic: { key: 'h4d1', E: BAR, T: DAY, rangeBars: 60, pocBars: 180, warmup: 60, backtestBars: 2190, idPrefix: '',
+  classic: { key: 'h4d1', E: BAR, T: DAY, rangeBars: 60, pocBars: 180, warmup: 60, backtestBars: 2190, idPrefix: '', exitDays: 7,
     eLabel: '4h', tLabel: 'jour', detectors: DETECTORS, r20: 'des 20 derniers jours', r10: 'des 10 derniers jours' },
-  swing: { key: 'h1d1', E: HOUR, T: DAY, rangeBars: 240, pocBars: 720, warmup: 240, backtestBars: 8760, idPrefix: '',
+  swing: { key: 'h1d1', E: HOUR, T: DAY, rangeBars: 240, pocBars: 720, warmup: 240, backtestBars: 8760, idPrefix: '', exitDays: 10,
     eLabel: '1h', tLabel: 'jour', detectors: DETECTORS, r20: 'des 20 derniers jours', r10: 'des 10 derniers jours' },
-  court: { key: 'h1h4', E: HOUR, T: 4 * HOUR, rangeBars: 40, pocBars: 120, warmup: 60, backtestBars: 8760, idPrefix: 'ct-',
+  court: { key: 'h1h4', E: HOUR, T: 4 * HOUR, rangeBars: 40, pocBars: 120, warmup: 60, backtestBars: 8760, idPrefix: 'ct-', exitDays: 7,
     eLabel: '1h', tLabel: '4h', detectors: { range20: 'Cassure 3 jours', range10: 'Cassure 40 heures', macd: 'MACD' },
     r20: 'des 20 dernières bougies de 4 h (un peu plus de 3 jours)', r10: 'des 40 dernières heures' },
 };
@@ -261,10 +261,11 @@ export function plan(dir, entry, atrD) {
   };
 }
 
-// Niveau de sortie du reste : plus bas (long) ou plus haut (short) des 7 jours clôturés avant le jour k.
-export function exitLevel(daily, k, dir) {
+// Niveau de sortie du reste : plus bas (long) ou plus haut (short) des n bougies de tendance clôturées avant k
+// (7 jours d'origine, 10 jours pour l'onglet Setups depuis le test du 18 novembre 2026).
+export function exitLevel(daily, k, dir, n = RULES.exitDays) {
   let x = dir === 'long' ? Infinity : -Infinity;
-  for (let q = Math.max(0, k - RULES.exitDays); q < k; q++) x = dir === 'long' ? Math.min(x, daily[q].l) : Math.max(x, daily[q].h);
+  for (let q = Math.max(0, k - n); q < k; q++) x = dir === 'long' ? Math.min(x, daily[q].l) : Math.max(x, daily[q].h);
   return x;
 }
 
@@ -275,7 +276,7 @@ export function exitLevel(daily, k, dir) {
 export function evaluate(sig, bars, i, daily, cfg = MODES.classic) {
   const s = sig.dir === 'long' ? 1 : -1;
   const R = Math.abs(sig.entry - sig.sl);
-  const P = RULES.partialR;
+  const P = RULES.partialR, N = cfg.exitDays ?? RULES.exitDays;
   const dayIndex = new Map(daily.map((d, k) => [d.t, k]));
   let stop = sig.sl, half = false, halfAt = null;
   const rOf = px => Math.round((s * (px - sig.entry) / R) * 100) / 100;
@@ -290,15 +291,15 @@ export function evaluate(sig, bars, i, daily, cfg = MODES.classic) {
     // Dernière bougie d'entrée de la bougie de tendance (la journée UTC en swing) : on juge sa clôture.
     if ((b.t + cfg.E) % cfg.T === 0) {
       const jd = dayIndex.get(b.t + cfg.E - cfg.T);
-      if (jd !== undefined && jd >= RULES.exitDays) {
-        const lvl = exitLevel(daily, jd, sig.dir);
+      if (jd !== undefined && jd >= N) {
+        const lvl = exitLevel(daily, jd, sig.dir, N);
         if (s > 0 ? b.c < lvl : b.c > lvl) return done('exit', b.t, rOf(b.c), b.c, lvl);
       }
     }
   }
   // Niveau de sortie du reste, affiché seulement quand il est plus serré que le stop.
   const closedDays = daily.filter(d => d.closed !== false).length;
-  const lvl = exitLevel(daily, closedDays, sig.dir);
+  const lvl = exitLevel(daily, closedDays, sig.dir, N);
   return { outcome: 'open', at: null, r: null, tpHit: half ? 1 : 0, halfAt, stop, exitAt: (s > 0 ? lvl > stop : lvl < stop) ? lvl : null };
 }
 
