@@ -157,10 +157,10 @@ function expectBox() {
   const safe = court ? 0.25 : 0.5;
   return `<div class="box expect"><b>Ce qu'on peut attendre${court ? ' du court terme' : ''}</b>
     <ul>
-      <li>En moyenne <b>${cap(e.perTrade)}</b> du capital par trade, frais compris (${fmt(risk, 0)} % du compte risqué à chaque fois). C'est ce qu'a donné la méthode en 2025-2026 sur les 9 cryptos suivies, une période qui n'a pas servi à la régler (${esc(e.years)}).</li>
+      <li>En moyenne <b>+${fmt(e.perTrade * risk, 2)} %</b> du capital par trade, frais compris (${fmt(risk, 0)} % du compte risqué à chaque fois). C'est ce qu'a donné la méthode en 2025-2026 sur les 9 cryptos suivies, une période qui n'a pas servi à la régler (${esc(e.years)}).</li>
       <li>Seulement <b>${fmt(e.winRate * 100, 0)} % de trades gagnants</b> : la plupart finissent au stop, avec une petite perte. Quelques gros gains paient tout le reste.</li>
       <li>Environ <b>${e.perMonth} signaux par mois</b>${court ? ', soit 1 à 2 par jour' : ''}.</li>
-      <li class="down">Les pertes peuvent s'enchaîner : jusqu'à <b>${e.streak} stops d'affilée</b>, et une baisse de <b>${e.ddR} %</b> du capital si on risque ${fmt(risk, 0)} % à chaque trade, car plusieurs paires perdent en même temps. Avec ${fmt(safe, 2).replace(/,?0+$/, '')} % par trade, la baisse aurait été d'environ ${Math.round(e.ddR * safe / risk)} %.</li>
+      <li class="down">Les pertes peuvent s'enchaîner : jusqu'à <b>${e.streak} stops d'affilée</b>, car plusieurs paires perdent en même temps. En risquant ${fmt(risk, 0)} % à chaque trade, la pire baisse a été de <b>${e.ddR} %</b>${e.ddR * risk >= 100 ? ' : le compte aurait été vidé' : ''}. Avec ${fmt(safe, 2).replace(/,?0+$/, '')} % par trade, elle aurait été d'environ ${Math.round(e.ddR * safe / risk)} %.</li>
       ${court ? '<li>Chaque trade gagne moins qu\'en Setups et les frais pèsent plus lourd. Les bougies de 15 minutes ont été testées aussi : elles perdent à cause des frais, elles ne sont donc pas proposées.</li>' : ''}
     </ul>
     <p class="sm muted">Résultats passés, pas une promesse. Le pétrole n'a pas assez d'historique pour ce test. Ceci n'est pas un conseil financier.</p></div>`;
