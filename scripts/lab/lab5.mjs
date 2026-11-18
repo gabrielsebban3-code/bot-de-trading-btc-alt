@@ -360,3 +360,18 @@ show('SENS', 'ventes seulement', base.filter(t => t.dir < 0), { risk: 1 });
   const fixed = new Map(per.map(([s2, v]) => [s2, Math.min(2, Math.max(0.5, m0 / v))]));
   R('combo', '9 paires, multiplicateur fixe par paire (calé sur 2020-24)', base, { risk: 1, mult: t => fixed.get(t.sym) });
 }
+
+// ---------- 11) Chiffres pour la bêta ----------
+{
+  const v = base.filter(t => t.t < DV[1]).map(t => t.vol).filter(Boolean).sort((a, b) => a - b), ref = v[v.length >> 1];
+  console.log(`BETA|volatilité de référence (médiane 30 j, 2020-24) = ${ref.toFixed(5)}`);
+  const mult = t => t.vol ? Math.min(2, Math.max(0.5, ref / t.vol)) : 1;
+  const ts = base.filter(t => t.t >= TEST[0]);
+  const ms = ts.map(mult);
+  console.log(`BETA|multiplicateur 2025-26 : moyenne ${(ms.reduce((a, b) => a + b, 0) / ms.length).toFixed(2)} | ×0,5 ${ms.filter(m => m <= 0.5).length} | ×2 ${ms.filter(m => m >= 2).length} | <0,8 ${ms.filter(m => m < 0.8).length} | >1,25 ${ms.filter(m => m > 1.25).length} sur ${ms.length}`);
+  for (const r of [0.5, 0.75, 1]) {
+    const d = simulate(base, DV, { risk: r, mult }), t = simulate(base, TEST, { risk: r, mult }), f = simulate(base, TEST, { risk: r });
+    const perT = ts.reduce((a, x) => a + x.rn * r * mult(x), 0) / ts.length;
+    console.log(`BETA|base ${r} %|2025-26 avec taille : ${pc(t.cagr)}/an, pire baisse ${(t.dd * 100).toFixed(0)} %, ${perT.toFixed(2)} % du capital par trade en moyenne | sans taille : ${pc(f.cagr)}/an, pire baisse ${(f.dd * 100).toFixed(0)} % | 2020-24 avec taille : ${pc(d.cagr)}/an, pire baisse ${(d.dd * 100).toFixed(0)} %`);
+  }
+}
