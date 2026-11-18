@@ -8,6 +8,7 @@
     python -m bot.main oi-depth           # first/last day of open-interest archives per symbol
     python -m bot.main quality            # data quality report (bot/reports/data_quality.md)
     python -m bot.main regression         # engine regression against perp-setups study 1
+    python -m bot.main phase2             # C1 + C2 on BTC/ETH, walk-forward, report bot/reports/phase2/PHASE2.md
 
 Phase 2+ commands (backtest, tournament, scan, live) are added with their phase.
 """
@@ -200,6 +201,14 @@ def cmd_regression(cfg, args) -> None:
     print(json.dumps(res, indent=1, default=str))
 
 
+def cmd_phase2(cfg, args) -> None:
+    from .backtest.report import write_phase2_report
+    from .backtest.tournament import run_phase2
+    res = run_phase2(cfg, _store(cfg), None)
+    path = write_phase2_report(res, resolve_path(cfg, "reports") / "phase2", cfg)
+    log.info("phase 2 report", path=str(path), seconds=round(res["seconds"]))
+
+
 COMMANDS = {
     "catalog": cmd_catalog,
     "reclassify": cmd_reclassify,
@@ -211,6 +220,7 @@ COMMANDS = {
     "oi-depth": cmd_oi_depth,
     "quality": cmd_quality,
     "regression": cmd_regression,
+    "phase2": cmd_phase2,
 }
 
 

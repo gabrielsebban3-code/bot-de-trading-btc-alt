@@ -37,7 +37,7 @@ from ..risk.sizing import position_size
 TRADE_COLS = ["signal_id", "concept", "variant", "symbol", "direction", "tf", "signal_time", "entry_time",
               "entry_price", "initial_stop", "tp_price", "exit_time", "exit_price", "exit_reason", "size",
               "notional", "fees", "slippage_cost", "funding", "pnl", "r_multiple", "bars_held",
-              "risk_pct", "stop_moves", "score"]
+              "risk_pct", "stop_moves", "score", "stop_atr"]
 
 
 # ---------------------------------------------------------------- costs
@@ -287,12 +287,98 @@ def find_limit_fill(m: SymbolMarket, j0: int, expiry_ms: int, direction: int, li
 
 # ---------------------------------------------------------------- portfolio backtest
 
+@dataclass
+class Outcome:
+    """Result of executing one signal on one symbol, independently of the portfolio."""
+    status: str                    # trade | skip_no_bar | skip_filter | limit_expired | void_gap
+    busy_until: int | None = None  # slot occupied until this ms (expired limits, voided trades)
+    row: tuple | None = None
+    exit_ms: int | None = None
+    pnl: float = 0.0
+    liquidated: bool = False
+    capped: bool = False
+
+
+def execute_signal(m: SymbolMarket, s: Signal, capital: float, costs: Costs, risk: dict, j_last: int) -> Outcome:
+    """Fill, size, follow and close one signal (shared by the backtest, the random baseline and live tracking)."""
+    t = s.generated_at
+    j0 = m.index_at(t)
+    if j0 < 0 or j0 > j_last:
+        return Outcome("skip_no_bar")
+    d = int(s.direction)
+    is_limit = s.order_type == "limit"
+    if is_limit:
+        state, jf = find_limit_fill(m, j0, int(s.limit_expiry or t), d, float(s.entry), j_last)
+        if state != "fill":
+            return Outcome("limit_expired" if state == "expired" else "void_gap", busy_until=int(m.ot[jf]))
+        j_entry, entry_raw = jf, float(s.entry)
+        entry_price = entry_raw
+    else:
+        j_entry, entry_raw = j0, float(m.o[j0])
+        stop_dist_raw = s.stop_offset if s.stop_offset is not None else abs(entry_raw - s.stop)
+        notional_est = capital * risk["risk_per_trade"] * entry_raw / stop_dist_raw if stop_dist_raw > 0 else 0.0
+        notional_est = min(notional_est, risk["max_leverage"] * capital)
+        entry_price = entry_raw * (1.0 + d * m.slippage(j_entry, notional_est, costs))
+    stop = float(s.stop)
+    if s.stop_offset is not None and not is_limit:
+        stop = entry_raw - d * float(s.stop_offset)
+    r_dist = (entry_price - stop) * d
+    if not np.isfinite(r_dist) or r_dist <= 0:
+        return Outcome("skip_filter")
+    stop_pct = r_dist / entry_price
+    if stop_pct < risk["min_stop_pct"] or stop_pct > risk["max_stop_pct"]:
+        return Outcome("skip_filter")
+    rule = s.exit_rule
+    tp = None
+    if rule.tp_price is not None and np.isfinite(rule.tp_price):
+        tp = float(rule.tp_price)
+        if (tp - entry_price) * d <= 0:
+            return Outcome("skip_filter")
+    elif rule.tp_r is not None:
+        tp = entry_price + d * rule.tp_r * r_dist
+    size, capped = position_size(capital, risk["risk_per_trade"], r_dist, entry_price, risk["max_leverage"])
+    if size <= 0:
+        return Outcome("skip_filter")
+    tf = rule.tf or s.tf_signal
+    if tf not in m.tf:
+        return Outcome("skip_no_bar")
+    pos = Position(d, entry_price, stop, rule, liquidation_price(entry_price, d, risk), tp)
+    hold = rule.max_hold_bars * (tf_ms(tf) // m.step) if rule.max_hold_bars else None
+    ex = simulate_position(m, pos, j_entry, j_last, tf, is_limit, hold)
+    if ex is None:
+        return Outcome("void_gap", busy_until=int(m.ot[m.next_gap(j_entry)]))
+    entry_fee = entry_price * size * (costs.maker if is_limit else costs.taker)
+    if ex.reason == "tp":
+        exit_price, exit_fee = ex.raw_price, ex.raw_price * size * costs.maker
+    elif ex.reason == "liquidation":
+        exit_price, exit_fee = ex.raw_price, 0.0
+    else:
+        exit_price = ex.raw_price * (1.0 - d * m.slippage(ex.j, size * ex.raw_price, costs))
+        exit_fee = exit_price * size * costs.taker
+    funding = m.funding_cost(d, size, entry_price, j_entry, ex.j, costs.funding_price)
+    if ex.reason == "liquidation":
+        pnl = -(entry_price * size / risk["max_leverage"]) - entry_fee - max(funding, 0.0)
+    else:
+        pnl = d * (exit_price - entry_price) * size - entry_fee - exit_fee - funding
+    slip_cost = size * (abs(entry_price - entry_raw) + abs(exit_price - ex.raw_price))
+    exit_ms = int(m.ot[ex.j])
+    stop_atr = r_dist / s.atr if np.isfinite(s.atr) and s.atr > 0 else np.nan
+    row = (s.id, s.concept, s.variant, s.symbol, "long" if d > 0 else "short", s.tf_signal, t,
+           int(m.ot[j_entry]), entry_price, stop, np.nan if tp is None else tp, exit_ms, exit_price,
+           ex.reason, size, size * entry_price, entry_fee + exit_fee, slip_cost, funding, pnl,
+           pnl / (r_dist * size), ex.j - j_entry, size * r_dist / capital, len(pos.stop_moves), s.score, stop_atr)
+    return Outcome("trade", row=row, exit_ms=exit_ms, pnl=pnl, liquidated=ex.reason == "liquidation", capped=capped)
+
+
 def run_backtest(signals: list[Signal], market: dict[str, SymbolMarket], cfg: dict, start_ms: int, end_ms: int,
-                 cost_mult: float = 1.0, portfolio: Portfolio | None = None) -> tuple[pd.DataFrame, dict]:
+                 cost_mult: float = 1.0, portfolio: Portfolio | None = None,
+                 initial_capital: float | None = None) -> tuple[pd.DataFrame, dict]:
     """Simulate ``signals`` generated in [start_ms, end_ms). Returns (trades, counters)."""
     risk = cfg["risk"]
     costs = Costs.from_config(cfg, cost_mult)
     pf = portfolio or Portfolio(cfg)
+    if initial_capital is not None:
+        pf.capital = float(initial_capital)
     sig = sorted((s for s in signals if start_ms <= s.generated_at < end_ms), key=lambda s: (s.generated_at, s.symbol))
     j_last = {sym: int(np.searchsorted(mk.ot, end_ms)) - 1 for sym, mk in market.items()}
     info = {"signals": len(sig), "taken": 0, "skip_no_bar": 0, "skip_filter": 0, "limit_expired": 0,
@@ -309,88 +395,17 @@ def run_backtest(signals: list[Signal], market: dict[str, SymbolMarket], cfg: di
         if m is None:
             info["skip_no_bar"] += 1
             continue
-        jl = j_last[s.symbol]
-        j0 = m.index_at(t)
-        if j0 < 0 or j0 > jl:
-            info["skip_no_bar"] += 1
+        out = execute_signal(m, s, pf.capital, costs, risk, j_last[s.symbol])
+        if out.status != "trade":
+            info[out.status] += 1
+            if out.busy_until is not None:
+                pf.occupy(s, out.busy_until)
             continue
-        d = int(s.direction)
-        is_limit = s.order_type == "limit"
-        capital = pf.capital
-        if is_limit:
-            state, jf = find_limit_fill(m, j0, int(s.limit_expiry or t), d, float(s.entry), jl)
-            if state != "fill":
-                pf.occupy(s, int(m.ot[jf]))
-                info["limit_expired" if state == "expired" else "void_gap"] += 1
-                continue
-            j_entry, entry_raw, entry_slip = jf, float(s.entry), 0.0
-            entry_price = entry_raw
-        else:
-            j_entry, entry_raw = j0, float(m.o[j0])
-            stop_dist_raw = s.stop_offset if s.stop_offset is not None else abs(entry_raw - s.stop)
-            notional_est = capital * risk["risk_per_trade"] * entry_raw / stop_dist_raw if stop_dist_raw > 0 else 0.0
-            notional_est = min(notional_est, risk["max_leverage"] * capital)
-            entry_slip = m.slippage(j_entry, notional_est, costs)
-            entry_price = entry_raw * (1.0 + d * entry_slip)
-        stop = float(s.stop)
-        if s.stop_offset is not None and not is_limit:
-            stop = entry_raw - d * float(s.stop_offset)
-        r_dist = (entry_price - stop) * d
-        if not np.isfinite(r_dist) or r_dist <= 0:
-            info["skip_filter"] += 1
-            continue
-        stop_pct = r_dist / entry_price
-        if stop_pct < risk["min_stop_pct"] or stop_pct > risk["max_stop_pct"]:
-            info["skip_filter"] += 1
-            continue
-        rule = s.exit_rule
-        tp = None
-        if rule.tp_price is not None and np.isfinite(rule.tp_price):
-            tp = float(rule.tp_price)
-            if (tp - entry_price) * d <= 0:
-                info["skip_filter"] += 1
-                continue
-        elif rule.tp_r is not None:
-            tp = entry_price + d * rule.tp_r * r_dist
-        size, capped = position_size(capital, risk["risk_per_trade"], r_dist, entry_price, risk["max_leverage"])
-        if size <= 0:
-            info["skip_filter"] += 1
-            continue
-        info["leverage_capped"] += int(capped)
-        tf = rule.tf or s.tf_signal
-        if tf not in m.tf:
-            info["skip_no_bar"] += 1
-            continue
-        pos = Position(d, entry_price, stop, rule, liquidation_price(entry_price, d, risk), tp)
-        hold = rule.max_hold_bars * (tf_ms(tf) // m.step) if rule.max_hold_bars else None
-        ex = simulate_position(m, pos, j_entry, jl, tf, is_limit, hold)
-        if ex is None:
-            pf.occupy(s, int(m.ot[m.next_gap(j_entry)]))
-            info["void_gap"] += 1
-            continue
-        entry_fee = entry_price * size * (costs.maker if is_limit else costs.taker)
-        if ex.reason == "tp":
-            exit_price, exit_fee, exit_slip = ex.raw_price, ex.raw_price * size * costs.maker, 0.0
-        elif ex.reason == "liquidation":
-            exit_price, exit_fee, exit_slip = ex.raw_price, 0.0, 0.0
-        else:
-            exit_slip = m.slippage(ex.j, size * ex.raw_price, costs)
-            exit_price = ex.raw_price * (1.0 - d * exit_slip)
-            exit_fee = exit_price * size * costs.taker
-        funding = m.funding_cost(d, size, entry_price, j_entry, ex.j, costs.funding_price)
-        if ex.reason == "liquidation":
-            pnl = -(entry_price * size / risk["max_leverage"]) - entry_fee - max(funding, 0.0)
-            info["liquidations"] += 1
-        else:
-            pnl = d * (exit_price - entry_price) * size - entry_fee - exit_fee - funding
-        slip_cost = size * (abs(entry_price - entry_raw) + abs(exit_price - ex.raw_price))
-        exit_ms = int(m.ot[ex.j])
-        pf.open(s, exit_ms, pnl)
+        pf.open(s, out.exit_ms, out.pnl)
         info["taken"] += 1
-        rows.append((s.id, s.concept, s.variant, s.symbol, "long" if d > 0 else "short", s.tf_signal, t,
-                     int(m.ot[j_entry]), entry_price, stop, np.nan if tp is None else tp, exit_ms, exit_price,
-                     ex.reason, size, size * entry_price, entry_fee + exit_fee, slip_cost, funding, pnl,
-                     pnl / (r_dist * size), ex.j - j_entry, size * r_dist / capital, len(pos.stop_moves), s.score))
+        info["leverage_capped"] += int(out.capped)
+        info["liquidations"] += int(out.liquidated)
+        rows.append(out.row)
     trades = pd.DataFrame(rows, columns=TRADE_COLS)
     info["final_capital"] = pf.capital
     return trades, info
