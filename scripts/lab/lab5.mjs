@@ -65,7 +65,8 @@ function prepare(sym) {
   const jAt = new Int32Array(E.length); let j = -1;
   for (let i = 0; i < E.length; i++) { while (j + 1 < T.length && T[j + 1].t + T_MS <= E[i].t + E_MS) j++; jAt[i] = j; }
   // volatilité réalisée 30 jours (écart-type des variations journalières)
-  const vol = T.map((d, k) => { if (k < 31) return null; let s = 0, s2 = 0; for (let q = k - 29; q <= k; q++) { const r = Math.log(T[q].c / T[q - 1].c); s += r; s2 += r * r; } return Math.sqrt(Math.max(0, s2 / 30 - (s / 30) ** 2)); });
+  const volN = W => T.map((d, k) => { if (k < W + 1) return null; let s = 0, s2 = 0; for (let q = k - W + 1; q <= k; q++) { const r = Math.log(T[q].c / T[q - 1].c); s += r; s2 += r * r; } return Math.sqrt(Math.max(0, s2 / W - (s / W) ** 2)); });
+  const vol = volN(30), vol14 = volN(14), vol60 = volN(60);
   const sig = [];
   for (let i = 60; i < E.length; i++) {
     const jj = jAt[i]; if (jj < 49 || !aT[jj] || !A[i]) continue;
@@ -79,7 +80,7 @@ function prepare(sym) {
     if (!det && i >= 35 && ((tr > 0 && hist[i - 1] <= 0 && hist[i] > 0) || (tr < 0 && hist[i - 1] >= 0 && hist[i] < 0))) det = 'macd';
     if (det && roomOk(tr, E, i, T, jj, A[i])) sig.push({ i, dir: tr, j: jj, det, px: b.c });
   }
-  return { sym, E, T, aT, idx, jAt, sig, trend, vol };
+  return { sym, E, T, aT, idx, jAt, sig, trend, vol, vol14, vol60 };
 }
 
 // ---------- Gestion d'un trade (règles en ligne) + renfort éventuel ----------
@@ -119,7 +120,7 @@ function trades(p, add = 0) {
     if (e.i <= busy) continue;
     const f = manage(p, e, add); if (!f) break;
     const costR = COST * e.px / f.R;
-    const t = { sym: p.sym, t: p.E[e.i].t, exitT: p.E[f.k].t, rn: f.r - costR, dir: e.dir, j: e.j, det: e.det, vol: p.vol[e.j], px: e.px, R: f.R };
+    const t = { sym: p.sym, t: p.E[e.i].t, exitT: p.E[f.k].t, rn: f.r - costR, dir: e.dir, j: e.j, det: e.det, vol: p.vol[e.j], vol14: p.vol14[e.j], vol60: p.vol60[e.j], px: e.px, R: f.R };
     if (f.u2) { const R2 = add * f.R; t.u2 = { t: p.E[f.u2.k].t, exitT: p.E[f.u2.done.k].t, rn: e.dir * (f.u2.done.px - f.u2.px) / R2 - COST * f.u2.px / R2 }; }
     out.push(t); busy = f.k;
   }
@@ -239,13 +240,13 @@ for (const r of [0.5, 1, 1.5, 2, 3, 5]) show('RISQUE', `${r} %/trade`, base, { r
 // 3) Taille selon la volatilité
 {
   const rows = [B];
-  const medVol = (() => { const v = base.map(t => t.vol).filter(Boolean).sort((a, b) => a - b); return v[v.length >> 1]; })();
+  const medVol = (() => { const v = base.filter(t => t.t < DV[1]).map(t => t.vol).filter(Boolean).sort((a, b) => a - b); return v[v.length >> 1]; })();
   for (const cap of [1.5, 2]) rows.push(show('VOLAT', `risque × vol. médiane / vol. de la paire (borné ${1 / cap}-${cap})`, base, { risk: 1, mult: t => t.vol ? Math.min(cap, Math.max(1 / cap, medVol / t.vol)) : 1 }));
   for (const cap of [1.5, 2]) rows.push(show('VOLAT', `risque × vol. de la paire / médiane (borné ${1 / cap}-${cap})`, base, { risk: 1, mult: t => t.vol ? Math.min(cap, Math.max(1 / cap, t.vol / medVol)) : 1 }));
   // volatilité du marché : BTC
   const btc = PAIRS.find(p => p.sym === 'BTCUSDT');
   const btcVol = t => { const j = btc.idx.get(Math.floor(t / D) * D - D); return j !== undefined ? btc.vol[j] : null; };
-  const bv = base.map(t => btcVol(t.t)).filter(Boolean).sort((a, b) => a - b), bmed = bv[bv.length >> 1];
+  const bv = base.filter(t => t.t < DV[1]).map(t => btcVol(t.t)).filter(Boolean).sort((a, b) => a - b), bmed = bv[bv.length >> 1];
   rows.push(show('VOLAT', 'risque réduit quand le BTC est très agité', base, { risk: 1, mult: t => { const v = btcVol(t.t); return v && v > 1.5 * bmed ? 0.5 : 1; } }));
   rows.push(show('VOLAT', 'risque réduit quand le BTC est calme', base, { risk: 1, mult: t => { const v = btcVol(t.t); return v && v < 0.7 * bmed ? 0.5 : 1; } }));
   choose('volatilité', rows);
@@ -318,4 +319,44 @@ show('SENS', 'ventes seulement', base.filter(t => t.dir < 0), { risk: 1 });
   const rows = [B];
   for (const d of ['range20', 'range10', 'macd']) rows.push(show('SIGNAL', `sans ${d}`, base.filter(t => t.det !== d), { risk: 1 }));
   choose('signal', rows);
+}
+
+// ---------- 10) Vérifications des deux réglages qui tiennent ----------
+{
+  const med = (list, k) => { const v = list.filter(t => t.t < DV[1]).map(t => t[k]).filter(Boolean).sort((a, b) => a - b); return v[v.length >> 1]; };
+  const inv = (list, k = 'vol', cap = 2) => { const m = med(list, k); return t => t[k] ? Math.min(cap, Math.max(1 / cap, m / t[k])) : 1; };
+  const R = (tag, label, list, o) => show('ROBUSTE ' + tag, label, list, o);
+  // a) fenêtre de volatilité : le résultat ne doit pas dépendre d'un seul réglage
+  for (const k of ['vol14', 'vol', 'vol60']) R('fenêtre', `taille inverse à la volatilité ${k === 'vol' ? 30 : k.slice(3)} j`, base, { risk: 1, mult: inv(base, k) });
+  // b) contrôle hasard : on mélange les mêmes multiplicateurs entre les trades (200 fois)
+  const ctrlMix = (list, o, P) => {
+    const f = o.mult, mults = list.map(f), real = simulate(list, P, o).mar, sims = [];
+    for (let k = 0; k < 200; k++) { const sh = [...mults].sort(() => Math.random() - 0.5), m = new Map(list.map((t, q) => [t, sh[q]])); sims.push(simulate(list, P, { ...o, mult: t => m.get(t) }).mar); }
+    return sims.filter(v => v < real).length / 2;
+  };
+  const oV = { risk: 1, mult: inv(base) };
+  console.log(`ROBUSTE hasard|taille selon la volatilité mieux que ${ctrlMix(base, oV, DV).toFixed(0)} % des mélanges (2020-24), ${ctrlMix(base, oV, TEST).toFixed(0)} % (2025-26)`);
+  // c) contrôle hasard pour « sans MACD » : retirer au hasard le même nombre de trades
+  const noM = base.filter(t => t.det !== 'macd');
+  const ctrlDrop = P => { const real = simulate(noM, P, { risk: 1 }).mar, frac = noM.length / base.length, sims = []; for (let k = 0; k < 200; k++) sims.push(simulate(base.filter(() => Math.random() < frac), P, { risk: 1 }).mar); return sims.filter(v => v < real).length / 2; };
+  console.log(`ROBUSTE hasard|sans MACD mieux que ${ctrlDrop(DV).toFixed(0)} % des retraits au hasard (2020-24), ${ctrlDrop(TEST).toFixed(0)} % (2025-26)`);
+  // d) gain moyen par type de signal, en R, sur les 20 paires
+  const all = L(PAIRS);
+  for (const d of ['range20', 'range10', 'macd']) for (const [P, nm] of [[DV, '2020-24'], [TEST, '2025-26']]) {
+    for (const [lst, u] of [[base, '9 paires'], [all, '20 paires']]) { const x = lst.filter(t => t.det === d && t.t >= P[0] && t.t < P[1]); console.log(`ROBUSTE signal|${d}|${nm}|${u}|${x.length} tr | ${(x.reduce((a, t) => a + t.rn, 0) / x.length).toFixed(2)} R/trade`); }
+  }
+  // e) mêmes réglages sur les 20 paires
+  R('20 paires', 'base', all, { risk: 1 });
+  R('20 paires', 'taille selon la volatilité', all, { risk: 1, mult: inv(all) });
+  R('20 paires', 'sans MACD', all.filter(t => t.det !== 'macd'), { risk: 1 });
+  R('20 paires', 'les deux', all.filter(t => t.det !== 'macd'), { risk: 1, mult: inv(all) });
+  // f) combinaison sur les 9 paires du site, et niveaux de risque
+  for (const r of [0.5, 0.75, 1]) R('combo', `9 paires, sans MACD + taille selon la volatilité, ${r} %`, noM, { risk: r, mult: inv(base) });
+  R('combo', '9 paires, taille selon la volatilité seule, 0.75 %', base, { risk: 0.75, mult: inv(base) });
+  // g) pour le site : multiplicateur par paire (médiane de sa volatilité 2020-24 → idée du réglage fixe par paire)
+  const per = site.map(p => { const v = TR0.get(p.sym).filter(t => t.t < DV[1]).map(t => t.vol).filter(Boolean).sort((a, b) => a - b); return [p.sym, v[v.length >> 1]]; });
+  const m0 = med(base.filter(t => t.t < DV[1]), 'vol');
+  console.log(`ROBUSTE paires|multiplicateur moyen par paire|${per.map(([s2, v]) => `${s2.replace('USDT', '')} ×${Math.min(2, Math.max(0.5, m0 / v)).toFixed(2)}`).join(' · ')}`);
+  const fixed = new Map(per.map(([s2, v]) => [s2, Math.min(2, Math.max(0.5, m0 / v))]));
+  R('combo', '9 paires, multiplicateur fixe par paire (calé sur 2020-24)', base, { risk: 1, mult: t => fixed.get(t.sym) });
 }
