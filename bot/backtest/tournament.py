@@ -150,7 +150,11 @@ def year_stability(trades: pd.DataFrame) -> dict:
 
 def benchmarks(lab: Lab, start: int, end: int) -> dict:
     rets = {}
+    # benchmarks are BTC and the BTC+ETH basket only: with the phase-3 universe (delisted pairs included), dropna()
+    # over every symbol would leave no common day at all
     for sym, sd in lab.data.items():
+        if sym not in ("BTCUSDT", "ETHUSDT"):
+            continue
         d = sd.bars["1d"]
         sel = (d.ot >= start - DAY_MS) & (d.ot < end)
         c = d.c[sel]
