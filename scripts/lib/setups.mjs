@@ -382,7 +382,8 @@ export function scanAsset(asset, { bars, daily }, cfg = MODES.classic) {
       why: `${hit.why} Signal pris car la tendance ${cfg.T === DAY ? 'journalière' : 'en 4h'} est ${trend}.`, trend,
       // Pour la fiche du trade : niveau cassé, clôture et moyennes de la dernière journée fermée, ATR 4h.
       ref: hit.ref, day: { t: daily[j].t, c: daily[j].c, e20: dc.e20[j], e50: dc.e50[j] }, atr4h: A[i],
-      sz: sizeFor(dc.vol[j]), // multiplicateur de taille : risque du trade = RULES.riskPct × sz
+      // Multiplicateur de taille : risque du trade = RULES.riskPct × sz. Testé sur les cryptos seulement : le pétrole reste à 1.
+      sz: asset.kind === 'commodity' ? 1 : sizeFor(dc.vol[j]),
     };
     Object.assign(sig, bars[i].closed ? evaluate(sig, bars, i, daily, cfg) : { outcome: 'open', at: null, r: null, tpHit: 0 });
     signals.push(sig);

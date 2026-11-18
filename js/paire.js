@@ -144,7 +144,7 @@ function manageBox(a, d, live) {
   const exitNow = days.length ? (short ? Math.max(...days.map(b => b[2])) : Math.min(...days.map(b => b[3]))) : null;
   const risk = data.rules.riskPct ?? 1, P = data.rules.partialR ?? 5;
   return `<div class="box"><h2>Gestion du trade</h2><ol class="txt">
-    <li><b>Stop</b> : ${stopPct ? `environ ${fmt(stopPct * 100, 1)} % sous le prix d'entrée en ce moment` : 'placé selon l\'agitation habituelle du prix'}. Si le prix y arrive, on coupe : on perd le risque choisi, pas plus : ${pctTxt(risk)} % du capital en marché normal, jusqu'au double quand le marché est calme et la moitié quand il est agité.</li>
+    <li><b>Stop</b> : ${stopPct ? `environ ${fmt(stopPct * 100, 1)} % ${short ? 'au-dessus du' : 'sous le'} prix d'entrée en ce moment` : 'placé selon l\'agitation habituelle du prix'}. Si le prix y arrive, on coupe et on perd le risque prévu, pas plus. Ce risque vaut ${pctTxt(risk)} % du capital en marché normal, jusqu'au double quand le marché est calme et la moitié quand il est agité.</li>
     <li><b>Objectif</b> : quand le gain atteint ${fmt(P, 0)} fois cette distance, on vend la moitié (${fmt(P / 2, 1).replace(',0', '')} fois le risque assuré) et le stop remonte au prix d'entrée.</li>
     <li><b>Le reste</b> : on le garde tant que le marché ${short ? 'baisse' : 'monte'}. On vend quand une journée clôture ${short ? 'au-dessus de son plus haut' : 'sous son plus bas'} des ${data.rules.exitDays ?? 7} derniers jours${exitNow ? ` (${px(exitNow)} en ce moment)` : ''}.</li>
   </ol></div>`;

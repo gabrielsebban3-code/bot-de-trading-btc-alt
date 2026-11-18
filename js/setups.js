@@ -103,7 +103,7 @@ function card(s, link = true) {
       <span class="when">${s.status === 'en cours' ? 'bougie en cours' : ago(new Date(s.time + barMs()).toISOString())}</span></span>
     <span class="why">${esc(s.why)}</span>
     <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(s.sl)}</span><span><i>Moitié à ${fmt(data.rules.partialR ?? s.rr, 0)}R</i>${px(s.tp[0])}</span>${s.exitAt ? `<span><i>Sortie</i>${px(s.exitAt)}</span>` : `<span><i>R:R</i>1:${fmt(s.rr, 1)}</span>`}</span>
-    <span class="sm">Risque conseillé : <b>${pctTxt(Math.round(riskOf(s) * 100) / 100)} % du capital</b> (${moodOf(s)})</span>
+    <span class="sm">Risque conseillé : <b>${pctTxt(Math.round(riskOf(s) * 20) / 20)} % du capital</b> (${moodOf(s)})</span>
     <span class="wr">${winLine(s.detector)}</span>
     ${newsLink(s, 'span')}
   </${link ? 'a' : 'div'}>`;

@@ -138,7 +138,7 @@ function planBox(s) {
   return `<div class="box"><h2>2. Le plan</h2><dl>
     ${row('Entrée', `${px(s.entry)} <small class="muted">le prix au moment du signal</small>`)}
     ${row('Stop', `${px(s.sl)} <small class="muted">${plainPct((s.sl - s.entry) / s.entry)} : si le prix ${up ? 'descend' : 'monte'} jusque-là, on coupe</small>`, 'down')}
-    ${row('Perte maximale', `${pctTxt(Math.round(risk * 100) / 100)} % du capital <small class="muted">${moodOf(s)} : on risque plus quand le prix bouge peu, moins quand il s'agite</small>`, 'txt')}
+    ${row('Perte maximale', `${pctTxt(Math.round(risk * 20) / 20)} % du capital <small class="muted">${moodOf(s).replace('m', 'M')} : on risque plus quand le prix bouge peu, moins quand il s'agite</small>`, 'txt')}
     ${row(up ? 'Combien acheter' : 'Combien vendre', `${fmt(size * 100, 0)} % du capital <small class="muted">avec 1 000 $ : ${fmt(size * 1000, 0)} $</small>`)}
     ${row('Objectif', `${px(tp)} <small class="muted">${plainPct((tp - s.entry) / s.entry)} : on vend la moitié, ${capOf(P / 2)} de gain déjà assuré</small>`, 'up')}
     ${row('Le reste', `gardé tant que le marché ${up ? 'monte' : 'baisse'}`, 'txt')}
