@@ -302,10 +302,20 @@ class Outcome:
     pnl: float = 0.0
     liquidated: bool = False
     capped: bool = False
+    # live tracking only (status "open" / "pending")
+    position: "Position | None" = None
+    entry_ms: int | None = None
+    entry_price: float | None = None
+    size: float | None = None
 
 
-def execute_signal(m: SymbolMarket, s: Signal, capital: float, costs: Costs, risk: dict, j_last: int) -> Outcome:
-    """Fill, size, follow and close one signal (shared by the backtest, the random baseline and live tracking)."""
+def execute_signal(m: SymbolMarket, s: Signal, capital: float, costs: Costs, risk: dict, j_last: int,
+                   live: bool = False) -> Outcome:
+    """Fill, size, follow and close one signal (shared by the backtest, the random baseline and live tracking).
+
+    ``live=True``: the data ends "now". A position still open at the last closed candle is returned with status
+    "open" (and its current stop) instead of being closed; a limit order not yet expired is "pending".
+    """
     t = s.generated_at
     j0 = m.index_at(t)
     if j0 < 0 or j0 > j_last:
@@ -315,6 +325,8 @@ def execute_signal(m: SymbolMarket, s: Signal, capital: float, costs: Costs, ris
     if is_limit:
         state, jf = find_limit_fill(m, j0, int(s.limit_expiry or t), d, float(s.entry), j_last)
         if state != "fill":
+            if live and state == "expired" and int(s.limit_expiry or t) > int(m.ot[j_last]) + m.step:
+                return Outcome("pending")
             return Outcome("limit_expired" if state == "expired" else "void_gap", busy_until=int(m.ot[jf]))
         j_entry, entry_raw = jf, float(s.entry)
         entry_price = entry_raw
@@ -352,6 +364,9 @@ def execute_signal(m: SymbolMarket, s: Signal, capital: float, costs: Costs, ris
     ex = simulate_position(m, pos, j_entry, j_last, tf, is_limit, hold)
     if ex is None:
         return Outcome("void_gap", busy_until=int(m.ot[m.next_gap(j_entry)]))
+    if live and ex.reason == "end":
+        return Outcome("open", position=pos, entry_ms=int(m.ot[j_entry]), entry_price=entry_price, size=size,
+                       capped=capped)
     entry_fee = entry_price * size * (costs.maker if is_limit else costs.taker)
     if ex.reason == "tp":
         exit_price, exit_fee = ex.raw_price, ex.raw_price * size * costs.maker

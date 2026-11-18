@@ -15,8 +15,8 @@ statistiquement significatif seront activés. Protocole : [`PROTOCOLE.md`](PROTO
 | 0 | Plan | validé |
 | 1 | Données, moteur de backtest, tests anti-lookahead | validée (voir `reports/PHASE1.md`) |
 | 2 | C1 et C2 sur BTC et ETH, 1h / 4h / 1D | **livrée : aucun candidat** (voir `reports/phase2/BILAN.md`), en attente de validation |
-| 3 | Tournoi complet C3, C4, C5, toutes les paires, ablation | — |
-| 4 | Alertes Discord, suivi, surveillance (alertes seules) | — |
+| 3 | Tournoi complet C3, C4, C5, toutes les paires, ablation | calcul en cours |
+| 4 | Détecteur live, suivi, surveillance, alertes Discord | code livré, mode observation privée |
 | 5 | Déploiement gratuit et affichage sur Dinexo | seulement si un concept est « edge confirmé » |
 
 ## Installation
@@ -99,7 +99,44 @@ signal, et la non-régression contre l'étude 1 (sautée si la base n'est pas t�
 python -m bot.main phase2           # C1 + C2 sur BTC et ETH, walk-forward, rapport reports/phase2/PHASE2.md
 ```
 
-Le tournoi complet (Phase 3) et le mode live (Phase 4) seront ajoutés avec leur phase.
+```bash
+python -m bot.main phase3           # tournoi C1-C5 sur l'univers (2 processus, reprise automatique), reports/phase3/PHASE3.md
+```
+
+## Détecteur live (Phase 4) : observation privée
+
+Le détecteur utilise **le même code** que le backtest (concepts, moteur, portefeuille, coûts) sur les bougies
+**closes** de Binance. Tant qu'aucun concept n'est « edge confirmé », il est en **mode observation** : il enregistre
+et suit en papier les signaux des variantes de `reports/phase3/observation.json` (choisies par la règle de
+`PROTOCOLE_PHASE4.md`), **sans rien envoyer sur Discord**. Ces données constituent le test final.
+
+À lancer sur une machine qui accède à `fapi.binance.com` (ce n'est pas le cas des serveurs américains, dont
+GitHub Actions : erreur 451).
+
+```bash
+python -m bot.main observation-list     # liste figée des variantes observées (après la Phase 3)
+```
+
+```bash
+python -m bot.main scan --dry-run       # un passage : bougies manquantes, signaux, suivi, surveillance
+```
+
+```bash
+python -m bot.main live                 # en continu : websocket (clôtures 15m), reconnexion, rattrapage des trous
+```
+
+```bash
+python -m bot.main forward-report       # test final : performance masquée tant que 100 trades et 3 mois ne sont pas atteints
+```
+
+- État dans `bot/var/state.sqlite` : signaux (jamais modifiés), statuts (en attente, actif, stop remonté, sorti en
+  gain, sorti en perte, expiré, invalidé), événements. Un redémarrage ne duplique rien (identifiants déterministes).
+- Données live dans `bot/var/live.sqlite`, séparées de la base de backtest (dont le verrou du test final reste actif).
+- Surveillance : une variante est coupée si l'espérance de ses 50 derniers signaux est négative ou si son drawdown
+  dépasse 1,5 fois celui du backtest.
+- Discord (`DISCORD_WEBHOOK_URL` dans `bot/.env`) : utilisé seulement en `live.mode: alerts`, et seulement pour les
+  variantes de `reports/validated.json` (écrit par `forward-report` quand le test final est réussi). Embed complet
+  avec graphique, suivi (stop remonté, sortie, expiration, invalidation), délai minimal par paire et concept.
 
 ## Limites connues
 

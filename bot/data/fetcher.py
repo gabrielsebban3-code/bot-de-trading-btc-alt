@@ -233,13 +233,35 @@ def metrics_jobs(client: ArchiveClient, symbol: str, days: Iterable[str]) -> lis
 # ---------------------------------------------------------------- live REST (closed candles only)
 
 class LiveClient:
-    """Closed candles from the public REST API through ccxt. No API key is ever configured."""
+    """Closed candles and derivatives data from the public REST API through ccxt. No API key, no order."""
 
     def __init__(self, exchange=None):
         if exchange is None:
             import ccxt  # imported lazily: the backtest does not need it
             exchange = ccxt.binanceusdm({"enableRateLimit": True})
         self.ex = exchange
+        self._ids: dict[str, str] | None = None
+
+    def _sym(self, symbol: str) -> str:
+        """Binance id (BTCUSDT) -> ccxt unified symbol (BTC/USDT:USDT)."""
+        if self._ids is None:
+            self.ex.load_markets()
+            self._ids = {m["id"]: m["symbol"] for m in self.ex.markets.values()}
+        return self._ids.get(symbol, symbol)
+
+    def usdt_perpetuals(self) -> list[str]:
+        self.ex.load_markets()
+        return sorted(m["id"] for m in self.ex.markets.values()
+                      if m.get("swap") and m.get("linear") and m.get("quote") == "USDT" and m.get("active", True))
+
+    def quote_volume_24h(self, symbols: list[str]) -> dict[str, float]:
+        t = self.ex.fetch_tickers()
+        out = {}
+        for sym in symbols:
+            x = t.get(self._sym(sym))
+            if x and x.get("quoteVolume"):
+                out[sym] = float(x["quoteVolume"])
+        return out
 
     @staticmethod
     def closed_only(rows: list[list], tf: str, now_ms: int) -> list[list]:
@@ -251,7 +273,7 @@ class LiveClient:
                      limit: int = 1500) -> pd.DataFrame:
         """Every closed candle from ``since_ms`` (gap fill: call with the last stored open time + tf)."""
         now_ms = int(time.time() * 1000) if now_ms is None else now_ms
-        market = self.ex.market(symbol)["symbol"] if hasattr(self.ex, "market") and self.ex.markets else symbol
+        market = self._sym(symbol)
         out: list[list] = []
         cursor = since_ms
         while cursor < now_ms:
@@ -271,6 +293,16 @@ class LiveClient:
         df["trades"] = pd.NA
         df["taker_buy_quote"] = np.nan
         return df
+
+    def fetch_funding(self, symbol: str, since_ms: int) -> pd.DataFrame:
+        rows = self.ex.fetch_funding_rate_history(self._sym(symbol), since=since_ms, limit=1000) or []
+        return pd.DataFrame({"time": [int(r["timestamp"]) for r in rows], "rate": [float(r["fundingRate"]) for r in rows]})
+
+    def fetch_open_interest(self, symbol: str, since_ms: int) -> pd.DataFrame:
+        rows = self.ex.fetch_open_interest_history(self._sym(symbol), timeframe="1h", since=since_ms, limit=500) or []
+        return pd.DataFrame({"time": [int(r["timestamp"]) for r in rows],
+                             "oi": [float(r.get("openInterestAmount") or np.nan) for r in rows],
+                             "oi_value": [float(r.get("openInterestValue") or np.nan) for r in rows]})
 
 
 def month_range_closed(months: list[str], last_month: str) -> list[str]:

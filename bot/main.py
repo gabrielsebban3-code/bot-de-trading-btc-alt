@@ -247,6 +247,53 @@ def cmd_phase3(cfg, args) -> None:
     log.info("phase 3 report", path=str(path), seconds=round(res["seconds"]))
 
 
+def cmd_observation_list(cfg, args) -> None:
+    """PROTOCOLE_PHASE4.md section 1: observed variants, chosen by rule from the phase 3 results."""
+    import pickle
+    from .backtest.tournament3 import phase3_variants
+    from .core.config import REPO_DIR
+    gdir = resolve_path(cfg, "market_db").parent / "phase3_groups"
+    by_id = {v["id"]: v for v in phase3_variants(cfg)}
+    out = []
+    for f in sorted(gdir.glob("*.pkl")):
+        r = pickle.loads(f.read_bytes())
+        e = r["metrics"].get("expectancy_r")
+        sels = [s for s in r["selections"] if s["variant"]]
+        if not sels or e is None or not (e > 0):
+            continue
+        vid = sels[-1]["variant"]
+        oos = r["oos"]
+        dd_r = 0.0
+        if len(oos):
+            eq = oos.sort_values("exit_time")["r_multiple"].cumsum().to_numpy()
+            import numpy as np
+            dd_r = float((np.maximum.accumulate(np.concatenate(([0.0], eq))) - np.concatenate(([0.0], eq))).max())
+        out.append({"group": r["group"], "concept": by_id[vid]["concept"], "variant": vid, "params": by_id[vid]["params"],
+                    "oos_expectancy_r": e, "oos_trades": int(r["metrics"]["n_trades"]), "backtest_max_dd_r": dd_r,
+                    "status_phase3": r.get("status", "")})
+    path = REPO_DIR / cfg["live"]["observation_list"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(out, indent=1, default=str) + "\n", encoding="utf-8")
+    log.info("observation list", variants=len(out), path=str(path))
+
+
+def cmd_scan(cfg, args) -> None:
+    from .data.fetcher import LiveClient
+    from .live.scanner import run_scan
+    print(json.dumps(run_scan(cfg, LiveClient(), dry_run=args.dry_run), indent=1, default=str))
+
+
+def cmd_live(cfg, args) -> None:
+    import asyncio
+    from .live.ws import run_forever
+    asyncio.run(run_forever(cfg, dry_run=args.dry_run))
+
+
+def cmd_forward_report(cfg, args) -> None:
+    from .live.forward import write_forward_report
+    print(write_forward_report(cfg))
+
+
 COMMANDS = {
     "catalog": cmd_catalog,
     "reclassify": cmd_reclassify,
@@ -261,6 +308,10 @@ COMMANDS = {
     "regression": cmd_regression,
     "phase2": cmd_phase2,
     "phase3": cmd_phase3,
+    "observation-list": cmd_observation_list,
+    "scan": cmd_scan,
+    "live": cmd_live,
+    "forward-report": cmd_forward_report,
 }
 
 
@@ -270,6 +321,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--symbols", nargs="*")
     p.add_argument("--months", nargs="*")
     p.add_argument("--log-level", default="INFO")
+    p.add_argument("--dry-run", action="store_true", help="scan/live: never send anything to Discord")
     p.add_argument("--holdout", action="store_true", help="download-oi: held-out members instead of development")
     args = p.parse_args(argv)
     cfg = load_config()

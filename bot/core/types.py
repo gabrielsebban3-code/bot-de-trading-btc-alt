@@ -89,3 +89,15 @@ class Signal:
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), sort_keys=True, default=str)
+
+    @staticmethod
+    def from_dict(d: dict) -> "Signal":
+        r = dict(d["exit_rule"])
+        rule = ExitRule(kind=ExitKind(r.pop("kind")), **r)
+        return Signal(symbol=d["symbol"], direction=Direction(1 if d["direction"] == "long" else -1),
+                      concept=d["concept"], variant=d["variant"], tf_signal=d["tf_signal"], tf_context=d.get("tf_context"),
+                      generated_at=int(d["generated_at"]), entry=float(d["entry"]), order_type=d["order_type"],
+                      stop=float(d["stop"]), exit_rule=rule, score=float(d.get("score", 0.0)),
+                      reasons=tuple(d.get("reasons", ())), invalidation=d.get("invalidation", ""),
+                      limit_expiry=d.get("limit_expiry"), stop_offset=d.get("stop_offset"),
+                      atr=float(d.get("atr", float("nan"))), meta=tuple(tuple(x) for x in d.get("meta", ())))
