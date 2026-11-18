@@ -14,10 +14,10 @@ statistiquement significatif seront activés. Protocole : [`PROTOCOLE.md`](PROTO
 |---|---|---|
 | 0 | Plan | validé |
 | 1 | Données, moteur de backtest, tests anti-lookahead | validée (voir `reports/PHASE1.md`) |
-| 2 | C1 et C2 sur BTC et ETH, 1h / 4h / 1D | **livrée : aucun candidat** (voir `reports/phase2/BILAN.md`), en attente de validation |
-| 3 | Tournoi complet C3, C4, C5, toutes les paires, ablation | calcul en cours |
+| 2 | C1 et C2 sur BTC et ETH, 1h / 4h / 1D | validée : aucun candidat (voir `reports/phase2/BILAN.md`) |
+| 3 | Tournoi complet C1 à C5, 197 paires, ablation | **livrée : aucun edge démontré** (voir `reports/phase3/BILAN.md`), en attente de validation |
 | 4 | Détecteur live, suivi, surveillance, alertes Discord | code livré, mode observation privée |
-| 5 | Déploiement gratuit et affichage sur Dinexo | seulement si un concept est « edge confirmé » |
+| 5 | Déploiement gratuit et affichage sur Dinexo | non construite : aucun concept « edge confirmé » |
 
 ## Installation
 

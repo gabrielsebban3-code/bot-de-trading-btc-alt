@@ -254,6 +254,10 @@ def cmd_observation_list(cfg, args) -> None:
     from .core.config import REPO_DIR
     gdir = resolve_path(cfg, "market_db").parent / "phase3_groups"
     by_id = {v["id"]: v for v in phase3_variants(cfg)}
+    # final statuses are computed after the groups (criteria 3, 4, 9): read them from the phase 3 summary
+    import pandas as pd
+    summ = resolve_path(cfg, "reports") / "phase3" / "summary.csv"
+    status = dict(pd.read_csv(summ)[["group", "status"]].values) if summ.exists() else {}
     out = []
     for f in sorted(gdir.glob("*.pkl")):
         r = pickle.loads(f.read_bytes())
@@ -270,7 +274,7 @@ def cmd_observation_list(cfg, args) -> None:
             dd_r = float((np.maximum.accumulate(np.concatenate(([0.0], eq))) - np.concatenate(([0.0], eq))).max())
         out.append({"group": r["group"], "concept": by_id[vid]["concept"], "variant": vid, "params": by_id[vid]["params"],
                     "oos_expectancy_r": e, "oos_trades": int(r["metrics"]["n_trades"]), "backtest_max_dd_r": dd_r,
-                    "status_phase3": r.get("status", "")})
+                    "status_phase3": status.get(r["group"], r.get("status", ""))})
     path = REPO_DIR / cfg["live"]["observation_list"]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(out, indent=1, default=str) + "\n", encoding="utf-8")

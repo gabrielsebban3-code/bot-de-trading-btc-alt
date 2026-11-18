@@ -1,0 +1,107 @@
+[
+ {
+  "group": "C1|1d|short",
+  "concept": "C1",
+  "variant": "C1_direction-short_entry_n-100_tf-1d_trail-chandelier",
+  "params": {
+   "tf": "1d",
+   "direction": "short",
+   "entry_n": "100",
+   "trail": "chandelier"
+  },
+  "oos_expectancy_r": 0.2951394669970562,
+  "oos_trades": 74,
+  "backtest_max_dd_r": 5.81867090603709,
+  "status_phase3": "non concluant"
+ },
+ {
+  "group": "C1|1h|long",
+  "concept": "C1",
+  "variant": "C1_direction-long_entry_n-ensemble_tf-1h_trail-donchian",
+  "params": {
+   "tf": "1h",
+   "direction": "long",
+   "entry_n": "ensemble",
+   "trail": "donchian"
+  },
+  "oos_expectancy_r": 0.050189868773965335,
+  "oos_trades": 1721,
+  "backtest_max_dd_r": 173.46391297169322,
+  "status_phase3": "non concluant"
+ },
+ {
+  "group": "C1|4h|short",
+  "concept": "C1",
+  "variant": "C1_direction-short_entry_n-100_tf-4h_trail-chandelier",
+  "params": {
+   "tf": "4h",
+   "direction": "short",
+   "entry_n": "100",
+   "trail": "chandelier"
+  },
+  "oos_expectancy_r": 0.06578428157200063,
+  "oos_trades": 490,
+  "backtest_max_dd_r": 21.843593824824406,
+  "status_phase3": "non concluant"
+ },
+ {
+  "group": "C2|1d|both",
+  "concept": "C2",
+  "variant": "C2_direction-both_pivots-fractal_pullback-ema20_tf-1d",
+  "params": {
+   "tf": "1d",
+   "direction": "both",
+   "pullback": "ema20",
+   "pivots": "fractal"
+  },
+  "oos_expectancy_r": 0.0013106582132408476,
+  "oos_trades": 374,
+  "backtest_max_dd_r": 43.30174897423655,
+  "status_phase3": "non concluant"
+ },
+ {
+  "group": "C2|1d|short",
+  "concept": "C2",
+  "variant": "C2_direction-short_pivots-hierarchical_pullback-ema50_tf-1d",
+  "params": {
+   "tf": "1d",
+   "direction": "short",
+   "pullback": "ema50",
+   "pivots": "hierarchical"
+  },
+  "oos_expectancy_r": 0.2406338871553086,
+  "oos_trades": 188,
+  "backtest_max_dd_r": 19.86098416638223,
+  "status_phase3": "non concluant"
+ },
+ {
+  "group": "C2|4h|both",
+  "concept": "C2",
+  "variant": "C2_direction-both_pivots-hierarchical_pullback-ema50_tf-4h",
+  "params": {
+   "tf": "4h",
+   "direction": "both",
+   "pullback": "ema50",
+   "pivots": "hierarchical"
+  },
+  "oos_expectancy_r": 0.0015611448895469463,
+  "oos_trades": 1084,
+  "backtest_max_dd_r": 60.962535260370984,
+  "status_phase3": "non concluant"
+ },
+ {
+  "group": "C2|4h|short",
+  "concept": "C2",
+  "variant": "C2_direction-short_pivots-hierarchical_pullback-ema50_tf-4h",
+  "params": {
+   "tf": "4h",
+   "direction": "short",
+   "pullback": "ema50",
+   "pivots": "hierarchical"
+  },
+  "oos_expectancy_r": 0.14846314896092297,
+  "oos_trades": 389,
+  "backtest_max_dd_r": 14.504173413562519,
+  "status_phase3": "non concluant"
+ }
+]
