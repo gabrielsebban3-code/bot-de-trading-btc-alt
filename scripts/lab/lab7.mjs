@@ -339,6 +339,22 @@ function model(pairs, ek, target) {
 const listOf = (pairs, V, keep) => pairs.flatMap(p => tradesV(p, V, p.sig.filter(e => keep(p, e))));
 const sumUp = (list, P) => { const w = winOf(list, P), s = simulate(list, P, { risk: 1 }); return { w, s, pm: w.n / MONTHS(P) }; };
 const txt7 = r => `${(r.w.w * 100).toFixed(0)} % gagnants | +${r.w.aw.toFixed(2)} R / ${r.w.al.toFixed(2)} R | ${r.pm.toFixed(1)} tr/mois | ${r.w.r >= 0 ? '+' : ''}${r.w.r.toFixed(2)} R/tr | ${pc(r.s.cagr)}/an | pire baisse ${(r.s.dd * 100).toFixed(0)} %`;
+// ===== Labo 7b : les deux pistes retenues, vues de plus près (9 paires du site) =====
+{
+  const featN = [...FEAT.filter(k => k !== 'hour'), 'heure sin', 'heure cos'];
+  for (const [ek, target] of [['E', 0], ['REF', 1]]) {
+    const x = EXITS.find(z => z.k === ek), sc = model(SIT, ek, target);
+    const dvS = sigsOf(SIT, DV).map(o => sc(o.e.f)).sort((a, b) => b - a);
+    for (const want of [10, 15, 20, 25, 30, 40]) {
+      const thr = dvS[Math.min(dvS.length - 1, Math.round(want * 1.25 * MONTHS(DV)))];
+      const L = listOf(SIT, x.V, (p, e) => e.o.A !== null && sc(e.f) >= thr);
+      const t = sumUp(L, TEST), d = sumUp(L, DV);
+      const yrs = [2020, 2021, 2022, 2023, 2024, 2025, 2026].map(y => { const w = winOf(L, [Date.UTC(y, 0, 1), Date.UTC(y + 1, 0, 1)]); return `${y} ${(w.w * 100).toFixed(0)}% ${w.r >= 0 ? '+' : ''}${w.r.toFixed(2)}R`; }).join(' · ');
+      const risks = [1, 2, 3].map(r => { const a = simulate(L, TEST, { risk: r }), b = simulate(L, DV, { risk: r }); return `risque ${r} % : 2020-24 ${pc(b.cagr)}/an baisse ${(b.dd * 100).toFixed(0)} % · 2025-26 ${pc(a.cagr)}/an baisse ${(a.dd * 100).toFixed(0)} %`; }).join(' | ');
+      console.log(`L7B|${ek}${target ? ' gros gain' : ''} ~${want}/mois|2020-24 ${txt7(d)}|2025-26 ${txt7(t)}|${yrs}|${risks}`);
+    }
+  }
+}
 const RES = [];
 for (const [uname, pairs] of [['9 paires du site', SIT], ['20 paires', ALL]]) {
   for (const x of EXITS) {
