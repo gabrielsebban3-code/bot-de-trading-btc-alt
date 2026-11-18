@@ -84,13 +84,16 @@ mais non vérifiable depuis le serveur de recherche (proxy), à confirmer par le
   (confirmée par la même recherche).
 - Données historiques : [archives publiques data.binance.vision](https://data.binance.vision/) (vérifiée, HTTP 200).
 - Deflated Sharpe Ratio : Bailey et López de Prado (2014), « The Deflated Sharpe Ratio »,
-  [SSRN 2460551](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551) ⚠️
+  [SSRN 2460551](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551) ⚠️ ; son exemple chiffré (SR0 = 0,1132,
+  DSR = 0,9004) est confirmé par recherche web le 2026-11-18 et reproduit par `tests/test_reference_vectors.py`.
 - Test SPA : Hansen (2005), « A Test for Superior Predictive Ability », Journal of Business & Economic Statistics,
   [doi:10.1198/073500105000000063](https://doi.org/10.1198/073500105000000063) ⚠️
 - Reality Check : White (2000), « A Reality Check for Data Snooping », Econometrica,
   [doi:10.1111/1468-0262.00152](https://doi.org/10.1111/1468-0262.00152) ⚠️
 - Suivi de tendance : Moskowitz, Ooi et Pedersen (2012), « Time Series Momentum », Journal of Financial Economics,
   [doi:10.1016/j.jfineco.2011.11.003](https://doi.org/10.1016/j.jfineco.2011.11.003) ⚠️
+- Vecteurs de contrôle des formules de perpétuels (PnL, liquidation) : [TradingCalc, page de vérification](https://tradingcalc.io/verify)
+  (lue le 2026-11-18, 60 vecteurs ; voir `DECISIONS.md` D27).
 - Implémentation du SPA utilisée : [documentation de la bibliothèque arch, comparaisons multiples](https://arch.readthedocs.io/en/latest/multiple-comparison/multiple-comparisons.html) ⚠️
 
 > ⚠️ *Impossible de vérifier ces URL précises depuis le serveur au moment de la rédaction (proxy réseau).*
