@@ -6,7 +6,7 @@ import { partnersBox } from './partners.js';
 import { macdOf } from './crypto-lib.js';
 import { star } from './watchlist.js';
 import { delayed, historyDays } from './premium.js';
-import { OUTCOME, TREND, cap, dirTag, lastTradeOf, liveOf, okxUrl, outcomeCls, parisDay, plainPct, px, radarBody, setupsData } from './setups.js';
+import { OUTCOME, TREND, cap, dirTag, pctTxt, sumR, lastTradeOf, liveOf, okxUrl, outcomeCls, parisDay, plainPct, px, radarBody, setupsData } from './setups.js';
 
 const $ = id => document.getElementById(id);
 const DAY = 86_400_000;
@@ -144,8 +144,8 @@ function manageBox(a, d, live) {
   const exitNow = days.length ? (short ? Math.max(...days.map(b => b[2])) : Math.min(...days.map(b => b[3]))) : null;
   const risk = data.rules.riskPct ?? 1, P = data.rules.partialR ?? 5;
   return `<div class="box"><h2>Gestion du trade</h2><ol class="txt">
-    <li><b>Stop</b> : ${stopPct ? `environ ${fmt(stopPct * 100, 1)} % sous le prix d'entrée en ce moment` : 'placé selon l\'agitation habituelle du prix'}. Si le prix y arrive, on coupe : on perd ${fmt(risk, 0)} % du capital, pas plus.</li>
-    <li><b>Objectif</b> : quand le gain atteint ${fmt(P, 0)} fois cette distance, on vend la moitié (+${fmt(P * risk / 2, 1).replace(',0', '')} % du capital assuré) et le stop remonte au prix d'entrée.</li>
+    <li><b>Stop</b> : ${stopPct ? `environ ${fmt(stopPct * 100, 1)} % sous le prix d'entrée en ce moment` : 'placé selon l\'agitation habituelle du prix'}. Si le prix y arrive, on coupe : on perd le risque choisi, pas plus : ${pctTxt(risk)} % du capital en marché normal, jusqu'au double quand le marché est calme et la moitié quand il est agité.</li>
+    <li><b>Objectif</b> : quand le gain atteint ${fmt(P, 0)} fois cette distance, on vend la moitié (${fmt(P / 2, 1).replace(',0', '')} fois le risque assuré) et le stop remonte au prix d'entrée.</li>
     <li><b>Le reste</b> : on le garde tant que le marché ${short ? 'baisse' : 'monte'}. On vend quand une journée clôture ${short ? 'au-dessus de son plus haut' : 'sous son plus bas'} des ${data.rules.exitDays ?? 7} derniers jours${exitNow ? ` (${px(exitNow)} en ce moment)` : ''}.</li>
   </ol></div>`;
 }
@@ -159,7 +159,7 @@ const periodText = () => (historyDays() > 100 ? '12 mois' : '3 mois');
 function statsBox(a) {
   const list = doneTrades(a.symbol);
   const wins = list.filter(s => s.r > 0).length;
-  const total = list.reduce((t, s) => t + s.r, 0);
+  const total = sumR(list);
   const last = lastTradeOf(a.symbol);
   return `<div class="box"><h2>Bilan sur ${esc(a.symbol)} · ${periodText()}</h2>
     <div class="guest-only"><p class="txt">Le bilan de la paire et ses trades passés sont réservés aux membres. Le compte est gratuit et sans mot de passe.</p>
@@ -183,7 +183,7 @@ function tradesBox(a) {
       <td class="n">${px(s.entry)}</td>
       <td class="n">${px(s.sl)}</td>
       <td class="l"><span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span></td>
-      <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${s.outcome === 'open' ? '—' : cap(s.r)}</td>
+      <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${s.outcome === 'open' ? '—' : cap(s.r, s)}</td>
     </tr>`).join('');
   return `<h2 class="section">Trades passés sur ${esc(a.symbol)} <span class="muted">clique sur un trade pour son explication complète</span></h2>
     <div class="members-only"><div class="wrap" tabindex="0" role="region" aria-label="Historique des trades"><table class="static">

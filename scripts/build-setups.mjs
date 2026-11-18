@@ -34,7 +34,9 @@ const SWING = MODES.swing, COURT = MODES.court;
 // frais et glissement compris), sur les 9 cryptos suivies, en 2025-2026 (période qui n'a pas servi aux réglages).
 // Le Brent n'a pas assez d'historique pour ce test.
 const EXPECT = {
-  swing: { perTrade: 0.26, winRate: 0.24, perMonth: 11, ddR: 46, streak: 30, years: '2025 : +18 % · 2026 : +46 %' },
+  // Labo 5 (18 novembre 2026) : taille selon l'agitation du marché, risque de base 0,75 %. perTrade en « R de base ».
+  // Capital composé sur 2025-2026 : +36 %/an, pire baisse 33 % (sans ajuster la taille, à 1 % : +23 %/an, pire baisse 39 %).
+  swing: { perTrade: 0.48, winRate: 0.24, perMonth: 11, ddR: 46, streak: 30, yearPct: 36, ddPct: 33, years: '2025 : +10 % · 2026 : +60 %', safe: { base: 0.5, yearPct: 27, ddPct: 23 } },
   court: { perTrade: 0.18, winRate: 0.22, perMonth: 48, ddR: 134, streak: 51, years: '2025 : +173 % · 2026 : +13 % · 12 derniers mois : à peu près zéro' },
 };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -141,6 +143,7 @@ async function main() {
     entry: s.entry, sl: s.sl, tp1: s.tp?.[0] ?? s.tp1, rr: s.rr, outcome: s.outcome, at: s.at, r: s.r, tpHit: s.tpHit ?? null,
     // Détail pour la fiche explicative du trade (absent des trades gardés d'anciennes versions).
     why: s.why, trend: s.trend, atr: s.atr, atr4h: s.atr4h, ref: s.ref, day: s.day, halfAt: s.halfAt ?? null, exitPx: s.exitPx ?? null, exitLvl: s.exitLvl ?? null,
+    sz: s.sz ?? 1,
   });
   const history = mergeHistory(previous?.history, confirmed.map(compact), freshStart, now, UNIVERSE.map(a => a.symbol));
   const stats = detectorStats(history, now);
@@ -167,7 +170,7 @@ async function main() {
   }
 
   await mkdir(OUT, { recursive: true });
-  const rulesOf = cfg => ({ minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: cfg.exitDays ?? RULES.exitDays, barMs: cfg.E, trendMs: cfg.T, riskPct: RULES.riskPct, showHours: RULES.showHours, statsDays: RULES.statsDays });
+  const rulesOf = cfg => ({ minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: cfg.exitDays ?? RULES.exitDays, barMs: cfg.E, trendMs: cfg.T, riskPct: RULES.riskPct, sizeMin: RULES.sizeMin, sizeMax: RULES.sizeMax, showHours: RULES.showHours, statsDays: RULES.statsDays });
   await writeFile(join(OUT, 'setups.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), sources, warnings, model: SWING.key,
     rules: rulesOf(SWING), expect: EXPECT.swing,

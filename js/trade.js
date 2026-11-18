@@ -6,7 +6,7 @@ import { star } from './watchlist.js';
 import { loadPaire } from './paire.js';
 import { deSym } from './crypto-lib.js';
 import { delayed, hoursText, premiumBox, tooOld, visibleIn } from './premium.js';
-import { OUTCOME, cap, dirTag, liveOf, newsLink, okxUrl, outcomeTag, plainPct, projectLink, px, setupsData, statusTag } from './setups.js';
+import { OUTCOME, cap, dirTag, moodOf, pctTxt, riskOf, liveOf, newsLink, okxUrl, outcomeTag, plainPct, projectLink, px, setupsData, statusTag } from './setups.js';
 
 const $ = id => document.getElementById(id);
 const DAY = 86_400_000, BAR = 4 * 3600_000;
@@ -93,9 +93,9 @@ function liveR(s, a) {
 function brief(s, a) {
   const what = `${s.dir === 'long' ? 'Achat (long)' : 'Vente à découvert (short)'} ${deSym(esc(s.symbol))} à <b>${px(s.entry)}</b> le ${dayOf(s.time)}`;
   if (s.status === 'en cours') return `${what}, si la bougie ${UNIT()} en cours ferme comme maintenant. Le signal peut encore disparaître à la clôture.`;
-  if (s.outcome === 'open') return `${what}. Le trade est toujours en jeu : en ce moment <b class="${liveR(s, a) >= 0 ? 'up' : 'down'}">${cap(liveR(s, a))}</b> du capital.`;
+  if (s.outcome === 'open') return `${what}. Le trade est toujours en jeu : en ce moment <b class="${liveR(s, a) >= 0 ? 'up' : 'down'}">${cap(liveR(s, a), s)}</b> du capital.`;
   const days = Math.max(1, Math.round((s.at - s.time) / DAY));
-  return `${what}, terminé le ${dayOf(s.at)} après ${days} jour${days > 1 ? 's' : ''} : ${esc(OUTCOME[s.outcome][0].toLowerCase())}, <b class="${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r)}</b> du capital.`;
+  return `${what}, terminé le ${dayOf(s.at)} après ${days} jour${days > 1 ? 's' : ''} : ${esc(OUTCOME[s.outcome][0].toLowerCase())}, <b class="${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r, s)}</b> du capital.`;
 }
 
 // 1. Pourquoi : les 4 conditions du signal, dites simplement, avec les chiffres de ce jour-là.
@@ -122,21 +122,23 @@ function whyBox(s) {
   </ol></div>`;
 }
 
-// Gain ou perte en % du capital (1R = le risque, 1 % du capital par défaut).
-const capOf = r => cap(r);
+// Gain ou perte en % du capital, taille du trade comprise (capS = le trade affiché, fixé par chaque bloc).
+let capS = null;
+const capOf = r => cap(r, capS);
 
 // 2. Le plan : chaque prix et à quoi il sert.
 function planBox(s) {
   const data = setupsData();
-  const risk = data.rules.riskPct ?? 1, P = data.rules.partialR ?? 5;
+  capS = s;
+  const risk = riskOf(s), P = data.rules.partialR ?? 5;
   const stopPct = Math.abs(s.sl - s.entry) / s.entry;
-  const size = risk / 100 / stopPct; // part du capital mise en position pour perdre 1 % au stop
+  const size = risk / 100 / stopPct; // part du capital mise en position pour perdre le risque conseillé au stop
   const tp = tpOf(s);
   const up = s.dir === 'long';
   return `<div class="box"><h2>2. Le plan</h2><dl>
     ${row('Entrée', `${px(s.entry)} <small class="muted">le prix au moment du signal</small>`)}
     ${row('Stop', `${px(s.sl)} <small class="muted">${plainPct((s.sl - s.entry) / s.entry)} : si le prix ${up ? 'descend' : 'monte'} jusque-là, on coupe</small>`, 'down')}
-    ${row('Perte maximale', `${fmt(risk, 0)} % du capital`, 'txt')}
+    ${row('Perte maximale', `${pctTxt(Math.round(risk * 100) / 100)} % du capital <small class="muted">${moodOf(s)} : on risque plus quand le prix bouge peu, moins quand il s'agite</small>`, 'txt')}
     ${row(up ? 'Combien acheter' : 'Combien vendre', `${fmt(size * 100, 0)} % du capital <small class="muted">avec 1 000 $ : ${fmt(size * 1000, 0)} $</small>`)}
     ${row('Objectif', `${px(tp)} <small class="muted">${plainPct((tp - s.entry) / s.entry)} : on vend la moitié, ${capOf(P / 2)} de gain déjà assuré</small>`, 'up')}
     ${row('Le reste', `gardé tant que le marché ${up ? 'monte' : 'baisse'}`, 'txt')}
@@ -145,6 +147,7 @@ function planBox(s) {
 
 // 3. Ce qui s'est passé, étape par étape.
 function storyBox(s, a) {
+  capS = s;
   const data = setupsData();
   const P = data.rules.partialR ?? 5;
   const up = s.dir === 'long';
@@ -167,6 +170,7 @@ function storyBox(s, a) {
 
 // 4. Le résultat et son calcul, en % du capital.
 function resultBox(s, a) {
+  capS = s;
   const data = setupsData();
   const P = data.rules.partialR ?? 5;
   if (s.status === 'en cours') return '';

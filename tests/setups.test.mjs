@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
   BAR, RULES, atr, dailyContext, detectMacd, detectRange10, detectRange20, detectorStats, evaluate,
-  exitLevel, fmtPx, hasRoom, indicatorState, legState, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, trend1d,
+  exitLevel, fmtPx, hasRoom, indicatorState, legState, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, sizeFor, trend1d,
 } from '../scripts/lib/setups.mjs';
 
 const DAY = 86_400_000;
@@ -290,4 +290,15 @@ test('legDetails mesure le retard sur le creux et le résultat de chaque jambe',
   assert.ok(cur.lagMs > 0 && cur.fromOrigin > 0, 'le signal arrive après le creux, plus haut que lui');
   assert.equal(cur.result, 220 / cur.signal.price - 1);
   assert.equal(cur.exit, null);
+});
+
+test('taille selon l’agitation : plus gros en marché calme, plus petit en marché agité, bornée', () => {
+  assert.equal(sizeFor(RULES.volRef), 1);
+  assert.equal(sizeFor(RULES.volRef / 1.5), 1.5);
+  assert.equal(sizeFor(RULES.volRef / 10), RULES.sizeMax);
+  assert.equal(sizeFor(RULES.volRef * 10), RULES.sizeMin);
+  assert.equal(sizeFor(null), 1);
+  const dc = dailyContext(Array.from({ length: 40 }, (_, k) => ({ t: k * 86_400_000, o: 100, h: 102, l: 98, c: 100 * (k % 2 ? 1.02 : 1) })));
+  assert.equal(dc.vol[30], null);
+  assert.ok(dc.vol[35] > 0.015 && dc.vol[35] < 0.025);
 });

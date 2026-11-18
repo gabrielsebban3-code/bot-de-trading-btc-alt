@@ -107,7 +107,7 @@ async function main() {
 
   const out = {
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample),
-    rules: { barMs: BAR, recentDays: RECENT_DAYS, stopAtr: RULES.stopAtr, partialR: RULES.partialR, riskPct: RULES.riskPct },
+    rules: { barMs: BAR, recentDays: RECENT_DAYS, stopAtr: RULES.stopAtr, partialR: RULES.partialR, riskPct: 1 }, // le scanner garde 1 % fixe (la taille selon l'agitation n'est validée que pour Setups)
     detectors: DETECTORS, tested: [...TESTED], coins,
   };
   await mkdir(OUT, { recursive: true });

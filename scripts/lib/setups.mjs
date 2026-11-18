@@ -20,7 +20,9 @@ export const RULES = {
   partialR: 5,            // on prend la moitié à 5R et on remonte le stop au prix d'entrée
   exitDays: 7,            // sortie du reste : clôture journalière au-delà du plus bas / plus haut des 7 jours
   minRR: 2,
-  riskPct: 1,             // risque par trade en % du capital (choix de Gabriel) : 1R = 1 %
+  riskPct: 0.75,          // risque de base par trade en % du capital, ajusté selon l'agitation du marché (labo 5, novembre 2026)
+  volRef: 0.0374,         // agitation de référence : écart-type médian des variations journalières sur 30 jours (9 paires, 2020-2024)
+  sizeMin: 0.5, sizeMax: 2, // la taille va de la moitié au double du risque de base
   roomAtr: 1.5,           // marge minimale avant le prochain niveau : 2 × 1,5 ATR 4h
   showHours: 24,          // un trade terminé reste affiché 24 h
   statsDays: 365,
@@ -176,7 +178,14 @@ export function dailyContext(daily) {
     if (d.c < e50[j] && e20[j] < e50[j]) return 'baissière';
     return 'neutre';
   });
-  return { daily, atr: A, trend, e20, e50 };
+  // Agitation sur 30 jours : écart-type des variations journalières (en log), pour ajuster la taille des trades.
+  const vol = daily.map((d, j) => {
+    if (j < 31) return null;
+    let m = 0, m2 = 0;
+    for (let q = j - 29; q <= j; q++) { const r = Math.log(daily[q].c / daily[q - 1].c); m += r; m2 += r * r; }
+    return Math.sqrt(Math.max(0, m2 / 30 - (m / 30) ** 2));
+  });
+  return { daily, atr: A, trend, e20, e50, vol };
 }
 
 // Indice de la dernière journée clôturée au temps t (-1 si aucune).
@@ -247,6 +256,13 @@ export function detectMacd(ctx, i) {
 
 const DETECT = { range20: detectRange20, range10: detectRange10, macd: detectMacd };
 const WANT = { long: 'haussière', short: 'baissière' };
+
+// Taille conseillée : marché calme → on risque plus, marché agité → moins (entre la moitié et le double du risque de base).
+// Testé le 18 novembre 2026 : seul réglage de gestion qui tient en 2025-2026, sur 20 paires et face au hasard.
+export function sizeFor(vol) {
+  if (!(vol > 0)) return 1;
+  return Math.round(Math.min(RULES.sizeMax, Math.max(RULES.sizeMin, RULES.volRef / vol)) * 100) / 100;
+}
 
 // ---------- Plan de trade : stop à 0,75 ATR journalier, moitié à 5R ----------
 
@@ -366,6 +382,7 @@ export function scanAsset(asset, { bars, daily }, cfg = MODES.classic) {
       why: `${hit.why} Signal pris car la tendance ${cfg.T === DAY ? 'journalière' : 'en 4h'} est ${trend}.`, trend,
       // Pour la fiche du trade : niveau cassé, clôture et moyennes de la dernière journée fermée, ATR 4h.
       ref: hit.ref, day: { t: daily[j].t, c: daily[j].c, e20: dc.e20[j], e50: dc.e50[j] }, atr4h: A[i],
+      sz: sizeFor(dc.vol[j]), // multiplicateur de taille : risque du trade = RULES.riskPct × sz
     };
     Object.assign(sig, bars[i].closed ? evaluate(sig, bars, i, daily, cfg) : { outcome: 'open', at: null, r: null, tpHit: 0 });
     signals.push(sig);
@@ -401,7 +418,7 @@ export function detectorStats(history, now = Date.now()) {
       open: list.length - done.length,
       winRate: done.length ? wins / done.length : null,
       avgR: done.length ? Math.round((done.reduce((t, s) => t + s.r, 0) / done.length) * 100) / 100 : null,
-      totalR: Math.round(done.reduce((t, s) => t + s.r, 0) * 10) / 10,
+      totalR: Math.round(done.reduce((t, s) => t + s.r * (s.sz ?? 1), 0) * 10) / 10, // en « R de base », taille comprise
       bestR: done.length ? Math.max(...done.map(s => s.r)) : null,
       avgDays: done.length ? Math.round(done.reduce((t, s) => t + (s.at - s.time) / DAY, 0) / done.length) : null,
       best,
