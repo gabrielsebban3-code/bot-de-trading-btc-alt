@@ -73,3 +73,24 @@ comme un bug : recherche de lookahead, de frais oubliés, de biais de survivance
 
 Les grilles de chaque phase (valeurs testées, règle de sélection dans le walk-forward) sont écrites dans un
 fichier daté (`PROTOCOLE_PHASE2.md`, `PROTOCOLE_PHASE3.md`) et committées **avant** le premier calcul de la phase.
+
+## 9. Références
+
+Convention reprise du plugin « Finance Tutor » : chaque source pointe vers la page exacte ; ⚠️ = lien plausible
+mais non vérifiable depuis le serveur de recherche (proxy), à confirmer par le lecteur.
+
+- Frais Binance USDT-M (maker 0,02 %, taker 0,05 %) : [grille officielle](https://www.binance.com/en/fee/futureFee)
+  (page confirmée par recherche web le 2026-11-17) ; [calcul des frais, FAQ Binance](https://www.binance.com/en/support/faq/detail/360033544231)
+  (confirmée par la même recherche).
+- Données historiques : [archives publiques data.binance.vision](https://data.binance.vision/) (vérifiée, HTTP 200).
+- Deflated Sharpe Ratio : Bailey et López de Prado (2014), « The Deflated Sharpe Ratio »,
+  [SSRN 2460551](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551) ⚠️
+- Test SPA : Hansen (2005), « A Test for Superior Predictive Ability », Journal of Business & Economic Statistics,
+  [doi:10.1198/073500105000000063](https://doi.org/10.1198/073500105000000063) ⚠️
+- Reality Check : White (2000), « A Reality Check for Data Snooping », Econometrica,
+  [doi:10.1111/1468-0262.00152](https://doi.org/10.1111/1468-0262.00152) ⚠️
+- Suivi de tendance : Moskowitz, Ooi et Pedersen (2012), « Time Series Momentum », Journal of Financial Economics,
+  [doi:10.1016/j.jfineco.2011.11.003](https://doi.org/10.1016/j.jfineco.2011.11.003) ⚠️
+- Implémentation du SPA utilisée : [documentation de la bibliothèque arch, comparaisons multiples](https://arch.readthedocs.io/en/latest/multiple-comparison/multiple-comparisons.html) ⚠️
+
+> ⚠️ *Impossible de vérifier ces URL précises depuis le serveur au moment de la rédaction (proxy réseau).*
