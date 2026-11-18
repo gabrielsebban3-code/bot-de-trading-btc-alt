@@ -34,9 +34,9 @@ const SWING = MODES.swing, COURT = MODES.court;
 // frais et glissement compris), sur les 9 cryptos suivies, en 2025-2026 (période qui n'a pas servi aux réglages).
 // Le Brent n'a pas assez d'historique pour ce test.
 const EXPECT = {
-  // Labo 5 (18 novembre 2026) : taille selon l'agitation du marché, risque de base 0,75 %. perTrade en « R de base ».
-  // Capital composé sur 2025-2026 : +36 %/an, pire baisse 33 % (sans ajuster la taille, à 1 % : +23 %/an, pire baisse 39 %).
-  swing: { perTrade: 0.48, winRate: 0.24, perMonth: 11, ddR: 46, streak: 30, yearPct: 36, ddPct: 33, years: '2025 : +10 % · 2026 : +60 %', safe: { base: 0.5, yearPct: 27, ddPct: 23 } },
+  // Labo 5 (18 novembre 2026) : taille selon l'agitation du marché, risque de base 1 % (choix de Gabriel). perTrade en « R de base ».
+  // Capital composé sur 2025-2026 : +42 %/an, pire baisse 42 % (sans ajuster la taille, à 1 % : +23 %/an, pire baisse 39 %).
+  swing: { perTrade: 0.48, winRate: 0.24, perMonth: 11, ddR: 46, streak: 30, yearPct: 42, ddPct: 42, years: '2025 : +10 % · 2026 : +73 %', safe: { base: 0.5, yearPct: 27, ddPct: 23 } },
   court: { perTrade: 0.18, winRate: 0.22, perMonth: 48, ddR: 134, streak: 51, years: '2025 : +173 % · 2026 : +13 % · 12 derniers mois : à peu près zéro' },
 };
 const sleep = ms => new Promise(r => setTimeout(r, ms));

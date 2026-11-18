@@ -375,3 +375,46 @@ show('SENS', 'ventes seulement', base.filter(t => t.dir < 0), { risk: 1 });
     console.log(`BETA|base ${r} %|2025-26 avec taille : ${pc(t.cagr)}/an, pire baisse ${(t.dd * 100).toFixed(0)} %, ${perT.toFixed(2)} % du capital par trade en moyenne | sans taille : ${pc(f.cagr)}/an, pire baisse ${(f.dd * 100).toFixed(0)} % | 2020-24 avec taille : ${pc(d.cagr)}/an, pire baisse ${(d.dd * 100).toFixed(0)} %`);
   }
 }
+
+// ---------- 12) D'où vient la pire baisse ? (réglage choisi : 9 paires, base 1 %, taille selon l'agitation) ----------
+{
+  const v = base.filter(t => t.t < DV[1]).map(t => t.vol).filter(Boolean).sort((a, b) => a - b), ref = v[v.length >> 1];
+  const mult = t => t.vol ? Math.min(2, Math.max(0.5, ref / t.vol)) : 1;
+  const day = t => new Date(t).toISOString().slice(0, 10);
+  for (const [P, nm] of [[DV, '2020-24'], [TEST, '2025-26']]) {
+    const list = base.filter(t => t.t >= P[0] && t.t < P[1]).sort((a, b) => a.exitT - b.exitT);
+    // courbe du capital sur les trades fermés, avec le moment du plus haut et du plus bas
+    let eq = 100, pk = 100, pkT = P[0], dd = 0, a = 0, b = 0;
+    const pts = [];
+    for (const t of list) { eq *= 1 + t.rn * mult(t) / 100; pts.push([t.exitT, eq]); if (eq > pk) { pk = eq; pkT = t.exitT; } if (1 - eq / pk > dd) { dd = 1 - eq / pk; a = pkT; b = t.exitT; } }
+    const rec = pts.find(([x, e]) => x > b && e >= pk * 1) ; let recT = null; { let p2 = 0; for (const [x, e] of pts) { if (x <= a) p2 = Math.max(p2, e); if (x > b && e >= p2) { recT = x; break; } } }
+    const inDD = list.filter(t => t.exitT > a && t.exitT <= b);
+    const wins = inDD.filter(t => t.rn > 0).length;
+    console.log(`BAISSE ${nm}|pire baisse ${(dd * 100).toFixed(0)} % du ${day(a)} au ${day(b)} (${Math.round((b - a) / D)} j), remontée ${recT ? 'le ' + day(recT) : 'pas encore'}|${inDD.length} trades fermés pendant la baisse, ${wins} gagnants (${(wins / inDD.length * 100).toFixed(0)} %), total ${inDD.reduce((s, t) => s + t.rn * mult(t), 0).toFixed(1)} R`);
+    const grp = (f) => { const m = {}; for (const t of inDD) { const k = f(t); m[k] = (m[k] || 0) + t.rn * mult(t); } return Object.entries(m).sort((x, y) => x[1] - y[1]).map(([k, x]) => `${k} ${x.toFixed(1)}`).join(' · '); };
+    console.log(`BAISSE ${nm}|par paire : ${grp(t => t.sym.replace('USDT', ''))}`);
+    console.log(`BAISSE ${nm}|par sens : ${grp(t => t.dir > 0 ? 'achats' : 'ventes')} | par signal : ${grp(t => t.det)}`);
+    const outc = { stop: inDD.filter(t => t.rn < -0.8).length, petit: inDD.filter(t => t.rn >= -0.8 && t.rn <= 0).length, gain: wins };
+    console.log(`BAISSE ${nm}|issues : ${outc.stop} stops pleins, ${outc.petit} sorties à ~0 ou petite perte, ${outc.gain} gains`);
+    // trades ouverts en même temps et dans le même sens
+    const conc = list.map(t => list.filter(u => u.t <= t.t && u.exitT > t.t && u.dir === t.dir).length);
+    console.log(`BAISSE ${nm}|trades déjà ouverts dans le même sens à chaque entrée : moyenne ${(conc.reduce((s, x) => s + x, 0) / conc.length).toFixed(1)}, max ${Math.max(...conc)}`);
+    // série de stops : combien en même temps (même jour)
+    const byDay = {}; for (const t of list) if (t.rn < -0.8) { const k = day(t.exitT); byDay[k] = (byDay[k] || 0) + 1; }
+    const multi = Object.values(byDay).filter(x => x >= 3).length;
+    console.log(`BAISSE ${nm}|jours avec 3 stops ou plus le même jour : ${multi} (sur ${Object.keys(byDay).length} jours avec au moins un stop)`);
+    // hasard sur l'ordre : mêmes trades, ordre mélangé → baisse « normale » pour ce taux de gain
+    const rs = list.map(t => t.rn * mult(t)), sims = [];
+    for (let k = 0; k < 500; k++) { const s = [...rs].sort(() => Math.random() - 0.5); let e = 100, p = 100, d = 0; for (const r of s) { e *= 1 + r / 100; p = Math.max(p, e); d = Math.max(d, 1 - e / p); } sims.push(d); }
+    sims.sort((x, y) => x - y);
+    console.log(`BAISSE ${nm}|même trades dans un ordre au hasard : baisse médiane ${(sims[250] * 100).toFixed(0)} %, 95e centile ${(sims[475] * 100).toFixed(0)} % | réelle ${(dd * 100).toFixed(0)} %`);
+  }
+  // idées pour réduire la baisse sans casser le gain (choix sur 2020-24, vérif 2025-26)
+  const show2 = (label, o, list = base) => show('ANTI-BAISSE', label, list, { risk: 1, ...o, mult: (t, s) => mult(t) * (o.m2 ? o.m2(t, s) : 1) });
+  const rows = [show2('référence : taille selon l\'agitation, base 1 %', {})];
+  const openSame = (t) => base.filter(u => u.t < t.t && u.exitT > t.t && u.dir === t.dir).length;
+  for (const k of [2, 3]) rows.push(show2(`risque partagé : ÷ (1 + trades déjà ouverts dans le même sens / ${k})`, { m2: t => 1 / (1 + openSame(t) / k) }));
+  rows.push(show2('risque ÷ 2 au-delà de 4 trades ouverts dans le même sens', { m2: t => openSame(t) >= 4 ? 0.5 : 1 }));
+  for (const x of [0.2, 0.3]) rows.push(show2(`risque ÷ 2 quand le capital est ${x * 100} % sous son plus haut`, { m2: (t, s) => s.eq < s.peak * (1 - x) ? 0.5 : 1 }));
+  choose('anti-baisse', rows);
+}

@@ -20,7 +20,7 @@ export const RULES = {
   partialR: 5,            // on prend la moitié à 5R et on remonte le stop au prix d'entrée
   exitDays: 7,            // sortie du reste : clôture journalière au-delà du plus bas / plus haut des 7 jours
   minRR: 2,
-  riskPct: 0.75,          // risque de base par trade en % du capital, ajusté selon l'agitation du marché (labo 5, novembre 2026)
+  riskPct: 1,             // risque de base par trade en % du capital (choix de Gabriel), ajusté selon l'agitation du marché (labo 5, novembre 2026)
   volRef: 0.0374,         // agitation de référence : écart-type médian des variations journalières sur 30 jours (9 paires, 2020-2024)
   sizeMin: 0.5, sizeMax: 2, // la taille va de la moitié au double du risque de base
   roomAtr: 1.5,           // marge minimale avant le prochain niveau : 2 × 1,5 ATR 4h
