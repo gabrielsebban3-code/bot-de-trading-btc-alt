@@ -2,8 +2,6 @@
 # Ne publie rien. À supprimer avant toute fusion.
 name: Lab stress Setups
 on:
-  push:
-    branches: [claude/project-thread-syv789]
   workflow_dispatch:
 jobs:
   stress:

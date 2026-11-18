@@ -34,7 +34,7 @@ const SWING = MODES.swing, COURT = MODES.court;
 // frais et glissement compris), sur les 9 cryptos suivies, en 2025-2026 (période qui n'a pas servi aux réglages).
 // Le Brent n'a pas assez d'historique pour ce test.
 const EXPECT = {
-  swing: { perTrade: 0.23, winRate: 0.25, perMonth: 12, ddR: 43, streak: 34, years: '2025 : +18 % · 2026 : +44 %' },
+  swing: { perTrade: 0.26, winRate: 0.24, perMonth: 11, ddR: 46, streak: 30, years: '2025 : +18 % · 2026 : +46 %' },
   court: { perTrade: 0.18, winRate: 0.22, perMonth: 48, ddR: 134, streak: 51, years: '2025 : +173 % · 2026 : +13 % · 12 derniers mois : à peu près zéro' },
 };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
