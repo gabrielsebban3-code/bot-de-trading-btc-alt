@@ -26,5 +26,5 @@ jobs:
           ls lab-zip | wc -l
           for z in lab-zip/*.zip; do unzip -oq "$z" -d lab-data || echo "zip KO $z"; done
           ls lab-data | wc -l; ls lab-data | grep -c fundingRate
-      - name: Labo 6 (3 trades gagnants sur 4)
-        run: node scripts/lab/lab6.mjs lab-data
+      - name: Labo 7 (meilleurs signaux)
+        run: node scripts/lab/lab7.mjs lab-data
