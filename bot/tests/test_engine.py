@@ -187,3 +187,13 @@ def test_position_stop_never_moves_back():
     p.observe_path(np.array([105.0]), np.array([99.0]))
     assert p.on_tf_close(1, 2.0) and p.stop == 103.0
     assert not p.on_tf_close(2, 10.0) and p.stop == 103.0       # wider ATR would lower it: ignored
+
+
+def test_liquidation_never_inside_a_wide_stop():
+    from bot.backtest.engine import liquidation_price
+    risk = {"max_leverage": 5.0, "maintenance_margin_rate": 0.01}
+    # 3 % stop: 5x isolated, liquidation 19 % away (unchanged)
+    assert liquidation_price(100.0, 1, risk, 0.03) == pytest.approx(81.0)
+    # 25 % stop: leverage 2x, liquidation 49 % away, far beyond the stop
+    assert liquidation_price(100.0, 1, risk, 0.25) == pytest.approx(51.0)
+    assert liquidation_price(100.0, -1, risk, 0.25) == pytest.approx(149.0)

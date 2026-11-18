@@ -94,7 +94,7 @@ risk:
   max_positions: 5
   max_positions_per_pair: 1
   min_stop_pct: 0.003            # signal ignored if the stop is closer than 0.3 % of entry
-  max_stop_pct: 0.06             # or farther than 6 %
+  max_stop_pct: 0.30             # or farther than 30 % (0.06 until 2026-11-18, see DECISIONS.md D22)
   max_daily_loss_pct: 0.03       # no new entry for the rest of the UTC day once realised losses reach 3 %
   correlation:
     enabled: true
@@ -143,7 +143,7 @@ stats:
   ci_level: 0.95
   spa_reps: 2000
   spa_block: 20                  # stationary bootstrap mean block length (days)
-  inherited_trials: 232          # perp-setups studies 1-8 (206 up to study 6 + 14 + 12), see PROTOCOLE.md
+  inherited_trials: 682          # 232 from perp-setups studies 1-8 + 225 + 225 of phase 2 runs 1 and 2 (DECISIONS D22, D23)
 
 # ---------------------------------------------------------------- concepts (Step 3), frozen in PROTOCOLE_PHASE2.md
 concepts:

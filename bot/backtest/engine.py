@@ -225,8 +225,13 @@ class Position:
         return False
 
 
-def liquidation_price(entry_price: float, direction: int, risk: dict) -> float:
-    dist = 1.0 / float(risk["max_leverage"]) - float(risk["maintenance_margin_rate"])
+def liquidation_price(entry_price: float, direction: int, risk: dict, stop_pct: float = 0.0) -> float:
+    """Isolated margin. Leverage used = min(max_leverage, 1 / (2 x stop distance)): a trader never sets the
+    liquidation inside the stop, so liquidation can only happen on a gap far beyond the stop (DECISIONS D23)."""
+    lev = float(risk["max_leverage"])
+    if stop_pct > 0:
+        lev = min(lev, 1.0 / (2.0 * stop_pct))
+    dist = 1.0 / lev - float(risk["maintenance_margin_rate"])
     return entry_price * (1.0 - direction * dist)
 
 
@@ -342,7 +347,7 @@ def execute_signal(m: SymbolMarket, s: Signal, capital: float, costs: Costs, ris
     tf = rule.tf or s.tf_signal
     if tf not in m.tf:
         return Outcome("skip_no_bar")
-    pos = Position(d, entry_price, stop, rule, liquidation_price(entry_price, d, risk), tp)
+    pos = Position(d, entry_price, stop, rule, liquidation_price(entry_price, d, risk, stop_pct), tp)
     hold = rule.max_hold_bars * (tf_ms(tf) // m.step) if rule.max_hold_bars else None
     ex = simulate_position(m, pos, j_entry, j_last, tf, is_limit, hold)
     if ex is None:
@@ -357,7 +362,8 @@ def execute_signal(m: SymbolMarket, s: Signal, capital: float, costs: Costs, ris
         exit_fee = exit_price * size * costs.taker
     funding = m.funding_cost(d, size, entry_price, j_entry, ex.j, costs.funding_price)
     if ex.reason == "liquidation":
-        pnl = -(entry_price * size / risk["max_leverage"]) - entry_fee - max(funding, 0.0)
+        lev = min(float(risk["max_leverage"]), 1.0 / (2.0 * stop_pct))
+        pnl = -(entry_price * size / lev) - entry_fee - max(funding, 0.0)
     else:
         pnl = d * (exit_price - entry_price) * size - entry_fee - exit_fee - funding
     slip_cost = size * (abs(entry_price - entry_raw) + abs(exit_price - ex.raw_price))

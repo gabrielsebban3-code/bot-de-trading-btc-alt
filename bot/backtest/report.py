@@ -101,7 +101,8 @@ def write_phase2_report(res: dict, out_dir: Path, cfg: dict) -> Path:
     L.append(f"- Groupes à espérance hors échantillon positive : {len(pos)} sur {len(res['results'])}.")
     L.append(f"- Essais comptés : {len(res['trials'])} dans cette phase ({(res['trials']['kind'] == 'grid').sum()} variantes de la "
              f"grille + {(res['trials']['kind'] != 'grid').sum()} pour l'ablation du volume), **{res['n_trials_total']} au total** "
-             f"avec les 232 hérités.")
+             f"avec les {cfg['stats']['inherited_trials']} déjà comptés (études 1-8 de perp-setups et passages précédents de cette "
+             f"phase, archivés dans `reports/phase2_run1_maxstop6/` et `reports/phase2_run2_liquidation/`, voir DECISIONS D22-D23).")
     spa = res["spa"]
     L.append(f"- Test SPA de Hansen (toutes les variantes de la grille contre « rester à plat », rendements journaliers "
              f"2022-2026) : p = {_f(spa['p_consistent'])} (p inférieur = {_f(spa['p_lower'])}, supérieur = {_f(spa['p_upper'])}). "

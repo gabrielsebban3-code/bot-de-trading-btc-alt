@@ -31,7 +31,7 @@ EXPECTED = {"n_trades": 455, "expectancy_r": 0.222814, "profit_factor": 1.49699,
 
 OVERLAY = {
     "costs": {"slippage": {"base": 0.0003, "atr_coef": 0.0, "impact_coef": 0.0}, "funding_price": "entry"},
-    "risk": {"max_daily_loss_pct": None, "correlation": {"enabled": False}},
+    "risk": {"max_daily_loss_pct": None, "correlation": {"enabled": False}, "max_stop_pct": 0.06, "min_stop_pct": 0.003},
 }
 
 
