@@ -17,6 +17,7 @@ export const TREND = { haussière: 'up', baissière: 'down', neutre: '' };
 
 let data = null;
 let courtData = null;
+const COURT_ON = false;
 let projectsBySymbol = new Map();
 // Les fonctions d'affichage lisent `data` : on le remplace le temps de dessiner le Court terme.
 function withData(d, fn) {
@@ -283,7 +284,8 @@ function waiting() {
 
 export function initSetups(setupsData, projects) {
   data = setupsData;
-  fetch('data/setups-court.json').then(r => (r.ok ? r.json() : null)).catch(() => null).then(d => { courtData = d; renderCourt(); });
+  // Court terme gardé hors ligne pour l'instant (décision du 18 novembre 2026) : COURT_ON passe à true pour le montrer.
+  if (COURT_ON) fetch('data/setups-court.json').then(r => (r.ok ? r.json() : null)).catch(() => null).then(d => { courtData = d; renderCourt(); });
   projectsBySymbol = new Map((projects?.projects || []).filter(p => p.symbol).map(p => [p.symbol.toUpperCase(), p]));
   const keys = Object.keys(data.detectors);
   Object.assign(state, store.get());
@@ -325,7 +327,7 @@ export function initSetups(setupsData, projects) {
   });
   watchlist.subscribe(() => { if (state.watch) renderList(); });
   document.getElementById('setups-warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
-  if (!['setups', 'court', 'ind'].includes(state.cat)) state.cat = 'setups';
+  if (!['setups', ...(COURT_ON ? ['court'] : []), 'ind'].includes(state.cat)) state.cat = 'setups';
   document.getElementById('setups-expect').innerHTML = expectBox();
   chips();
   renderCat();
@@ -335,7 +337,7 @@ export function initSetups(setupsData, projects) {
   renderHistory();
   renderResume();
   // Statut Premium connu après la connexion : on redessine ce qui en dépend.
-  onTier(() => { renderRadar(); renderList(); renderHistory(); renderResume(); renderCourt(); });
+  onTier(() => { renderRadar(); renderList(); renderHistory(); renderResume(); if (COURT_ON) renderCourt(); });
 }
 
 function renderResume() {
