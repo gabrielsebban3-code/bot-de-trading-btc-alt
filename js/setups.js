@@ -162,6 +162,7 @@ export function renderSetup(id) {
     <div class="ph"><h1>${esc(s.symbol)} · ${esc(data.detectors[s.detector])}</h1>${dirTag(s.dir)}${statusTag(s)}${outcomeTag(s)}${star(s.symbol, { text: true })}</div>
     <p class="sub">${esc(a.name)} · perpétuel OKX · swing de 2 à 5 jours · bougie 4h du ${parisTime(s.time)} (heure de Paris)</p>
     <div class="nfa">⚠ Ceci n'est pas un conseil financier. Fais tes propres recherches avant tout investissement.</div>
+    <div class="nfa">⚠ Signal non validé statistiquement : sur des données neuves, une stratégie très proche n'a pas fait mieux que le hasard. Aucune garantie.</div>
     <div class="detail">
       <div class="stack">
         <div class="box"><h2>Pourquoi ce signal</h2><p class="txt">${esc(s.why)}</p>

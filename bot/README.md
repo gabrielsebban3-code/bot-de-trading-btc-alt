@@ -21,6 +21,8 @@ statistiquement significatif seront activés. Protocole : [`PROTOCOLE.md`](PROTO
 
 ## Installation
 
+Guide pas à pas pour débutant (Windows, Mac, Linux) : [`INSTALLATION.md`](INSTALLATION.md).
+
 Python 3.11 ou plus récent.
 
 ```bash
