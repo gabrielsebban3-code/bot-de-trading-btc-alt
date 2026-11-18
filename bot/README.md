@@ -13,8 +13,8 @@ statistiquement significatif seront activés. Protocole : [`PROTOCOLE.md`](PROTO
 | Phase | Contenu | État |
 |---|---|---|
 | 0 | Plan | validé |
-| 1 | Données, moteur de backtest, tests anti-lookahead | **livrée, en attente de validation** (voir `reports/PHASE1.md`) |
-| 2 | C1 et C2 sur BTC et ETH, 1h / 4h / 1D | à faire après validation |
+| 1 | Données, moteur de backtest, tests anti-lookahead | validée (voir `reports/PHASE1.md`) |
+| 2 | C1 et C2 sur BTC et ETH, 1h / 4h / 1D | **livrée : aucun candidat** (voir `reports/phase2/BILAN.md`), en attente de validation |
 | 3 | Tournoi complet C3, C4, C5, toutes les paires, ablation | — |
 | 4 | Alertes Discord, suivi, surveillance (alertes seules) | — |
 | 5 | Déploiement gratuit et affichage sur Dinexo | seulement si un concept est « edge confirmé » |
@@ -93,9 +93,13 @@ bougies sont identiques avec ou sans les bougies suivantes, et ne changent pas s
 règles d'exécution du moteur, limites du portefeuille, verrou du test final, idempotence des identifiants de
 signal, et la non-régression contre l'étude 1 (sautée si la base n'est pas téléchargée).
 
-## Backtest, tournoi, mode live
+## Backtest et tournoi
 
-Ajoutés en Phases 2 à 4.
+```bash
+python -m bot.main phase2           # C1 + C2 sur BTC et ETH, walk-forward, rapport reports/phase2/PHASE2.md
+```
+
+Le tournoi complet (Phase 3) et le mode live (Phase 4) seront ajoutés avec leur phase.
 
 ## Limites connues
 
