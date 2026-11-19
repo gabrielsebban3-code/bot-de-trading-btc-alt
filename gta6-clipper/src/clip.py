@@ -52,6 +52,28 @@ def hook_title(segments, start, end, video: dict, mode: str = "auto", mcfg=None)
     return titled if who and len(titled) <= 52 else f"« {best[1]} »"
 
 
+def title_ideas(segments, start, end, video: dict, n: int = 4):
+    """Idées de titres pour l'éditeur : phrases fortes dites dans le clip (exclamations, questions d'abord),
+    puis le titre de la vidéo. L'utilisateur choisit, modifie ou écrit le sien."""
+    text = " ".join(s["text"] for s in segments if s["end"] > start and s["start"] < end)
+    scored = []
+    for sen in re.split(r"(?<=[.!?…])\s+", clean_text(text)):
+        sen = sen.strip(" -–—\"'«»")
+        if 3 <= len(sen.split()) <= 10 and len(sen) <= 48:
+            scored.append((2 if sen.endswith(("!", "?")) else 0, len(scored), sen[0].upper() + sen[1:]))
+    out = []
+    for _, _, sen in sorted(scored, key=lambda x: (-x[0], x[1])):
+        idea = f"« {sen} »"
+        if idea not in out:
+            out.append(idea)
+        if len(out) >= n - 1:
+            break
+    vt = shorten(clean_text(video.get("title", "")), 50)
+    if vt and vt not in out:
+        out.append(vt)
+    return out
+
+
 FILLERS = {"euh", "heu", "euhh", "euuh", "heuu", "hum", "hmm", "mmh", "bah", "beh"}
 
 

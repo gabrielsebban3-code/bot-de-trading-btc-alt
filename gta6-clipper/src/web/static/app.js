@@ -81,6 +81,14 @@
     const c = clips[cur];
     video.src = `/media/${encodeURIComponent(c.id)}.mp4?v=${c.file_size}`;
     $("p-hook").value = c.hook || "";
+    const box = $("p-ideas");
+    box.textContent = "";
+    (c.ideas || []).forEach((t) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "idea"; b.textContent = t;
+      b.addEventListener("click", () => { $("p-hook").value = t; $("p-hook").focus(); });
+      box.appendChild(b);
+    });
     $("p-hook-status").textContent = "";
     video.play().catch(() => {});
     $("p-title").textContent = c.video_title;

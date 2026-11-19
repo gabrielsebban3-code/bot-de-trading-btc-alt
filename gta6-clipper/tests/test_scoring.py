@@ -554,3 +554,11 @@ def test_gta_keyword_on_screen():
     assert with_keyword("") == ""
     long_t = "x" * 56
     assert with_keyword(long_t) == long_t                                                   # trop long : inchangé
+
+
+def test_title_ideas():
+    from src.clip import title_ideas
+    segs = [{"start": 0, "end": 9, "text": "bon on y va. C'est pas GTA, ça ?! On roule vers la plage. Regarde ce détail incroyable !"}]
+    ideas = title_ideas(segs, 0, 10, {"title": "JE JOUE A GTA 6 🔥"})
+    assert ideas[0] == "« C'est pas GTA, ça ?! »" and "« Regarde ce détail incroyable ! »" in ideas
+    assert ideas[-1] == "JE JOUE A GTA 6" and len(ideas) <= 4

@@ -58,6 +58,8 @@ button:disabled { opacity:.5; cursor:default; }
 .rate-row button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
 .at-input { flex:0 0 150px; min-width:0; }
 .learn { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--muted); }
+.ideas { display:flex; flex-wrap:wrap; gap:6px; }
+.idea { font-size:12px; padding:4px 8px; border-radius:99px; text-align:left; }
 .hook-form { display:flex; flex-direction:column; gap:6px; margin-top:4px; }
 .settings { display:flex; flex-direction:column; gap:14px; max-width:760px; }
 .settings label { display:flex; flex-direction:column; gap:4px; color:var(--muted); }

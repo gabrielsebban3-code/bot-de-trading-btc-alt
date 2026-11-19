@@ -161,11 +161,18 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
     @app.get("/")
     def index(request: Request, show: str = "all", video: str = "", channel: str = "", sort: str = "date"):
         hashtags = load_config().get("publish", {}).get("hashtags", "")
-        clips = [{**clip_view(c), "caption": tiktok_caption(c, hashtags)}
+        def ideas(c):
+            try:
+                segs = json.loads(c.get("segments") or "[]")
+            except ValueError:
+                segs = []
+            return cliplib.title_ideas(segs, c["start"], c["end"], {"title": c["video_title"]})
+
+        clips = [{**clip_view(c), "caption": tiktok_caption(c, hashtags), "ideas": ideas(c)}
                  for c in db.list_clips(show, video or None, channel or None, sort)]
         videos, channels = db.facets()
         js = [{k: c.get(k) for k in ("id", "video_title", "channel", "duration", "score", "favorite", "seen", "yt", "why",
-                                      "hook", "file_size", "rating", "posted", "caption")}
+                                      "hook", "file_size", "rating", "posted", "caption", "ideas")}
               for c in clips]
         return page(request, "index.html", clips=clips, clips_js=js, videos=videos, channels=channels,
                     f={"show": show, "video": video, "channel": channel, "sort": sort}, job=jobs.status())
