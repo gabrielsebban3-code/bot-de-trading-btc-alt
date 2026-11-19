@@ -22,6 +22,16 @@ def subtitle_events(segments, start, end, max_words=6):
     for seg in segments:
         if seg["end"] <= start or seg["start"] >= end:
             continue
+        timed = [w for w in seg.get("words") or [] if w[1] > start and w[0] < end]
+        if timed:  # horaires exacts des mots (Whisper word_timestamps)
+            for i in range(0, len(timed), max_words):
+                chunk = timed[i:i + max_words]
+                s, e = max(chunk[0][0], start), min(chunk[-1][1], end)
+                if e - s > 0.15:
+                    events.append((round(s - start, 2), round(e - start, 2), " ".join(w[2] for w in chunk)))
+            continue
+        if seg.get("words"):
+            continue
         words = seg["text"].split()
         if not words:
             continue

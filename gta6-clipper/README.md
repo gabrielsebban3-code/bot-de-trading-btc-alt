@@ -67,10 +67,19 @@ gta6-clipper serve --lan --port 8000
 gta6-clipper status
 ```
 
+```bash
+gta6-clipper doctor
+```
+
 - `run` : recherche, découpe et ajout des clips au site.
 - `--dry-run` : affiche les clips prévus avec leurs timestamps et le détail des signaux. Il télécharge uniquement la piste audio, nécessaire à l'analyse, et aucune vidéo. La transcription est mise en cache, donc le vrai `run` suivant ne la refait pas.
 - `--url` : traite une seule vidéo, sans les filtres de recherche.
 - `serve` : ouvre le site sur http://127.0.0.1:8000.
+- `doctor` : vérifie l'installation (Python, ffmpeg, bibliothèques, recherche YouTube, modèle, port 8000). À lancer en premier si quelque chose ne marche pas.
+
+## Mise à jour (Windows)
+
+Arrête le site, puis double-clique sur `maj.bat` dans le dossier `gta6-clipper`. Il télécharge la dernière version, remplace `src`, `pyproject.toml`, `requirements.txt` et `README.md`, puis met à jour les dépendances. Il ne touche pas à `.venv`, `data` (tes clips), `config.yaml` ni `.env`.
 
 ## Accès depuis le téléphone (même Wi-Fi)
 
@@ -137,9 +146,10 @@ Les fichiers vont dans `data/clips/<id>.mp4`, `data/thumbs/<id>.jpg` et `data/db
 - **Sans clé API**, la date, les likes et la heatmap demandent une extraction détaillée par vidéo. Elle est plafonnée à `max_candidates` (20) et mise en cache 24 h.
 - **Coupe précise** : `force_keyframes_at_cuts` oblige yt-dlp à réencoder le segment. C'est plus lent, mais sans ça, la vidéo démarre figée ou désynchronisée.
 - **Heatmap absente** ou **transcription vide** : les poids des signaux manquants sont redistribués sur ceux qui restent. Sans transcription, la coupe n'est pas alignée sur des phrases.
-- Une vidéo en échec est enregistrée avec le statut `error` et n'est pas retentée automatiquement. `run --url` permet de la forcer.
+- Une vidéo en échec (statut `error`) est retentée par la recherche automatique jusqu'à `max_attempts` fois (3 par défaut). `run --url` la force à tout moment.
+- Les sous-titres utilisent l'horaire exact de chaque mot donné par Whisper (`word_timestamps`), ce qui rend la transcription environ 10 à 20 % plus longue.
+- Un seul traitement à la fois, que ce soit depuis le site ou le terminal : `data/job.json` partage l'état, avec un battement toutes les 10 s.
 - La page Réglages réécrit `config.yaml`, ce qui efface ses commentaires.
-- Le verrou « un job à la fois » vaut pour le serveur. Évite de lancer `run` en ligne de commande pendant un job lancé depuis le site.
 - Le scoring LLM est désactivé par défaut. Si tu l'actives (`moments.llm.enabled: true` et `ANTHROPIC_API_KEY`), seuls les 2 ou 3 passages présélectionnés (600 caractères maximum chacun) partent vers l'API Anthropic. La réponse est un seul chiffre, et le résultat est mis en cache dans SQLite. Note que ça envoie du texte à un service tiers.
 
 ## Tests

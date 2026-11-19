@@ -33,12 +33,24 @@ def detect_language(wav_path, tcfg, duration):
     return lang, prob
 
 
-def transcribe(wav_path, vid, tcfg, db):
-    key = f"tr:{vid}:{tcfg['model']}"
+def transcribe(wav_path, vid, tcfg, db, on_progress=None):
+    """Segments + horaires de chaque mot (sous-titres synchronisés). on_progress(pourcentage) tous les 5 %."""
+    key = f"trw:{vid}:{tcfg['model']}"
     cached = db.cache_get(key)
     if cached is not None:
         return cached
-    segs, _ = get_model(tcfg).transcribe(load_wav(wav_path), language=tcfg["language"], vad_filter=True)
-    out = [{"start": round(s.start, 2), "end": round(s.end, 2), "text": s.text.strip()} for s in segs if s.text.strip()]
+    audio = load_wav(wav_path)
+    total = max(1.0, len(audio) / 16000)
+    segs, _ = get_model(tcfg).transcribe(audio, language=tcfg["language"], vad_filter=True, word_timestamps=True)
+    out, last = [], 0
+    for s in segs:
+        text = s.text.strip()
+        if text:
+            words = [[round(w.start, 2), round(w.end, 2), w.word.strip()] for w in (s.words or []) if w.word.strip()]
+            out.append({"start": round(s.start, 2), "end": round(s.end, 2), "text": text, "words": words})
+        pct = int(min(99, s.end / total * 100))
+        if on_progress and pct >= last + 5:
+            last = pct
+            on_progress(pct)
     db.cache_set(key, out)
     return out

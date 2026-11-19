@@ -15,6 +15,7 @@ search:
   results_per_query: 15
   max_candidates: 20      # extractions détaillées max (coûteuses) par exécution
   cache_hours: 6
+  max_attempts: 3         # une vidéo en erreur est retentée jusqu'à 3 fois
   channel_whitelist: []   # prioritaires (bonus de score, ignorent min_views)
   channel_blacklist: []   # jamais traitées
 moments:

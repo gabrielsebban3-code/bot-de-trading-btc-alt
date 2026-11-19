@@ -129,15 +129,17 @@ def test_transcribe_passes_array_not_path(tmp_path, monkeypatch):
     class FakeModel:
         def transcribe(self, audio, **kw):
             seen["type"] = type(audio)
-            return iter([SimpleNamespace(start=0.0, end=1.0, text=" salut ")]), None
+            return iter([SimpleNamespace(start=0.0, end=1.0, text=" salut ", words=[SimpleNamespace(start=0.1, end=0.6, word=" salut")])]), None
         def detect_language(self, audio=None, **kw):
             seen["lang_type"] = type(audio)
             return "fr", 0.99, []
     monkeypatch.setattr(transcribe, "get_model", lambda tcfg: FakeModel())
     tcfg = DEFAULTS["transcription"]
     assert transcribe.detect_language(wav, tcfg, 1.0)[0] == "fr"
-    segs = transcribe.transcribe(wav, "vid", tcfg, DB(tmp_path / "db.sqlite"))
-    assert segs == [{"start": 0.0, "end": 1.0, "text": "salut"}]
+    pcts = []
+    segs = transcribe.transcribe(wav, "vid", tcfg, DB(tmp_path / "db.sqlite"), on_progress=pcts.append)
+    assert segs == [{"start": 0.0, "end": 1.0, "text": "salut", "words": [[0.1, 0.6, "salut"]]}]
+    assert pcts and pcts[-1] <= 99
     assert seen["type"] is np.ndarray and seen["lang_type"] is np.ndarray
 
 
@@ -146,3 +148,46 @@ def test_search_url_uses_upload_filter():
     url = search.search_url("GTA 6 map", 7)
     assert "search_query=GTA+6+map" in url and "sp=EgIIAw%3D%3D" in url
     assert any(ie.suitable(url) for ie in gen_extractor_classes() if ie.ie_key() == "YoutubeSearchURL")
+
+
+def test_subtitles_use_word_timings():
+    segs = [{"start": 10, "end": 20, "text": "a b c d e f g h",
+             "words": [[10 + i, 10.8 + i, w] for i, w in enumerate("abcdefgh")]}]
+    ev = vertical.subtitle_events(segs, 12, 40, max_words=3)
+    assert ev[0] == (0.0, 2.8, "c d e") and ev[1] == (3.0, 5.8, "f g h")
+
+
+def test_failed_videos_are_retried_then_dropped(tmp_path):
+    from src.db import DB
+    db = DB(tmp_path / "db.sqlite")
+    v = {"id": "vid00000001"}
+    db.upsert_video({"id": "okvideo0001"}, "ok")
+    db.upsert_video(v, "error", "boom")
+    assert db.known_ids(3) == {"okvideo0001"}
+    db.upsert_video(v, "error", "boom")
+    db.upsert_video(v, "error", "boom")
+    assert "vid00000001" in db.known_ids(3)
+
+
+def test_legacy_db_gets_attempts_column(tmp_path):
+    import sqlite3
+    from src.db import DB
+    path = tmp_path / "old.sqlite"
+    c = sqlite3.connect(path)
+    c.execute("CREATE TABLE videos (id TEXT PRIMARY KEY, title TEXT, channel TEXT, url TEXT, published_at TEXT, "
+              "duration REAL, views INTEGER, likes INTEGER, score REAL, status TEXT, error TEXT, processed_at REAL)")
+    c.execute("INSERT INTO videos (id, status) VALUES ('legacy00001', 'error')")
+    c.commit(); c.close()
+    db = DB(path)
+    assert "legacy00001" not in db.known_ids()
+    db.upsert_video({"id": "legacy00001"}, "ok")
+    assert "legacy00001" in db.known_ids()
+
+
+def test_cli_run_refuses_when_job_running(tmp_path, monkeypatch):
+    import json, time
+    from src import jobs
+    monkeypatch.setattr(jobs, "data_dir", lambda: tmp_path)
+    (tmp_path / "job.json").write_text(json.dumps({"running": True, "updated_at": time.time()}))
+    res = jobs.run_pipeline(DEFAULTS, db=object())
+    assert "tourne déjà" in res["fatal"]

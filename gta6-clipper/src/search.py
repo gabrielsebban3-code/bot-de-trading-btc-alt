@@ -162,7 +162,7 @@ def filter_and_rank(cands, scfg, now=None, known=()):
 
 
 def search_videos(scfg, db):
-    known = {v["id"] for v in db.list_videos()}
+    known = db.known_ids(scfg.get("max_attempts", 3))
     key = os.environ.get("YOUTUBE_API_KEY")
     cands = None
     if key:

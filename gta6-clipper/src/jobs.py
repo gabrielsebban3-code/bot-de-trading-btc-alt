@@ -34,7 +34,7 @@ class Progress:
         self.state_file = state_file
         self._lock = threading.Lock()
         self.state = {"running": False, "stage": None, "stages": STAGES, "video": "", "video_index": 0,
-                      "video_total": 0, "clips": 0, "errors": 0, "log": [], "error": None,
+                      "video_total": 0, "detail": "", "clips": 0, "errors": 0, "log": [], "error": None,
                       "started_at": None, "finished_at": None}
 
     def _save(self):
@@ -72,13 +72,15 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     wav = download.download_audio(vid, workdir)
     progress.log(f"Audio récupéré ({time.time() - t0:.0f}s)")
 
-    progress.update(stage="transcription")
+    progress.update(stage="transcription", detail="")
     tcfg = cfg["transcription"]
     if tcfg.get("check_language"):
         lang, prob = transcribe.detect_language(wav, tcfg, cand["duration"])
         if lang != tcfg["language"] and prob > 0.5:
             raise SkipVideo(f"langue détectée : {lang} ({prob:.0%})")
-    segments = transcribe.transcribe(wav, vid, tcfg, db)
+    segments = transcribe.transcribe(wav, vid, tcfg, db,
+                                     on_progress=lambda p: progress.update(detail=f"transcription {p} %"))
+    progress.update(detail="")
     if not segments:
         progress.log("Transcription vide : découpe sur heatmap/audio uniquement", logging.WARNING)
     progress.log(f"Transcription : {len(segments)} segments ({time.time() - t0:.0f}s)")
@@ -106,9 +108,15 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     return made
 
 
-def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep_temp=False):
+def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep_temp=False, check_lock=True):
     cfg = cfg or load_config()
     data = data_dir()
+    if check_lock:
+        st = read_state(data / "job.json")
+        if st and st.get("running"):
+            msg = "un traitement tourne déjà (lancé depuis le site ou un autre terminal)"
+            log.error(msg)
+            return {"videos": 0, "clips": 0, "errors": 0, "planned": [], "fatal": msg}
     db = db or DB(data / "db.sqlite")
     progress = progress or Progress(data / "job.json")
     beat = threading.Event()
@@ -187,7 +195,7 @@ class JobManager:
 
         def target():
             try:
-                run_pipeline(load_config(), self.db, self.progress, url=url)
+                run_pipeline(load_config(), self.db, self.progress, url=url, check_lock=False)
             finally:
                 self._lock.release()
 

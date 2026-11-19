@@ -61,7 +61,99 @@ def cmd_status(_args):
     return 0
 
 
+def cmd_doctor(_args):
+    """Vérifie l'installation. Sortie ASCII pour la console Windows."""
+    import platform
+    import shutil
+    import socket
+    import subprocess
+    from pathlib import Path
+
+    failed = []
+
+    def check(name, fn, info_only=False):
+        try:
+            detail = fn()
+            print(f"[OK]    {name}" + (f" : {detail}" if detail else ""))
+        except Exception as e:
+            msg = str(e).splitlines()[0][:200] if str(e) else type(e).__name__
+            print(f"[{'INFO' if info_only else 'ECHEC'}]  {name} : {msg}")
+            if not info_only:
+                failed.append(name)
+
+    def py():
+        if sys.version_info < (3, 11):
+            raise RuntimeError(f"{platform.python_version()} : il faut Python 3.11 ou plus")
+        return platform.python_version()
+
+    def ff():
+        from .download import require_ffmpeg
+        require_ffmpeg()
+        filt = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True).stdout
+        enc = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True).stdout
+        missing = [n for n, ok in (("subtitles (libass)", " subtitles " in filt), ("libx264", "libx264" in enc)) if not ok]
+        if missing:
+            raise RuntimeError("ffmpeg sans " + ", ".join(missing))
+        return "subtitles + libx264 disponibles"
+
+    def libs():
+        import av
+        import faster_whisper
+        import yt_dlp
+        return f"yt-dlp {yt_dlp.version.__version__}, faster-whisper {faster_whisper.__version__}, av {av.__version__}"
+
+    def yt():
+        from yt_dlp import YoutubeDL
+        from .download import BASE_OPTS
+        from .search import search_url
+        with YoutubeDL({**BASE_OPTS, "extract_flat": "in_playlist", "skip_download": True, "playlistend": 3}) as y:
+            res = y.extract_info(search_url("GTA 6", 7), download=False)
+        n = len([e for e in res.get("entries", []) if e])
+        if not n:
+            raise RuntimeError("la recherche ne renvoie aucune vidéo")
+        return f"{n} résultat(s) pour 'GTA 6'"
+
+    def model():
+        name = load_config()["transcription"]["model"]
+        hub = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
+        if (hub / f"models--Systran--faster-whisper-{name}").exists():
+            return f"'{name}' déjà téléchargé"
+        raise RuntimeError(f"'{name}' pas encore téléchargé (fait automatiquement au premier traitement)")
+
+    def disk():
+        d = data_dir()
+        (d / ".write_test").write_text("ok")
+        (d / ".write_test").unlink()
+        return f"{d} ({shutil.disk_usage(d).free / 1024 ** 3:.0f} Go libres)"
+
+    def port():
+        with socket.socket() as s:
+            try:
+                s.bind(("127.0.0.1", 8000))
+            except OSError:
+                raise RuntimeError("port 8000 occupé : le site tourne déjà ? (sinon : serve --port 8001)")
+        return "port 8000 libre"
+
+    print("Diagnostic gta6-clipper\n")
+    check("Python", py)
+    check("ffmpeg", ff)
+    check("Bibliothèques", libs)
+    check("Recherche YouTube", yt)
+    check("Dossier data", disk)
+    check("Modèle Whisper", model, info_only=True)
+    check("Site", port, info_only=True)
+    check("Clé YouTube API", lambda: "présente" if os.environ.get("YOUTUBE_API_KEY") else
+          (_ for _ in ()).throw(RuntimeError("absente (facultative : recherche via yt-dlp)")), info_only=True)
+    print("\n" + ("Tout est bon." if not failed else "Problème(s) : " + ", ".join(failed)))
+    return 1 if failed else 0
+
+
 def cli(argv=None):
+    for stream in (sys.stdout, sys.stderr):  # évite les plantages d'encodage de la console Windows
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
     load_env()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
     os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
@@ -77,8 +169,9 @@ def cli(argv=None):
     s.add_argument("--lan", action="store_true", help="écoute sur 0.0.0.0 (mot de passe obligatoire)")
     s.add_argument("--port", type=int, default=8000)
     sub.add_parser("status", help="vidéos et clips déjà traités")
+    sub.add_parser("doctor", help="vérifie l'installation (ffmpeg, recherche YouTube, bibliothèques...)")
     args = p.parse_args(argv)
-    return {"run": cmd_run, "serve": cmd_serve, "status": cmd_status}[args.cmd](args)
+    return {"run": cmd_run, "serve": cmd_serve, "status": cmd_status, "doctor": cmd_doctor}[args.cmd](args)
 
 
 if __name__ == "__main__":

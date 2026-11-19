@@ -25,6 +25,8 @@ class DB:
         self.path = Path(path)
         with self.conn() as c:
             c.executescript(SCHEMA)
+            if "attempts" not in [r[1] for r in c.execute("PRAGMA table_info(videos)")]:
+                c.execute("ALTER TABLE videos ADD COLUMN attempts INTEGER DEFAULT 0")
 
     @contextmanager
     def conn(self):
@@ -55,11 +57,22 @@ class DB:
 
     def upsert_video(self, v: dict, status: str, error: str | None = None) -> None:
         with self.conn() as c:
+            r = c.execute("SELECT attempts FROM videos WHERE id=?", (v["id"],)).fetchone()
+            attempts = (r[0] or 0) if r else 0
+            if status == "error":
+                attempts += 1
             c.execute(
-                "INSERT OR REPLACE INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                (v["id"], v.get("title"), v.get("channel"), v.get("url"), v.get("published_at"),
-                 v.get("duration"), v.get("views"), v.get("likes"), v.get("score"), status, error, time.time()),
+                "INSERT OR REPLACE INTO videos (id, title, channel, url, published_at, duration, views, likes, score, "
+                "status, error, processed_at, attempts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (v["id"], v.get("title"), v.get("channel"), v.get("url"), v.get("published_at"), v.get("duration"),
+                 v.get("views"), v.get("likes"), v.get("score"), status, error, time.time(), attempts),
             )
+
+    def known_ids(self, max_attempts: int = 3) -> set:
+        """Vidéos à ne plus proposer : traitées, ignorées, ou en erreur trop de fois."""
+        with self.conn() as c:
+            rows = c.execute("SELECT id FROM videos WHERE status != 'error' OR attempts >= ?", (max_attempts,))
+            return {r[0] for r in rows}
 
     def list_videos(self):
         with self.conn() as c:

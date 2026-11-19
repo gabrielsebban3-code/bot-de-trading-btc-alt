@@ -23,6 +23,7 @@
       btn.disabled = urlBtn.disabled = j.running;
       const parts = [];
       if (j.running) parts.push(j.video_total ? `Vidéo ${j.video_index}/${j.video_total} : ${j.video}` : "Recherche en cours…");
+      if (j.running && j.detail) parts.push(j.detail);
       if (j.clips) parts.push(`${j.clips} clip(s) créé(s)`);
       if (j.errors) parts.push(`${j.errors} erreur(s)`);
       if (j.error) parts.push(`Échec : ${j.error}`);

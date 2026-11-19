@@ -10,7 +10,7 @@ DEFAULTS = {
     "search": {
         "queries": ["GTA 6", "GTA VI gameplay", "GTA 6 trailer analyse", "GTA 6 test", "GTA 6 avis", "GTA 6 map"],
         "days": 7, "min_duration_min": 3, "max_duration_min": 40, "min_views": 5000, "top_n": 5,
-        "results_per_query": 15, "max_candidates": 20, "cache_hours": 6,
+        "results_per_query": 15, "max_candidates": 20, "cache_hours": 6, "max_attempts": 3,
         "channel_whitelist": [], "channel_blacklist": [],
     },
     "moments": {
