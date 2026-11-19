@@ -1,5 +1,6 @@
 """Site privé local : FastAPI + Jinja2 + JS vanilla. Aucun asset externe."""
 import hmac
+import threading
 import json
 import secrets
 import time
@@ -14,7 +15,7 @@ from starlette.concurrency import run_in_threadpool
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from .. import clip as cliplib
-from ..download import moment_url, parse_time, video_id
+from ..download import import_music, is_playlist_url, moment_url, parse_time, video_id
 from ..scoring import learn_weights
 from ..config import data_dir, load_config, save_config
 from ..db import DB
@@ -187,7 +188,8 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
                     "learned": learned and cfg["moments"].get("learn_from_ratings", True),
                     "weights": weights, "base": cfg["moments"]["weights"]}
         return page(request, "settings.html", cfg=cfg, saved=saved, duration=duration_preset(cfg["moments"]),
-                    learning=learning, music_count=len(cliplib.music_files(data)), music_dir=str(data / "music"))
+                    learning=learning, music_count=len(cliplib.music_files(data)), music_dir=str(data / "music"),
+                    music_import=app.state.music_import, music_msg=request.query_params.get("music", ""))
 
     @app.post("/settings")
     async def settings_save(request: Request):
@@ -259,6 +261,34 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         v = 0 if c["favorite"] else 1
         db.set_flag(cid, "favorite", v)
         return {"favorite": v}
+
+    music_import = {"running": False, "last": ""}
+
+    @app.post("/music/import")
+    async def music_import_start(request: Request):
+        url = str((await request.form()).get("url") or "").strip()
+        if not is_playlist_url(url):
+            return RedirectResponse("/settings?music=bad", status_code=303)
+        if music_import["running"]:
+            return RedirectResponse("/settings?music=busy", status_code=303)
+
+        def target():
+            music_import.update(running=True, last="")
+            try:
+                n = cliplib_import(url)
+                music_import["last"] = f"Import terminé : {n} musique(s) dans le dossier."
+            except Exception as e:
+                music_import["last"] = "Import échoué : " + (str(e).splitlines()[0][:200] if str(e) else type(e).__name__)
+            finally:
+                music_import["running"] = False
+
+        threading.Thread(target=target, daemon=True, name="music-import").start()
+        return RedirectResponse("/settings?music=started", status_code=303)
+
+    def cliplib_import(url):
+        return import_music(url, data / "music", 25)
+
+    app.state.music_import = music_import
 
     @app.post("/api/clips/{cid}/posted")
     def posted(cid: str):

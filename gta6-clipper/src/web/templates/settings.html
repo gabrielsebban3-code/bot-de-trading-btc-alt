@@ -80,4 +80,16 @@
   </div>
   <button class="primary">Enregistrer</button>
 </form>
+
+<h2>Musiques d'ambiance</h2>
+<form method="post" action="/music/import" class="settings">
+  <label>Importer une playlist YouTube de musiques libres de droits (25 morceaux maximum, ajoutés dans le dossier musique)
+    <input type="url" name="url" placeholder="https://youtube.com/playlist?list=..." required></label>
+  <button>Importer la playlist</button>
+  {% if music_msg == 'bad' %}<p class="err">Ce n'est pas un lien de playlist YouTube (il doit contenir « list= »).</p>{% endif %}
+  {% if music_msg == 'busy' or music_import.running %}<p class="ok">Import en cours… recharge la page dans une minute.</p>
+  {% elif music_import.last %}<p class="ok">{{ music_import.last }}</p>{% endif %}
+  <p class="p-sub">Uniquement des musiques <strong>libres de droits</strong> (Bibliothèque audio YouTube…). Certaines exigent de citer l'artiste (ex. Kevin MacLeod) : ajoute-le à la légende si tu publies.</p>
+</form>
+
 {% endblock %}

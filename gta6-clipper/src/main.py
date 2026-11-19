@@ -172,6 +172,16 @@ def cmd_doctor(_args):
     return 1 if failed else 0
 
 
+def cmd_music(args):
+    from .download import import_music, is_playlist_url
+    if not is_playlist_url(args.url):
+        print("Il faut un lien de playlist YouTube (contenant « list= »).", file=sys.stderr)
+        return 2
+    n = import_music(args.url, data_dir() / "music", args.max)
+    print(f"{n} musique(s) dans {data_dir() / 'music'}")
+    return 0
+
+
 def cli(argv=None):
     for stream in (sys.stdout, sys.stderr):  # évite les plantages d'encodage de la console Windows
         try:
@@ -195,8 +205,12 @@ def cli(argv=None):
     s.add_argument("--port", type=int, default=8000)
     sub.add_parser("status", help="vidéos et clips déjà traités")
     sub.add_parser("doctor", help="vérifie l'installation (ffmpeg, recherche YouTube, bibliothèques...)")
+    mu = sub.add_parser("music", help="importe une playlist YouTube de musiques libres de droits dans data/music")
+    mu.add_argument("url")
+    mu.add_argument("--max", type=int, default=25)
     args = p.parse_args(argv)
-    return {"run": cmd_run, "serve": cmd_serve, "status": cmd_status, "doctor": cmd_doctor}[args.cmd](args)
+    return {"run": cmd_run, "serve": cmd_serve, "status": cmd_status, "doctor": cmd_doctor,
+            "music": cmd_music}[args.cmd](args)
 
 
 if __name__ == "__main__":

@@ -242,3 +242,21 @@ def test_tiktok_caption_and_posted(env):
     assert 'data-id="abcdefghijk_0"' in c.get("/?show=posted").text
     assert 'data-id="abcdefghijk_0"' not in c.get("/?show=unposted").text
     assert c.post("/api/clips/abcdefghijk_0/posted").json() == {"posted": 0}
+
+
+def test_music_playlist_import(env, monkeypatch):
+    import time as _t
+    from src.web import app as appmod
+    calls = []
+    monkeypatch.setattr(appmod, "import_music", lambda url, dest, n: calls.append((url, n)) or 7)
+    c = client(env)
+    r = c.post("/music/import", data={"url": "https://www.youtube.com/watch?v=abcdefghijk"}, follow_redirects=False)
+    assert r.headers["location"] == "/settings?music=bad"
+    url = "https://youtube.com/playlist?list=PLEcFkgin-XAmzUOkYqFDYy9McfDjANuCD"
+    r = c.post("/music/import", data={"url": url}, follow_redirects=False)
+    assert r.headers["location"] == "/settings?music=started"
+    for _ in range(50):
+        if calls and "terminé" in c.get("/settings").text:
+            break
+        _t.sleep(0.05)
+    assert calls == [(url, 25)] and "Import terminé : 7 musique(s)" in c.get("/settings").text

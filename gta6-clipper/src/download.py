@@ -237,3 +237,20 @@ def fetch_chat_counts(vid, db, duration, workdir: Path):
     out = {"messages": msgs, "reactions": fun} if any(msgs) else {}
     db.cache_set(key, out)
     return out or None
+
+
+def is_playlist_url(url: str) -> bool:
+    return bool(re.search(r"(youtube\.com|youtu\.be)/.*[?&]list=[\w-]+", url or ""))
+
+
+def import_music(url: str, dest: Path, max_items: int = 25) -> int:
+    """Télécharge en MP3 les morceaux d'une playlist YouTube (musiques libres de droits) dans dest.
+    Les morceaux déjà présents sont sautés. Renvoie le nombre de fichiers dans dest."""
+    dest.mkdir(parents=True, exist_ok=True)
+    opts = {**BASE_OPTS, "noplaylist": False, "ignoreerrors": True, "playlistend": int(max_items),
+            "format": "bestaudio/best", "restrictfilenames": True, "overwrites": False,
+            "outtmpl": str(dest / "%(title).80s.%(ext)s"),
+            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}]}
+    with YoutubeDL(opts) as y:
+        y.download([url])
+    return len([p for p in dest.glob("*.mp3")])
