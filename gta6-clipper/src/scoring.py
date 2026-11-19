@@ -121,6 +121,26 @@ def pick_windows(ws, k, length, gap):
     return chosen
 
 
+CONNECTORS = re.compile(r"^(mais|et|donc|du coup|parce que|parce qu'|car|alors|puis|ensuite|sauf que|en fait|"
+                        r"bref|enfin|ou|genre|sinon|d'ailleurs|du coup)\b", re.I)
+
+
+def standalone_start(segs, s, e, hi, avoid=(), gap=0.0, margin=0.0):
+    """Un clip doit tenir debout seul : s'il commence par un mot de liaison (« mais », « du coup »…),
+    on reprend la phrase d'avant (au plus 2), sans dépasser la durée maximale ni l'écart avec les autres clips."""
+    for _ in range(2):
+        idx = next((i for i, seg in enumerate(segs) if abs(seg["start"] - s) < 1e-6), None)
+        if not idx:
+            break
+        if not CONNECTORS.match(segs[idx]["text"].strip().lstrip("-–—\"'« ")):
+            break
+        prev = segs[idx - 1]
+        if e - prev["start"] > hi or any(not _far_enough((prev["start"] - margin, e + margin), a, gap) for a in avoid):
+            break
+        s = prev["start"]
+    return s
+
+
 def snap_to_sentences(t0, t1, segments, min_len, max_len, margin, duration, avoid=(), gap=0.0):
     """Aligne [t0,t1] sur des débuts/fins de segments Whisper, en respectant l'écart avec `avoid`.
     Retourne (start, end, aligned)."""
@@ -143,6 +163,7 @@ def snap_to_sentences(t0, t1, segments, min_len, max_len, margin, duration, avoi
                         best = (cost, si["start"], sj["end"])
     if best:
         s, e, aligned = best[1], best[2], True
+        s = standalone_start(sorted(segments, key=lambda x: x["start"]), s, e, hi, avoid, gap, margin)
     else:
         s, aligned = t0, False
         e = s + min(max(t1 - t0, lo), hi)

@@ -535,3 +535,13 @@ def test_pick_music_stable_and_optional(tmp_path):
     m1, m2 = pick_music(tmp_path, "abc_1", 60, r), pick_music(tmp_path, "abc_1", 60, r)
     assert m1 == m2 and m1["path"].endswith(".mp3") and 0 <= m1["offset"] <= 35 and m1["volume"] == 0.18
     assert pick_music(tmp_path, "abc_1", 60, {**r, "music": False}) is None
+
+
+def test_clip_does_not_start_mid_reasoning():
+    texts = ["On arrive à l'aéroport.", "Je prends l'avion le plus rapide.", "Mais du coup la police me suit.",
+             "Et là c'est le drame !"] + ["On continue la route."] * 20
+    segs = [{"start": i * 6.0, "end": i * 6.0 + 5.6, "text": t} for i, t in enumerate(texts)]
+    s, e, aligned = scoring.snap_to_sentences(12.0, 44.0, segs, 20, 45, 0.5, 300)
+    assert aligned and abs(s - (6.0 - 0.5)) < 1e-6            # reprend « Je prends l'avion… » avant « Mais du coup… »
+    s2, _, _ = scoring.snap_to_sentences(30.0, 62.0, segs, 20, 45, 0.5, 300)
+    assert abs(s2 - (30.0 - 0.5)) < 1e-6                       # phrase autonome : début inchangé
