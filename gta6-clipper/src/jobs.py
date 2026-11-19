@@ -158,7 +158,39 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     return made
 
 
-def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep_temp=False, check_lock=True):
+def process_manual(cand, at, cfg, db, data, workdir, progress):
+    """Un seul clip autour d'un minutage choisi par l'utilisateur (seul ce passage est transcrit)."""
+    vid, t_video, dur = cand["id"], time.time(), float(cand["duration"])
+    if not 0 <= at < dur:
+        raise SkipVideo(f"le minutage {int(at // 60)}:{int(at % 60):02d} dépasse la durée de la vidéo")
+    tcfg, mcfg = cfg["transcription"], cfg["moments"]
+    check_cancel(data, progress)
+    progress.update(stage="téléchargement", detail="")
+    wav = download.download_audio(vid, workdir)
+    check_cancel(data, progress)
+    progress.update(stage="transcription", detail="")
+    t0, t1 = scoring.manual_window(at, dur, mcfg)
+    segments = transcribe.transcribe(wav, vid, tcfg, db, regions=[(max(0.0, t0 - 20), min(dur, t1 + 20))],
+                                     cancel_check=lambda: check_cancel(data, progress),
+                                     on_progress=lambda p: progress.update(detail=f"transcription {p} %"))
+    wav.unlink(missing_ok=True)
+    check_cancel(data, progress)
+    progress.update(stage="découpe", detail="")
+    s, e, aligned = scoring.snap_to_sentences(t0, t1, segments, mcfg["min_clip_s"], mcfg["max_clip_s"],
+                                              mcfg["margin_s"], dur)
+    if not (s <= at - 2 and e >= at + 3):  # l'alignement ne doit pas faire sortir l'instant choisi du clip
+        s, e, aligned = t0, t1, False
+    moment = {"start": round(s, 2), "end": round(e, 2), "score": 1.0, "aligned": aligned, "signals": {"manuel": 1.0}}
+    progress.update(stage="rendu")
+    c = clip.make_clip(cand, moment, segments, cfg, workdir, data)
+    db.add_clip(c)
+    progress.update(clips=progress.snapshot()["clips"] + 1)
+    progress.log(f"Clip à la main {s:.0f}-{e:.0f} s créé en {time.time() - t_video:.0f} s")
+    return [c]
+
+
+def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep_temp=False, check_lock=True,
+                 at=None):
     cfg = cfg or load_config()
     data = data_dir()
     if check_lock:
@@ -169,6 +201,10 @@ def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep
             return {"videos": 0, "clips": 0, "errors": 0, "planned": [], "fatal": msg}
     db = db or DB(data / "db.sqlite")
     progress = progress or Progress(data / "job.json")
+    if cfg["moments"].get("learn_from_ratings", True):
+        weights, learned = scoring.learn_weights(db.rated_signals(), cfg["moments"]["weights"])
+        if learned:
+            cfg = {**cfg, "moments": {**cfg["moments"], "weights": weights}}
     beat = threading.Event()
     threading.Thread(target=lambda: [progress.update() for _ in iter(lambda: beat.wait(10), True)],
                      daemon=True).start()
@@ -182,10 +218,14 @@ def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep
         download.require_ffmpeg()
         t0 = time.time()
         if url:
+            at = at if at is not None else download.url_time(url)
             cands = [download.info_to_candidate(download.fetch_info(url, db))]
         else:
             cands = search.search_videos(cfg["search"], db)
         progress.log(f"Recherche : {len(cands)} vidéo(s) retenue(s) ({time.time() - t0:.0f}s)")
+        if cfg["moments"].get("learn_from_ratings", True) and at is None:
+            w = cfg["moments"]["weights"]
+            progress.log("Poids utilisés : " + ", ".join(f"{k} {v:.2f}" for k, v in w.items()))
         progress.update(video_total=len(cands))
         for i, cand in enumerate(cands, 1):
             if cancel_file(data).exists():
@@ -195,13 +235,18 @@ def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep
             progress.update(video=f"{cand['title']} — {cand['channel']}", video_index=i)
             progress.log(f"[{i}/{len(cands)}] {cand['title']} ({cand['channel']})")
             try:
-                res = process_video(cand, cfg, db, data, workdir, progress, dry_run)
+                if at is not None:
+                    progress.log(f"Clip demandé à {int(at // 60)}:{int(at % 60):02d}")
+                    res = process_manual(cand, at, cfg, db, data, workdir, progress)
+                else:
+                    res = process_video(cand, cfg, db, data, workdir, progress, dry_run)
                 summary["videos"] += 1
                 if dry_run:
                     summary["planned"].append({"video": cand, "moments": res})
                 else:
                     summary["clips"] += len(res)
-                    db.upsert_video(cand, "ok")
+                    if at is None:
+                        db.upsert_video(cand, "ok")
             except Cancelled:
                 summary["cancelled"] = True
                 summary["clips"] = progress.snapshot()["clips"]  # clips finis avant l'arrêt
@@ -210,14 +255,17 @@ def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep
                 break
             except (SkipVideo, download.VideoUnavailable) as e:
                 progress.log(f"Ignorée : {e}", logging.WARNING)
-                if not dry_run:
+                if not dry_run and at is None:
                     db.upsert_video(cand, "skipped", str(e))
             except Exception as e:  # une vidéo qui plante n'arrête pas les autres
                 summary["errors"] += 1
                 progress.update(errors=summary["errors"])
-                progress.log(f"Erreur : {str(e).splitlines()[-1] if str(e) else type(e).__name__}", logging.ERROR)
+                msg = str(e).splitlines()[-1] if str(e) else type(e).__name__
+                if any(w in str(e) for w in ("yt-dlp", "Sign in", "HTTP Error 403", "Requested format", "nsig")):
+                    msg += " (YouTube a peut-être changé : lance maj.bat pour mettre yt-dlp à jour)"
+                progress.log(f"Erreur : {msg}", logging.ERROR)
                 log.debug("trace", exc_info=True)
-                if not dry_run:
+                if not dry_run and at is None:
                     db.upsert_video(cand, "error", str(e)[:500])
         if not dry_run:
             n = clip.cleanup_disk(db, data, cfg["cleanup"])
@@ -250,14 +298,14 @@ class JobManager:
             return own
         return read_state(self.state_file) or own
 
-    def start(self, url: str | None = None) -> bool:
+    def start(self, url: str | None = None, at: float | None = None) -> bool:
         ext = read_state(self.state_file)
         if (ext and ext.get("running")) or not self._lock.acquire(blocking=False):
             return False
 
         def target():
             try:
-                run_pipeline(load_config(), self.db, self.progress, url=url, check_lock=False)
+                run_pipeline(load_config(), self.db, self.progress, url=url, check_lock=False, at=at)
             finally:
                 self._lock.release()
 

@@ -331,3 +331,30 @@ def merge_regions(windows, duration, pad=20.0):
         else:
             out.append((s, e))
     return [(round(s, 2), round(e, 2)) for s, e in out]
+
+
+def manual_window(at, duration, mcfg):
+    """Fenêtre d'un clip demandé à un minutage : l'instant choisi tombe vers 60 % du clip."""
+    length = float(mcfg["target_clip_s"])
+    t0 = min(max(0.0, at - 0.6 * length), max(0.0, duration - length))
+    return t0, min(float(duration), t0 + length)
+
+
+# ---------- apprentissage à partir des notes Bon / Nul ----------
+LEARNABLE = ("heatmap", "audio", "keywords", "comments")
+
+
+def learn_weights(rated, base, min_each=3):
+    """rated = [(note, signaux)] avec note +1 (bon) ou -1 (nul). Augmente le poids d'un signal plus fort dans les
+    bons clips que dans les nuls, et inversement (facteur entre 0,3 et 2). Renvoie (poids, appris ?)."""
+    good = [s for r, s in rated if r > 0]
+    bad = [s for r, s in rated if r < 0]
+    if len(good) < min_each or len(bad) < min_each:
+        return dict(base), False
+    out = dict(base)
+    for k in LEARNABLE:
+        g, b = [s[k] for s in good if k in s], [s[k] for s in bad if k in s]
+        if len(g) >= 2 and len(b) >= 2 and float(base.get(k, 0)) > 0:
+            diff = float(np.mean(g)) - float(np.mean(b))
+            out[k] = round(float(base[k]) * min(2.0, max(0.3, 1 + 1.5 * diff)), 3)
+    return out, True

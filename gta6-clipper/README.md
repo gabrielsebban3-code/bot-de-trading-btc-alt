@@ -75,11 +75,12 @@ gta6-clipper doctor
 - `--dry-run` : affiche les clips prévus avec leurs timestamps et le détail des signaux. Il télécharge uniquement la piste audio, nécessaire à l'analyse, et aucune vidéo. La transcription est mise en cache, donc le vrai `run` suivant ne la refait pas.
 - `--url` : traite une seule vidéo, sans les filtres de recherche.
 - `serve` : ouvre le site sur http://127.0.0.1:8000.
+- `run --url <lien> --at 41:20` : un seul clip autour de ce minutage. Un lien YouTube « partager à partir de » (`?t=2480`) marche aussi, comme le champ « à 41:20 ? » du site.
 - `doctor` : vérifie l'installation (Python, ffmpeg, bibliothèques, recherche YouTube, modèle, port 8000). À lancer en premier si quelque chose ne marche pas.
 
 ## Mise à jour (Windows)
 
-Arrête le site, puis double-clique sur `maj.bat` dans le dossier `gta6-clipper`. Il télécharge la dernière version, remplace `src`, `pyproject.toml`, `requirements.txt` et `README.md`, puis met à jour les dépendances. Il ne touche pas à `.venv`, `data` (tes clips), `config.yaml` ni `.env`.
+Arrête le site, puis double-clique sur `maj.bat` dans le dossier `gta6-clipper`. Il télécharge la dernière version, remplace `src`, `pyproject.toml`, `requirements.txt` et `README.md`, puis met à jour les dépendances. Il met aussi yt-dlp à jour (YouTube change souvent, et une vieille version finit par casser les téléchargements), puis se met lui-même à jour. Il ne touche pas à `.venv`, `data` (tes clips), `config.yaml` ni `.env`.
 
 ## Accès depuis le téléphone (même Wi-Fi)
 
@@ -101,6 +102,10 @@ La session est un cookie signé (HttpOnly, 30 jours). En mode local (`127.0.0.1`
 - Aucun CDN, aucune police externe, aucun tracker. Une CSP `default-src 'self'` le garantit.
 
 ## Planification
+
+**Windows** : double-clique sur `planifier.bat`, puis choisis l'heure (18:00 par défaut). Un traitement est programmé chaque jour dans le Planificateur de tâches, via `lancer_run.bat`, avec un journal dans `data\run.log`. Il tourne si le PC est allumé et ta session ouverte. Pour l'arrêter : `schtasks /Delete /TN gta6-clipper /F`.
+
+**Linux/macOS** :
 
 Cron, une exécution par jour à 7 h :
 
@@ -161,6 +166,7 @@ Les fichiers vont dans `data/clips/<id>.mp4`, `data/thumbs/<id>.jpg` et `data/db
   - titre accrocheur en haut, en encadré blanc ou en texte avec ombre. En mode `auto`, c'est la phrase la plus frappante du passage, précédée du nom de la chaîne ; à défaut, le titre de la vidéo. Les emojis sont retirés, car la police ne les dessine pas.
   - le titre se modifie dans le lecteur du site : le clip est refait en retéléchargeant seulement son segment, ce qui demande la transcription du passage gardée en base (clips créés après cette version) ;
   - durée : **1 minute minimum par défaut (60-90 s)**, ou moyenne (35-60 s) ou courte (20-45 s) dans la page Réglages. Un `config.yaml` existant passe automatiquement à 60-90 s une fois (`version: 2`).
+- **Notes 👍 / 👎** (boutons du lecteur, touches B et N) : dès 3 bons et 3 nuls, chaque traitement ajuste le poids de chaque signal. Un signal plus fort dans les bons clips que dans les nuls pèse plus, et inversement, avec un facteur entre 0,3 et 2. Les poids utilisés sont affichés dans Réglages et dans le journal. On le désactive avec `moments.learn_from_ratings: false`.
 - **Parole obligatoire** : un détecteur de voix (VAD Silero, inclus dans faster-whisper, quelques secondes) repère où quelqu'un parle. Un passage où l'on parle moins de 50 % du temps est quasi éliminé (`min_speech_ratio`). Une vidéo où l'on parle moins de 15 % du temps est ignorée (`min_video_speech_ratio`).
 - **Vitesse** (`transcription.mode`, réglable dans la page Réglages) :
   - `rapide` (défaut) : les candidats sont repérés avec la heatmap et l'audio, puis seuls leurs alentours (±20 s) sont transcrits. Le signal mots-clés ne sert alors plus au choix des moments. Sans heatmap, la transcription est complète.

@@ -1,7 +1,8 @@
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const post = (url, method = "POST") => fetch(url, { method }).then((r) => (r.ok ? r.json() : Promise.reject(r)));
+  const post = (url, method = "POST", body = undefined) =>
+    fetch(url, { method, body }).then((r) => (r.ok ? r.json() : Promise.reject(r)));
 
   // --- filtres : envoi automatique ---
   const filters = $("filters");
@@ -86,11 +87,21 @@
     $("p-sub").textContent = `Source : ${c.channel} · ${c.duration} s · score ${c.score.toFixed(2)} · ${cur + 1}/${clips.length}`;
     $("p-why").textContent = c.why ? `Pourquoi : ${c.why}` : "";
     $("p-fav").textContent = c.favorite ? "★ Favori" : "☆ Favori";
+    showRating(c);
     $("p-dl").href = `/download/${encodeURIComponent(c.id)}`;
     $("p-yt").href = c.yt;
     player.hidden = false;
   };
   const close = () => { video.pause(); video.removeAttribute("src"); video.load(); player.hidden = true; cur = -1; };
+  const showRating = (c) => {
+    $("p-good").classList.toggle("on", c.rating === 1);
+    $("p-bad").classList.toggle("on", c.rating === -1);
+  };
+  const rate = (value) => {
+    const c = clips[cur], body = new FormData();
+    body.append("value", value);
+    post(`/api/clips/${encodeURIComponent(c.id)}/rate`, "POST", body).then((r) => { c.rating = r.rating; showRating(c); });
+  };
   const toggleFav = () => {
     const c = clips[cur];
     post(`/api/clips/${encodeURIComponent(c.id)}/favorite`).then((r) => {
@@ -128,6 +139,8 @@
   $("p-prev").addEventListener("click", () => show(cur - 1));
   $("p-fav").addEventListener("click", toggleFav);
   $("p-del").addEventListener("click", del);
+  $("p-good").addEventListener("click", () => rate(1));
+  $("p-bad").addEventListener("click", () => rate(-1));
   $("p-close").addEventListener("click", close);
   $("hook-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -148,6 +161,8 @@
     else if (k === "ArrowDown") { e.preventDefault(); show(cur - 1); }
     else if (k === "f" || k === "F") toggleFav();
     else if (k === "Delete") del();
+    else if (k === "b" || k === "B") rate(1);
+    else if (k === "n" || k === "N") rate(-1);
     else if (k === "Escape") close();
   });
 

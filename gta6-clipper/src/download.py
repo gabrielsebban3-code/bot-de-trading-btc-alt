@@ -154,3 +154,25 @@ def fetch_comment_stamps(vid, db, duration, max_comments=100):
         comments = [{"text": c.get("text"), "like_count": c.get("like_count")} for c in info.get("comments") or []]
         db.cache_set(key, comments)
     return parse_stamps(comments, duration)
+
+
+def parse_time(value):
+    """« 41:20 », « 1:02:03 », « 2480 », « 2480s », « 41m20s » -> secondes ; None si illisible."""
+    v = str(value or "").strip().lower()
+    if not v:
+        return None
+    if re.fullmatch(r"\d+(\.\d+)?s?", v):
+        return float(v.rstrip("s"))
+    m = re.fullmatch(r"(?:(\d+):)?(\d{1,2}):(\d{2})", v)
+    if m:
+        return float(int(m[1] or 0) * 3600 + int(m[2]) * 60 + int(m[3]))
+    m = re.fullmatch(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", v)
+    if m and any(m.groups()):
+        return float(int(m[1] or 0) * 3600 + int(m[2] or 0) * 60 + int(m[3] or 0))
+    return None
+
+
+def url_time(url):
+    """Minutage d'un lien « partager à partir de » (…?t=2480 ou &t=41m20s)."""
+    m = re.search(r"[?&#](?:t|start)=([\dhms.]+)", url or "")
+    return parse_time(m.group(1)) if m else None

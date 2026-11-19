@@ -31,6 +31,8 @@ class DB:
             for col in ("reasons", "hook", "segments"):
                 if col not in have:
                     c.execute(f"ALTER TABLE clips ADD COLUMN {col} TEXT")
+            if "rating" not in have:
+                c.execute("ALTER TABLE clips ADD COLUMN rating INTEGER DEFAULT 0")
 
     @contextmanager
     def conn(self):
@@ -119,7 +121,7 @@ class DB:
         return videos, channels
 
     def set_flag(self, cid: str, flag: str, value: int) -> None:
-        assert flag in ("seen", "favorite")
+        assert flag in ("seen", "favorite", "rating")
         with self.conn() as c:
             c.execute(f"UPDATE clips SET {flag}=? WHERE id=?", (value, cid))
 
@@ -132,3 +134,18 @@ class DB:
             r = c.execute("SELECT COUNT(*), SUM(seen=0), SUM(favorite=1) FROM clips").fetchone()
             nv = c.execute("SELECT COUNT(*) FROM videos").fetchone()[0]
         return {"clips": r[0] or 0, "unseen": r[1] or 0, "favorites": r[2] or 0, "videos": nv}
+
+    def rated_signals(self):
+        """[(note, signaux)] des clips notés Bon (+1) ou Nul (-1), hors clips faits à la main."""
+        import json
+        with self.conn() as c:
+            rows = c.execute("SELECT rating, reasons FROM clips WHERE rating != 0 AND reasons IS NOT NULL").fetchall()
+        out = []
+        for r, reasons in rows:
+            try:
+                sig = json.loads(reasons)
+            except ValueError:
+                continue
+            if "manuel" not in sig:
+                out.append((r, sig))
+        return out

@@ -14,7 +14,8 @@ from starlette.concurrency import run_in_threadpool
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from .. import clip as cliplib
-from ..download import video_id
+from ..download import parse_time, video_id
+from ..scoring import learn_weights
 from ..config import data_dir, load_config, save_config
 from ..db import DB
 from ..jobs import JobManager
@@ -52,7 +53,7 @@ def _int(v, lo, hi, default):
         return default
 
 
-REASON_LABELS = {"heatmap": "très revu", "comments": "cité en commentaire", "audio": "voix qui s'emballe",
+REASON_LABELS = {"manuel": "choisi à la main", "heatmap": "très revu", "comments": "cité en commentaire", "audio": "voix qui s'emballe",
                  "keywords": "mots forts", "parole": "parole", "llm": "note IA"}
 
 
@@ -153,7 +154,7 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         clips = [clip_view(c) for c in db.list_clips(show, video or None, channel or None, sort)]
         videos, channels = db.facets()
         js = [{k: c.get(k) for k in ("id", "video_title", "channel", "duration", "score", "favorite", "seen", "yt", "why",
-                                      "hook", "file_size")}
+                                      "hook", "file_size", "rating")}
               for c in clips]
         return page(request, "index.html", clips=clips, clips_js=js, videos=videos, channels=channels,
                     f={"show": show, "video": video, "channel": channel, "sort": sort}, job=jobs.status())
@@ -172,7 +173,13 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
     @app.get("/settings")
     def settings_form(request: Request, saved: int = 0):
         cfg = load_config()
-        return page(request, "settings.html", cfg=cfg, saved=saved, duration=duration_preset(cfg["moments"]))
+        rated = db.rated_signals()
+        weights, learned = learn_weights(rated, cfg["moments"]["weights"])
+        learning = {"good": sum(1 for r, _ in rated if r > 0), "bad": sum(1 for r, _ in rated if r < 0),
+                    "learned": learned and cfg["moments"].get("learn_from_ratings", True),
+                    "weights": weights, "base": cfg["moments"]["weights"]}
+        return page(request, "settings.html", cfg=cfg, saved=saved, duration=duration_preset(cfg["moments"]),
+                    learning=learning)
 
     @app.post("/settings")
     async def settings_save(request: Request):
@@ -240,6 +247,18 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         db.set_flag(cid, "favorite", v)
         return {"favorite": v}
 
+    @app.post("/api/clips/{cid}/rate")
+    async def rate(cid: str, request: Request):
+        c = get_clip_or_404(cid)
+        try:
+            value = int((await request.form()).get("value", 0))
+        except ValueError:
+            value = 0
+        value = max(-1, min(1, value))
+        value = 0 if value == (c.get("rating") or 0) else value  # recliquer annule la note
+        db.set_flag(cid, "rating", value)
+        return {"rating": value}
+
     @app.delete("/api/clips/{cid}")
     def delete(cid: str):
         get_clip_or_404(cid)
@@ -259,13 +278,20 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
 
     @app.post("/api/run")
     async def run(request: Request):
-        url = str((await request.form()).get("url") or "").strip()
+        form = await request.form()
+        url = str(form.get("url") or "").strip()
+        at_raw = str(form.get("at") or "").strip()
+        at = parse_time(at_raw) if at_raw else None
+        if at_raw and at is None:
+            return JSONResponse({"started": False, "error": "minutage illisible (exemple : 41:20)"}, status_code=400)
+        if at is not None and not url:
+            return JSONResponse({"started": False, "error": "colle aussi le lien de la vidéo"}, status_code=400)
         if url:
             try:
                 video_id(url)
             except ValueError:
                 return JSONResponse({"started": False, "error": "lien YouTube invalide"}, status_code=400)
-        if not jobs.start(url or None):
+        if not jobs.start(url or None, at):
             return JSONResponse({"started": False, "error": "un traitement tourne déjà"}, status_code=409)
         return {"started": True}
 

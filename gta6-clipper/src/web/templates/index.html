@@ -6,6 +6,7 @@
     <button id="cancel-btn" class="danger" {% if not job.running %}hidden{% endif %}>Annuler le traitement</button>
     <form id="url-form" class="url-form">
       <input type="url" name="url" placeholder="ou colle un lien YouTube à traiter" required>
+      <input type="text" name="at" class="at-input" placeholder="à 41:20 ? (facultatif)" title="Minutage d'un moment précis : un seul clip est créé autour. Un lien « partager à partir de » marche aussi.">
       <button {% if job.running %}disabled{% endif %}>Traiter cette vidéo</button>
     </form>
   </div>
@@ -87,12 +88,16 @@
         <button id="p-prev" title="Précédent (↓)">▼ Préc.</button>
         <button id="p-next" title="Suivant (↑)">▲ Suiv.</button>
         <button id="p-fav" title="Favori (F)">☆ Favori</button>
+        <div class="rate-row">
+          <button id="p-good" title="Bon clip (B) : l'outil s'en inspire">👍 Bon</button>
+          <button id="p-bad" title="Clip nul (N) : l'outil s'en inspire">👎 Nul</button>
+        </div>
         <a id="p-dl" class="btn" href="#">Télécharger</a>
         <a id="p-yt" class="btn" href="#" target="_blank" rel="noopener noreferrer">Voir la vidéo originale à ce moment</a>
         <button id="p-del" class="danger" title="Supprimer (Suppr)">Supprimer</button>
         <button id="p-close" title="Fermer (Échap)">Fermer</button>
       </div>
-      <p class="hint">↑ suivant · ↓ précédent · F favori · Suppr supprimer · Échap fermer</p>
+      <p class="hint">↑ suivant · ↓ précédent · F favori · B bon · N nul · Suppr supprimer · Échap fermer</p>
     </aside>
   </div>
 </div>

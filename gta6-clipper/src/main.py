@@ -14,7 +14,12 @@ def _fmt(t):
 def cmd_run(args):
     from .jobs import run_pipeline
 
-    summary = run_pipeline(load_config(), dry_run=args.dry_run, url=args.url, keep_temp=args.keep_temp)
+    from .download import parse_time
+    at = parse_time(args.at) if args.at else None
+    if args.at and (at is None or not args.url):
+        print("--at demande un minutage lisible (ex. 41:20) et --url", file=sys.stderr)
+        return 2
+    summary = run_pipeline(load_config(), dry_run=args.dry_run, url=args.url, keep_temp=args.keep_temp, at=at)
     if args.dry_run:
         for p in summary["planned"]:
             v = p["video"]
@@ -59,6 +64,16 @@ def cmd_status(_args):
         err = f" — {v['error'][:80]}" if v["error"] else ""
         print(f"  [{v['status']:7}] {n} clip(s)  {v['title'][:70]} ({v['channel']}){err}")
     return 0
+
+
+def ytdlp_age_days(version: str, today=None):
+    """Âge en jours d'une version de yt-dlp (« 2026.10.26 ») ; None si illisible."""
+    import datetime as dt
+    try:
+        y, m, d = (int(x) for x in version.split(".")[:3])
+        return ((today or dt.date.today()) - dt.date(y, m, d)).days
+    except (ValueError, TypeError):
+        return None
 
 
 def cmd_doctor(_args):
@@ -138,6 +153,15 @@ def cmd_doctor(_args):
     check("Python", py)
     check("ffmpeg", ff)
     check("Bibliothèques", libs)
+
+    def ytdlp_fresh():
+        import yt_dlp
+        age = ytdlp_age_days(yt_dlp.version.__version__)
+        if age is not None and age > 60:
+            raise RuntimeError(f"yt-dlp a {age} jours : lance maj.bat (YouTube change souvent, les vieilles versions cassent)")
+        return f"version de moins de 2 mois" if age is not None else "version inconnue"
+
+    check("yt-dlp à jour", ytdlp_fresh)
     check("Recherche YouTube", yt)
     check("Dossier data", disk)
     check("Modèle Whisper", model, info_only=True)
@@ -164,6 +188,7 @@ def cli(argv=None):
     r = sub.add_parser("run", help="exécute le pipeline une fois")
     r.add_argument("--dry-run", action="store_true", help="analyse seulement (audio), aucun téléchargement vidéo")
     r.add_argument("--url", help="traite une seule vidéo")
+    r.add_argument("--at", help="avec --url : un seul clip autour de ce minutage (ex. 41:20)")
     r.add_argument("--keep-temp", action="store_true", help="garde le dossier temporaire (debug)")
     s = sub.add_parser("serve", help="lance le site privé")
     s.add_argument("--lan", action="store_true", help="écoute sur 0.0.0.0 (mot de passe obligatoire)")

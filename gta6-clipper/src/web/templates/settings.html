@@ -2,6 +2,16 @@
 {% block main %}
 <h1>Réglages</h1>
 {% if saved %}<p class="ok">Réglages enregistrés dans config.yaml.</p>{% endif %}
+<div class="learn">
+  <strong>Ce que l'outil apprend de tes notes 👍 / 👎</strong><br>
+  {{ learning.good }} clip(s) noté(s) bon(s), {{ learning.bad }} nul(s).
+  {% if learning.learned %}
+  Poids utilisés au prochain traitement :
+  {% for k, v in learning.weights.items() %}{{ {'heatmap': 'très revu', 'audio': 'voix', 'keywords': 'mots forts', 'comments': 'commentaires'}.get(k, k) }} {{ '%.2f'|format(v) }}{% if v != learning.base[k] %} (au lieu de {{ '%.2f'|format(learning.base[k]) }}){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
+  {% else %}
+  Note au moins 3 bons et 3 nuls (boutons dans le lecteur) pour que l'outil adapte le choix des moments à tes goûts.
+  {% endif %}
+</div>
 <form method="post" action="/settings" class="settings">
   <label>Requêtes de recherche (une par ligne)
     <textarea name="queries" rows="7">{{ cfg.search.queries|join('\n') }}</textarea></label>

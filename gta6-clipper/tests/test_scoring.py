@@ -399,3 +399,46 @@ def test_old_config_upgraded_once_to_one_minute(tmp_path, monkeypatch):
     saved["moments"]["min_clip_s"] = 35                        # un choix fait ensuite dans Réglages est respecté
     (tmp_path / "config.yaml").write_text(yaml.safe_dump(saved))
     assert config.load_config()["moments"]["min_clip_s"] == 35
+
+
+def test_parse_time_and_url_time():
+    from src.download import parse_time, url_time
+    assert parse_time("41:20") == 2480 and parse_time("1:02:03") == 3723 and parse_time("2480") == 2480
+    assert parse_time("41m20s") == 2480 and parse_time("2480s") == 2480 and parse_time("bof") is None
+    assert url_time("https://youtu.be/Yf1o5Ccu6Lg?t=2480") == 2480
+    assert url_time("https://www.youtube.com/watch?v=Yf1o5Ccu6Lg&t=41m20s") == 2480
+    assert url_time("https://youtu.be/Yf1o5Ccu6Lg?si=abc") is None
+
+
+def test_manual_window_puts_moment_at_60_percent():
+    m = {**DEFAULTS["moments"]}
+    t0, t1 = scoring.manual_window(2480, 3548, m)
+    assert t1 - t0 == m["target_clip_s"] and abs((2480 - t0) / (t1 - t0) - 0.6) < 0.01
+    assert scoring.manual_window(10, 3548, m)[0] == 0           # début de vidéo
+    assert scoring.manual_window(3540, 3548, m)[1] == 3548      # fin de vidéo
+
+
+def test_learn_weights_follows_ratings():
+    base = {"heatmap": 0.5, "audio": 0.25, "keywords": 0.25, "comments": 0.4}
+    good = [(1, {"heatmap": 0.9, "audio": 0.1}) for _ in range(3)]
+    bad = [(-1, {"heatmap": 0.2, "audio": 0.8}) for _ in range(3)]
+    w, learned = scoring.learn_weights(good + bad, base)
+    assert learned and w["heatmap"] > base["heatmap"] and w["audio"] < base["audio"]
+    assert w["keywords"] == base["keywords"]                    # pas d'info : inchangé
+    assert scoring.learn_weights(good + bad[:2], base) == (base, False)  # pas assez de notes
+
+
+def test_ytdlp_age():
+    import datetime as dt
+    from src.main import ytdlp_age_days
+    assert ytdlp_age_days("2026.10.26", dt.date(2026, 11, 19)) == 24
+    assert ytdlp_age_days("inconnue") is None
+
+
+def test_windows_scripts_are_crlf_ascii():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    for name in ("maj.bat", "planifier.bat", "lancer_run.bat"):
+        raw = (root / name).read_bytes()
+        raw.decode("ascii")
+        assert raw.count(b"\n") == raw.count(b"\r\n") > 3

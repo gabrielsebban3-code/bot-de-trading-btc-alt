@@ -182,3 +182,46 @@ def test_rerender_keeps_flags_and_changes_title(env, monkeypatch, tmp_path):
     row = db.get_clip("abcdefghijk_100")
     assert row["hook"] == "Nouveau titre" and row["favorite"] == 1 and row["seen"] == 1
     assert (data / "clips" / "abcdefghijk_100.mp4").stat().st_size == new["file_size"]
+
+
+def test_rating_toggle_and_learning_shown(env):
+    data, db = env
+    with db.conn() as conn:  # seuls les clips dont on connaît les raisons du choix servent à apprendre
+        conn.execute("UPDATE clips SET reasons=?", ('{"heatmap": 0.8, "audio": 0.1}',))
+    c = client(env)
+    assert c.post("/api/clips/abcdefghijk_0/rate", data={"value": "1"}).json() == {"rating": 1}
+    assert c.post("/api/clips/abcdefghijk_0/rate", data={"value": "1"}).json() == {"rating": 0}   # annule
+    assert c.post("/api/clips/abcdefghijk_0/rate", data={"value": "-1"}).json() == {"rating": -1}
+    assert "1 nul(s)" in c.get("/settings").text
+
+
+def test_run_validates_timestamp(env):
+    c = client(env)
+    assert c.post("/api/run", data={"url": "https://youtu.be/abcdefghijk", "at": "pas une heure"}).status_code == 400
+    assert c.post("/api/run", data={"at": "41:20"}).status_code == 400
+
+
+def test_manual_clip_pipeline(tmp_path, monkeypatch):
+    from src import jobs
+    from src.config import DEFAULTS
+    db = DB(tmp_path / "db.sqlite")
+    monkeypatch.setattr(jobs, "data_dir", lambda: tmp_path)
+    info = {"id": "abcdefghijk", "title": "T", "channel": "C", "duration": 3548, "view_count": 1, "timestamp": 1795000000}
+    monkeypatch.setattr(jobs.download, "fetch_info", lambda u, db, max_age_h=24: info)
+    wav = tmp_path / "a.wav"
+    wav.write_bytes(b"")
+    monkeypatch.setattr(jobs.download, "download_audio", lambda vid, wd: wav)
+    segs = [{"start": t, "end": t + 5.6, "text": "phrase", "words": []} for t in range(2380, 2600, 6)]
+    monkeypatch.setattr(jobs.transcribe, "transcribe", lambda *a, **k: segs)
+    made = []
+
+    def fake_make(video, moment, segments, cfg, workdir, data, **k):
+        made.append(moment)
+        return {"id": "abcdefghijk_x", "video_id": "abcdefghijk", "video_title": "T", "channel": "C", "url": "u",
+                "start": moment["start"], "end": moment["end"], "score": 1.0, "file_size": 1}
+
+    monkeypatch.setattr(jobs.clip, "make_clip", fake_make)
+    res = jobs.run_pipeline(DEFAULTS, db=db, url="https://youtu.be/abcdefghijk?t=41m20s")
+    assert res["clips"] == 1 and made[0]["start"] <= 2480 <= made[0]["end"]
+    assert 60 <= made[0]["end"] - made[0]["start"] <= 90 and made[0]["aligned"]
+    assert db.list_videos() == []          # la recherche automatique pourra encore traiter la vidéo
