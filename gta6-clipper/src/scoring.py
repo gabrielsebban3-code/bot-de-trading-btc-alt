@@ -125,6 +125,41 @@ CONNECTORS = re.compile(r"^(mais|et|donc|du coup|parce que|parce qu'|car|alors|p
                         r"bref|enfin|ou|genre|sinon|d'ailleurs|du coup)\b", re.I)
 
 
+END_PUNCT = (".", "!", "?", "…")
+
+
+def sentences(segments, pause=0.6, seg_pause=0.3, max_len=20.0):
+    """Découpe la transcription en vraies phrases. Les blocs Whisper coupent souvent au milieu d'une phrase :
+    on coupe sur la ponctuation finale ou une vraie pause (mots), à défaut sur une fin de bloc après ~20 s."""
+    out, cur = [], None
+
+    def close():
+        nonlocal cur
+        if cur:
+            out.append({"start": cur["start"], "end": cur["end"], "text": " ".join(cur["t"]).strip()})
+        cur = None
+
+    segs = sorted(segments or [], key=lambda x: x["start"])
+    for k, seg in enumerate(segs):
+        nxt = segs[k + 1]["start"] if k + 1 < len(segs) else None
+        words = seg.get("words") or []
+        units = [(w[0], w[1], w[2]) for w in words] if words else [(seg["start"], seg["end"], seg["text"].strip())]
+        for j, (a, b, t) in enumerate(units):
+            if cur is None:
+                cur = {"start": a, "end": b, "t": []}
+            cur["t"].append(t)
+            cur["end"] = b
+            last = j == len(units) - 1
+            follow = (units[j + 1][0] if not last else nxt)
+            gap = (follow - b) if follow is not None else 99.0
+            if t.rstrip("»\"' )").endswith(END_PUNCT) or gap >= (seg_pause if last and not words else pause):
+                close()
+            elif last and cur["end"] - cur["start"] >= max_len:
+                close()
+    close()
+    return out
+
+
 def standalone_start(segs, s, e, hi, avoid=(), gap=0.0, margin=0.0):
     """Un clip doit tenir debout seul : s'il commence par un mot de liaison (« mais », « du coup »…),
     on reprend la phrase d'avant (au plus 2), sans dépasser la durée maximale ni l'écart avec les autres clips."""
@@ -141,33 +176,63 @@ def standalone_start(segs, s, e, hi, avoid=(), gap=0.0, margin=0.0):
     return s
 
 
-def snap_to_sentences(t0, t1, segments, min_len, max_len, margin, duration, avoid=(), gap=0.0):
-    """Aligne [t0,t1] sur des débuts/fins de segments Whisper, en respectant l'écart avec `avoid`.
+def tail_penalty(sig, s, e, keep=6.0):
+    """Secondes d'ennui en fin de clip : temps passé après le dernier point fort, au-delà de `keep` s
+    (laisser la chute et la réaction, mais ne pas traîner)."""
+    if sig is None or len(sig) == 0:
+        return 0.0
+    a, b = max(0, int(s)), min(len(sig), int(np.ceil(e)))
+    if b - a < 3:
+        return 0.0
+    part = np.asarray(sig[a:b], float)
+    top = float(part.max())
+    if top <= 0:
+        return 0.0
+    last = a + int(np.nonzero(part >= 0.7 * top)[0][-1])
+    return max(0.0, e - last - keep)
+
+
+def snap_to_sentences(t0, t1, segments, min_len, max_len, margin, duration, avoid=(), gap=0.0, sig=None):
+    """Aligne [t0,t1] sur des débuts/fins de phrases, en respectant l'écart avec `avoid`.
+    `sig` (intérêt par seconde, facultatif) évite de finir sur un temps mort après le point fort.
     Retourne (start, end, aligned)."""
     lo, hi = min_len - 2 * margin, max_len - 2 * margin
     best = None
-    if segments:
-        segs = sorted(segments, key=lambda s: s["start"])
-        for i, si in enumerate(segs):
-            if abs(si["start"] - t0) > 20:
-                continue
-            for sj in segs[i:]:
-                length = sj["end"] - si["start"]
-                if length > hi:
-                    break
-                if length >= lo:
-                    if any(not _far_enough((si["start"] - margin, sj["end"] + margin), a, gap) for a in avoid):
-                        continue
-                    cost = abs(si["start"] - t0) + 0.5 * abs(sj["end"] - t1)
-                    if best is None or cost < best[0]:
-                        best = (cost, si["start"], sj["end"])
+    sents = sentences(segments)
+    for i, si in enumerate(sents):
+        if abs(si["start"] - t0) > 20:
+            continue
+        start_cost = abs(si["start"] - t0) + (6.0 if CONNECTORS.match(si["text"].lstrip("-–—\"'« ")) else 0.0)
+        for sj in sents[i:]:
+            length = sj["end"] - si["start"]
+            if length > hi:
+                break
+            if length >= lo:
+                if any(not _far_enough((si["start"] - margin, sj["end"] + margin), a, gap) for a in avoid):
+                    continue
+                cost = start_cost + 0.5 * abs(sj["end"] - t1) + 1.5 * tail_penalty(sig, si["start"], sj["end"])
+                if best is None or cost < best[0]:
+                    best = (cost, si["start"], sj["end"])
     if best:
         s, e, aligned = best[1], best[2], True
-        s = standalone_start(sorted(segments, key=lambda x: x["start"]), s, e, hi, avoid, gap, margin)
+        s = standalone_start(sents, s, e, hi, avoid, gap, margin)
     else:
         s, aligned = t0, False
         e = s + min(max(t1 - t0, lo), hi)
     return max(0.0, s - margin), min(float(duration), e + margin), aligned
+
+
+def extend_reaction(e, rms, segments, duration, max_extra=2.5):
+    """Après la dernière phrase, garde le rire / l'explosion qui suit (son encore fort, personne ne reparle)."""
+    if rms is None or len(rms) == 0:
+        return e
+    nxt = min((s["start"] for s in segments or [] if s["start"] >= e - 0.05), default=float(duration))
+    loud = float(np.median(rms)) + 3.0
+    out, t = e, int(e)
+    while t < len(rms) and t + 1 - e <= max_extra and t + 1 <= nxt - 0.2 and rms[t] >= loud:
+        out = float(t + 1)
+        t += 1
+    return min(out, float(duration), e + max_extra)
 
 
 def speech_signal(spans, duration):
@@ -293,13 +358,17 @@ def score_windows(duration, segments, heatmap, rms, mcfg, speech=None, comments=
 def select_moments(duration, segments, heatmap, rms, mcfg, speech=None, comments=None, regions=None, chat=None):
     n = int(np.ceil(duration))
     ws, signals, length = score_windows(duration, segments, heatmap, rms, mcfg, speech, comments, regions, chat)
+    combined = combine(signals, mcfg["weights"], n)
     k, gap = int(mcfg["clips_per_video"]), float(mcfg["min_gap_s"])
     out = []
     for t0, t1 in pick_windows(ws, k * 3, length, gap):
         if ws[min(t0, len(ws) - 1)] < 0:
             continue
         s, e, aligned = snap_to_sentences(t0, min(t1, duration), segments, mcfg["min_clip_s"], mcfg["max_clip_s"],
-                                          mcfg["margin_s"], duration, [(m["start"], m["end"]) for m in out], gap)
+                                          mcfg["margin_s"], duration, [(m["start"], m["end"]) for m in out], gap,
+                                          sig=combined)
+        if aligned:
+            e = min(extend_reaction(e, rms, segments, duration), s + mcfg["max_clip_s"])
         if e - s < mcfg["min_clip_s"] - 1e-6 and duration >= mcfg["min_clip_s"]:
             continue
         if any(not _far_enough((s, e), (m["start"], m["end"]), gap) for m in out):

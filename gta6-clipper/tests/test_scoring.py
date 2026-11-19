@@ -562,3 +562,47 @@ def test_title_ideas():
     ideas = title_ideas(segs, 0, 10, {"title": "JE JOUE A GTA 6 🔥"})
     assert ideas[0] == "« C'est pas GTA, ça ?! »" and "« Regarde ce détail incroyable ! »" in ideas
     assert ideas[-1] == "JE JOUE A GTA 6" and len(ideas) <= 4
+
+
+def _words(text, t0, step=0.4):
+    return [[round(t0 + i * step, 2), round(t0 + i * step + 0.35, 2), w] for i, w in enumerate(text.split())]
+
+
+def test_sentences_ignore_whisper_block_cuts():
+    # Whisper coupe « je vais voler la voiture de police » en deux blocs collés : une seule phrase
+    a = {"start": 0.0, "end": 1.95, "text": "Bon je vais voler la", "words": _words("Bon je vais voler la", 0.0)}
+    b = {"start": 2.0, "end": 3.95, "text": "voiture de police. Regardez !", "words": _words("voiture de police. Regardez !", 2.0)}
+    out = scoring.sentences([a, b])
+    assert [x["text"] for x in out] == ["Bon je vais voler la voiture de police.", "Regardez !"]
+    assert out[0]["start"] == 0.0 and abs(out[1]["start"] - 3.2) < 1e-6
+
+
+def test_clip_never_ends_mid_sentence():
+    segs, t = [], 0.0
+    for i in range(30):  # chaque phrase est coupée en deux blocs par Whisper, sans pause
+        segs.append({"start": t, "end": t + 2.0, "text": f"alors là le joueur {i}",
+                     "words": _words(f"alors là le joueur {i}", t)})
+        segs.append({"start": t + 2.0, "end": t + 4.0, "text": "fonce dans le mur.",
+                     "words": _words("fonce dans le mur.", t + 2.0)})
+        t += 4.6
+    s, e, aligned = scoring.snap_to_sentences(40.0, 72.0, segs, 20, 45, 0.5, 300)
+    ends = {round(x["words"][-1][1], 2) for x in segs if x["text"].endswith(".")}  # fin du mot « mur. »
+    assert aligned and round(e - 0.5, 2) in ends
+
+
+def test_end_does_not_drag_after_climax():
+    segs = fake_segments(300)
+    sig = np.zeros(300)
+    sig[95:100] = 1.0                       # le point fort est vers 95-100 s
+    s, e, _ = scoring.snap_to_sentences(70, 120, segs, 20, 60, 0.5, 300, sig=sig)
+    assert e <= 100 + 6 + 6                  # finit peu après la chute, pas 20 s plus tard
+    assert scoring.tail_penalty(sig, 70, 120) > scoring.tail_penalty(sig, 70, 104)
+
+
+def test_extend_reaction_keeps_laugh_but_not_next_sentence():
+    rms = np.full(100, -40.0)
+    rms[50:53] = -10.0                      # rire juste après la fin de phrase (50 s)
+    segs = [{"start": 30, "end": 50, "text": "x"}, {"start": 60, "end": 70, "text": "y"}]
+    assert scoring.extend_reaction(50.0, rms, segs, 100) == 52.5 or scoring.extend_reaction(50.0, rms, segs, 100) == 52.0
+    segs2 = [{"start": 30, "end": 50, "text": "x"}, {"start": 50.8, "end": 60, "text": "y"}]
+    assert scoring.extend_reaction(50.0, rms, segs2, 100) == 50.0   # quelqu'un reparle tout de suite
