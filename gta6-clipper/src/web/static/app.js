@@ -13,7 +13,7 @@
   if (jobBox) {
     const btn = $("run-btn"), info = $("job-info"), logEl = $("job-log"), urlForm = $("url-form");
     const urlBtn = urlForm.querySelector("button"), cancelBtn = $("cancel-btn");
-    let wasRunning = jobBox.dataset.running === "1", lastClips = null;
+    let wasRunning = jobBox.dataset.running === "1", lastClips = null, notice = "", noticeUntil = 0;
     const playerOpen = () => { const p = $("player"); return p && !p.hidden; };
     const render = (j) => {
       const idx = j.stages.indexOf(j.stage);
@@ -32,6 +32,7 @@
       if (j.clips) parts.push(`${j.clips} clip(s) créé(s)`);
       if (j.errors) parts.push(`${j.errors} erreur(s)`);
       if (j.error) parts.push(`Échec : ${j.error}`);
+      if (notice && Date.now() < noticeUntil) parts.unshift(notice);  // erreur au lancement : rester visible
       info.textContent = parts.join(" · ");
       logEl.hidden = !j.log.length;
       logEl.textContent = j.log.join("\n");
@@ -49,10 +50,12 @@
     }).catch(() => {});
     const launch = (body) => {
       btn.disabled = urlBtn.disabled = true;
-      fetch("/api/run", { method: "POST", body }).then((r) => r.json()).then((r) => {
-        if (!r.started) info.textContent = r.error || "Impossible de lancer";
-        else { wasRunning = true; lastClips = 0; }
-      }).finally(poll);
+      return fetch("/api/run", { method: "POST", body }).then((r) => r.json()).then((r) => {
+        if (!r.started) { notice = `⚠ ${r.error || "Impossible de lancer"}`; noticeUntil = Date.now() + 8000; }
+        else { notice = ""; wasRunning = true; lastClips = 0; }
+        return r.started;
+      }).catch(() => { notice = "⚠ Le site ne répond pas (est-il lancé ?)"; noticeUntil = Date.now() + 8000; })
+        .finally(poll);
     };
     btn.addEventListener("click", () => launch(new FormData()));
     cancelBtn.addEventListener("click", () => {
@@ -62,7 +65,10 @@
         if (!r.cancelling) { cancelBtn.disabled = false; info.textContent = r.error || "Impossible d'annuler"; }
       }).finally(poll);
     });
-    urlForm.addEventListener("submit", (e) => { e.preventDefault(); launch(new FormData(urlForm)); urlForm.reset(); });
+    urlForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      launch(new FormData(urlForm)).then((ok) => { if (ok) urlForm.reset(); });  // lien gardé en cas d'erreur
+    });
     poll();
     setInterval(poll, 2000);
   }

@@ -1,5 +1,6 @@
 """Site privé local : FastAPI + Jinja2 + JS vanilla. Aucun asset externe."""
 import hmac
+import re
 import threading
 import json
 import secrets
@@ -360,6 +361,9 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
     async def run(request: Request):
         form = await request.form()
         url = str(form.get("url") or "").strip()
+        found = re.search(r"(?:https?://)?(?:[\w-]+\.)*(?:youtube\.com|youtu\.be)/\S+", url)
+        if found:  # texte collé autour du lien, ou lien sans « https:// »
+            url = found.group(0) if found.group(0).startswith("http") else "https://" + found.group(0)
         at_raw = str(form.get("at") or "").strip()
         at = parse_time(at_raw) if at_raw else None
         if at_raw and at is None:
