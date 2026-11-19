@@ -119,6 +119,7 @@ function whyBox(s) {
     ${li('Le signal', trigger, triggerSmall)}
     ${li('Pas d\'obstacle proche', `Aucun ancien ${up ? 'sommet' : 'creux'} ni chiffre rond juste ${up ? 'au-dessus' : 'en dessous'} : le prix avait de la place pour ${up ? 'monter' : 'baisser'}.`)}
     ${li('Un seul trade à la fois', `Aucun autre trade n'était ouvert sur ${esc(s.symbol)}.`)}
+    ${s.score != null ? li('Une bonne note', 'Le bot note chaque signal et ne garde que les meilleurs, environ 4 sur 10. Celui-ci en faisait partie.', 'La note est meilleure quand le marché est calme, que Bitcoin va dans le même sens et que tout le marché n\'est pas déjà lancé.') : ''}
   </ol></div>`;
 }
 

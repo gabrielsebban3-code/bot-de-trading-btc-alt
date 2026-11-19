@@ -110,6 +110,7 @@ function rulesBox(a, d) {
   const trendOn = r && r.trend !== 'neutre';
   const up = r?.dir === 'long';
   const live = liveOf(a.symbol);
+  const scored = a.kind === 'crypto';
   const trendText = !r ? '' : trendOn
     ? `${days.length >= 50 ? `Hier, le prix a clôturé à ${px(last)}, ${up ? 'au-dessus' : 'en dessous'} de sa moyenne des 50 derniers jours (${px(e50)}). ` : ''}Le marché ${up ? 'monte' : 'baisse'} : on ne cherche que des <b>${up ? 'achats' : 'ventes'}</b>.`
     : 'Le marché n\'a pas de direction claire : pas de trade tant que ça dure.';
@@ -132,7 +133,8 @@ function rulesBox(a, d) {
     <li>${ok(trendOn ? null : false)}<div><b>2. Un signal parmi ces trois</b><span>Vérifié à la clôture de chaque bougie de 1 heure.</span><ul>${triggers}</ul></div></li>
     <li>${ok(null)}<div><b>3. Pas d'obstacle proche</b><span>Le signal est ignoré si un ancien ${up ? 'sommet' : 'creux'} ou un chiffre rond est juste ${up ? 'au-dessus' : 'en dessous'} du prix.</span></div></li>
     <li>${ok(!live)}<div><b>4. Un seul trade à la fois sur ${esc(a.symbol)}</b><span>${live ? 'Un trade est déjà en cours : pas de nouveau signal avant sa fin.' : 'Aucun trade en cours : la paire est libre.'}</span></div></li>
-  </ol><p class="txt muted">Il faut les 4 en même temps : c'est rare exprès, environ deux signaux par mois sur les 4 paires.</p></div>`;
+    ${scored ? `<li>${ok(r?.trigger?.scoreOk ?? null)}<div><b>5. Une bonne note</b><span>Le bot note chaque signal et ne garde que les meilleurs, environ 4 sur 10 : marché calme, Bitcoin dans le même sens, tout le marché pas déjà lancé.${r?.trigger?.scoreOk === true ? ' En ce moment, la note serait bonne.' : r?.trigger?.scoreOk === false ? ' En ce moment, la note serait trop basse.' : ''}</span></div></li>` : ''}
+  </ol><p class="txt muted">Il faut les ${scored ? 5 : 4} en même temps : c'est rare exprès, environ 4 signaux par mois sur les 9 cryptos suivies.</p></div>`;
 }
 
 function manageBox(a, d, live) {
