@@ -187,7 +187,7 @@ def process_manual(cand, at, cfg, db, data, workdir, progress):
     check_cancel(data, progress)
     progress.update(stage="découpe", detail="")
     s, e, aligned = scoring.snap_to_sentences(t0, t1, segments, mcfg["min_clip_s"], mcfg["max_clip_s"],
-                                              mcfg["margin_s"], dur)
+                                              mcfg["margin_s"], dur, peak=at)
     if not (s <= at - 2 and e >= at + 3):  # l'alignement ne doit pas faire sortir l'instant choisi du clip
         s, e, aligned = t0, t1, False
     moment = {"start": round(s, 2), "end": round(e, 2), "score": 1.0, "aligned": aligned, "signals": {"manuel": 1.0}}

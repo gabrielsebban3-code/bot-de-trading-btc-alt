@@ -126,6 +126,13 @@ CONNECTORS = re.compile(r"^(mais|et|donc|du coup|parce que|parce qu'|car|alors|p
 
 
 END_PUNCT = (".", "!", "?", "…")
+# Phrases qui annoncent quelque chose : finir dessus coupe avant la révélation (« what the hell is that »)
+TEASERS = re.compile(r"(\?\s*$|what the|c'est quoi|qu'est-ce que|regarde|regardez|attends|attendez|vous allez voir|"
+                     r"tu vas voir|on va voir|voilà ce|mais alors|et là\W*$|écoute)", re.I)
+
+
+def teaser_end(text):
+    return bool(TEASERS.search((text or "").strip().rstrip("»\"' ")[-60:]))
 
 
 def sentences(segments, pause=0.6, seg_pause=0.3, max_len=20.0):
@@ -136,7 +143,9 @@ def sentences(segments, pause=0.6, seg_pause=0.3, max_len=20.0):
     def close():
         nonlocal cur
         if cur:
-            out.append({"start": cur["start"], "end": cur["end"], "text": " ".join(cur["t"]).strip()})
+            prev_end = out[-1]["end"] if out else None
+            out.append({"start": cur["start"], "end": cur["end"], "text": " ".join(cur["t"]).strip(),
+                        "pause": (cur["start"] - prev_end) if prev_end is not None else 99.0})
         cur = None
 
     segs = sorted(segments or [], key=lambda x: x["start"])
@@ -192,13 +201,47 @@ def tail_penalty(sig, s, e, keep=6.0):
     return max(0.0, e - last - keep)
 
 
-def snap_to_sentences(t0, t1, segments, min_len, max_len, margin, duration, avoid=(), gap=0.0, sig=None):
+def build_around_peak(peak, sents, lo, hi, avoid=(), gap=0.0, margin=0.0):
+    """Clip construit autour de son moment fort :
+    - fin = fin de la phrase qui suit le pic (la chute + la réaction), pas plus de ~8 s après ;
+    - début = une phrase qui ouvre le sujet : après un vrai silence (changement de scène/sujet), jamais « mais/donc… » ;
+    - plutôt court : chaque seconde en plus doit se justifier."""
+    best = None
+    ends = [sj for sj in sents if peak + 3.0 <= sj["end"] <= peak + 12.0]
+    for sj in ends:
+        end_cost = 0.6 * max(0.0, sj["end"] - (peak + 4.0)) + 1.5 * max(0.0, (peak + 2.0) - sj["end"])
+        if teaser_end(sj["text"]):
+            end_cost += 15.0                      # ne jamais couper juste avant la révélation
+        elif sj["text"].rstrip("»\"' )").endswith("!"):
+            end_cost -= 1.0
+        for si in sents:
+            if si["start"] > peak - 3.0:
+                break
+            length = sj["end"] - si["start"]
+            if length > hi or length < lo:
+                continue
+            if any(not _far_enough((si["start"] - margin, sj["end"] + margin), a, gap) for a in avoid):
+                continue
+            start_cost = -2.0 * min(si.get("pause", 0.0), 3.0)            # silence avant = début naturel
+            if CONNECTORS.match(si["text"].lstrip("-–—\"'« ")):
+                start_cost += 8.0
+            cost = end_cost + start_cost + 0.08 * (length - lo)
+            if best is None or cost < best[0]:
+                best = (cost, si["start"], sj["end"])
+    return best
+
+
+def snap_to_sentences(t0, t1, segments, min_len, max_len, margin, duration, avoid=(), gap=0.0, sig=None, peak=None):
     """Aligne [t0,t1] sur des débuts/fins de phrases, en respectant l'écart avec `avoid`.
     `sig` (intérêt par seconde, facultatif) évite de finir sur un temps mort après le point fort.
     Retourne (start, end, aligned)."""
     lo, hi = min_len - 2 * margin, max_len - 2 * margin
     best = None
     sents = sentences(segments)
+    if peak is not None and sents:
+        best = build_around_peak(float(peak), sents, lo, hi, avoid, gap, margin)
+        if best:
+            return max(0.0, best[1] - margin), min(float(duration), best[2] + margin), True
     for i, si in enumerate(sents):
         if abs(si["start"] - t0) > 20:
             continue
@@ -211,11 +254,17 @@ def snap_to_sentences(t0, t1, segments, min_len, max_len, margin, duration, avoi
                 if any(not _far_enough((si["start"] - margin, sj["end"] + margin), a, gap) for a in avoid):
                     continue
                 cost = start_cost + 0.5 * abs(sj["end"] - t1) + 1.5 * tail_penalty(sig, si["start"], sj["end"])
+                cost += 15.0 if teaser_end(sj["text"]) else 0.0
                 if best is None or cost < best[0]:
                     best = (cost, si["start"], sj["end"])
     if best:
         s, e, aligned = best[1], best[2], True
         s = standalone_start(sents, s, e, hi, avoid, gap, margin)
+    elif sents:  # aucune combinaison dans les limites : on cale quand même sur des phrases (durée un peu hors cible)
+        si = min(sents, key=lambda x: abs(x["start"] - t0))
+        ok = [x for x in sents if x["end"] > si["start"] + 10 and not teaser_end(x["text"])] or sents
+        sj = min(ok, key=lambda x: abs(x["end"] - si["start"] - min(max(t1 - t0, lo), hi)))
+        s, e, aligned = si["start"], max(sj["end"], si["start"] + 1.0), True
     else:
         s, aligned = t0, False
         e = s + min(max(t1 - t0, lo), hi)
@@ -355,6 +404,17 @@ def score_windows(duration, segments, heatmap, rms, mcfg, speech=None, comments=
     return ws, signals, length
 
 
+def _peak(sig, a, b):
+    """Seconde la plus forte de [a, b] (le pic d'une suite de secondes fortes : on prend sa fin)."""
+    a, b = max(0, int(a)), min(len(sig), int(b))
+    if b - a < 1:
+        return None
+    part = np.asarray(sig[a:b], float)
+    top = float(part.max())
+    strong = np.nonzero(part >= 0.9 * top)[0]
+    return float(a + strong[-1]) if top > 0 else None
+
+
 def select_moments(duration, segments, heatmap, rms, mcfg, speech=None, comments=None, regions=None, chat=None):
     n = int(np.ceil(duration))
     ws, signals, length = score_windows(duration, segments, heatmap, rms, mcfg, speech, comments, regions, chat)
@@ -366,7 +426,7 @@ def select_moments(duration, segments, heatmap, rms, mcfg, speech=None, comments
             continue
         s, e, aligned = snap_to_sentences(t0, min(t1, duration), segments, mcfg["min_clip_s"], mcfg["max_clip_s"],
                                           mcfg["margin_s"], duration, [(m["start"], m["end"]) for m in out], gap,
-                                          sig=combined)
+                                          sig=combined, peak=_peak(combined, t0, min(t1, duration)))
         if aligned:
             e = min(extend_reaction(e, rms, segments, duration), s + mcfg["max_clip_s"])
         if e - s < mcfg["min_clip_s"] - 1e-6 and duration >= mcfg["min_clip_s"]:

@@ -606,3 +606,39 @@ def test_extend_reaction_keeps_laugh_but_not_next_sentence():
     assert scoring.extend_reaction(50.0, rms, segs, 100) == 52.5 or scoring.extend_reaction(50.0, rms, segs, 100) == 52.0
     segs2 = [{"start": 30, "end": 50, "text": "x"}, {"start": 50.8, "end": 60, "text": "y"}]
     assert scoring.extend_reaction(50.0, rms, segs2, 100) == 50.0   # quelqu'un reparle tout de suite
+
+
+def _talk(lines, t=0.0, pause_after=None):
+    segs = []
+    for i, txt in enumerate(lines):
+        n = len(txt.split())
+        segs.append({"start": t, "end": t + 0.4 * n, "text": txt, "words": _words(txt, t)})
+        t += 0.4 * n + (pause_after.get(i, 0.3) if pause_after else 0.3)
+    return segs
+
+
+def test_never_ends_right_before_the_reveal():
+    lines = ["On va tester le train maintenant."] * 18 + ["Oh what the hell is that ?", "Le train a explosé !",
+                                                          "C'est incroyable !"] + ["On continue."] * 20
+    segs = _talk(lines)
+    peak = next(s["start"] for s in segs if "what the hell" in s["text"])
+    s, e, aligned = scoring.snap_to_sentences(peak - 50, peak + 1, segs, 20, 60, 0.5, 400, peak=peak)
+    reveal = next(x for x in segs if "explosé" in x["text"])
+    assert aligned and e - 0.5 >= reveal["words"][-1][1] - 1e-6   # la révélation est dans le clip
+
+
+def test_peak_clip_starts_after_a_real_pause():
+    lines = ["Bla bla sur autre chose."] * 10 + ["Bon, maintenant le secret du train."] + ["Je monte dessus."] * 12 \
+        + ["Et là il explose !"] + ["Suite."] * 10
+    segs = _talk(lines, pause_after={9: 2.5})                     # silence = changement de sujet
+    peak = next(s["start"] for s in segs if "explose" in s["text"])
+    s, e, aligned = scoring.snap_to_sentences(peak - 30, peak + 5, segs, 20, 60, 0.5, 400, peak=peak)
+    topic = next(x for x in segs if "secret" in x["text"])
+    assert aligned and abs(s + 0.5 - topic["start"]) < 1e-6
+
+
+def test_fallback_still_snaps_to_sentences():
+    segs = _talk(["Une phrase assez longue pour le test ici."] * 6)   # trop court pour 60 s
+    s, e, aligned = scoring.snap_to_sentences(2.0, 70.0, segs, 60, 90, 0.5, 400)
+    starts = {round(x["start"], 2) for x in scoring.sentences(segs)}
+    assert aligned and round(s + 0.5, 2) in starts
