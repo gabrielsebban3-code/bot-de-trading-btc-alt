@@ -82,6 +82,16 @@ gta6-clipper doctor
 
 Arrête le site, puis double-clique sur `maj.bat` dans le dossier `gta6-clipper`. Il télécharge la dernière version, remplace `src`, `pyproject.toml`, `requirements.txt` et `README.md`, puis met à jour les dépendances. Il met aussi yt-dlp à jour (YouTube change souvent, et une vieille version finit par casser les téléchargements), puis se met lui-même à jour. Il ne touche pas à `.venv`, `data` (tes clips), `config.yaml` ni `.env`.
 
+### Dépôt privé
+
+Si le dépôt GitHub est privé, `maj.bat` a besoin d'un jeton en lecture seule :
+
+1. Lance d'abord `maj.bat` une fois **avant** de passer le dépôt en privé (pour avoir la version qui sait utiliser le jeton).
+2. Sur GitHub : Settings (de ton compte) → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token.
+   Repository access : **Only select repositories** → ce dépôt. Permissions : **Contents : Read-only**, rien d'autre. Choisis une date d'expiration.
+3. Ajoute dans `.env` (jamais ailleurs, ne le colle dans aucune discussion) : `GITHUB_TOKEN=github_pat_...`
+4. Relance `maj.bat`. Si le jeton expire, refais l'étape 2.
+
 ## Accès depuis le téléphone (même Wi-Fi)
 
 1. Mets `SITE_PASSWORD=un-mot-de-passe-solide` dans `.env`. Sans mot de passe, `serve --lan` refuse de démarrer.
