@@ -15,11 +15,19 @@ def get_model(tcfg):
     return _models[key]
 
 
+def load_wav(wav_path):
+    """WAV mono 16 kHz -> float32. Évite faster_whisper.decode_audio, incompatible avec PyAV >= 14."""
+    import wave
+
+    import numpy as np
+
+    with wave.open(str(wav_path), "rb") as w:
+        return np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768.0
+
+
 def detect_language(wav_path, tcfg, duration):
     """Langue détectée sur 30 s prises après l'intro (évite la musique de début)."""
-    from faster_whisper import decode_audio
-
-    audio = decode_audio(str(wav_path), sampling_rate=16000)
+    audio = load_wav(wav_path)
     off = int(min(60, duration / 3) * 16000)
     lang, prob, _ = get_model(tcfg).detect_language(audio=audio[off:off + 30 * 16000])
     return lang, prob
@@ -30,7 +38,7 @@ def transcribe(wav_path, vid, tcfg, db):
     cached = db.cache_get(key)
     if cached is not None:
         return cached
-    segs, _ = get_model(tcfg).transcribe(str(wav_path), language=tcfg["language"], vad_filter=True)
+    segs, _ = get_model(tcfg).transcribe(load_wav(wav_path), language=tcfg["language"], vad_filter=True)
     out = [{"start": round(s.start, 2), "end": round(s.end, 2), "text": s.text.strip()} for s in segs if s.text.strip()]
     db.cache_set(key, out)
     return out

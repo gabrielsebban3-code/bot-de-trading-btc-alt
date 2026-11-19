@@ -115,3 +115,27 @@ def test_snap_respects_gap_with_existing_clip():
     segs = fake_segments(300)
     s, e, aligned = scoring.snap_to_sentences(152, 184, segs, 20, 45, 0.5, 300, avoid=[(59.5, 90.1)], gap=60)
     assert aligned and s >= 90.1 + 60
+
+
+def test_transcribe_passes_array_not_path(tmp_path, monkeypatch):
+    import wave
+    from types import SimpleNamespace
+    from src import transcribe
+    from src.db import DB
+    wav = tmp_path / "a.wav"
+    with wave.open(str(wav), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(b"\x00\x10" * 16000)
+    seen = {}
+    class FakeModel:
+        def transcribe(self, audio, **kw):
+            seen["type"] = type(audio)
+            return iter([SimpleNamespace(start=0.0, end=1.0, text=" salut ")]), None
+        def detect_language(self, audio=None, **kw):
+            seen["lang_type"] = type(audio)
+            return "fr", 0.99, []
+    monkeypatch.setattr(transcribe, "get_model", lambda tcfg: FakeModel())
+    tcfg = DEFAULTS["transcription"]
+    assert transcribe.detect_language(wav, tcfg, 1.0)[0] == "fr"
+    segs = transcribe.transcribe(wav, "vid", tcfg, DB(tmp_path / "db.sqlite"))
+    assert segs == [{"start": 0.0, "end": 1.0, "text": "salut"}]
+    assert seen["type"] is np.ndarray and seen["lang_type"] is np.ndarray
