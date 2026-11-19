@@ -7,18 +7,20 @@
   const filters = $("filters");
   if (filters) filters.querySelectorAll("select").forEach((s) => s.addEventListener("change", () => filters.submit()));
 
-  // --- job en tâche de fond ---
+  // --- job en tâche de fond (site ou terminal) ---
   const jobBox = $("job");
   if (jobBox) {
-    const btn = $("run-btn"), info = $("job-info"), logEl = $("job-log");
-    let timer = null, wasRunning = jobBox.dataset.running === "1";
+    const btn = $("run-btn"), info = $("job-info"), logEl = $("job-log"), urlForm = $("url-form");
+    const urlBtn = urlForm.querySelector("button");
+    let wasRunning = jobBox.dataset.running === "1", lastClips = null;
+    const playerOpen = () => { const p = $("player"); return p && !p.hidden; };
     const render = (j) => {
       const idx = j.stages.indexOf(j.stage);
       document.querySelectorAll(".stage").forEach((el, i) => {
         el.classList.toggle("active", j.running && i === idx);
         el.classList.toggle("done", j.running && i < idx);
       });
-      btn.disabled = j.running;
+      btn.disabled = urlBtn.disabled = j.running;
       const parts = [];
       if (j.running) parts.push(j.video_total ? `Vidéo ${j.video_index}/${j.video_total} : ${j.video}` : "Recherche en cours…");
       if (j.clips) parts.push(`${j.clips} clip(s) créé(s)`);
@@ -31,18 +33,25 @@
     };
     const poll = () => fetch("/api/job").then((r) => r.json()).then((j) => {
       render(j);
-      if (!j.running) {
-        clearInterval(timer); timer = null;
-        if (wasRunning && j.clips) info.textContent += " · Terminé, rechargement…", setTimeout(() => location.reload(), 1500);
-        wasRunning = false;
-      }
-    });
-    const startPolling = () => { if (!timer) timer = setInterval(poll, 1500); poll(); };
-    btn.addEventListener("click", () => {
-      btn.disabled = true;
-      post("/api/run").catch(() => {}).finally(() => { wasRunning = true; startPolling(); });
-    });
-    if (wasRunning) startPolling(); else poll();
+      const clips = j.clips || 0;
+      // nouveaux clips pendant le traitement, ou fin du traitement : on recharge (sauf lecteur ouvert)
+      const grew = lastClips !== null && clips > lastClips;
+      const ended = wasRunning && !j.running;
+      if ((grew || (ended && clips)) && !playerOpen()) setTimeout(() => location.reload(), 800);
+      if (j.running) wasRunning = true; else if (ended) wasRunning = false;
+      lastClips = j.running ? clips : null;
+    }).catch(() => {});
+    const launch = (body) => {
+      btn.disabled = urlBtn.disabled = true;
+      fetch("/api/run", { method: "POST", body }).then((r) => r.json()).then((r) => {
+        if (!r.started) info.textContent = r.error || "Impossible de lancer";
+        else { wasRunning = true; lastClips = 0; }
+      }).finally(poll);
+    };
+    btn.addEventListener("click", () => launch(new FormData()));
+    urlForm.addEventListener("submit", (e) => { e.preventDefault(); launch(new FormData(urlForm)); urlForm.reset(); });
+    poll();
+    setInterval(poll, 2000);
   }
 
   // --- lecteur vertical ---

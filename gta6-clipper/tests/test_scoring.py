@@ -139,3 +139,10 @@ def test_transcribe_passes_array_not_path(tmp_path, monkeypatch):
     segs = transcribe.transcribe(wav, "vid", tcfg, DB(tmp_path / "db.sqlite"))
     assert segs == [{"start": 0.0, "end": 1.0, "text": "salut"}]
     assert seen["type"] is np.ndarray and seen["lang_type"] is np.ndarray
+
+
+def test_search_url_uses_upload_filter():
+    from yt_dlp.extractor import gen_extractor_classes
+    url = search.search_url("GTA 6 map", 7)
+    assert "search_query=GTA+6+map" in url and "sp=EgIIAw%3D%3D" in url
+    assert any(ie.suitable(url) for ie in gen_extractor_classes() if ie.ie_key() == "YoutubeSearchURL")

@@ -1,7 +1,13 @@
 {% extends "base.html" %}
 {% block main %}
 <section class="job" id="job" data-running="{{ 1 if job.running else 0 }}">
-  <button id="run-btn" class="primary" {% if job.running %}disabled{% endif %}>Lancer une recherche maintenant</button>
+  <div class="job-actions">
+    <button id="run-btn" class="primary" {% if job.running %}disabled{% endif %}>Lancer une recherche maintenant</button>
+    <form id="url-form" class="url-form">
+      <input type="url" name="url" placeholder="ou colle un lien YouTube à traiter" required>
+      <button {% if job.running %}disabled{% endif %}>Traiter cette vidéo</button>
+    </form>
+  </div>
   <div class="stages" id="stages">
     {% for s in job.stages %}<span class="stage" data-stage="{{ s }}">{{ s }}</span>{% endfor %}
   </div>
@@ -32,7 +38,17 @@
 </form>
 
 {% if not clips %}
-<p class="empty">Aucun clip pour l'instant. Lance une recherche ou <code>gta6-clipper run</code>.</p>
+<div class="empty">
+  <h2>Aucun clip pour l'instant</h2>
+  <p>Deux façons d'en créer :</p>
+  <ol>
+    <li><strong>Colle un lien YouTube</strong> dans le champ ci-dessus : une seule vidéo, le plus rapide pour tester.</li>
+    <li><strong>Lancer une recherche maintenant</strong> : l'outil trouve lui-même les meilleures vidéos GTA 6 en français.</li>
+  </ol>
+  <p>Un traitement lancé depuis le terminal s'affiche aussi ici, et les clips apparaissent au fur et à mesure.
+     Compte quelques minutes par vidéo (la transcription est l'étape la plus longue).</p>
+  <p><a href="/videos">Voir les vidéos déjà traitées</a></p>
+</div>
 {% endif %}
 
 <div class="grid" id="grid">

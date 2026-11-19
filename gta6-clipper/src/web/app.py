@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from .. import clip as cliplib
+from ..download import video_id
 from ..config import data_dir, load_config, save_config
 from ..db import DB
 from ..jobs import JobManager
@@ -61,7 +62,7 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         raise ValueError("Mot de passe obligatoire quand l'authentification est requise")
     data = data or data_dir()
     db = db or DB(data / "db.sqlite")
-    jobs = jobs or JobManager(db)
+    jobs = jobs or JobManager(db, data / "job.json")
     signer = URLSafeTimedSerializer(_secret(data) + (password or ""), salt="gta6-login")
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -132,7 +133,18 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         js = [{k: c[k] for k in ("id", "video_title", "channel", "duration", "score", "favorite", "seen", "yt")}
               for c in clips]
         return page(request, "index.html", clips=clips, clips_js=js, videos=videos, channels=channels,
-                    f={"show": show, "video": video, "channel": channel, "sort": sort}, job=jobs.progress.snapshot())
+                    f={"show": show, "video": video, "channel": channel, "sort": sort}, job=jobs.status())
+
+    @app.get("/videos")
+    def videos_page(request: Request):
+        vids = db.list_videos()
+        counts = {}
+        for c in db.list_clips():
+            counts[c["video_id"]] = counts.get(c["video_id"], 0) + 1
+        for v in vids:
+            v["clips"] = counts.get(v["id"], 0)
+            v["date"] = datetime.fromtimestamp(v["processed_at"]).strftime("%d/%m %H:%M") if v["processed_at"] else ""
+        return page(request, "videos.html", videos=vids)
 
     @app.get("/settings")
     def settings_form(request: Request, saved: int = 0):
@@ -199,13 +211,19 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         return {"deleted": cid}
 
     @app.post("/api/run")
-    def run():
-        if not jobs.start():
-            return JSONResponse({"started": False, "error": "un job tourne déjà"}, status_code=409)
+    async def run(request: Request):
+        url = str((await request.form()).get("url") or "").strip()
+        if url:
+            try:
+                video_id(url)
+            except ValueError:
+                return JSONResponse({"started": False, "error": "lien YouTube invalide"}, status_code=400)
+        if not jobs.start(url or None):
+            return JSONResponse({"started": False, "error": "un traitement tourne déjà"}, status_code=409)
         return {"started": True}
 
     @app.get("/api/job")
     def job():
-        return jobs.progress.snapshot()
+        return jobs.status()
 
     return app

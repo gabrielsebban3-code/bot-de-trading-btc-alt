@@ -1,4 +1,4 @@
-"""Recherche des vidéos : YouTube Data API v3 si clé, sinon yt-dlp (ytsearchdate)."""
+"""Recherche des vidéos : YouTube Data API v3 si clé, sinon yt-dlp (recherche filtrée par date)."""
 import json
 import logging
 import os
@@ -69,17 +69,32 @@ def api_candidates(scfg, key, db, known):
     return out
 
 
+# Filtre « date de mise en ligne » de YouTube (paramètre sp) : aujourd'hui, semaine, mois, année
+UPLOAD_FILTERS = [(1, "EgIIAg%3D%3D"), (7, "EgIIAw%3D%3D"), (31, "EgIIBA%3D%3D"), (365, "EgIIBQ%3D%3D")]
+
+
+def search_url(q, days):
+    sp = next((v for d, v in UPLOAD_FILTERS if days <= d), UPLOAD_FILTERS[-1][1])
+    return f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(q)}&sp={sp}"
+
+
 def ytdlp_candidates(scfg, db, known):
     flat = []
-    with YoutubeDL({**download.BASE_OPTS, "extract_flat": "in_playlist", "skip_download": True}) as y:
+    n = scfg["results_per_query"]
+    opts = {**download.BASE_OPTS, "extract_flat": "in_playlist", "skip_download": True, "playlistend": n}
+    with YoutubeDL(opts) as y:
         for q in scfg["queries"]:
-            ck = f"search:ytdlp:{q}:{scfg['results_per_query']}"
+            ck = f"search:ytdlp:{q}:{scfg['days']}:{n}"
             entries = db.cache_get(ck, scfg["cache_hours"] * 3600)
             if entries is None:
-                try:
-                    res = y.extract_info(f"ytsearchdate{scfg['results_per_query']}:{q}", download=False)
-                except Exception as e:
-                    log.warning("Recherche yt-dlp échouée pour %r : %s", q, e)
+                res = None
+                for target in (search_url(q, scfg["days"]), f"ytsearch{n}:{q}"):  # filtre de date, sinon recherche simple
+                    try:
+                        res = y.extract_info(target, download=False)
+                        break
+                    except Exception as e:
+                        log.warning("Recherche yt-dlp échouée pour %r : %s", q, str(e).splitlines()[0])
+                if res is None:
                     continue
                 entries = [{"id": e.get("id"), "duration": e.get("duration"), "views": e.get("view_count"),
                             "channel": e.get("channel") or e.get("uploader"), "url": e.get("url") or ""}

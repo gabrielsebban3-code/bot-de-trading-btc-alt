@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block main %}
+<h1>Vidéos traitées</h1>
+{% if not videos %}<p class="empty">Aucune vidéo traitée pour l'instant.</p>{% endif %}
+<div class="vlist">
+  {% for v in videos %}
+  <div class="vrow">
+    <span class="status s-{{ v.status }}">{{ {'ok': 'ok', 'error': 'erreur', 'skipped': 'ignorée'}.get(v.status, v.status) }}</span>
+    <div class="vmain">
+      <a href="{{ v.url }}" target="_blank" rel="noopener noreferrer">{{ v.title }}</a>
+      <div class="sub">{{ v.channel }} · {{ v.date }} ·
+        {% if v.clips %}<a href="/?video={{ v.id }}">{{ v.clips }} clip(s)</a>{% else %}0 clip{% endif %}</div>
+      {% if v.error %}<div class="err small">{{ v.error[:300] }}</div>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

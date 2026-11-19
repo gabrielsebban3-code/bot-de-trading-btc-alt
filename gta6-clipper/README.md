@@ -35,7 +35,7 @@ Au premier lancement, faster-whisper télécharge le modèle `small` (environ 50
 
 ### Clé YouTube (facultative)
 
-Sans clé, la recherche passe par yt-dlp (`ytsearchdate`). Avec une clé YouTube Data API v3 (gratuite, sur Google Cloud Console, API « YouTube Data API v3 »), mets `YOUTUBE_API_KEY=...` dans `.env`. Une exécution consomme environ 600 unités sur les 10 000 du quota quotidien. Si le quota est dépassé, l'outil bascule tout seul sur yt-dlp.
+Sans clé, la recherche passe par yt-dlp (recherche YouTube filtrée par date de mise en ligne). Avec une clé YouTube Data API v3 (gratuite, sur Google Cloud Console, API « YouTube Data API v3 »), mets `YOUTUBE_API_KEY=...` dans `.env`. Une exécution consomme environ 600 unités sur les 10 000 du quota quotidien. Si le quota est dépassé, l'outil bascule tout seul sur yt-dlp.
 
 ## Commandes
 

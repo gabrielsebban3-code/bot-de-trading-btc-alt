@@ -62,3 +62,18 @@ button:disabled { opacity:.5; cursor:default; }
   .p-actions > * { flex:1 1 30%; padding:8px 4px; font-size:13px; }
   .hint { display:none; }
 }
+
+.job-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.url-form { display:flex; gap:8px; flex:1 1 380px; }
+.url-form input { flex:1; min-width:0; }
+.empty h2 { color:var(--text); margin:.2em 0; font-size:20px; }
+.empty ol { padding-left:20px; }
+.vlist { display:flex; flex-direction:column; gap:10px; }
+.vrow { display:flex; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; align-items:flex-start; }
+.vmain { min-width:0; }
+.vmain a { font-weight:600; }
+.status { font-size:12px; padding:2px 8px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; }
+.s-ok { color:var(--ok); border-color:var(--ok); }
+.s-error { color:var(--danger); border-color:var(--danger); }
+.s-skipped { color:var(--muted); }
+.small { font-size:12px; }

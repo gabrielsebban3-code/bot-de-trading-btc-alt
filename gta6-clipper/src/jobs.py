@@ -1,4 +1,5 @@
 """Pipeline complet + suivi de progression + exécution en tâche de fond (un seul job à la fois)."""
+import json
 import logging
 import shutil
 import threading
@@ -17,21 +18,45 @@ class SkipVideo(Exception):
     pass
 
 
+def read_state(path: Path):
+    """État d'un job (lancé par le site ou le terminal). Sans battement depuis 60 s : considéré arrêté."""
+    try:
+        s = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if s.get("running") and time.time() - s.get("updated_at", 0) > 60:
+        s.update(running=False, stage=None, error=s.get("error") or "interrompu")
+    return s
+
+
 class Progress:
-    def __init__(self):
+    def __init__(self, state_file: Path | None = None):
+        self.state_file = state_file
         self._lock = threading.Lock()
         self.state = {"running": False, "stage": None, "stages": STAGES, "video": "", "video_index": 0,
                       "video_total": 0, "clips": 0, "errors": 0, "log": [], "error": None,
                       "started_at": None, "finished_at": None}
 
+    def _save(self):
+        if not self.state_file:
+            return
+        try:
+            tmp = self.state_file.with_suffix(".tmp")
+            tmp.write_text(json.dumps({**self.state, "updated_at": time.time()}), encoding="utf-8")
+            tmp.replace(self.state_file)
+        except OSError:  # lecture concurrente sous Windows : on réessaiera au prochain battement
+            pass
+
     def update(self, **kw):
         with self._lock:
             self.state.update(kw)
+            self._save()
 
     def log(self, msg, level=logging.INFO):
         log.log(level, msg)
         with self._lock:
             self.state["log"] = (self.state["log"] + [time.strftime("%H:%M:%S ") + msg])[-30:]
+            self._save()
 
     def snapshot(self):
         with self._lock:
@@ -85,7 +110,10 @@ def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep
     cfg = cfg or load_config()
     data = data_dir()
     db = db or DB(data / "db.sqlite")
-    progress = progress or Progress()
+    progress = progress or Progress(data / "job.json")
+    beat = threading.Event()
+    threading.Thread(target=lambda: [progress.update() for _ in iter(lambda: beat.wait(10), True)],
+                     daemon=True).start()
     progress.update(running=True, stage="recherche", clips=0, errors=0, error=None, log=[],
                     started_at=time.time(), finished_at=None, video="", video_index=0, video_total=0)
     workdir = data / "tmp" / f"run_{int(time.time())}"
@@ -133,24 +161,33 @@ def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep
     finally:
         if not keep_temp:
             shutil.rmtree(workdir, ignore_errors=True)
+        beat.set()
         progress.update(running=False, stage=None, finished_at=time.time())
         progress.log(f"Terminé : {summary['clips']} clip(s), {summary['errors']} erreur(s)")
     return summary
 
 
 class JobManager:
-    def __init__(self, db: DB):
+    def __init__(self, db: DB, state_file: Path):
         self.db = db
-        self.progress = Progress()
+        self.state_file = state_file
+        self.progress = Progress(state_file)
         self._lock = threading.Lock()
 
-    def start(self) -> bool:
-        if not self._lock.acquire(blocking=False):
+    def status(self) -> dict:
+        own = self.progress.snapshot()
+        if own["running"]:
+            return own
+        return read_state(self.state_file) or own
+
+    def start(self, url: str | None = None) -> bool:
+        ext = read_state(self.state_file)
+        if (ext and ext.get("running")) or not self._lock.acquire(blocking=False):
             return False
 
         def target():
             try:
-                run_pipeline(load_config(), self.db, self.progress)
+                run_pipeline(load_config(), self.db, self.progress, url=url)
             finally:
                 self._lock.release()
 

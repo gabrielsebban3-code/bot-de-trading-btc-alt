@@ -98,3 +98,27 @@ def test_job_endpoint(env):
     c = client(env)
     j = c.get("/api/job").json()
     assert j["running"] is False and "recherche" in j["stages"]
+
+
+def test_videos_page_and_run_validation(env):
+    data, db = env
+    db.upsert_video({"id": "abcdefghijk", "title": "Ma vidéo", "channel": "Chaîne",
+                     "url": "https://www.youtube.com/watch?v=abcdefghijk"}, "error", "boom")
+    c = client(env)
+    r = c.get("/videos")
+    assert r.status_code == 200 and "Ma vidéo" in r.text and "boom" in r.text and "2 clip(s)" in r.text
+    assert c.post("/api/run", data={"url": "pas un lien"}).status_code == 400
+
+
+def test_external_job_state_visible_and_blocks_start(env):
+    import json
+    from src.jobs import read_state
+    data, _ = env
+    state = {"running": True, "stage": "transcription", "stages": [], "clips": 1, "log": [], "updated_at": time.time()}
+    (data / "job.json").write_text(json.dumps(state))
+    c = client(env)
+    assert c.get("/api/job").json()["stage"] == "transcription"
+    assert c.post("/api/run").status_code == 409
+    state["updated_at"] = time.time() - 120
+    (data / "job.json").write_text(json.dumps(state))
+    assert read_state(data / "job.json")["running"] is False

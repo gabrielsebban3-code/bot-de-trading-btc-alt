@@ -64,7 +64,8 @@ def cmd_status(_args):
 def cli(argv=None):
     load_env()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
-    for noisy in ("faster_whisper", "httpx", "uvicorn.access"):
+    os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+    for noisy in ("faster_whisper", "httpx", "httpx2", "httpcore", "huggingface_hub", "urllib3", "uvicorn.access"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     p = argparse.ArgumentParser(prog="gta6-clipper", description="Clips verticaux privés à partir de vidéos FR sur GTA 6")
     sub = p.add_subparsers(dest="cmd", required=True)
