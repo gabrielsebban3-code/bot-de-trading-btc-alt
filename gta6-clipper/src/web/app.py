@@ -163,6 +163,8 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         s["channel_blacklist"] = _lines(form.get("blacklist", ""))
         m["clips_per_video"] = _int(form.get("clips_per_video"), 1, 10, m["clips_per_video"])
         cfg["render"]["subtitles"] = form.get("subtitles") == "on"
+        cfg["render"]["subtitle_highlight"] = form.get("highlight") == "on"
+        cfg["render"]["subtitle_uppercase"] = form.get("uppercase") == "on"
         cfg["cleanup"]["max_age_days"] = _int(form.get("max_age_days"), 1, 3650, cfg["cleanup"]["max_age_days"])
         cfg["cleanup"]["max_total_gb"] = _int(form.get("max_total_gb"), 1, 10000, cfg["cleanup"]["max_total_gb"])
         save_config(cfg)

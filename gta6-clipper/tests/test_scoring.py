@@ -153,7 +153,7 @@ def test_search_url_uses_upload_filter():
 def test_subtitles_use_word_timings():
     segs = [{"start": 10, "end": 20, "text": "a b c d e f g h",
              "words": [[10 + i, 10.8 + i, w] for i, w in enumerate("abcdefgh")]}]
-    ev = vertical.subtitle_events(segs, 12, 40, max_words=3)
+    ev = vertical.subtitle_events(segs, 12, 40, max_words=3, highlight=False)
     assert ev[0] == (0.0, 2.8, "c d e") and ev[1] == (3.0, 5.8, "f g h")
 
 
@@ -191,3 +191,14 @@ def test_cli_run_refuses_when_job_running(tmp_path, monkeypatch):
     (tmp_path / "job.json").write_text(json.dumps({"running": True, "updated_at": time.time()}))
     res = jobs.run_pipeline(DEFAULTS, db=object())
     assert "tourne déjà" in res["fatal"]
+
+
+def test_subtitles_break_on_punctuation_and_highlight_contiguous():
+    ws = [[0.0, 0.4, "Regardez"], [0.5, 0.8, "ça,"], [0.9, 1.2, "c'est"], [1.3, 1.8, "énorme"], [1.9, 2.0, "!"]]
+    segs = [{"start": 0, "end": 2.0, "text": " ".join(w[2] for w in ws), "words": ws}]
+    plain = vertical.subtitle_events(segs, 0, 10, highlight=False)
+    assert [e[2] for e in plain] == ["Regardez ça,", "c'est énorme !"]
+    hl = vertical.subtitle_events(segs, 0, 10, highlight=True, upper=True)
+    assert len(hl) == 5 and vertical.HIGHLIGHT + "REGARDEZ" in hl[0][2]
+    assert hl[0][1] == hl[1][0]  # contigus dans un même bloc : jamais deux lignes à l'écran
+    assert "{" not in vertical.subtitle_events([{"start": 0, "end": 1, "text": "a {b}", "words": [[0, 0.9, "{b}"]]}], 0, 1, highlight=False)[0][2]

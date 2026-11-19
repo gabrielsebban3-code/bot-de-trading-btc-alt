@@ -15,7 +15,10 @@ def make_clip(video: dict, moment: dict, segments, cfg, workdir: Path, data: Pat
     cid = clip_id(video["id"], start)
     src = source or download.download_section(video["id"], start, end, workdir, cfg["render"]["max_source_height"])
     duration = vertical.probe_duration(src) or (end - start)
-    events = vertical.subtitle_events(segments, start, end) if cfg["render"]["subtitles"] else []
+    r = cfg["render"]
+    events = vertical.subtitle_events(segments, start, end, max_words=r.get("subtitle_max_words", 3),
+                                      highlight=r.get("subtitle_highlight", True),
+                                      upper=r.get("subtitle_uppercase", False)) if r["subtitles"] else []
     ass_name = f"subs_{cid}.ass"
     (workdir / ass_name).write_text(
         vertical.build_ass(events, f"Source : {video['channel']}", duration, cfg["render"]["font"]), encoding="utf-8")

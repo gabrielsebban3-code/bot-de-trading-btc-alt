@@ -43,6 +43,9 @@ transcription:
   check_language: true
 render:
   subtitles: true
+  subtitle_max_words: 3     # mots par bloc (une ligne)
+  subtitle_highlight: true  # mot prononcé en jaune
+  subtitle_uppercase: false
   crf: 21
   preset: medium
   max_source_height: 1080
