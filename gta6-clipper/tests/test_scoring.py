@@ -491,3 +491,22 @@ def test_transcribe_offset_shifts_timestamps(tmp_path, monkeypatch):
     monkeypatch.setattr(transcribe, "get_model", lambda tcfg: FakeModel())
     segs = transcribe.transcribe(wav, "abcdefghijk", DEFAULTS["transcription"], DB(tmp_path / "db.sqlite"), offset=2432.0)
     assert segs[0]["start"] == 2433.0 and segs[0]["words"][0][:2] == [2433.0, 2433.4]
+
+
+def test_jump_cuts_silences_fillers_and_minimum():
+    from src.clip import jump_cuts, cut_timeline
+    words = [[100.0, 100.4, "Regardez"], [100.5, 100.9, "ça"], [102.5, 102.8, "euh"], [103.0, 103.4, "c'est"],
+             [103.5, 104.0, "énorme"], [107.0, 107.5, "!"]]
+    segs = [{"start": 100.0, "end": 107.5, "text": " ".join(w[2] for w in words), "words": words}]
+    r = {"jump_cuts": True, "jump_cut_min_silence": 0.7}
+    cuts = jump_cuts(segs, 99.0, 109.0, r, min_len=0)
+    removed = sum(b - a for a, b in cuts)
+    assert abs(removed - 4.0) < 0.01                            # 1,1 s + « euh » 0,4 s + 2,5 s de blancs
+    assert not any(a < 100.4 < b or a < 103.6 < b for a, b in cuts)   # jamais dans un mot gardé
+    shown, dur, keep = cut_timeline(segs, 99.0, 109.0, cuts)
+    texts = [w[2] for s in shown for w in s["words"]]
+    assert "euh" not in texts and texts[0] == "Regardez" and abs(dur - (10 - removed)) < 1e-6
+    assert all(w[0] < w2[0] for w, w2 in zip(shown[0]["words"], shown[0]["words"][1:]))
+    assert shown[0]["words"][-1][1] <= 99.0 + dur
+    assert jump_cuts(segs, 99.0, 109.0, r, min_len=9.0) == [] or 10 - sum(b - a for a, b in jump_cuts(segs, 99.0, 109.0, r, min_len=9.0)) >= 9.0
+    assert jump_cuts(segs, 99.0, 109.0, {"jump_cuts": False}, 0) == []

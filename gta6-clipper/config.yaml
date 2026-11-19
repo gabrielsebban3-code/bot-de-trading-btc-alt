@@ -58,6 +58,8 @@ render:
   subtitle_max_words: 3     # mots par bloc (une ligne)
   subtitle_highlight: true  # mot prononcé en jaune
   subtitle_uppercase: true
+  jump_cuts: true           # coupe les blancs et les « euh » (montage dynamique)
+  jump_cut_min_silence: 0.7 # silence minimum coupé, en secondes
   crf: 21
   preset: veryfast        # même qualité (CRF), encodage 2-3x plus rapide, fichiers un peu plus gros
   max_source_height: 1080

@@ -51,6 +51,62 @@ def hook_title(segments, start, end, video: dict, mode: str = "auto", mcfg=None)
     return f"{who} : « {best[1]} »" if who else f"« {best[1]} »"
 
 
+FILLERS = {"euh", "heu", "euhh", "euuh", "heuu", "hum", "hmm", "mmh", "bah", "beh"}
+
+
+def jump_cuts(segments, start, end, rcfg, min_len):
+    """Blancs (silence entre deux mots ≥ jump_cut_min_silence) et « euh » à couper, en secondes de la vidéo.
+    Les plus longs d'abord, sans jamais faire passer le clip sous min_len. Renvoie [(début, fin)] triés."""
+    if not rcfg.get("jump_cuts", True):
+        return []
+    words = sorted(w for s in segments for w in (s.get("words") or []) if w[1] > start and w[0] < end)
+    if len(words) < 2:
+        return []
+    gap_min, pad = float(rcfg.get("jump_cut_min_silence", 0.7)), 0.25
+    cuts = [(a[1] + pad, b[0] - pad) for a, b in zip(words, words[1:])
+            if b[0] - a[1] >= gap_min and (b[0] - pad) - (a[1] + pad) > 0.15]
+    cuts += [(w[0] - 0.05, w[1] + 0.05) for w in words if re.sub(r"\W", "", w[2].lower()) in FILLERS]
+    merged = []
+    for a, b in sorted((max(a, start + 0.3), min(b, end - 0.3)) for a, b in cuts):
+        if b - a <= 0.1:
+            continue
+        if merged and a <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+        else:
+            merged.append((a, b))
+    chosen, total = [], end - start
+    for c in sorted(merged, key=lambda c: c[0] - c[1]):  # les plus longs d'abord
+        if total - (c[1] - c[0]) >= min_len:
+            chosen.append(c)
+            total -= c[1] - c[0]
+    return sorted(chosen)
+
+
+def cut_timeline(segments, start, end, cuts):
+    """Recale les segments et les mots sur la vidéo coupée (les mots coupés, comme les « euh », disparaissent).
+    Renvoie (segments recalés, durée finale, intervalles gardés en secondes depuis le début du clip)."""
+    def remap(t):
+        removed = sum(min(b, t) - a for a, b in cuts if a < t)
+        return t - removed
+
+    keep, t = [], start
+    for a, b in cuts:
+        keep.append((t - start, a - start))
+        t = b
+    keep.append((t - start, end - start))
+    out = []
+    for s in segments:
+        if s["end"] <= start or s["start"] >= end:
+            continue
+        words = [[round(remap(w[0]), 2), round(remap(w[1]), 2), w[2]] for w in s.get("words") or []
+                 if not any(a <= w[0] and w[1] <= b for a, b in cuts)]
+        if s.get("words") and not words:
+            continue
+        text = " ".join(w[2] for w in words) if s.get("words") else s["text"]
+        out.append({"start": round(remap(s["start"]), 2), "end": round(remap(s["end"]), 2), "text": text, "words": words})
+    return out, sum(b - a for a, b in keep), keep
+
+
 def make_clip(video: dict, moment: dict, segments, cfg, workdir: Path, data: Path, source=None, title=None) -> dict:
     """source : fichier déjà découpé (tests) ; sinon seul le segment est téléchargé.
     title : titre imposé ("" = aucun) ; None = titre automatique selon render.title."""
@@ -59,7 +115,11 @@ def make_clip(video: dict, moment: dict, segments, cfg, workdir: Path, data: Pat
     src = source or download.download_section(video["id"], start, end, workdir, cfg["render"]["max_source_height"])
     duration = vertical.probe_duration(src) or (end - start)
     r = cfg["render"]
-    events = vertical.subtitle_events(segments, start, end, max_words=r.get("subtitle_max_words", 3),
+    cuts = jump_cuts(segments, start, start + duration, r, float(cfg["moments"]["min_clip_s"]))
+    shown, keep = segments, None
+    if cuts:  # montage dynamique : blancs et « euh » retirés, sous-titres recalés
+        shown, duration, keep = cut_timeline(segments, start, start + duration, cuts)
+    events = vertical.subtitle_events(shown, start, start + duration, max_words=r.get("subtitle_max_words", 3),
                                       highlight=r.get("subtitle_highlight", True),
                                       upper=r.get("subtitle_uppercase", False)) if r["subtitles"] else []
     if title is None:
@@ -71,7 +131,7 @@ def make_clip(video: dict, moment: dict, segments, cfg, workdir: Path, data: Pat
         encoding="utf-8")
     out = data / "clips" / f"{cid}.mp4"
     tmp = workdir / f"{cid}.render.mp4"
-    vertical.render_vertical(Path(src).resolve(), tmp.resolve(), ass_name, workdir, cfg["render"])
+    vertical.render_vertical(Path(src).resolve(), tmp.resolve(), ass_name, workdir, cfg["render"], keep)
     tmp.replace(out)  # le fichier n'apparaît sur le site qu'une fois complet
     vertical.thumbnail(out, data / "thumbs" / f"{cid}.jpg", duration / 2)
     return {"id": cid, "video_id": video["id"], "video_title": video["title"], "channel": video["channel"],

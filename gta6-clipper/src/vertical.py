@@ -126,11 +126,17 @@ def build_ass(events, credit: str, duration: float, font="DejaVu Sans", title: s
     return head + "\n".join(lines) + "\n"
 
 
-def render_vertical(src, out, ass_name, workdir, rcfg):
-    """ass_name : nom de fichier relatif à workdir (évite l'échappement des chemins dans le filtre)."""
+def render_vertical(src, out, ass_name, workdir, rcfg, keep=None):
+    """ass_name : nom de fichier relatif à workdir (évite l'échappement des chemins dans le filtre).
+    keep : [(début, fin)] en secondes du fichier source à garder (coupes des blancs) ; None = tout."""
     graph = LAYOUTS.get(rcfg.get("layout", "zoom"), LAYOUTS["zoom"])["filter"].format(ass=ass_name)
+    audio = "loudnorm=I=-14:TP=-1.5:LRA=11"
+    if keep:
+        expr = "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in keep)
+        graph = graph.replace("[0:v]", f"[0:v]select='{expr}',setpts=N/FRAME_RATE/TB,", 1)
+        audio = f"aselect='{expr}',asetpts=N/SR/TB," + audio
     ffmpeg("-i", src, "-filter_complex", graph, "-map", "[v]", "-map", "0:a?",
-           "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", 48000,
+           "-af", audio, "-ar", 48000,
            "-c:v", "libx264", "-preset", rcfg["preset"], "-crf", rcfg["crf"], "-pix_fmt", "yuv420p", "-r", 30,
            "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", out, cwd=workdir)
 

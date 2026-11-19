@@ -204,6 +204,7 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         if form.get("duration") in DURATIONS:
             m["min_clip_s"], m["max_clip_s"], m["target_clip_s"] = DURATIONS[form.get("duration")]
         cfg["render"]["subtitles"] = form.get("subtitles") == "on"
+        cfg["render"]["jump_cuts"] = form.get("jump_cuts") == "on"
         cfg["render"]["subtitle_highlight"] = form.get("highlight") == "on"
         cfg["render"]["subtitle_uppercase"] = form.get("uppercase") == "on"
         cfg["cleanup"]["max_age_days"] = _int(form.get("max_age_days"), 1, 3650, cfg["cleanup"]["max_age_days"])
