@@ -82,6 +82,12 @@
 </form>
 
 <h2>Musiques d'ambiance</h2>
+<form method="post" action="/music/upload" enctype="multipart/form-data" class="settings">
+  <label>Ajouter des musiques téléchargées (par exemple depuis la Bibliothèque audio de YouTube Studio)
+    <input type="file" name="files" accept=".mp3,.m4a,.aac,.wav,.ogg,.flac,.opus,audio/*" multiple required></label>
+  <button>Ajouter des musiques</button>
+  {% if music_msg.startswith('uploaded') %}<p class="ok">{{ music_msg[8:] }} musique(s) ajoutée(s). Total : {{ music_count }}.</p>{% endif %}
+</form>
 <form method="post" action="/music/import" class="settings">
   <label>Importer une playlist YouTube de musiques libres de droits (25 morceaux maximum, ajoutés dans le dossier musique)
     <input type="url" name="url" placeholder="https://youtube.com/playlist?list=..." required></label>

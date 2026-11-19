@@ -260,3 +260,16 @@ def test_music_playlist_import(env, monkeypatch):
             break
         _t.sleep(0.05)
     assert calls == [(url, 25)] and "Import terminé : 7 musique(s)" in c.get("/settings").text
+
+
+def test_music_upload(env):
+    data, _ = env
+    c = client(env)
+    files = [("files", ("Snake on the Beach (Nico Staf).mp3", b"ID3fake", "audio/mpeg")),
+             ("files", ("virus.exe", b"MZ", "application/octet-stream")),
+             ("files", ("../../evil.mp3", b"ID3", "audio/mpeg"))]
+    r = c.post("/music/upload", files=files, follow_redirects=False)
+    assert r.headers["location"] == "/settings?music=uploaded2"
+    names = sorted(p.name for p in (data / "music").iterdir())
+    assert names == ["Snake_on_the_Beach_Nico_Staf.mp3", "evil.mp3"]      # .exe refusé, chemin neutralisé
+    assert "2 musique(s) ajoutée(s)" in c.get("/settings?music=uploaded2").text

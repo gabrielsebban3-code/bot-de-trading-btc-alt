@@ -285,6 +285,26 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         threading.Thread(target=target, daemon=True, name="music-import").start()
         return RedirectResponse("/settings?music=started", status_code=303)
 
+    @app.post("/music/upload")
+    async def music_upload(request: Request):
+        """Ajoute des fichiers audio choisis dans le navigateur au dossier des musiques (50 Mo max par fichier)."""
+        import re as _re
+        form = await request.form()
+        saved = 0
+        for f in form.getlist("files"):
+            name = getattr(f, "filename", "") or ""
+            stem, ext = Path(name).stem, Path(name).suffix.lower()
+            if ext not in cliplib.MUSIC_EXT:
+                continue
+            safe = (_re.sub(r"[^\w.-]+", "_", stem).strip("._") or "musique")[:80] + ext
+            content = await f.read(50 * 1024 * 1024 + 1)
+            if len(content) > 50 * 1024 * 1024 or not content:
+                continue
+            (data / "music").mkdir(parents=True, exist_ok=True)
+            (data / "music" / safe).write_bytes(content)
+            saved += 1
+        return RedirectResponse(f"/settings?music=uploaded{saved}", status_code=303)
+
     def cliplib_import(url):
         return import_music(url, data / "music", 25)
 
