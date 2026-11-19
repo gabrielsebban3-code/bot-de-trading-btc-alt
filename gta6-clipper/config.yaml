@@ -60,6 +60,7 @@ render:
   subtitle_uppercase: true
   jump_cuts: true           # coupe les blancs et les « euh » (montage dynamique)
   jump_cut_min_silence: 0.7 # silence minimum coupé, en secondes
+  cold_open: true           # accroche : les 2,5 s les plus fortes montrées en ouverture (1re seconde décisive)
   music: true               # musique d'ambiance (fichiers libres de droits dans data/music), baissée sous la voix
   music_volume: 0.18        # 0.10 discret, 0.18 moyen, 0.28 présent
   crf: 21

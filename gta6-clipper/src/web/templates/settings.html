@@ -70,6 +70,7 @@
     {% if music_count %}{{ music_count }} musique(s) trouvée(s) : une est choisie pour chaque clip.
     {% else %}<strong>Aucune musique trouvée.</strong> Mets des fichiers .mp3 <strong>libres de droits</strong> dans :<br><code>{{ music_dir }}</code>{% endif %}
   </div>
+  <label class="check"><input type="checkbox" name="cold_open" {% if cfg.render.cold_open %}checked{% endif %}> Accroche : montrer d'abord les 2-3 secondes les plus fortes (TikTok juge la 1re seconde)</label>
   <label class="check"><input type="checkbox" name="jump_cuts" {% if cfg.render.jump_cuts %}checked{% endif %}> Couper les blancs et les « euh » (montage dynamique)</label>
   <label class="check"><input type="checkbox" name="subtitles" {% if cfg.render.subtitles %}checked{% endif %}> Sous-titres incrustés</label>
   <label class="check"><input type="checkbox" name="highlight" {% if cfg.render.subtitle_highlight %}checked{% endif %}> Mot prononcé surligné en jaune</label>

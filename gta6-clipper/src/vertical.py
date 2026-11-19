@@ -144,10 +144,7 @@ def render_vertical(src, out, ass_name, workdir, rcfg, keep=None, music=None, du
         expr = "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in keep)
         graph = graph.replace("[0:v]", f"[0:v]select='{expr}',setpts=N/FRAME_RATE/TB,", 1)
         pre_a = f"aselect='{expr}',asetpts=N/SR/TB,"
-    fades = "fade=t=in:st=0:d=0.3"
-    if duration and duration > 2:
-        fades += f",fade=t=out:st={duration - 0.4:.2f}:d=0.4"
-    graph = graph.replace("[v]", f",{fades}[v]")
+    # pas de fondu au noir : TikTok juge la 1re seconde, et une fin noire casse le visionnage en boucle
     inputs = ["-i", src]
     if music:
         inputs += ["-stream_loop", "-1", "-ss", f"{music['offset']:.2f}", "-i", music["path"]]
@@ -166,6 +163,22 @@ def render_vertical(src, out, ass_name, workdir, rcfg, keep=None, music=None, du
     ffmpeg(*inputs, "-filter_complex", graph, *maps, "-ar", 48000,
            "-c:v", "libx264", "-preset", rcfg["preset"], "-crf", rcfg["crf"], "-pix_fmt", "yuv420p", "-r", 30,
            "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", out, cwd=workdir)
+
+
+def cold_open(src, out, workdir, rcfg, start: float, end: float):
+    """Accroche : le passage [start, end] (le plus fort) est montré en ouverture, puis le clip entier."""
+    a = has_audio(src)
+    graph = (f"[0:v]split=2[v1][v2];[v1]trim=start={start:.2f}:end={end:.2f},setpts=PTS-STARTPTS[tv];"
+             f"[v2]setpts=PTS-STARTPTS[mv];")
+    if a:
+        graph += (f"[0:a]asplit=2[a1][a2];[a1]atrim=start={start:.2f}:end={end:.2f},asetpts=PTS-STARTPTS[ta];"
+                  f"[a2]asetpts=PTS-STARTPTS[ma];[tv][ta][mv][ma]concat=n=2:v=1:a=1[v][a]")
+        maps = ["-map", "[v]", "-map", "[a]", "-c:a", "aac", "-b:a", "160k"]
+    else:
+        graph += "[tv][mv]concat=n=2:v=1:a=0[v]"
+        maps = ["-map", "[v]"]
+    ffmpeg("-i", src, "-filter_complex", graph, *maps, "-c:v", "libx264", "-preset", rcfg["preset"],
+           "-crf", rcfg["crf"], "-pix_fmt", "yuv420p", "-r", 30, "-movflags", "+faststart", out, cwd=workdir)
 
 
 def thumbnail(video, thumb, at: float):

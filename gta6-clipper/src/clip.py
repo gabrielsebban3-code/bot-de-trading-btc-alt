@@ -131,6 +131,32 @@ def pick_music(data: Path, cid: str, duration: float, rcfg):
     return {"path": str(path.resolve()), "offset": float(offset), "volume": float(rcfg.get("music_volume", 0.18))}
 
 
+def peak_moment(video_path, workdir: Path, skip_start=4.0, skip_end=3.0, min_db=4.0):
+    """Seconde la plus forte du clip rendu (le son monte d'un coup par rapport aux 30 s autour). None si rien ne ressort."""
+    from . import scoring
+    wav = workdir / "peak.wav"
+    download.ffmpeg("-i", video_path, "-vn", "-ac", 1, "-ar", 16000, "-c:a", "pcm_s16le", wav)
+    try:
+        rms = scoring.audio_rms(wav)
+    finally:
+        wav.unlink(missing_ok=True)
+    n = len(rms)
+    if n < skip_start + skip_end + 4:
+        return None
+    contrast = rms - scoring.rolling_median(rms, 31)
+    contrast[:int(skip_start)] = -99
+    contrast[n - int(skip_end):] = -99
+    t = int(contrast.argmax())
+    return float(t) if contrast[t] >= min_db else None
+
+
+def with_keyword(text: str, keyword: str = "GTA 6", limit: int = 58) -> str:
+    """Recherche TikTok : le mot-clé doit être écrit à l'écran (et dit, et dans la légende)."""
+    if not text or "gta" in text.lower():
+        return text
+    return f"{keyword} · {text}" if len(text) + len(keyword) + 3 <= limit else text
+
+
 def make_clip(video: dict, moment: dict, segments, cfg, workdir: Path, data: Path, source=None, title=None) -> dict:
     """source : fichier déjà découpé (tests) ; sinon seul le segment est téléchargé.
     title : titre imposé ("" = aucun) ; None = titre automatique selon render.title."""
@@ -147,7 +173,7 @@ def make_clip(video: dict, moment: dict, segments, cfg, workdir: Path, data: Pat
                                       highlight=r.get("subtitle_highlight", True),
                                       upper=r.get("subtitle_uppercase", False)) if r["subtitles"] else []
     if title is None:
-        title = hook_title(segments, start, end, video, r.get("title", "auto"), cfg.get("moments"))
+        title = with_keyword(hook_title(segments, start, end, video, r.get("title", "auto"), cfg.get("moments")))
     ass_name = f"subs_{cid}.ass"
     (workdir / ass_name).write_text(
         vertical.build_ass(events, f"Source : {video['channel']}", duration, r["font"], title, r.get("layout", "zoom"),
@@ -157,6 +183,12 @@ def make_clip(video: dict, moment: dict, segments, cfg, workdir: Path, data: Pat
     tmp = workdir / f"{cid}.render.mp4"
     music = pick_music(data, cid, duration, r)
     vertical.render_vertical(Path(src).resolve(), tmp.resolve(), ass_name, workdir, cfg["render"], keep, music, duration)
+    if r.get("cold_open", True):  # accroche : le moment le plus fort aussi en toute première seconde
+        p = peak_moment(tmp, workdir)
+        if p is not None:
+            hooked = workdir / f"{cid}.hook.mp4"
+            vertical.cold_open(tmp.resolve(), hooked.resolve(), workdir, cfg["render"], max(0.0, p - 1.5), p + 1.0)
+            tmp, duration = hooked, duration + (p + 1.0 - max(0.0, p - 1.5))
     tmp.replace(out)  # le fichier n'apparaît sur le site qu'une fois complet
     vertical.thumbnail(out, data / "thumbs" / f"{cid}.jpg", duration / 2)
     return {"id": cid, "video_id": video["id"], "video_title": video["title"], "channel": video["channel"],

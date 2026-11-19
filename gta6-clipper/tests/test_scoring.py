@@ -545,3 +545,12 @@ def test_clip_does_not_start_mid_reasoning():
     assert aligned and abs(s - (6.0 - 0.5)) < 1e-6            # reprend « Je prends l'avion… » avant « Mais du coup… »
     s2, _, _ = scoring.snap_to_sentences(30.0, 62.0, segs, 20, 45, 0.5, 300)
     assert abs(s2 - (30.0 - 0.5)) < 1e-6                       # phrase autonome : début inchangé
+
+
+def test_gta_keyword_on_screen():
+    from src.clip import with_keyword
+    assert with_keyword("LaSalle : « Regarde les routes ! »") == "GTA 6 · LaSalle : « Regarde les routes ! »"
+    assert with_keyword("Le meilleur moment de GTA VI") == "Le meilleur moment de GTA VI"   # déjà présent
+    assert with_keyword("") == ""
+    long_t = "x" * 56
+    assert with_keyword(long_t) == long_t                                                   # trop long : inchangé

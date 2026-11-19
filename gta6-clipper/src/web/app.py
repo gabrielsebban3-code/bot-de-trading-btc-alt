@@ -77,6 +77,8 @@ def duration_preset(m: dict) -> str:
 def tiktok_caption(c: dict, hashtags: str) -> str:
     """Légende prête à coller : titre, crédit avec le lien vers la vidéo originale, hashtags."""
     title = c.get("hook") or c["video_title"]
+    if "gta" not in title.lower():  # recherche TikTok : mot-clé en tête de légende
+        title = f"GTA 6 : {title}"
     return f"{title}\n\n🎥 Source : {c['channel']} — {moment_url(c['video_id'], c['start'])}\n{hashtags}".strip()
 
 
@@ -216,6 +218,7 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         cfg.setdefault("publish", {})["hashtags"] = str(form.get("hashtags", cfg.get("publish", {}).get("hashtags", ""))).strip()[:200]
         cfg["render"]["subtitles"] = form.get("subtitles") == "on"
         cfg["render"]["jump_cuts"] = form.get("jump_cuts") == "on"
+        cfg["render"]["cold_open"] = form.get("cold_open") == "on"
         cfg["render"]["music"] = form.get("music") == "on"
         if form.get("music_volume") in ("0.10", "0.18", "0.28"):
             cfg["render"]["music_volume"] = float(form.get("music_volume"))

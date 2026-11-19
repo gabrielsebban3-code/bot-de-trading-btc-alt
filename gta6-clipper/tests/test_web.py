@@ -273,3 +273,10 @@ def test_music_upload(env):
     names = sorted(p.name for p in (data / "music").iterdir())
     assert names == ["Snake_on_the_Beach_Nico_Staf.mp3", "evil.mp3"]      # .exe refusé, chemin neutralisé
     assert "2 musique(s) ajoutée(s)" in c.get("/settings?music=uploaded2").text
+
+
+def test_caption_starts_with_keyword():
+    from src.web.app import tiktok_caption
+    c = {"hook": "LaSalle : « Regarde ! »", "video_title": "T", "channel": "LaSalle", "video_id": "abcdefghijk", "start": 12}
+    assert tiktok_caption(c, "#gta6").startswith("GTA 6 : LaSalle")
+    assert tiktok_caption({**c, "hook": "GTA 6 · déjà là"}, "").startswith("GTA 6 · déjà là")
