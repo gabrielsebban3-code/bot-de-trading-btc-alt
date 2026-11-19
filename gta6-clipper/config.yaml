@@ -41,13 +41,15 @@ transcription:
   language: fr
   compute_type: int8
   check_language: true
+  mode: rapide            # complete | rapide (ne transcrit qu'autour des moments) | tres_rapide (+ beam 1)
+  cpu_threads: 0          # 0 = tous les cœurs du processeur
 render:
   subtitles: true
   subtitle_max_words: 3     # mots par bloc (une ligne)
   subtitle_highlight: true  # mot prononcé en jaune
   subtitle_uppercase: false
   crf: 21
-  preset: medium
+  preset: veryfast        # même qualité (CRF), encodage 2-3x plus rapide, fichiers un peu plus gros
   max_source_height: 1080
   font: DejaVu Sans
 cleanup:

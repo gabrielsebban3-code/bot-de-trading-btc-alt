@@ -111,7 +111,10 @@ def download_section(vid: str, start: float, end: float, workdir: Path, max_heig
             "format": f"bv*[height<={h}][vcodec^=avc1]+ba[acodec^=mp4a]/bv*[height<={h}]+ba/b[height<={h}]/b",
             "outtmpl": str(workdir / f"{stem}.%(ext)s"),
             "download_ranges": download_range_func(None, [(start, end)]),
-            "force_keyframes_at_cuts": True, "merge_output_format": "mp4"}
+            "force_keyframes_at_cuts": True, "merge_output_format": "mp4",
+            # yt-dlp réencode le segment pour couper juste : rapide et quasi sans perte (réencodé ensuite)
+            "external_downloader_args": {"ffmpeg_o": ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "16",
+                                                      "-c:a", "aac", "-b:a", "192k"]}}
     with YoutubeDL(opts) as y:
         y.download([watch_url(vid)])
     return next(workdir.glob(f"{stem}.*"))

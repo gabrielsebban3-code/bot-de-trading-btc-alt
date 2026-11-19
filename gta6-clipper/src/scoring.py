@@ -211,3 +211,24 @@ def llm_rescore(moments, segments, mcfg, db):
         m["score"] = round((1 - w) * m["score"] + w * note, 4)
         m["signals"]["llm"] = round(note, 3)
     return sorted(moments, key=lambda m: -m["score"])
+
+
+# --- mode rapide : repérer les candidats avant toute transcription ---
+def candidate_windows(duration, heatmap, rms, mcfg, n):
+    """Mêmes fenêtres que select_moments quand le poids des mots-clés est nul."""
+    size = int(np.ceil(duration))
+    sig = combine({"heatmap": heatmap_signal(heatmap, size),
+                   "audio": normalize(rms) if rms is not None and len(rms) else None}, mcfg["weights"], size)
+    length = int(mcfg["target_clip_s"])
+    return pick_windows(window_scores(sig, length), n, length, float(mcfg["min_gap_s"]))
+
+
+def merge_regions(windows, duration, pad=20.0):
+    """Zones à transcrire autour des fenêtres (marge pour l'alignement sur les phrases), fusionnées."""
+    out = []
+    for s, e in sorted((max(0.0, s - pad), min(float(duration), e + pad)) for s, e in windows):
+        if out and s <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], e))
+        else:
+            out.append((s, e))
+    return [(round(s, 2), round(e, 2)) for s, e in out]

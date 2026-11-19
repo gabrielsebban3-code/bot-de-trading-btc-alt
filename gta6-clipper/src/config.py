@@ -20,8 +20,9 @@ DEFAULTS = {
         "keywords": ["incroyable", "regardez", "énorme", "confirmé", "nouveau", "map", "date de sortie"],
         "llm": {"enabled": False, "model": "claude-haiku-5-5", "weight": 0.3},
     },
-    "transcription": {"model": "small", "language": "fr", "compute_type": "int8", "check_language": True},
-    "render": {"subtitles": True, "subtitle_max_words": 3, "subtitle_highlight": True, "subtitle_uppercase": False, "crf": 21, "preset": "medium", "max_source_height": 1080, "font": "DejaVu Sans"},
+    "transcription": {"model": "small", "language": "fr", "compute_type": "int8", "check_language": True,
+                      "mode": "rapide", "cpu_threads": 0},
+    "render": {"subtitles": True, "subtitle_max_words": 3, "subtitle_highlight": True, "subtitle_uppercase": False, "crf": 21, "preset": "veryfast", "max_source_height": 1080, "font": "DejaVu Sans"},
     "cleanup": {"enabled": True, "max_age_days": 30, "max_total_gb": 10},
 }
 

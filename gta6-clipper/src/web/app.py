@@ -162,6 +162,8 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         s["channel_whitelist"] = _lines(form.get("whitelist", ""))
         s["channel_blacklist"] = _lines(form.get("blacklist", ""))
         m["clips_per_video"] = _int(form.get("clips_per_video"), 1, 10, m["clips_per_video"])
+        if form.get("tmode") in ("complete", "rapide", "tres_rapide"):
+            cfg["transcription"]["mode"] = form.get("tmode")
         cfg["render"]["subtitles"] = form.get("subtitles") == "on"
         cfg["render"]["subtitle_highlight"] = form.get("highlight") == "on"
         cfg["render"]["subtitle_uppercase"] = form.get("uppercase") == "on"

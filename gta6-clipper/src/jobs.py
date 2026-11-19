@@ -64,32 +64,46 @@ class Progress:
 
 
 def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
-    vid, t0 = cand["id"], time.time()
-    progress.update(stage="téléchargement")
+    vid, t_video = cand["id"], time.time()
+    progress.update(stage="téléchargement", detail="")
+    t = time.time()
     heatmap = cand.get("heatmap")
     if heatmap is None:
         heatmap = download.fetch_info(vid, db).get("heatmap")
     wav = download.download_audio(vid, workdir)
-    progress.log(f"Audio récupéré ({time.time() - t0:.0f}s)")
+    rms = scoring.audio_rms(wav)
+    progress.log(f"Audio récupéré en {time.time() - t:.0f} s")
 
     progress.update(stage="transcription", detail="")
-    tcfg = cfg["transcription"]
+    t = time.time()
+    tcfg, mcfg = cfg["transcription"], cfg["moments"]
     if tcfg.get("check_language"):
         lang, prob = transcribe.detect_language(wav, tcfg, cand["duration"])
         if lang != tcfg["language"] and prob > 0.5:
             raise SkipVideo(f"langue détectée : {lang} ({prob:.0%})")
-    segments = transcribe.transcribe(wav, vid, tcfg, db,
+    regions = None
+    if transcribe.mode_of(tcfg)[0]:
+        if heatmap:
+            # mode rapide : candidats choisis sur heatmap + audio, on ne transcrit que leurs alentours
+            mcfg = {**mcfg, "weights": {**mcfg["weights"], "keywords": 0}}
+            wins = scoring.candidate_windows(cand["duration"], heatmap, rms, mcfg, int(mcfg["clips_per_video"]) * 2)
+            regions = scoring.merge_regions(wins, cand["duration"])
+            progress.log(f"Mode rapide : {sum(e - s for s, e in regions) / 60:.1f} min à transcrire "
+                         f"sur {cand['duration'] / 60:.1f} min")
+        else:
+            progress.log("Pas de heatmap : transcription complète (le mode rapide en a besoin)")
+    segments = transcribe.transcribe(wav, vid, tcfg, db, regions=regions,
                                      on_progress=lambda p: progress.update(detail=f"transcription {p} %"))
     progress.update(detail="")
     if not segments:
         progress.log("Transcription vide : découpe sur heatmap/audio uniquement", logging.WARNING)
-    progress.log(f"Transcription : {len(segments)} segments ({time.time() - t0:.0f}s)")
+    progress.log(f"Transcription : {len(segments)} segments en {time.time() - t:.0f} s")
 
     progress.update(stage="découpe")
     if not heatmap:
         progress.log("Pas de heatmap : signaux audio + mots-clés uniquement")
-    moments = scoring.select_moments(cand["duration"], segments, heatmap, scoring.audio_rms(wav), cfg["moments"])
-    moments = scoring.llm_rescore(moments, segments, cfg["moments"], db)
+    moments = scoring.select_moments(cand["duration"], segments, heatmap, rms, mcfg)
+    moments = scoring.llm_rescore(moments, segments, mcfg, db)
     wav.unlink(missing_ok=True)
     if dry_run:
         return moments
@@ -97,14 +111,17 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     progress.update(stage="rendu")
     made = []
     for m in moments:
+        t = time.time()
         try:
             c = clip.make_clip(cand, m, segments, cfg, workdir, data)
             db.add_clip(c)
             made.append(c)
             progress.update(clips=progress.snapshot()["clips"] + 1)
-            progress.log(f"Clip {c['id']} ({m['start']:.0f}-{m['end']:.0f}s, score {m['score']:.2f})")
+            progress.log(f"Clip {m['start']:.0f}-{m['end']:.0f} s (score {m['score']:.2f}) "
+                         f"téléchargé et rendu en {time.time() - t:.0f} s")
         except Exception as e:
             progress.log(f"Rendu échoué {m['start']:.0f}s : {str(e).splitlines()[-1]}", logging.ERROR)
+    progress.log(f"Vidéo traitée en {(time.time() - t_video) / 60:.1f} min")
     return made
 
 

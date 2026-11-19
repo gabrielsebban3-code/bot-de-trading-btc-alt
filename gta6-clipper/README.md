@@ -147,6 +147,11 @@ Les fichiers vont dans `data/clips/<id>.mp4`, `data/thumbs/<id>.jpg` et `data/db
 - **Coupe précise** : `force_keyframes_at_cuts` oblige yt-dlp à réencoder le segment. C'est plus lent, mais sans ça, la vidéo démarre figée ou désynchronisée.
 - **Heatmap absente** ou **transcription vide** : les poids des signaux manquants sont redistribués sur ceux qui restent. Sans transcription, la coupe n'est pas alignée sur des phrases.
 - Une vidéo en échec (statut `error`) est retentée par la recherche automatique jusqu'à `max_attempts` fois (3 par défaut). `run --url` la force à tout moment.
+- **Vitesse** (`transcription.mode`, réglable dans la page Réglages) :
+  - `rapide` (défaut) : les candidats sont repérés avec la heatmap et l'audio, puis seuls leurs alentours (±20 s) sont transcrits. Le signal mots-clés ne sert alors plus au choix des moments. Sans heatmap, la transcription est complète.
+  - `tres_rapide` : pareil, avec `beam_size=1` (sous-titres un peu moins précis).
+  - `complete` : toute la vidéo est transcrite.
+- Whisper utilise tous les cœurs du processeur (`cpu_threads: 0`). Le rendu final se fait en preset `veryfast` (environ 1,5 fois plus rapide mesuré que `medium` à CRF égal). Le segment intermédiaire que yt-dlp réencode pour couper juste utilise `ultrafast` CRF 16.
 - Les sous-titres utilisent l'horaire exact de chaque mot donné par Whisper (`word_timestamps`), ce qui rend la transcription environ 10 à 20 % plus longue.
 - Un seul traitement à la fois, que ce soit depuis le site ou le terminal : `data/job.json` partage l'état, avec un battement toutes les 10 s.
 - La page Réglages réécrit `config.yaml`, ce qui efface ses commentaires.

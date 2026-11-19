@@ -1,5 +1,8 @@
 """Transcription faster-whisper (mise en cache SQLite par vidéo et par modèle)."""
+import hashlib
+import json
 import logging
+import os
 
 log = logging.getLogger(__name__)
 _models = {}
@@ -8,11 +11,21 @@ _models = {}
 def get_model(tcfg):
     from faster_whisper import WhisperModel  # import tardif : lourd
 
-    key = (tcfg["model"], tcfg["compute_type"])
+    threads = int(tcfg.get("cpu_threads") or 0) or (os.cpu_count() or 4)  # défaut ctranslate2 : 4 cœurs
+    key = (tcfg["model"], tcfg["compute_type"], threads)
     if key not in _models:
-        log.info("Chargement du modèle Whisper %s", tcfg["model"])
-        _models[key] = WhisperModel(tcfg["model"], device="auto", compute_type=tcfg["compute_type"])
+        log.info("Chargement du modèle Whisper %s (%d cœurs)", tcfg["model"], threads)
+        _models[key] = WhisperModel(tcfg["model"], device="auto", compute_type=tcfg["compute_type"],
+                                    cpu_threads=threads)
     return _models[key]
+
+
+# mode -> (transcrire seulement autour des moments candidats, beam_size)
+MODES = {"complete": (False, 5), "rapide": (True, 5), "tres_rapide": (True, 1)}
+
+
+def mode_of(tcfg):
+    return MODES.get(tcfg.get("mode", "complete"), MODES["complete"])
 
 
 def load_wav(wav_path):
@@ -33,24 +46,34 @@ def detect_language(wav_path, tcfg, duration):
     return lang, prob
 
 
-def transcribe(wav_path, vid, tcfg, db, on_progress=None):
-    """Segments + horaires de chaque mot (sous-titres synchronisés). on_progress(pourcentage) tous les 5 %."""
-    key = f"trw:{vid}:{tcfg['model']}"
+def transcribe(wav_path, vid, tcfg, db, on_progress=None, regions=None):
+    """Segments + horaires par mot. regions=[(début, fin)] : ne transcrit que ces zones (mode rapide).
+    on_progress(pourcentage) tous les 5 %."""
+    beam = mode_of(tcfg)[1]
+    key = f"trw:{vid}:{tcfg['model']}" + (f":b{beam}" if beam != 5 else "")
+    if regions:
+        key += ":" + hashlib.md5(json.dumps(regions).encode()).hexdigest()[:10]
     cached = db.cache_get(key)
     if cached is not None:
         return cached
     audio = load_wav(wav_path)
-    total = max(1.0, len(audio) / 16000)
-    segs, _ = get_model(tcfg).transcribe(audio, language=tcfg["language"], vad_filter=True, word_timestamps=True)
-    out, last = [], 0
-    for s in segs:
-        text = s.text.strip()
-        if text:
-            words = [[round(w.start, 2), round(w.end, 2), w.word.strip()] for w in (s.words or []) if w.word.strip()]
-            out.append({"start": round(s.start, 2), "end": round(s.end, 2), "text": text, "words": words})
-        pct = int(min(99, s.end / total * 100))
-        if on_progress and pct >= last + 5:
-            last = pct
-            on_progress(pct)
+    regions = regions or [(0.0, len(audio) / 16000)]
+    total = max(1.0, sum(e - s for s, e in regions))
+    model, out, done, last = get_model(tcfg), [], 0.0, 0
+    for rs, re_ in regions:
+        chunk = audio[int(rs * 16000):int(re_ * 16000)]
+        segs, _ = model.transcribe(chunk, language=tcfg["language"], vad_filter=True, word_timestamps=True,
+                                   beam_size=beam)
+        for s in segs:
+            text = s.text.strip()
+            if text:
+                words = [[round(w.start + rs, 2), round(w.end + rs, 2), w.word.strip()]
+                         for w in (s.words or []) if w.word.strip()]
+                out.append({"start": round(s.start + rs, 2), "end": round(s.end + rs, 2), "text": text, "words": words})
+            pct = int(min(99, (done + s.end) / total * 100))
+            if on_progress and pct >= last + 5:
+                last = pct
+                on_progress(pct)
+        done += re_ - rs
     db.cache_set(key, out)
     return out

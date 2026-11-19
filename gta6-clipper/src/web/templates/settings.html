@@ -15,6 +15,12 @@
     <textarea name="whitelist" rows="3">{{ cfg.search.channel_whitelist|join('\n') }}</textarea></label>
   <label>Chaînes en liste noire (une par ligne, jamais traitées)
     <textarea name="blacklist" rows="3">{{ cfg.search.channel_blacklist|join('\n') }}</textarea></label>
+  <label>Vitesse de traitement
+    <select name="tmode">
+      <option value="rapide" {% if cfg.transcription.mode == 'rapide' %}selected{% endif %}>Rapide (recommandé) : transcrit seulement autour des meilleurs moments</option>
+      <option value="tres_rapide" {% if cfg.transcription.mode == 'tres_rapide' %}selected{% endif %}>Très rapide : idem, sous-titres un peu moins précis</option>
+      <option value="complete" {% if cfg.transcription.mode == 'complete' %}selected{% endif %}>Complète : toute la vidéo, mots-clés utilisés pour choisir les moments (lent)</option>
+    </select></label>
   <label class="check"><input type="checkbox" name="subtitles" {% if cfg.render.subtitles %}checked{% endif %}> Sous-titres incrustés</label>
   <label class="check"><input type="checkbox" name="highlight" {% if cfg.render.subtitle_highlight %}checked{% endif %}> Mot prononcé surligné en jaune</label>
   <label class="check"><input type="checkbox" name="uppercase" {% if cfg.render.subtitle_uppercase %}checked{% endif %}> Sous-titres en MAJUSCULES</label>

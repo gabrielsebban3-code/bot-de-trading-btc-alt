@@ -202,3 +202,42 @@ def test_subtitles_break_on_punctuation_and_highlight_contiguous():
     assert len(hl) == 5 and vertical.HIGHLIGHT + "REGARDEZ" in hl[0][2]
     assert hl[0][1] == hl[1][0]  # contigus dans un même bloc : jamais deux lignes à l'écran
     assert "{" not in vertical.subtitle_events([{"start": 0, "end": 1, "text": "a {b}", "words": [[0, 0.9, "{b}"]]}], 0, 1, highlight=False)[0][2]
+
+
+def test_fast_mode_regions_cover_selected_moments():
+    dur = 900
+    segs = fake_segments(dur)
+    hm = [{"start_time": t, "end_time": t + 10, "value": 1.0 if t in (300, 310, 600) else 0.1} for t in range(0, dur, 10)]
+    rms = np.full(dur, -30.0)
+    m0 = {**M, "weights": {**M["weights"], "keywords": 0}}
+    wins = scoring.candidate_windows(dur, hm, rms, m0, M["clips_per_video"] * 2)
+    regions = scoring.merge_regions(wins, dur)
+    assert sum(e - s for s, e in regions) < dur / 2
+    partial = [s for s in segs if any(rs <= s["start"] and s["end"] <= re for rs, re in regions)]
+    moments = scoring.select_moments(dur, partial, hm, rms, m0)
+    assert moments and all(m["aligned"] for m in moments)
+    assert all(any(rs <= m["start"] and m["end"] <= re for rs, re in regions) for m in moments)
+
+
+def test_merge_regions():
+    assert scoring.merge_regions([(100, 132), (140, 172), (500, 532)], 520, pad=20) == [(80.0, 192.0), (480.0, 520.0)]
+
+
+def test_transcribe_regions_offsets_timestamps(tmp_path, monkeypatch):
+    import wave
+    from types import SimpleNamespace
+    from src import transcribe
+    from src.db import DB
+    wav = tmp_path / "a.wav"
+    with wave.open(str(wav), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(b"\x00\x00" * 16000 * 100)
+    calls = []
+    class FakeModel:
+        def transcribe(self, audio, **kw):
+            calls.append((len(audio), kw["beam_size"]))
+            return iter([SimpleNamespace(start=1.0, end=2.0, text=" mot", words=[SimpleNamespace(start=1.0, end=1.5, word=" mot")])]), None
+    monkeypatch.setattr(transcribe, "get_model", lambda tcfg: FakeModel())
+    tcfg = {**DEFAULTS["transcription"], "mode": "tres_rapide"}
+    segs = transcribe.transcribe(wav, "v", tcfg, DB(tmp_path / "db.sqlite"), regions=[(10.0, 30.0), (60.0, 70.0)])
+    assert calls == [(320000, 1), (160000, 1)]
+    assert [s["start"] for s in segs] == [11.0, 61.0] and segs[1]["words"][0][:2] == [61.0, 61.5]
