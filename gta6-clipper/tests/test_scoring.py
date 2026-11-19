@@ -259,3 +259,73 @@ def test_silent_loud_passage_loses_to_speech():
 def test_speech_adjust_no_speech_detected_leaves_scores():
     ws = np.array([0.2, 0.8])
     assert np.allclose(scoring.speech_adjust(ws, np.zeros(40), 30, 0.5), ws)
+
+
+def lets_play(seed=0):
+    """59 min de let's play : jeu bruyant constant, parole quasi continue, heatmap haute à l'intro."""
+    rng = np.random.default_rng(seed)
+    dur = 3548
+    rms = -15 + rng.normal(0, 1.5, dur)          # bruit du jeu, fort en permanence
+    rms[1500:1506] += 12                          # cri / fou rire de 6 s
+    hm = []
+    for i in range(100):
+        s = i * dur / 100
+        v = 0.35 + 0.05 * rng.random()
+        if i == 0:
+            v = 1.0                                # tout le monde démarre la vidéo
+        if i == 70:
+            v = 0.95                               # le vrai moment culte (~41:24)
+        hm.append({"start_time": s, "end_time": s + dur / 100, "value": v})
+    speech = scoring.speech_signal([[0, dur]], dur)
+    return dur, rms, hm, speech
+
+
+def test_lets_play_skips_intro_and_finds_real_peaks():
+    dur, rms, hm, speech = lets_play()
+    moments = scoring.select_moments(dur, [], hm, rms, M, speech)
+    starts = [m["start"] for m in moments]
+    assert all(s >= 60 for s in starts)                                 # pas l'intro
+    peak = 70 * dur / 100
+    assert any(m["start"] <= peak + 20 and m["end"] >= peak + 5 for m in moments)  # pic heatmap
+    assert any(m["start"] <= 1503 <= m["end"] for m in moments)        # le cri
+
+
+def test_peak_lands_in_second_part_of_clip():
+    sig = np.zeros(400)
+    sig[200:205] = 1.0
+    ws = scoring.peak_window_scores(sig, 32)
+    t = int(np.argmax(ws))
+    assert 0.5 <= (202 - t) / 32 <= 1.0
+
+
+def test_voice_excitement_ignores_constant_loud_game():
+    rms = np.full(600, -10.0)      # jeu très fort tout le temps
+    rms[300:305] = 2.0             # la voix monte d'un coup
+    ex = scoring.voice_excitement(rms)
+    assert ex[302] == 1.0 and ex[100] == 0.0
+
+
+def test_comment_timestamps_parsed_and_weighted():
+    from src.download import parse_stamps
+    comments = [{"text": "23:45 mdr la police", "like_count": 200}, {"text": "le 1:02:03 !!", "like_count": 0},
+                {"text": "à 99:99 rien", "like_count": 5}, {"text": "pas d'heure ici", "like_count": 9}]
+    stamps = parse_stamps(comments, 4000)
+    assert sorted(t for t, _ in stamps) == [1425, 3723]
+    assert dict(stamps)[1425] > dict(stamps)[3723]
+    sig = scoring.comments_signal(stamps, 4000)
+    assert int(np.argmax(sig)) == 1425
+
+
+def test_fast_mode_keywords_break_ties_between_candidates():
+    dur = 1200
+    rms = np.full(dur, -20.0)
+    hm = [{"start_time": t, "end_time": t + 12, "value": 1.0 if t in (300, 312, 900, 912) else 0.3} for t in range(0, dur, 12)]
+    m = {**M, "clips_per_video": 1}
+    wins = scoring.candidate_windows(dur, hm, rms, m, 3)
+    regions = scoring.merge_regions(wins, dur)
+    segs = [{"start": t, "end": t + 5.6, "text": "bon on continue la route"} for t in range(0, dur, 6)]
+    for s in segs:
+        if 900 <= s["start"] < 930:
+            s["text"] = "oh non c'est fou, j'y crois pas, mdr !"
+    best = scoring.select_moments(dur, segs, hm, rms, m, regions=regions)[0]
+    assert 880 <= best["start"] <= 935

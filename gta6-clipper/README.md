@@ -147,6 +147,15 @@ Les fichiers vont dans `data/clips/<id>.mp4`, `data/thumbs/<id>.jpg` et `data/db
 - **Coupe précise** : `force_keyframes_at_cuts` oblige yt-dlp à réencoder le segment. C'est plus lent, mais sans ça, la vidéo démarre figée ou désynchronisée.
 - **Heatmap absente** ou **transcription vide** : les poids des signaux manquants sont redistribués sur ceux qui restent. Sans transcription, la coupe n'est pas alignée sur des phrases.
 - Une vidéo en échec (statut `error`) est retentée par la recherche automatique jusqu'à `max_attempts` fois (3 par défaut). `run --url` la force à tout moment.
+- **Notation des moments** :
+  - la heatmap compte par rapport à son niveau habituel (seuls les vrais pics ressortent) ;
+  - le son compte quand il monte d'un coup par rapport aux 2 minutes autour (cri, fou rire), pas à son niveau absolu, ce qui neutralise un jeu bruyant en permanence ;
+  - les mots-clés incluent des réactions orales (« mdr », « oh non », « c'est fou »…) ;
+  - les instants cités dans les commentaires (« 23:45 ») sont lus localement par yt-dlp, sur les 100 commentaires les plus populaires ;
+  - le pic est placé dans la seconde partie du clip, pour garder la mise en place avant ;
+  - l'intro (60 s) et l'outro (45 s) sont exclues.
+
+  Le lecteur du site affiche pour chaque clip la raison de son choix.
 - **Parole obligatoire** : un détecteur de voix (VAD Silero, inclus dans faster-whisper, quelques secondes) repère où quelqu'un parle. Un passage où l'on parle moins de 50 % du temps est quasi éliminé (`min_speech_ratio`). Une vidéo où l'on parle moins de 15 % du temps est ignorée (`min_video_speech_ratio`).
 - **Vitesse** (`transcription.mode`, réglable dans la page Réglages) :
   - `rapide` (défaut) : les candidats sont repérés avec la heatmap et l'audio, puis seuls leurs alentours (±20 s) sont transcrits. Le signal mots-clés ne sert alors plus au choix des moments. Sans heatmap, la transcription est complète.

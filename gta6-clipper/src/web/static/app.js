@@ -71,6 +71,7 @@
     video.play().catch(() => {});
     $("p-title").textContent = c.video_title;
     $("p-sub").textContent = `Source : ${c.channel} · ${c.duration} s · score ${c.score.toFixed(2)} · ${cur + 1}/${clips.length}`;
+    $("p-why").textContent = c.why ? `Pourquoi : ${c.why}` : "";
     $("p-fav").textContent = c.favorite ? "★ Favori" : "☆ Favori";
     $("p-dl").href = `/download/${encodeURIComponent(c.id)}`;
     $("p-yt").href = c.yt;

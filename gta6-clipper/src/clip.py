@@ -1,4 +1,5 @@
 """Fabrication d'un clip (segment téléchargé -> rendu vertical -> miniature) et gestion des fichiers."""
+import json
 import time
 from pathlib import Path
 
@@ -29,7 +30,8 @@ def make_clip(video: dict, moment: dict, segments, cfg, workdir: Path, data: Pat
     vertical.thumbnail(out, data / "thumbs" / f"{cid}.jpg", duration / 2)
     return {"id": cid, "video_id": video["id"], "video_title": video["title"], "channel": video["channel"],
             "url": video["url"], "start": start, "end": end, "score": moment["score"],
-            "created_at": time.time(), "file_size": out.stat().st_size}
+            "created_at": time.time(), "file_size": out.stat().st_size,
+            "reasons": json.dumps(moment.get("signals", {}))}
 
 
 def clip_paths(data: Path, cid: str):

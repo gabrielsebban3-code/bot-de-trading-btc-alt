@@ -1,5 +1,6 @@
 """Site privé local : FastAPI + Jinja2 + JS vanilla. Aucun asset externe."""
 import hmac
+import json
 import secrets
 import time
 from datetime import datetime
@@ -50,8 +51,20 @@ def _int(v, lo, hi, default):
         return default
 
 
+REASON_LABELS = {"heatmap": "très revu", "comments": "cité en commentaire", "audio": "voix qui s'emballe",
+                 "keywords": "mots forts", "parole": "parole", "llm": "note IA"}
+
+
+def why(reasons) -> str:
+    try:
+        r = json.loads(reasons or "{}")
+    except ValueError:
+        return ""
+    return " · ".join(f"{label} {r[k]:.0%}" for k, label in REASON_LABELS.items() if k in r)
+
+
 def clip_view(c: dict) -> dict:
-    return {**c, "duration": round(c["end"] - c["start"]),
+    return {**c, "duration": round(c["end"] - c["start"]), "why": why(c.get("reasons")),
             "yt": f"https://youtu.be/{c['video_id']}?t={int(c['start'])}",
             "date": datetime.fromtimestamp(c["created_at"]).strftime("%d/%m %H:%M")}
 
@@ -130,7 +143,7 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
     def index(request: Request, show: str = "all", video: str = "", channel: str = "", sort: str = "date"):
         clips = [clip_view(c) for c in db.list_clips(show, video or None, channel or None, sort)]
         videos, channels = db.facets()
-        js = [{k: c[k] for k in ("id", "video_title", "channel", "duration", "score", "favorite", "seen", "yt")}
+        js = [{k: c[k] for k in ("id", "video_title", "channel", "duration", "score", "favorite", "seen", "yt", "why")}
               for c in clips]
         return page(request, "index.html", clips=clips, clips_js=js, videos=videos, channels=channels,
                     f={"show": show, "video": video, "channel": channel, "sort": sort}, job=jobs.status())

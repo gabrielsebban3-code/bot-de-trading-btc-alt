@@ -25,12 +25,15 @@ moments:
   target_clip_s: 32
   min_gap_s: 60
   margin_s: 0.5
+  skip_intro_s: 60        # ignore l'intro et l'outro (vidéos de plus de 5 min)
+  skip_outro_s: 45
   min_speech_ratio: 0.5        # un clip doit contenir de la parole au moins 50 % du temps
   min_video_speech_ratio: 0.15 # vidéo ignorée si on y parle moins de 15 % du temps
   weights:
     heatmap: 0.5
     audio: 0.25
     keywords: 0.25
+    comments: 0.4         # instants cités dans les commentaires (« 23:45 mdr »), quand il y en a
   keywords: [incroyable, regardez, regarde, énorme, enorme, confirmé, confirme, nouveau, nouvelle,
     map, carte, date de sortie, sortie, officiel, exclusif, fuite, leak, trailer, secret, dingue,
     fou, ouf, choquant, jamais vu, vice city, lucia, jason, prix, gameplay, attention, révélé, détail]

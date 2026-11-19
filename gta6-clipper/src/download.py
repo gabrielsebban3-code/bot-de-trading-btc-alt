@@ -1,5 +1,6 @@
 """Accès YouTube via yt-dlp : métadonnées (en cache), piste audio basse qualité, segments vidéo seuls."""
 import logging
+import math
 import re
 import shutil
 import subprocess
@@ -118,3 +119,38 @@ def download_section(vid: str, start: float, end: float, workdir: Path, max_heig
     with YoutubeDL(opts) as y:
         y.download([watch_url(vid)])
     return next(workdir.glob(f"{stem}.*"))
+
+
+STAMP = re.compile(r"(?<![\d:])(?:(\d{1,2}):)?(\d{1,2}):([0-5]\d)(?![\d:])")
+
+
+def parse_stamps(comments, duration):
+    """[(seconde, poids)] : chaque instant cité dans un commentaire, pondéré par ses likes."""
+    out = []
+    for c in comments or []:
+        found = set()
+        for h, m, s in STAMP.findall(c.get("text") or ""):
+            t = int(h or 0) * 3600 + int(m) * 60 + int(s)
+            if 0 < t < duration:
+                found.add(t)
+        out += [(t, 1.0 + math.log1p(c.get("like_count") or 0)) for t in found]
+    return out
+
+
+def fetch_comment_stamps(vid, db, duration, max_comments=100):
+    """Lit les commentaires les plus populaires (yt-dlp) et en extrait les horodatages. None si impossible."""
+    key = f"comments:{vid}"
+    comments = db.cache_get(key, 12 * 3600)
+    if comments is None:
+        opts = {**BASE_OPTS, "skip_download": True, "getcomments": True,
+                "extractor_args": {"youtube": {"max_comments": [str(max_comments), str(max_comments), "0", "0"],
+                                               "comment_sort": ["top"]}}}
+        try:
+            with YoutubeDL(opts) as y:
+                info = y.extract_info(watch_url(vid), download=False)
+        except Exception as e:
+            log.warning("Commentaires indisponibles : %s", str(e).splitlines()[0])
+            return None
+        comments = [{"text": c.get("text"), "like_count": c.get("like_count")} for c in info.get("comments") or []]
+        db.cache_set(key, comments)
+    return parse_stamps(comments, duration)

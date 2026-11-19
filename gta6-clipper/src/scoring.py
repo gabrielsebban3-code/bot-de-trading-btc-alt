@@ -17,6 +17,8 @@ def normalize(x, robust=True):
     if x.size == 0:
         return x
     lo, hi = (np.percentile(x, 5), np.percentile(x, 99)) if robust else (x.min(), x.max())
+    if hi - lo < 1e-9 and robust:  # pics plus rares que 1 % du temps (un cri de 5 s) : ne pas les effacer
+        lo, hi = x.min(), x.max()
     if hi - lo < 1e-9:
         return np.zeros_like(x)
     return np.clip((x - lo) / (hi - lo), 0.0, 1.0)
@@ -167,20 +169,99 @@ def speech_adjust(ws, speech, length, min_ratio):
     return np.where(ok, adj, adj * 0.01) if ok.any() else adj
 
 
-def select_moments(duration, segments, heatmap, rms, mcfg, speech=None):
+def rolling_median(x, w):
+    x = np.asarray(x, dtype=float)
+    if len(x) == 0:
+        return x
+    w = max(1, min(int(w), len(x)))
+    w -= 1 - w % 2  # impair
+    xp = np.pad(x, w // 2, mode="edge")
+    return np.median(np.lib.stride_tricks.sliding_window_view(xp, w), axis=1)
+
+
+def voice_excitement(rms, speech=None, window=121):
+    """Moments où le son monte d'un coup par rapport aux 2 minutes autour (cri, fou rire), pas le niveau absolu :
+    un jeu constamment bruyant ne compte plus. Limité aux secondes où quelqu'un parle si on le sait."""
+    if rms is None or not len(rms):
+        return None
+    local = np.clip(np.asarray(rms, float) - rolling_median(rms, window), 0, None)
+    if speech is not None and np.any(speech):
+        local = local * resize(speech, len(local))
+    return normalize(local)
+
+
+def heatmap_contrast(sig):
+    """Ne garde que ce qui dépasse le niveau habituel de la courbe « les plus revus » : les vrais pics."""
+    if sig is None:
+        return None
+    med, top = float(np.median(sig)), float(sig.max())
+    return np.clip((sig - med) / (top - med), 0, 1) if top - med > 1e-9 else np.zeros_like(sig)
+
+
+def comments_signal(stamps, n, spread=8.0):
+    """stamps = [(seconde, poids)] : instants cités dans les commentaires (« 23:45 mdr »)."""
+    if not stamps or n <= 0:
+        return None
+    x, sig = np.arange(n), np.zeros(n)
+    for t, w in stamps:
+        if 0 <= t < n:
+            sig += w * np.exp(-0.5 * ((x - t) / spread) ** 2)
+    return normalize(sig, robust=False)
+
+
+def peak_window_scores(sig, length):
+    """Note de chaque fenêtre, pondérée pour placer le pic dans la 2e partie du clip :
+    la mise en place au début, la chute dedans."""
+    n = len(sig)
+    if n <= length:
+        return np.array([float(np.mean(sig)) if n else 0.0])
+    w = 0.4 + 0.6 * np.minimum(1.0, np.linspace(0, 1, length) / 0.6)
+    return np.correlate(sig, w / w.sum(), mode="valid")
+
+
+def edge_mask(count, length, duration, mcfg):
+    """Exclut l'intro (« salut à tous ») et l'outro (« abonnez-vous ») des vidéos de plus de 5 min."""
+    t = np.arange(count)
+    if duration <= 300:
+        return np.ones(count, bool)
+    a = min(float(mcfg.get("skip_intro_s", 60)), 0.05 * duration)
+    b = min(float(mcfg.get("skip_outro_s", 45)), 0.05 * duration)
+    return (t >= a) & (t + length <= duration - b)
+
+
+def score_windows(duration, segments, heatmap, rms, mcfg, speech=None, comments=None, regions=None):
+    """Note de chaque fenêtre de clip possible (-1 = interdite). Partagée par le mode rapide et la sélection."""
     n = int(np.ceil(duration))
+    sp = resize(speech, n) if speech is not None else None
+    words = list(mcfg.get("keywords", [])) + list(mcfg.get("reaction_words", []))
     signals = {
-        "heatmap": heatmap_signal(heatmap, n),
-        "audio": normalize(rms) if rms is not None and len(rms) else None,
-        "keywords": keyword_signal(segments, n, mcfg.get("keywords", [])),
+        "heatmap": heatmap_contrast(heatmap_signal(heatmap, n)),
+        "audio": voice_excitement(rms, sp),
+        "keywords": keyword_signal(segments, n, words),
+        "comments": comments_signal(comments, n),
     }
     sig = combine(signals, mcfg["weights"], n)
     length = int(mcfg["target_clip_s"])
-    ws = speech_adjust(window_scores(sig, length), resize(speech, n) if speech is not None else None,
-                       length, mcfg.get("min_speech_ratio", 0.5))
+    ws = speech_adjust(peak_window_scores(sig, length), sp, length, mcfg.get("min_speech_ratio", 0.5))
+    mask = edge_mask(len(ws), length, duration, mcfg)
+    if regions:  # mode rapide : seulement là où on a la transcription
+        t, inside = np.arange(len(ws)), np.zeros(len(ws), bool)
+        for rs, re_ in regions:
+            inside |= (t >= rs) & (t + length <= re_)
+        mask &= inside
+    if mask.any():
+        ws = np.where(mask, ws, -1.0)
+    return ws, signals, length
+
+
+def select_moments(duration, segments, heatmap, rms, mcfg, speech=None, comments=None, regions=None):
+    n = int(np.ceil(duration))
+    ws, signals, length = score_windows(duration, segments, heatmap, rms, mcfg, speech, comments, regions)
     k, gap = int(mcfg["clips_per_video"]), float(mcfg["min_gap_s"])
     out = []
     for t0, t1 in pick_windows(ws, k * 3, length, gap):
+        if ws[min(t0, len(ws) - 1)] < 0:
+            continue
         s, e, aligned = snap_to_sentences(t0, min(t1, duration), segments, mcfg["min_clip_s"], mcfg["max_clip_s"],
                                           mcfg["margin_s"], duration, [(m["start"], m["end"]) for m in out], gap)
         if e - s < mcfg["min_clip_s"] - 1e-6 and duration >= mcfg["min_clip_s"]:
@@ -235,15 +316,10 @@ def llm_rescore(moments, segments, mcfg, db):
 
 
 # --- mode rapide : repérer les candidats avant toute transcription ---
-def candidate_windows(duration, heatmap, rms, mcfg, n, speech=None):
-    """Mêmes fenêtres que select_moments quand le poids des mots-clés est nul."""
-    size = int(np.ceil(duration))
-    sig = combine({"heatmap": heatmap_signal(heatmap, size),
-                   "audio": normalize(rms) if rms is not None and len(rms) else None}, mcfg["weights"], size)
-    length = int(mcfg["target_clip_s"])
-    ws = speech_adjust(window_scores(sig, length), resize(speech, size) if speech is not None else None,
-                       length, mcfg.get("min_speech_ratio", 0.5))
-    return pick_windows(ws, n, length, float(mcfg["min_gap_s"]))
+def candidate_windows(duration, heatmap, rms, mcfg, n, speech=None, comments=None):
+    """Candidats avant transcription (mode rapide) : mêmes notes que select_moments, sans les mots-clés."""
+    ws, _, length = score_windows(duration, [], heatmap, rms, mcfg, speech, comments)
+    return [w for w in pick_windows(ws, n, length, float(mcfg["min_gap_s"])) if ws[min(w[0], len(ws) - 1)] >= 0]
 
 
 def merge_regions(windows, duration, pad=20.0):
