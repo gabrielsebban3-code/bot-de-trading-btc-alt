@@ -30,7 +30,7 @@ def hook_title(segments, start, end, video: dict, mode: str = "auto", mcfg=None)
     chaîne (comme les pages de clips) ; à défaut, le titre de la vidéo. video : titre de la vidéo. none : aucun."""
     if mode == "none":
         return ""
-    fallback = shorten(clean_text(video.get("title", "")), 70)
+    fallback = shorten(clean_text(video.get("title", "")), 50)  # 2 lignes maximum, comme les vrais clips
     if mode == "video":
         return fallback
     words = [w.lower() for w in (mcfg or {}).get("keywords", []) + (mcfg or {}).get("reaction_words", [])]
@@ -39,7 +39,7 @@ def hook_title(segments, start, end, video: dict, mode: str = "auto", mcfg=None)
     for sen in re.split(r"(?<=[.!?…])\s+", clean_text(text)):
         sen = sen.strip(" -–—\"'«»")
         n = len(sen.split())
-        if not 3 <= n <= 9 or len(sen) > 50:
+        if not 3 <= n <= 9 or len(sen) > 42:
             continue
         low = sen.lower()
         score = (2 if sen.endswith(("!", "?")) else 0) + sum(1 for w in words if re.search(r"(?<!\w)" + re.escape(w) + r"(?!\w)", low))
@@ -48,7 +48,8 @@ def hook_title(segments, start, end, video: dict, mode: str = "auto", mcfg=None)
     if not best:
         return fallback
     who = clean_text(video.get("channel", ""))
-    return f"{who} : « {best[1]} »" if who else f"« {best[1]} »"
+    titled = f"{who} : « {best[1]} »"
+    return titled if who and len(titled) <= 52 else f"« {best[1]} »"
 
 
 FILLERS = {"euh", "heu", "euhh", "euuh", "heuu", "hum", "hmm", "mmh", "bah", "beh"}

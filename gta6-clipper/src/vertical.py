@@ -84,8 +84,9 @@ def subtitle_events(segments, start, end, max_words=3, highlight=True, upper=Fal
 LAYOUTS = {
     # cadrage zoomé carré sur fond noir, titre au-dessus (style des pages de clips TikTok)
     "zoom": {"filter": "[0:v]fps=30,crop='min(iw,ih)':'min(iw,ih)',scale=1080:1080,setsar=1,"
-                       "pad=1080:1920:0:480:black,subtitles={ass}[v]",
-             "sub_v": 230, "credit_v": 150, "title_v": 1445},
+                       "pad=1080:1920:0:400:black,subtitles={ass}[v]",
+             # vidéo de 21 % à 77 % de la hauteur ; sous-titres juste dessous, sur le noir (lisibles sur tout fond)
+             "sub_v": 320, "credit_v": 150, "title_v": 1525},
     # vidéo 16:9 pleine largeur sur fond noir, titre au-dessus
     "noir": {"filter": "[0:v]fps=30,scale=1080:-2,setsar=1,pad=1080:1920:0:(oh-ih)/2:black,subtitles={ass}[v]",
              "sub_v": 430, "credit_v": 210, "title_v": 1300},
@@ -99,7 +100,7 @@ LAYOUTS = {
 
 TITLE_STYLES = {
     # encadré blanc, texte noir (BorderStyle 3 : boîte opaque de la couleur du contour, une par ligne)
-    "encadre": "&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,16,0",
+    "encadre": "&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,14,0",
     # texte blanc, contour noir et ombre, sans boîte
     "texte": "&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,-1,0,0,0,100,100,0,0,1,5,3",
 }
@@ -116,7 +117,7 @@ def build_ass(events, credit: str, duration: float, font="DejaVu Sans", title: s
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
         f"Style: Sub,{font},80,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,2,70,70,{L['sub_v']},1\n"
         f"Style: Credit,{font},36,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,40,40,{L['credit_v']},1\n"
-        f"Style: Title,{font},62,{ts},2,90,90,{L['title_v']},1\n\n"
+        f"Style: Title,{font},52,{ts},2,90,90,{L['title_v']},1\n\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
     lines = [f"Dialogue: 1,{ass_time(0)},{ass_time(duration + 1)},Credit,,0,0,0,,{ass_escape(credit)}"]

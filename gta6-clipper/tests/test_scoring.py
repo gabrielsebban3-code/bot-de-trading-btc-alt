@@ -510,3 +510,14 @@ def test_jump_cuts_silences_fillers_and_minimum():
     assert shown[0]["words"][-1][1] <= 99.0 + dur
     assert jump_cuts(segs, 99.0, 109.0, r, min_len=9.0) == [] or 10 - sum(b - a for a, b in jump_cuts(segs, 99.0, 109.0, r, min_len=9.0)) >= 9.0
     assert jump_cuts(segs, 99.0, 109.0, {"jump_cuts": False}, 0) == []
+
+
+def test_hook_title_stays_short():
+    from src.clip import hook_title
+    video = {"title": "x" * 10 + " un titre de vidéo vraiment beaucoup trop long pour un clip vertical", "channel": "Une chaîne au nom très long"}
+    segs = [{"start": 0, "end": 5, "text": "Vice City a l'air incroyable, regarde !"}]
+    t = hook_title(segs, 0, 10, video, "auto", M)
+    assert t == "« Vice City a l'air incroyable, regarde ! »"     # nom de chaîne retiré : trop long
+    longue = [{"start": 0, "end": 5, "text": "Vice City a l'air incroyable dans cette version !"}]
+    assert hook_title(longue, 0, 10, video, "auto", M).endswith("…")  # phrase > 42 car. : titre de la vidéo raccourci
+    assert len(hook_title([], 0, 10, video, "auto", M)) <= 51
