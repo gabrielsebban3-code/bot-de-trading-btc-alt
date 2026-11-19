@@ -6,7 +6,7 @@ import { partnersBox } from './partners.js';
 import { macdOf } from './crypto-lib.js';
 import { star } from './watchlist.js';
 import { delayed, historyDays } from './premium.js';
-import { OUTCOME, TREND, cap, dirTag, lastTradeOf, liveOf, okxUrl, outcomeCls, parisDay, plainPct, px, radarBody, setupsData } from './setups.js';
+import { OUTCOME, TREND, cap, dirTag, pctTxt, sumR, lastTradeOf, liveOf, okxUrl, outcomeCls, parisDay, plainPct, px, radarBody, setupsData } from './setups.js';
 
 const $ = id => document.getElementById(id);
 const DAY = 86_400_000;
@@ -110,6 +110,7 @@ function rulesBox(a, d) {
   const trendOn = r && r.trend !== 'neutre';
   const up = r?.dir === 'long';
   const live = liveOf(a.symbol);
+  const scored = a.kind === 'crypto';
   const trendText = !r ? '' : trendOn
     ? `${days.length >= 50 ? `Hier, le prix a clôturé à ${px(last)}, ${up ? 'au-dessus' : 'en dessous'} de sa moyenne des 50 derniers jours (${px(e50)}). ` : ''}Le marché ${up ? 'monte' : 'baisse'} : on ne cherche que des <b>${up ? 'achats' : 'ventes'}</b>.`
     : 'Le marché n\'a pas de direction claire : pas de trade tant que ça dure.';
@@ -132,7 +133,8 @@ function rulesBox(a, d) {
     <li>${ok(trendOn ? null : false)}<div><b>2. Un signal parmi ces trois</b><span>Vérifié à la clôture de chaque bougie de 1 heure.</span><ul>${triggers}</ul></div></li>
     <li>${ok(null)}<div><b>3. Pas d'obstacle proche</b><span>Le signal est ignoré si un ancien ${up ? 'sommet' : 'creux'} ou un chiffre rond est juste ${up ? 'au-dessus' : 'en dessous'} du prix.</span></div></li>
     <li>${ok(!live)}<div><b>4. Un seul trade à la fois sur ${esc(a.symbol)}</b><span>${live ? 'Un trade est déjà en cours : pas de nouveau signal avant sa fin.' : 'Aucun trade en cours : la paire est libre.'}</span></div></li>
-  </ol><p class="txt muted">Il faut les 4 en même temps : c'est rare exprès, environ deux signaux par mois sur les 4 paires.</p></div>`;
+    ${scored ? `<li>${ok(r?.trigger?.scoreOk ?? null)}<div><b>5. Une bonne note</b><span>Le bot note chaque signal et ne garde que les meilleurs, environ 4 sur 10 : marché calme, Bitcoin dans le même sens, tout le marché pas déjà lancé.${r?.trigger?.scoreOk === true ? ' En ce moment, la note serait bonne.' : r?.trigger?.scoreOk === false ? ' En ce moment, la note serait trop basse.' : ''}</span></div></li>` : ''}
+  </ol><p class="txt muted">Il faut les ${scored ? 5 : 4} en même temps : c'est rare exprès, environ 4 signaux par mois sur les 9 cryptos suivies.</p></div>`;
 }
 
 function manageBox(a, d, live) {
@@ -144,8 +146,8 @@ function manageBox(a, d, live) {
   const exitNow = days.length ? (short ? Math.max(...days.map(b => b[2])) : Math.min(...days.map(b => b[3]))) : null;
   const risk = data.rules.riskPct ?? 1, P = data.rules.partialR ?? 5;
   return `<div class="box"><h2>Gestion du trade</h2><ol class="txt">
-    <li><b>Stop</b> : ${stopPct ? `environ ${fmt(stopPct * 100, 1)} % sous le prix d'entrée en ce moment` : 'placé selon l\'agitation habituelle du prix'}. Si le prix y arrive, on coupe : on perd ${fmt(risk, 0)} % du capital, pas plus.</li>
-    <li><b>Objectif</b> : quand le gain atteint ${fmt(P, 0)} fois cette distance, on vend la moitié (+${fmt(P * risk / 2, 1).replace(',0', '')} % du capital assuré) et le stop remonte au prix d'entrée.</li>
+    <li><b>Stop</b> : ${stopPct ? `environ ${fmt(stopPct * 100, 1)} % ${short ? 'au-dessus du' : 'sous le'} prix d'entrée en ce moment` : 'placé selon l\'agitation habituelle du prix'}. Si le prix y arrive, on coupe et on perd le risque prévu, pas plus. Ce risque vaut ${pctTxt(risk)} % du capital en marché normal, jusqu'au double quand le marché est calme et la moitié quand il est agité.</li>
+    <li><b>Objectif</b> : quand le gain atteint ${fmt(P, 0)} fois cette distance, on vend la moitié (${fmt(P / 2, 1).replace(',0', '')} fois le risque assuré) et le stop remonte au prix d'entrée.</li>
     <li><b>Le reste</b> : on le garde tant que le marché ${short ? 'baisse' : 'monte'}. On vend quand une journée clôture ${short ? 'au-dessus de son plus haut' : 'sous son plus bas'} des ${data.rules.exitDays ?? 7} derniers jours${exitNow ? ` (${px(exitNow)} en ce moment)` : ''}.</li>
   </ol></div>`;
 }
@@ -159,7 +161,7 @@ const periodText = () => (historyDays() > 100 ? '12 mois' : '3 mois');
 function statsBox(a) {
   const list = doneTrades(a.symbol);
   const wins = list.filter(s => s.r > 0).length;
-  const total = list.reduce((t, s) => t + s.r, 0);
+  const total = sumR(list);
   const last = lastTradeOf(a.symbol);
   return `<div class="box"><h2>Bilan sur ${esc(a.symbol)} · ${periodText()}</h2>
     <div class="guest-only"><p class="txt">Le bilan de la paire et ses trades passés sont réservés aux membres. Le compte est gratuit et sans mot de passe.</p>
@@ -183,7 +185,7 @@ function tradesBox(a) {
       <td class="n">${px(s.entry)}</td>
       <td class="n">${px(s.sl)}</td>
       <td class="l"><span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span></td>
-      <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${s.outcome === 'open' ? '—' : cap(s.r)}</td>
+      <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${s.outcome === 'open' ? '—' : cap(s.r, s)}</td>
     </tr>`).join('');
   return `<h2 class="section">Trades passés sur ${esc(a.symbol)} <span class="muted">clique sur un trade pour son explication complète</span></h2>
     <div class="members-only"><div class="wrap" tabindex="0" role="region" aria-label="Historique des trades"><table class="static">

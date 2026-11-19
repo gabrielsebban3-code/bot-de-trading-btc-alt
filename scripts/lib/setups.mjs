@@ -20,7 +20,9 @@ export const RULES = {
   partialR: 5,            // on prend la moitié à 5R et on remonte le stop au prix d'entrée
   exitDays: 7,            // sortie du reste : clôture journalière au-delà du plus bas / plus haut des 7 jours
   minRR: 2,
-  riskPct: 1,             // risque par trade en % du capital (choix de Gabriel) : 1R = 1 %
+  riskPct: 1,             // risque de base par trade en % du capital (choix de Gabriel), ajusté selon l'agitation du marché (labo 5, novembre 2026)
+  volRef: 0.0374,         // agitation de référence : écart-type médian des variations journalières sur 30 jours (9 paires, 2020-2024)
+  sizeMin: 0.5, sizeMax: 2, // la taille va de la moitié au double du risque de base
   roomAtr: 1.5,           // marge minimale avant le prochain niveau : 2 × 1,5 ATR 4h
   showHours: 24,          // un trade terminé reste affiché 24 h
   statsDays: 365,
@@ -39,7 +41,7 @@ export const DETECTORS = {
 export const MODES = {
   classic: { key: 'h4d1', E: BAR, T: DAY, rangeBars: 60, pocBars: 180, warmup: 60, backtestBars: 2190, idPrefix: '', exitDays: 7,
     eLabel: '4h', tLabel: 'jour', detectors: DETECTORS, r20: 'des 20 derniers jours', r10: 'des 10 derniers jours' },
-  swing: { key: 'h1d1', E: HOUR, T: DAY, rangeBars: 240, pocBars: 720, warmup: 240, backtestBars: 8760, idPrefix: '', exitDays: 10,
+  swing: { key: 'h1d1n', useScore: true, E: HOUR, T: DAY, rangeBars: 240, pocBars: 720, warmup: 240, backtestBars: 8760, idPrefix: '', exitDays: 10,
     eLabel: '1h', tLabel: 'jour', detectors: DETECTORS, r20: 'des 20 derniers jours', r10: 'des 10 derniers jours' },
   court: { key: 'h1h4', E: HOUR, T: 4 * HOUR, rangeBars: 40, pocBars: 120, warmup: 60, backtestBars: 8760, idPrefix: 'ct-', exitDays: 7,
     eLabel: '1h', tLabel: '4h', detectors: { range20: 'Cassure 3 jours', range10: 'Cassure 40 heures', macd: 'MACD' },
@@ -176,7 +178,28 @@ export function dailyContext(daily) {
     if (d.c < e50[j] && e20[j] < e50[j]) return 'baissière';
     return 'neutre';
   });
-  return { daily, atr: A, trend, e20, e50 };
+  // Agitation sur 30 jours : écart-type des variations journalières (en log), pour ajuster la taille des trades.
+  const vol = daily.map((d, j) => {
+    if (j < 31) return null;
+    let m = 0, m2 = 0;
+    for (let q = j - 29; q <= j; q++) { const r = Math.log(daily[q].c / daily[q - 1].c); m += r; m2 += r * r; }
+    return Math.sqrt(Math.max(0, m2 / 30 - (m / 30) ** 2));
+  });
+  // Agitation sur 60 jours (pour comparer à celle des 30 derniers jours) et RSI 14 jours, pour la note des signaux.
+  const vol60 = daily.map((d, j) => {
+    if (j < 61) return null;
+    let m = 0, m2 = 0;
+    for (let q = j - 59; q <= j; q++) { const r = Math.log(daily[q].c / daily[q - 1].c); m += r; m2 += r * r; }
+    return Math.sqrt(Math.max(0, m2 / 60 - (m / 60) ** 2));
+  });
+  const rsi = new Array(daily.length).fill(50);
+  let g = 0, l = 0;
+  for (let k = 1; k < daily.length; k++) {
+    const ch = daily[k].c - daily[k - 1].c;
+    g = (g * 13 + Math.max(0, ch)) / 14; l = (l * 13 + Math.max(0, -ch)) / 14;
+    rsi[k] = l ? 100 - 100 / (1 + g / l) : 100;
+  }
+  return { daily, atr: A, trend, e20, e50, vol, vol60, rsi };
 }
 
 // Indice de la dernière journée clôturée au temps t (-1 si aucune).
@@ -248,6 +271,59 @@ export function detectMacd(ctx, i) {
 const DETECT = { range20: detectRange20, range10: detectRange10, macd: detectMacd };
 const WANT = { long: 'haussière', short: 'baissière' };
 
+// Taille conseillée : marché calme → on risque plus, marché agité → moins (entre la moitié et le double du risque de base).
+// Testé le 18 novembre 2026 : seul réglage de gestion qui tient en 2025-2026, sur 20 paires et face au hasard.
+export function sizeFor(vol) {
+  if (!(vol > 0)) return 1;
+  return Math.round(Math.min(RULES.sizeMax, Math.max(RULES.sizeMin, RULES.volRef / vol)) * 100) / 100;
+}
+
+// ---------- Note de qualité d'un signal (labo 7-8, novembre 2026) ----------
+// Le bot donne une note à chaque signal et ne garde que les meilleurs. La note a été apprise sur 2020-2024
+// (9 paires Binance), puis vérifiée sur 2025-2026. Elle préfère un marché calme, un prix pas trop loin de ses
+// moyennes et un marché qui ne part pas tout entier dans le même sens.
+export const SCORE_FEAT = ['ext50', 'gap', 'slope', 'ext20', 'volx', 'body', 'volreg', 'volabs', 'btc', 'breadth', 'mom7', 'rsi', 'isR20', 'isR10', 'isMacd', 'hourSin', 'hourCos'];
+// Poids appris sur 2020-2024 (labo 8, 19 novembre 2026). Seuil : garder environ 4 signaux sur 10 parmi ceux qui passent les règles.
+export const SCORE = {"mu":[2.6811,0.9981,0.7342,2.4704,2.7761,1.2432,0.9562,0.0436,0.7973,0.6802,2.8912,66.104,0.3789,0.528,0.0931,-0.0309,0.0009],"sd":[1.3588,0.6458,0.4729,1.3033,2.7729,0.8239,0.1853,0.0212,0.5291,0.3828,2.304,8.7916,0.4851,0.4992,0.2906,0.6891,0.724],"w":[0.0835,0.0127,-0.0439,0.1628,0.0017,-0.0316,0.0735,-0.2088,0.2135,-0.1809,-0.1627,0.0417,0.0504,-0.0484,-0.0011,-0.0787,-0.0683],"b":-1.3571,"thr":-1.109};
+const TREND_NUM = { 'haussière': 1, 'baissière': -1, neutre: 0 };
+
+// Tendance journalière de chaque paire, jour par jour : { trends: Map(symbole → Map(début du jour → 1, 0 ou -1)), btc: 'BTC' }.
+export function marketOf(dailyBySymbol) {
+  const trends = new Map();
+  for (const [sym, daily] of Object.entries(dailyBySymbol)) {
+    const dc = dailyContext(daily.filter(d => d.closed !== false));
+    trends.set(sym, new Map(dc.daily.map((d, k) => [d.t, TREND_NUM[dc.trend[k]]])));
+  }
+  return { trends, btc: 'BTC' };
+}
+
+// Critères du signal pris sur la bougie i (j = dernière journée fermée, s = 1 achat / -1 vente).
+export function signalFeatures({ bars, i, A, dc, j, s, key, market }) {
+  const b = bars[i], d = dc.daily, a = dc.atr[j], dt = d[j].t;
+  let vs = 0; for (let q = Math.max(0, i - 20); q < i; q++) vs += bars[q].v ?? 0;
+  let br = 0, bn = 0;
+  for (const [sym, m] of market?.trends ?? []) { if (sym === 'BZ' || !m.has(dt)) continue; br += m.get(dt) * s; bn++; }
+  const h = new Date(b.t).getUTCHours();
+  const f = {
+    ext50: s * (d[j].c - dc.e50[j]) / a, gap: s * (dc.e20[j] - dc.e50[j]) / a, slope: j >= 10 ? s * (dc.e50[j] - dc.e50[j - 10]) / a : 0,
+    ext20: s * (b.c - dc.e20[j]) / a, volx: vs > 0 ? (b.v ?? 0) / (vs / 20) : 1, body: s * (b.c - b.o) / A[i],
+    volreg: dc.vol[j] && dc.vol60[j] ? dc.vol[j] / dc.vol60[j] : 1, volabs: dc.vol[j] ?? 0.04,
+    btc: (market?.trends.get(market.btc)?.get(dt) ?? 0) * s, breadth: bn ? br / bn : 0,
+    mom7: j >= 7 && dc.vol[j] ? s * Math.log(d[j].c / d[j - 7].c) / dc.vol[j] : 0, rsi: s > 0 ? dc.rsi[j] : 100 - dc.rsi[j],
+    isR20: +(key === 'range20'), isR10: +(key === 'range10'), isMacd: +(key === 'macd'),
+    hourSin: Math.sin(h / 24 * 2 * Math.PI), hourCos: Math.cos(h / 24 * 2 * Math.PI),
+  };
+  return SCORE_FEAT.map(k => f[k]);
+}
+
+// Note : plus elle est haute, plus le signal ressemble aux trades qui ont rapporté gros sur 2020-2024.
+export function scoreOf(f, model = SCORE) {
+  if (!model || !f) return null;
+  let z = model.b;
+  for (let k = 0; k < f.length; k++) z += model.w[k] * Math.max(-4, Math.min(4, (f[k] - model.mu[k]) / model.sd[k]));
+  return Math.round(z * 1000) / 1000;
+}
+
 // ---------- Plan de trade : stop à 0,75 ATR journalier, moitié à 5R ----------
 
 export function plan(dir, entry, atrD) {
@@ -307,7 +383,7 @@ export function evaluate(sig, bars, i, daily, cfg = MODES.classic) {
 
 // Prix qui déclencheraient le prochain signal, dans le sens de la tendance, à partir des bougies fermées.
 // trigger = la cassure la plus proche (10 ou 20 jours), stop = celui qu'aurait le trade s'il partait de là.
-export function radar(bars, daily, cfg = MODES.classic) {
+export function radar(bars, daily, cfg = MODES.classic, market = null) {
   const closed = bars.filter(b => b.closed !== false);
   const i = closed.length - 1;
   const dc = dailyContext(daily);
@@ -327,9 +403,19 @@ export function radar(bars, daily, cfg = MODES.classic) {
   const ahead = levels.filter(l => (l.price - price) * s > 0).sort((a, b) => (a.price - b.price) * s);
   const next = ahead[0] ?? null;
   const h = macdHist(closed).at(-1);
+  // Note qu'aurait le signal s'il partait maintenant au prix de déclenchement (volume, bougie et heure pris dans la moyenne).
+  let scoreOk = null;
+  if (next && cfg.useScore && market && SCORE) {
+    const A = atr(closed);
+    const fake = [...closed, { t: closed[i].t + cfg.E, o: next.price, h: next.price, l: next.price, c: next.price, v: 0 }];
+    A.push(A[i]);
+    const f = signalFeatures({ bars: fake, i: i + 1, A, dc, j, s, key: next.key, market });
+    for (const k of ['volx', 'body', 'hourSin', 'hourCos']) f[SCORE_FEAT.indexOf(k)] = SCORE.mu[SCORE_FEAT.indexOf(k)];
+    scoreOk = scoreOf(f) >= SCORE.thr;
+  }
   return {
     ...out, dir, levels,
-    trigger: next && { ...next, distance: next.price / price - 1, stop: next.price - s * RULES.stopAtr * dc.atr[j] },
+    trigger: next && { ...next, distance: next.price / price - 1, stop: next.price - s * RULES.stopAtr * dc.atr[j], scoreOk },
     macdReady: s * h < 0, // l'histogramme est du mauvais côté : son retour de l'autre côté de zéro donnerait un signal
   };
 }
@@ -338,7 +424,7 @@ export function radar(bars, daily, cfg = MODES.classic) {
 
 // Renvoie tous les signaux (passés et en cours) d'un actif, avec leur résultat.
 // Un signal ne compte que dans le sens de la tendance journalière. Un seul trade à la fois par actif.
-export function scanAsset(asset, { bars, daily }, cfg = MODES.classic) {
+export function scanAsset(asset, { bars, daily, market = null }, cfg = MODES.classic, model = SCORE) {
   const A = atr(bars);
   const dc = dailyContext(daily);
   const ctx = { bars, daily, dc, hist: macdHist(bars), cfg };
@@ -356,6 +442,11 @@ export function scanAsset(asset, { bars, daily }, cfg = MODES.classic) {
       if (h && WANT[h.dir] === trend && hasRoom(h.dir, bars[i].c, A[i], keyLevels(bars, i, daily, A[i], cfg))) { key = k; hit = h; break; }
     }
     if (!hit) continue;
+    // Note du signal (cryptos seulement, onglet Setups) : en dessous du seuil, le signal est ignoré et ne bloque pas la paire.
+    const s = hit.dir === 'long' ? 1 : -1;
+    const f = cfg.useScore && market && asset.kind !== 'commodity' ? signalFeatures({ bars, i, A, dc, j, s, key, market }) : null;
+    const score = scoreOf(f, model);
+    if (score !== null && score < model.thr && !cfg.allSignals) continue;
     const entry = bars[i].c;
     const p = plan(hit.dir, entry, dc.atr[j]);
     const sig = {
@@ -363,13 +454,17 @@ export function scanAsset(asset, { bars, daily }, cfg = MODES.classic) {
       detector: key, symbol: asset.symbol, dir: hit.dir,
       status: bars[i].closed ? 'confirmé' : 'en cours',
       time: bars[i].t, confirmedAt: bars[i].t + cfg.E, entry, sl: p.sl, tp: p.tp, tpLabels: p.tpLabels, rr: p.rr, atr: dc.atr[j],
-      why: `${hit.why} Signal pris car la tendance ${cfg.T === DAY ? 'journalière' : 'en 4h'} est ${trend}.`, trend,
+      why: `${hit.why} Signal pris car la tendance ${cfg.T === DAY ? 'journalière' : 'en 4h'} est ${trend}${score !== null ? ', et il fait partie des signaux les mieux notés par le bot' : ''}.`, trend,
       // Pour la fiche du trade : niveau cassé, clôture et moyennes de la dernière journée fermée, ATR 4h.
       ref: hit.ref, day: { t: daily[j].t, c: daily[j].c, e20: dc.e20[j], e50: dc.e50[j] }, atr4h: A[i],
+      // Multiplicateur de taille : risque du trade = RULES.riskPct × sz. Testé sur les cryptos seulement : le pétrole reste à 1.
+      sz: asset.kind === 'commodity' ? 1 : sizeFor(dc.vol[j]),
+      score,
     };
+    if (cfg.keepFeatures) sig.f = f;
     Object.assign(sig, bars[i].closed ? evaluate(sig, bars, i, daily, cfg) : { outcome: 'open', at: null, r: null, tpHit: 0 });
     signals.push(sig);
-    if (!bars[i].closed) continue;
+    if (!bars[i].closed || cfg.allSignals) continue;
     busyUntil = sig.at === null ? bars.length : bars.findIndex(b => b.t === sig.at);
   }
   return signals;
@@ -401,7 +496,7 @@ export function detectorStats(history, now = Date.now()) {
       open: list.length - done.length,
       winRate: done.length ? wins / done.length : null,
       avgR: done.length ? Math.round((done.reduce((t, s) => t + s.r, 0) / done.length) * 100) / 100 : null,
-      totalR: Math.round(done.reduce((t, s) => t + s.r, 0) * 10) / 10,
+      totalR: Math.round(done.reduce((t, s) => t + s.r * (s.sz ?? 1), 0) * 10) / 10, // en « R de base », taille comprise
       bestR: done.length ? Math.max(...done.map(s => s.r)) : null,
       avgDays: done.length ? Math.round(done.reduce((t, s) => t + (s.at - s.time) / DAY, 0) / done.length) : null,
       best,
