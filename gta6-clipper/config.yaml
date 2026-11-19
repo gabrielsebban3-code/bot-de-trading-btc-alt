@@ -49,10 +49,13 @@ transcription:
   mode: rapide            # complete | rapide (ne transcrit qu'autour des moments) | tres_rapide (+ beam 1)
   cpu_threads: 0          # 0 = tous les cœurs du processeur
 render:
+  layout: zoom              # zoom (carré, bandes noires) | noir (16:9 sur fond noir) | flou (16:9 sur fond flou)
+  title: auto               # auto (phrase forte du passage) | video (titre de la vidéo) | none
+  title_style: encadre      # encadre (boîte blanche) | texte (blanc avec ombre)
   subtitles: true
   subtitle_max_words: 3     # mots par bloc (une ligne)
   subtitle_highlight: true  # mot prononcé en jaune
-  subtitle_uppercase: false
+  subtitle_uppercase: true
   crf: 21
   preset: veryfast        # même qualité (CRF), encodage 2-3x plus rapide, fichiers un peu plus gros
   max_source_height: 1080

@@ -56,7 +56,7 @@
   {% for c in clips %}
   <article class="card{% if not c.seen %} unseen{% endif %}{% if c.favorite %} fav{% endif %}" data-index="{{ loop.index0 }}" data-id="{{ c.id }}" tabindex="0">
     <div class="thumb">
-      <img src="/thumbs/{{ c.id }}.jpg" alt="" loading="lazy">
+      <img src="/thumbs/{{ c.id }}.jpg?v={{ c.file_size }}" alt="" loading="lazy">
       {% if not c.seen %}<span class="badge">NOUVEAU</span>{% endif %}
       <span class="favmark">★</span>
       <span class="dur">{{ c.duration }} s</span>
@@ -77,6 +77,12 @@
       <div class="p-title" id="p-title"></div>
       <div class="p-sub" id="p-sub"></div>
       <div class="p-sub" id="p-why"></div>
+      <form id="hook-form" class="hook-form">
+        <label for="p-hook" class="p-sub">Titre en haut du clip (vide = aucun)</label>
+        <input id="p-hook" name="hook" maxlength="120" autocomplete="off">
+        <button id="p-hook-btn">Appliquer le titre</button>
+        <div class="p-sub" id="p-hook-status"></div>
+      </form>
       <div class="p-actions">
         <button id="p-prev" title="Précédent (↓)">▼ Préc.</button>
         <button id="p-next" title="Suivant (↑)">▲ Suiv.</button>

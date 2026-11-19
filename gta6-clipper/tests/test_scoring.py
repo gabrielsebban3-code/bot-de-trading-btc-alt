@@ -356,3 +356,22 @@ def test_transcribe_can_be_cancelled_mid_way(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError):
         transcribe.transcribe(wav, "v", DEFAULTS["transcription"], DB(tmp_path / "db.sqlite"), cancel_check=check)
     assert len(calls) == 3
+
+
+def test_hook_title_quote_fallback_and_emoji():
+    from src.clip import hook_title, clean_text
+    video = {"title": "JE JOUE A GTA 6 POUR LA PREMIERE FOIS 😱🔥", "channel": "LaSalle"}
+    segs = [{"start": 0, "end": 5, "text": "bon on va rouler un peu. C'est pas GTA, ça ?! Regarde les routes."}]
+    assert hook_title(segs, 0, 10, video, "auto", M) == "LaSalle : « C'est pas GTA, ça ?! »"
+    flat = [{"start": 0, "end": 5, "text": "on roule tranquillement vers la plage en voiture"}]
+    assert hook_title(flat, 0, 10, video, "auto", M) == "JE JOUE A GTA 6 POUR LA PREMIERE FOIS"
+    assert hook_title(segs, 0, 10, video, "none", M) == ""
+    assert clean_text("déçu ! 😱😱 ok") == "déçu ! ok"
+
+
+def test_build_ass_title_styles_and_layouts():
+    for layout in ("zoom", "noir", "flou"):
+        for style in ("encadre", "texte"):
+            ass = vertical.build_ass([], "Source : X", 30, title="Titre {test}", layout=layout, title_style=style)
+            assert "Style: Title," in ass and "Titre (test)" in ass
+    assert "Title,Titre" not in vertical.build_ass([], "Source : X", 30, title="")

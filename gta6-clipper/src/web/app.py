@@ -10,6 +10,7 @@ from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from .. import clip as cliplib
@@ -61,6 +62,14 @@ def why(reasons) -> str:
     except ValueError:
         return ""
     return " · ".join(f"{label} {r[k]:.0%}" for k, label in REASON_LABELS.items() if k in r)
+
+
+DURATIONS = {"court": (20, 45, 32), "moyen": (35, 60, 48), "long": (50, 80, 65)}
+
+
+def duration_preset(m: dict) -> str:
+    cur = (m["min_clip_s"], m["max_clip_s"])
+    return next((k for k, v in DURATIONS.items() if v[:2] == cur), "perso")
 
 
 def clip_view(c: dict) -> dict:
@@ -143,7 +152,8 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
     def index(request: Request, show: str = "all", video: str = "", channel: str = "", sort: str = "date"):
         clips = [clip_view(c) for c in db.list_clips(show, video or None, channel or None, sort)]
         videos, channels = db.facets()
-        js = [{k: c[k] for k in ("id", "video_title", "channel", "duration", "score", "favorite", "seen", "yt", "why")}
+        js = [{k: c.get(k) for k in ("id", "video_title", "channel", "duration", "score", "favorite", "seen", "yt", "why",
+                                      "hook", "file_size")}
               for c in clips]
         return page(request, "index.html", clips=clips, clips_js=js, videos=videos, channels=channels,
                     f={"show": show, "video": video, "channel": channel, "sort": sort}, job=jobs.status())
@@ -161,7 +171,8 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
 
     @app.get("/settings")
     def settings_form(request: Request, saved: int = 0):
-        return page(request, "settings.html", cfg=load_config(), saved=saved)
+        cfg = load_config()
+        return page(request, "settings.html", cfg=cfg, saved=saved, duration=duration_preset(cfg["moments"]))
 
     @app.post("/settings")
     async def settings_save(request: Request):
@@ -177,6 +188,14 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         m["clips_per_video"] = _int(form.get("clips_per_video"), 1, 10, m["clips_per_video"])
         if form.get("tmode") in ("complete", "rapide", "tres_rapide"):
             cfg["transcription"]["mode"] = form.get("tmode")
+        if form.get("title_style") in ("encadre", "texte"):
+            cfg["render"]["title_style"] = form.get("title_style")
+        if form.get("layout") in ("zoom", "noir", "flou"):
+            cfg["render"]["layout"] = form.get("layout")
+        if form.get("title") in ("auto", "video", "none"):
+            cfg["render"]["title"] = form.get("title")
+        if form.get("duration") in DURATIONS:
+            m["min_clip_s"], m["max_clip_s"], m["target_clip_s"] = DURATIONS[form.get("duration")]
         cfg["render"]["subtitles"] = form.get("subtitles") == "on"
         cfg["render"]["subtitle_highlight"] = form.get("highlight") == "on"
         cfg["render"]["subtitle_uppercase"] = form.get("uppercase") == "on"
@@ -226,6 +245,17 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         get_clip_or_404(cid)
         cliplib.remove_clip(db, data, cid)
         return {"deleted": cid}
+
+    @app.post("/api/clips/{cid}/hook")
+    async def set_hook(cid: str, request: Request):
+        get_clip_or_404(cid)
+        title = str((await request.form()).get("hook") or "").strip()[:120]
+        try:
+            await run_in_threadpool(cliplib.rerender, db, data, cid, load_config(), title)
+        except Exception as e:
+            msg = str(e).splitlines()[-1][:200] if str(e) else type(e).__name__
+            return JSONResponse({"ok": False, "error": msg}, status_code=500)
+        return {"ok": True}
 
     @app.post("/api/run")
     async def run(request: Request):

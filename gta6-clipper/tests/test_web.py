@@ -154,3 +154,31 @@ def test_pipeline_stops_on_cancel_and_keeps_video_unmarked(tmp_path, monkeypatch
     assert db.list_videos() == []                   # ni « erreur » ni « traitée » : on pourra la relancer
     assert not jobs.cancel_file(tmp_path).exists()  # la demande ne bloque pas le prochain traitement
     assert jobs.read_state(tmp_path / "job.json")["running"] is False
+
+
+def test_hook_endpoint_rerenders(env, monkeypatch):
+    from src import clip as cliplib
+    calls = []
+    monkeypatch.setattr(cliplib, "rerender", lambda db, data, cid, cfg, title: calls.append((cid, title)))
+    c = client(env)
+    assert c.post("/api/clips/abcdefghijk_0/hook", data={"hook": "LaSalle est déçu !"}).json() == {"ok": True}
+    assert calls == [("abcdefghijk_0", "LaSalle est déçu !")]
+    assert c.post("/api/clips/inconnu/hook", data={"hook": "x"}).status_code == 404
+
+
+def test_rerender_keeps_flags_and_changes_title(env, monkeypatch, tmp_path):
+    import json
+    from src import clip as cliplib, config as cfgmod
+    data, db = env
+    src = tmp_path / "seg.mp4"
+    import subprocess
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=640x360:d=3", "-f", "lavfi",
+                    "-i", "sine=d=3", "-shortest", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", str(src)], check=True)
+    monkeypatch.setattr(cliplib.download, "download_section", lambda *a, **k: src)
+    db.set_flag("abcdefghijk_100", "favorite", 1)
+    cfg = cfgmod.load_config()
+    cfg["render"]["preset"] = "ultrafast"
+    new = cliplib.rerender(db, data, "abcdefghijk_100", cfg, "Nouveau titre")
+    row = db.get_clip("abcdefghijk_100")
+    assert row["hook"] == "Nouveau titre" and row["favorite"] == 1 and row["seen"] == 1
+    assert (data / "clips" / "abcdefghijk_100.mp4").stat().st_size == new["file_size"]

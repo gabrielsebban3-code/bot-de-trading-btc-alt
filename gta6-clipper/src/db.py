@@ -27,8 +27,10 @@ class DB:
             c.executescript(SCHEMA)
             if "attempts" not in [r[1] for r in c.execute("PRAGMA table_info(videos)")]:
                 c.execute("ALTER TABLE videos ADD COLUMN attempts INTEGER DEFAULT 0")
-            if "reasons" not in [r[1] for r in c.execute("PRAGMA table_info(clips)")]:
-                c.execute("ALTER TABLE clips ADD COLUMN reasons TEXT")
+            have = [r[1] for r in c.execute("PRAGMA table_info(clips)")]
+            for col in ("reasons", "hook", "segments"):
+                if col not in have:
+                    c.execute(f"ALTER TABLE clips ADD COLUMN {col} TEXT")
 
     @contextmanager
     def conn(self):
@@ -82,7 +84,7 @@ class DB:
 
     # --- clips ---
     def add_clip(self, clip: dict) -> None:
-        cols = ("id", "video_id", "video_title", "channel", "url", "start", "end", "score", "created_at", "file_size", "reasons")
+        cols = ("id", "video_id", "video_title", "channel", "url", "start", "end", "score", "created_at", "file_size", "reasons", "hook", "segments")
         with self.conn() as c:
             c.execute(
                 f"INSERT OR REPLACE INTO clips ({','.join(cols)}) VALUES ({','.join('?' * len(cols))})",

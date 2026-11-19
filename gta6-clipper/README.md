@@ -156,6 +156,11 @@ Les fichiers vont dans `data/clips/<id>.mp4`, `data/thumbs/<id>.jpg` et `data/db
   - l'intro (60 s) et l'outro (45 s) sont exclues.
 
   Le lecteur du site affiche pour chaque clip la raison de son choix.
+- **Mise en page** (inspirée de vrais clips de pages TikTok GTA 6) :
+  - cadrage `zoom` (carré, bandes noires, le défaut), `noir` (16:9 sur fond noir) ou `flou` ;
+  - titre accrocheur en haut, en encadré blanc ou en texte avec ombre. En mode `auto`, c'est la phrase la plus frappante du passage, précédée du nom de la chaîne ; à défaut, le titre de la vidéo. Les emojis sont retirés, car la police ne les dessine pas.
+  - le titre se modifie dans le lecteur du site : le clip est refait en retéléchargeant seulement son segment, ce qui demande la transcription du passage gardée en base (clips créés après cette version) ;
+  - durée courte (20-45 s), moyenne (35-60 s) ou longue (50-80 s), réglable dans la page Réglages.
 - **Parole obligatoire** : un détecteur de voix (VAD Silero, inclus dans faster-whisper, quelques secondes) repère où quelqu'un parle. Un passage où l'on parle moins de 50 % du temps est quasi éliminé (`min_speech_ratio`). Une vidéo où l'on parle moins de 15 % du temps est ignorée (`min_video_speech_ratio`).
 - **Vitesse** (`transcription.mode`, réglable dans la page Réglages) :
   - `rapide` (défaut) : les candidats sont repérés avec la heatmap et l'audio, puis seuls leurs alentours (±20 s) sont transcrits. Le signal mots-clés ne sert alors plus au choix des moments. Sans heatmap, la transcription est complète.

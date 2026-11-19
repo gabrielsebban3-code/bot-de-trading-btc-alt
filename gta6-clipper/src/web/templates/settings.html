@@ -21,6 +21,32 @@
       <option value="tres_rapide" {% if cfg.transcription.mode == 'tres_rapide' %}selected{% endif %}>Très rapide : idem, sous-titres un peu moins précis</option>
       <option value="complete" {% if cfg.transcription.mode == 'complete' %}selected{% endif %}>Complète : toute la vidéo, mots-clés utilisés pour choisir les moments (lent)</option>
     </select></label>
+  <div class="row">
+    <label>Cadrage
+      <select name="layout">
+        <option value="zoom" {% if cfg.render.layout == 'zoom' %}selected{% endif %}>Zoomé (carré, bandes noires)</option>
+        <option value="noir" {% if cfg.render.layout == 'noir' %}selected{% endif %}>Large (16:9 sur fond noir)</option>
+        <option value="flou" {% if cfg.render.layout == 'flou' %}selected{% endif %}>Large (16:9 sur fond flou)</option>
+      </select></label>
+    <label>Titre en haut du clip
+      <select name="title">
+        <option value="auto" {% if cfg.render.title == 'auto' %}selected{% endif %}>Automatique (phrase forte du passage)</option>
+        <option value="video" {% if cfg.render.title == 'video' %}selected{% endif %}>Titre de la vidéo</option>
+        <option value="none" {% if cfg.render.title == 'none' %}selected{% endif %}>Aucun</option>
+      </select></label>
+    <label>Style du titre
+      <select name="title_style">
+        <option value="encadre" {% if cfg.render.title_style == 'encadre' %}selected{% endif %}>Encadré blanc</option>
+        <option value="texte" {% if cfg.render.title_style == 'texte' %}selected{% endif %}>Texte blanc avec ombre</option>
+      </select></label>
+    <label>Durée des clips
+      <select name="duration">
+        <option value="court" {% if duration == 'court' %}selected{% endif %}>Court (20-45 s)</option>
+        <option value="moyen" {% if duration == 'moyen' %}selected{% endif %}>Moyen (35-60 s)</option>
+        <option value="long" {% if duration == 'long' %}selected{% endif %}>Long (50-80 s, comme tes exemples)</option>
+        {% if duration == 'perso' %}<option value="perso" selected>Personnalisée (config.yaml)</option>{% endif %}
+      </select></label>
+  </div>
   <label class="check"><input type="checkbox" name="subtitles" {% if cfg.render.subtitles %}checked{% endif %}> Sous-titres incrustés</label>
   <label class="check"><input type="checkbox" name="highlight" {% if cfg.render.subtitle_highlight %}checked{% endif %}> Mot prononcé surligné en jaune</label>
   <label class="check"><input type="checkbox" name="uppercase" {% if cfg.render.subtitle_uppercase %}checked{% endif %}> Sous-titres en MAJUSCULES</label>

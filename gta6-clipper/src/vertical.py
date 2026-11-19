@@ -80,32 +80,56 @@ def subtitle_events(segments, start, end, max_words=3, highlight=True, upper=Fal
     return events
 
 
-def build_ass(events, credit: str, duration: float, font="DejaVu Sans") -> str:
+# Mises en page. *_v = marge verticale ASS (depuis le bas) des sous-titres, du crédit et du bas du titre.
+LAYOUTS = {
+    # cadrage zoomé carré sur fond noir, titre au-dessus (style des pages de clips TikTok)
+    "zoom": {"filter": "[0:v]fps=30,crop='min(iw,ih)':'min(iw,ih)',scale=1080:1080,setsar=1,"
+                       "pad=1080:1920:0:480:black,subtitles={ass}[v]",
+             "sub_v": 230, "credit_v": 150, "title_v": 1445},
+    # vidéo 16:9 pleine largeur sur fond noir, titre au-dessus
+    "noir": {"filter": "[0:v]fps=30,scale=1080:-2,setsar=1,pad=1080:1920:0:(oh-ih)/2:black,subtitles={ass}[v]",
+             "sub_v": 430, "credit_v": 210, "title_v": 1300},
+    # vidéo 16:9 pleine largeur sur fond flou
+    "flou": {"filter": "[0:v]fps=30,split=2[a][b];[a]scale=270:480:force_original_aspect_ratio=increase,"
+                       "crop=270:480,boxblur=10:2,scale=1080:1920,setsar=1[bg];[b]scale=1080:-2,setsar=1[fg];"
+                       "[bg][fg]overlay=(W-w)/2:(H-h)/2,subtitles={ass}[v]",
+             "sub_v": 430, "credit_v": 210, "title_v": 1300},
+}
+
+
+TITLE_STYLES = {
+    # encadré blanc, texte noir (BorderStyle 3 : boîte opaque de la couleur du contour, une par ligne)
+    "encadre": "&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,16,0",
+    # texte blanc, contour noir et ombre, sans boîte
+    "texte": "&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,-1,0,0,0,100,100,0,0,1,5,3",
+}
+
+
+def build_ass(events, credit: str, duration: float, font="DejaVu Sans", title: str = "", layout: str = "zoom",
+              title_style: str = "encadre") -> str:
+    L = LAYOUTS.get(layout, LAYOUTS["zoom"])
+    ts = TITLE_STYLES.get(title_style, TITLE_STYLES["encadre"])
     head = (
         "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 0\n\n"
         "[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Sub,{font},80,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,2,70,70,430,1\n"
-        f"Style: Credit,{font},36,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,40,40,210,1\n\n"
+        f"Style: Sub,{font},80,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,2,70,70,{L['sub_v']},1\n"
+        f"Style: Credit,{font},36,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,40,40,{L['credit_v']},1\n"
+        f"Style: Title,{font},62,{ts},2,90,90,{L['title_v']},1\n\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
     lines = [f"Dialogue: 1,{ass_time(0)},{ass_time(duration + 1)},Credit,,0,0,0,,{ass_escape(credit)}"]
+    if title:
+        lines.append(f"Dialogue: 2,{ass_time(0)},{ass_time(duration + 1)},Title,,0,0,0,,{ass_escape(title)}")
     lines += [f"Dialogue: 0,{ass_time(s)},{ass_time(e)},Sub,,0,0,0,,{t}" for s, e, t in events]  # déjà échappé
     return head + "\n".join(lines) + "\n"
 
 
-FILTER = (
-    "[0:v]fps=30,split=2[a][b];"
-    "[a]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=10:2,scale=1080:1920,setsar=1[bg];"
-    "[b]scale=1080:-2,setsar=1[fg];"
-    "[bg][fg]overlay=(W-w)/2:(H-h)/2,subtitles={ass}[v]"
-)
-
-
 def render_vertical(src, out, ass_name, workdir, rcfg):
     """ass_name : nom de fichier relatif à workdir (évite l'échappement des chemins dans le filtre)."""
-    ffmpeg("-i", src, "-filter_complex", FILTER.format(ass=ass_name), "-map", "[v]", "-map", "0:a?",
+    graph = LAYOUTS.get(rcfg.get("layout", "zoom"), LAYOUTS["zoom"])["filter"].format(ass=ass_name)
+    ffmpeg("-i", src, "-filter_complex", graph, "-map", "[v]", "-map", "0:a?",
            "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", 48000,
            "-c:v", "libx264", "-preset", rcfg["preset"], "-crf", rcfg["crf"], "-pix_fmt", "yuv420p", "-r", 30,
            "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", out, cwd=workdir)

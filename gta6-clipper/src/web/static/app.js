@@ -78,7 +78,9 @@
     if (!clips.length) return close();
     cur = (i + clips.length) % clips.length;
     const c = clips[cur];
-    video.src = `/media/${encodeURIComponent(c.id)}.mp4`;
+    video.src = `/media/${encodeURIComponent(c.id)}.mp4?v=${c.file_size}`;
+    $("p-hook").value = c.hook || "";
+    $("p-hook-status").textContent = "";
     video.play().catch(() => {});
     $("p-title").textContent = c.video_title;
     $("p-sub").textContent = `Source : ${c.channel} · ${c.duration} s · score ${c.score.toFixed(2)} · ${cur + 1}/${clips.length}`;
@@ -127,9 +129,20 @@
   $("p-fav").addEventListener("click", toggleFav);
   $("p-del").addEventListener("click", del);
   $("p-close").addEventListener("click", close);
+  $("hook-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const c = clips[cur], btn = $("p-hook-btn"), st = $("p-hook-status");
+    btn.disabled = true;
+    st.textContent = "Clip en cours de refabrication (environ 30 s)…";
+    fetch(`/api/clips/${encodeURIComponent(c.id)}/hook`, { method: "POST", body: new FormData($("hook-form")) })
+      .then((r) => r.json()).then((r) => {
+        if (r.ok) { st.textContent = "Fait, rechargement…"; setTimeout(() => location.reload(), 600); }
+        else { st.textContent = `Échec : ${r.error}`; btn.disabled = false; }
+      }).catch(() => { st.textContent = "Échec (le site tourne-t-il ?)"; btn.disabled = false; });
+  });
 
   document.addEventListener("keydown", (e) => {
-    if (player.hidden || e.target.matches("input, textarea, select")) return;
+    if (player.hidden || e.target.matches("input, textarea, select")) return;  // taper le titre ≠ raccourcis
     const k = e.key;
     if (k === "ArrowUp") { e.preventDefault(); show(cur + 1); }
     else if (k === "ArrowDown") { e.preventDefault(); show(cur - 1); }
