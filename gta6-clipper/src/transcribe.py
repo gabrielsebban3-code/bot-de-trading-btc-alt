@@ -76,13 +76,15 @@ def detect_language(wav_path, tcfg, duration, spans=None):
     return lang, prob
 
 
-def transcribe(wav_path, vid, tcfg, db, on_progress=None, regions=None, cancel_check=None):
+def transcribe(wav_path, vid, tcfg, db, on_progress=None, regions=None, cancel_check=None, offset=0.0):
     """Segments + horaires par mot. regions=[(début, fin)] : ne transcrit que ces zones (mode rapide).
     on_progress(pourcentage) tous les 5 %."""
     beam = mode_of(tcfg)[1]
     key = f"trw:{vid}:{tcfg['model']}" + (f":b{beam}" if beam != 5 else "")
     if regions:
         key += ":" + hashlib.md5(json.dumps(regions).encode()).hexdigest()[:10]
+    if offset:  # le WAV ne contient qu'un passage commençant à `offset` secondes de la vidéo
+        key += f":o{offset:.2f}"
     cached = db.cache_get(key)
     if cached is not None:
         return cached
@@ -99,9 +101,10 @@ def transcribe(wav_path, vid, tcfg, db, on_progress=None, regions=None, cancel_c
                 cancel_check()  # lève une exception si l'utilisateur a annulé
             text = s.text.strip()
             if text:
-                words = [[round(w.start + rs, 2), round(w.end + rs, 2), w.word.strip()]
+                words = [[round(w.start + rs + offset, 2), round(w.end + rs + offset, 2), w.word.strip()]
                          for w in (s.words or []) if w.word.strip()]
-                out.append({"start": round(s.start + rs, 2), "end": round(s.end + rs, 2), "text": text, "words": words})
+                out.append({"start": round(s.start + rs + offset, 2), "end": round(s.end + rs + offset, 2), "text": text,
+                            "words": words})
             pct = int(min(99, (done + s.end) / total * 100))
             if on_progress and pct >= last + 5:
                 last = pct

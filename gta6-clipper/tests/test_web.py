@@ -210,7 +210,8 @@ def test_manual_clip_pipeline(tmp_path, monkeypatch):
     monkeypatch.setattr(jobs.download, "fetch_info", lambda u, db, max_age_h=24: info)
     wav = tmp_path / "a.wav"
     wav.write_bytes(b"")
-    monkeypatch.setattr(jobs.download, "download_audio", lambda vid, wd: wav)
+    sections = []
+    monkeypatch.setattr(jobs.download, "download_audio", lambda vid, wd, section=None: sections.append(section) or wav)
     segs = [{"start": t, "end": t + 5.6, "text": "phrase", "words": []} for t in range(2380, 2600, 6)]
     monkeypatch.setattr(jobs.transcribe, "transcribe", lambda *a, **k: segs)
     made = []
@@ -225,3 +226,5 @@ def test_manual_clip_pipeline(tmp_path, monkeypatch):
     assert res["clips"] == 1 and made[0]["start"] <= 2480 <= made[0]["end"]
     assert 60 <= made[0]["end"] - made[0]["start"] <= 90 and made[0]["aligned"]
     assert db.list_videos() == []          # la recherche automatique pourra encore traiter la vidéo
+    a, b = sections[0]                     # seul l'audio autour du moment est téléchargé
+    assert a <= made[0]["start"] and made[0]["end"] <= b and b - a < 200

@@ -14,7 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from .. import clip as cliplib
-from ..download import parse_time, video_id
+from ..download import moment_url, parse_time, video_id
 from ..scoring import learn_weights
 from ..config import data_dir, load_config, save_config
 from ..db import DB
@@ -75,7 +75,7 @@ def duration_preset(m: dict) -> str:
 
 def clip_view(c: dict) -> dict:
     return {**c, "duration": round(c["end"] - c["start"]), "why": why(c.get("reasons")),
-            "yt": f"https://youtu.be/{c['video_id']}?t={int(c['start'])}",
+            "yt": moment_url(c["video_id"], c["start"]),
             "date": datetime.fromtimestamp(c["created_at"]).strftime("%d/%m %H:%M")}
 
 
@@ -290,7 +290,8 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
             try:
                 video_id(url)
             except ValueError:
-                return JSONResponse({"started": False, "error": "lien YouTube invalide"}, status_code=400)
+                return JSONResponse({"started": False, "error": "lien non reconnu (YouTube, rediffusion Twitch ou Kick)"},
+                                    status_code=400)
         if not jobs.start(url or None, at):
             return JSONResponse({"started": False, "error": "un traitement tourne déjà"}, status_code=409)
         return {"started": True}

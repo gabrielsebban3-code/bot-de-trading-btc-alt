@@ -38,17 +38,51 @@ def ffmpeg(*args, cwd=None):
         raise RuntimeError("ffmpeg : " + "\n".join(r.stderr.strip().splitlines()[-20:]))
 
 
+KICK_UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+
+
 def video_id(url_or_id: str) -> str:
-    m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([\w-]{11})", url_or_id)
+    """Identifiant interne : YouTube (11 car.), « twitch-<n> » (rediffusion Twitch, aussi les liens heistclips),
+    « kick_<chaîne>_<uuid> » (rediffusion Kick)."""
+    s = url_or_id or ""
+    m = re.search(r"twitch\.tv/videos/(\d+)", s) or re.search(r"heistclips\.com/clip\?q=(\d{6,})", s)
+    if m:
+        return f"twitch-{m.group(1)}"
+    m = re.search(r"kick\.com/([\w-]+)/videos/(" + KICK_UUID + ")", s)
+    if m:
+        return f"kick_{m.group(1)}_{m.group(2)}"
+    if re.fullmatch(r"twitch-\d+|kick_[\w-]+_" + KICK_UUID, s):
+        return s
+    m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([\w-]{11})", s)
     if m:
         return m.group(1)
-    if re.fullmatch(r"[\w-]{11}", url_or_id):
-        return url_or_id
-    raise ValueError(f"URL YouTube invalide : {url_or_id}")
+    if re.fullmatch(r"[\w-]{11}", s):
+        return s
+    raise ValueError(f"Lien non reconnu (YouTube, rediffusion Twitch ou Kick) : {url_or_id}")
+
+
+def platform(vid: str) -> str:
+    return "twitch" if vid.startswith("twitch-") else "kick" if vid.startswith("kick_") else "youtube"
 
 
 def watch_url(vid: str) -> str:
+    p = platform(vid)
+    if p == "twitch":
+        return f"https://www.twitch.tv/videos/{vid[7:]}"
+    if p == "kick":
+        return f"https://kick.com/{vid[5:-37]}/videos/{vid[-36:]}"
     return f"https://www.youtube.com/watch?v={vid}"
+
+
+def moment_url(vid: str, seconds: float) -> str:
+    """Lien vers la vidéo originale à cet instant."""
+    t = int(seconds)
+    p = platform(vid)
+    if p == "twitch":
+        return f"{watch_url(vid)}?t={t // 3600}h{t % 3600 // 60}m{t % 60}s"
+    if p == "kick":
+        return f"{watch_url(vid)}?t={t}"
+    return f"https://youtu.be/{vid}?t={t}"
 
 
 def fetch_info(url_or_id: str, db, max_age_h: float = 24) -> dict:
@@ -64,6 +98,7 @@ def fetch_info(url_or_id: str, db, max_age_h: float = 24) -> dict:
             raise VideoUnavailable(str(e).splitlines()[0]) from e
         raise
     slim = {k: info.get(k) for k in INFO_KEYS}
+    slim["id"] = vid  # Twitch renvoie « v123… » : on garde notre identifiant
     db.cache_set("info:" + vid, slim)
     return slim
 
@@ -85,11 +120,14 @@ def info_to_candidate(info: dict) -> dict:
     }
 
 
-def download_audio(vid: str, workdir: Path) -> Path:
-    """Piste audio la plus légère, convertie en WAV mono 16 kHz (Whisper + RMS)."""
+def download_audio(vid: str, workdir: Path, section=None) -> Path:
+    """Piste audio la plus légère, convertie en WAV mono 16 kHz (Whisper + RMS).
+    section=(début, fin) : seulement ce passage (clip à un minutage, streams de plusieurs heures)."""
     workdir.mkdir(parents=True, exist_ok=True)
     opts = {**BASE_OPTS, "format": "bestaudio[abr<=70]/worstaudio/bestaudio",
             "outtmpl": str(workdir / f"{vid}_audio.%(ext)s")}
+    if section:
+        opts.update({"download_ranges": download_range_func(None, [tuple(section)]), "force_keyframes_at_cuts": True})
     try:
         with YoutubeDL(opts) as y:
             y.download([watch_url(vid)])

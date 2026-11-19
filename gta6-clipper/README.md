@@ -76,6 +76,7 @@ gta6-clipper doctor
 - `--url` : traite une seule vidéo, sans les filtres de recherche.
 - `serve` : ouvre le site sur http://127.0.0.1:8000.
 - `run --url <lien> --at 41:20` : un seul clip autour de ce minutage. Un lien YouTube « partager à partir de » (`?t=2480`) marche aussi, comme le champ « à 41:20 ? » du site.
+- **Twitch, Kick et heistclips** : le champ du site et `--url` acceptent aussi une rediffusion Twitch (`twitch.tv/videos/…?t=0h40m52s`), une rediffusion Kick (`kick.com/<chaîne>/videos/<id>`) et un lien « cut it » de heistclips.com (`heistclips.com/clip?q=…&t=…`). Avec un minutage, seul l'audio du passage est téléchargé, ce qui compte pour un stream de plusieurs heures. Un stream en direct n'est pas pris en charge, seulement sa rediffusion. L'outil ne contacte jamais heistclips : tu y repères les moments (le chat qui s'emballe) et tu colles le lien.
 - `doctor` : vérifie l'installation (Python, ffmpeg, bibliothèques, recherche YouTube, modèle, port 8000). À lancer en premier si quelque chose ne marche pas.
 
 ## Mise à jour (Windows)

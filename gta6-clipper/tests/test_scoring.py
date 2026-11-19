@@ -442,3 +442,39 @@ def test_windows_scripts_are_crlf_ascii():
         raw = (root / name).read_bytes()
         raw.decode("ascii")
         assert raw.count(b"\n") == raw.count(b"\r\n") > 3
+
+
+def test_twitch_kick_and_heistclips_links():
+    from src.download import video_id, watch_url, moment_url, url_time
+    tw = "https://www.twitch.tv/videos/2933600681?t=0h40m52s"
+    assert video_id(tw) == "twitch-2933600681" and url_time(tw) == 2452
+    assert watch_url("twitch-2933600681") == "https://www.twitch.tv/videos/2933600681"
+    assert moment_url("twitch-2933600681", 2452) == "https://www.twitch.tv/videos/2933600681?t=0h40m52s"
+    hc = "https://heistclips.com/clip?q=2933600681&t=2452"
+    assert video_id(hc) == "twitch-2933600681" and url_time(hc) == 2452
+    kick = "https://kick.com/3li_boltx/videos/0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0"
+    kid = video_id(kick)
+    assert kid == "kick_3li_boltx_0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0" and watch_url(kid) == kick
+    assert video_id("https://youtu.be/Yf1o5Ccu6Lg?t=2480") == "Yf1o5Ccu6Lg"
+    assert moment_url("Yf1o5Ccu6Lg", 2480.7) == "https://youtu.be/Yf1o5Ccu6Lg?t=2480"
+    import pytest
+    with pytest.raises(ValueError):
+        video_id("https://www.twitch.tv/squeezie")   # chaîne en direct : il faut une rediffusion
+
+
+def test_transcribe_offset_shifts_timestamps(tmp_path, monkeypatch):
+    import wave
+    from types import SimpleNamespace
+    from src import transcribe
+    from src.db import DB
+    wav = tmp_path / "a.wav"
+    with wave.open(str(wav), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(b"\x00\x00" * 16000 * 5)
+
+    class FakeModel:
+        def transcribe(self, audio, **kw):
+            return iter([SimpleNamespace(start=1.0, end=2.0, text=" mdr", words=[SimpleNamespace(start=1.0, end=1.4, word=" mdr")])]), None
+
+    monkeypatch.setattr(transcribe, "get_model", lambda tcfg: FakeModel())
+    segs = transcribe.transcribe(wav, "twitch-1", DEFAULTS["transcription"], DB(tmp_path / "db.sqlite"), offset=2432.0)
+    assert segs[0]["start"] == 2433.0 and segs[0]["words"][0][:2] == [2433.0, 2433.4]

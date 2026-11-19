@@ -166,11 +166,12 @@ def process_manual(cand, at, cfg, db, data, workdir, progress):
     tcfg, mcfg = cfg["transcription"], cfg["moments"]
     check_cancel(data, progress)
     progress.update(stage="téléchargement", detail="")
-    wav = download.download_audio(vid, workdir)
+    t0, t1 = scoring.manual_window(at, dur, mcfg)
+    a, b = max(0.0, t0 - 20), min(dur, t1 + 20)
+    wav = download.download_audio(vid, workdir, section=(a, b))  # seulement l'audio du passage
     check_cancel(data, progress)
     progress.update(stage="transcription", detail="")
-    t0, t1 = scoring.manual_window(at, dur, mcfg)
-    segments = transcribe.transcribe(wav, vid, tcfg, db, regions=[(max(0.0, t0 - 20), min(dur, t1 + 20))],
+    segments = transcribe.transcribe(wav, vid, tcfg, db, offset=a,
                                      cancel_check=lambda: check_cancel(data, progress),
                                      on_progress=lambda p: progress.update(detail=f"transcription {p} %"))
     wav.unlink(missing_ok=True)
