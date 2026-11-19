@@ -64,7 +64,7 @@ def why(reasons) -> str:
     return " · ".join(f"{label} {r[k]:.0%}" for k, label in REASON_LABELS.items() if k in r)
 
 
-DURATIONS = {"court": (20, 45, 32), "moyen": (35, 60, 48), "long": (50, 80, 65)}
+DURATIONS = {"long": (60, 90, 70), "moyen": (35, 60, 48), "court": (20, 45, 32)}
 
 
 def duration_preset(m: dict) -> str:

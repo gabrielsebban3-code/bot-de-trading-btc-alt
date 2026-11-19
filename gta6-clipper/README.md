@@ -132,7 +132,7 @@ systemctl --user enable --now gta6-clipper
 1. **Recherche** (`search.py`) : API v3 (`relevanceLanguage=fr`, `order=viewCount`, `publishedAfter`) ou yt-dlp. Les filtres portent sur la durée, l'âge, les vues, les lives, la langue et les listes de chaînes. Les vidéos déjà en base sont ignorées.
 2. **Audio seul** (`download.py`), en basse qualité, converti en WAV 16 kHz mono.
 3. **Transcription** (`transcribe.py`) : faster-whisper, langue `fr`, VAD, mise en cache SQLite. Une détection de langue sur 30 s écarte les vidéos qui ne sont pas en français.
-4. **Moments** (`scoring.py`) : heatmap « most replayed », RMS audio par seconde et densité de mots-clés plus changements de sujet. Chaque signal est normalisé entre 0 et 1, puis pondéré. On calcule ensuite des fenêtres glissantes et on garde les K meilleurs pics, espacés d'au moins 60 s. Chaque clip est aligné sur les segments Whisper (20 à 45 s, marge de 0,5 s).
+4. **Moments** (`scoring.py`) : heatmap « most replayed », RMS audio par seconde et densité de mots-clés plus changements de sujet. Chaque signal est normalisé entre 0 et 1, puis pondéré. On calcule ensuite des fenêtres glissantes et on garde les K meilleurs pics, espacés d'au moins 60 s. Chaque clip est aligné sur les segments Whisper (60 à 90 s par défaut, marge de 0,5 s).
 5. **Segments vidéo seuls** (`download_ranges`) : seuls les passages retenus sont téléchargés, pas la vidéo entière.
 6. **Rendu** (`vertical.py`) : fond flou, vidéo centrée, sous-titres ASS dans le tiers bas, crédit, loudnorm, H.264 CRF 21 + AAC, 30 fps, `faststart`. Une miniature JPG est prise au milieu du clip.
 7. **Nettoyage** : les clips non favoris de plus de 30 jours sont supprimés, et l'espace total est plafonné à 10 Go. Les favoris ne sont jamais supprimés automatiquement.
@@ -160,7 +160,7 @@ Les fichiers vont dans `data/clips/<id>.mp4`, `data/thumbs/<id>.jpg` et `data/db
   - cadrage `zoom` (carré, bandes noires, le défaut), `noir` (16:9 sur fond noir) ou `flou` ;
   - titre accrocheur en haut, en encadré blanc ou en texte avec ombre. En mode `auto`, c'est la phrase la plus frappante du passage, précédée du nom de la chaîne ; à défaut, le titre de la vidéo. Les emojis sont retirés, car la police ne les dessine pas.
   - le titre se modifie dans le lecteur du site : le clip est refait en retéléchargeant seulement son segment, ce qui demande la transcription du passage gardée en base (clips créés après cette version) ;
-  - durée courte (20-45 s), moyenne (35-60 s) ou longue (50-80 s), réglable dans la page Réglages.
+  - durée : **1 minute minimum par défaut (60-90 s)**, ou moyenne (35-60 s) ou courte (20-45 s) dans la page Réglages. Un `config.yaml` existant passe automatiquement à 60-90 s une fois (`version: 2`).
 - **Parole obligatoire** : un détecteur de voix (VAD Silero, inclus dans faster-whisper, quelques secondes) repère où quelqu'un parle. Un passage où l'on parle moins de 50 % du temps est quasi éliminé (`min_speech_ratio`). Une vidéo où l'on parle moins de 15 % du temps est ignorée (`min_video_speech_ratio`).
 - **Vitesse** (`transcription.mode`, réglable dans la page Réglages) :
   - `rapide` (défaut) : les candidats sont repérés avec la heatmap et l'audio, puis seuls leurs alentours (±20 s) sont transcrits. Le signal mots-clés ne sert alors plus au choix des moments. Sans heatmap, la transcription est complète.

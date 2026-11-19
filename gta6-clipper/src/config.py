@@ -6,7 +6,10 @@ import yaml
 
 ROOT = Path(os.environ.get("GTA6_CLIPPER_HOME", Path(__file__).resolve().parents[1]))
 
+CONFIG_VERSION = 2  # v2 : clips d'au moins 1 minute
+
 DEFAULTS = {
+    "version": CONFIG_VERSION,
     "search": {
         "queries": ["GTA 6", "GTA VI gameplay", "GTA 6 trailer analyse", "GTA 6 test", "GTA 6 avis", "GTA 6 map"],
         "days": 7, "min_duration_min": 3, "max_duration_min": 40, "min_views": 5000, "top_n": 5,
@@ -14,7 +17,7 @@ DEFAULTS = {
         "channel_whitelist": [], "channel_blacklist": [],
     },
     "moments": {
-        "clips_per_video": 3, "min_clip_s": 20, "max_clip_s": 45, "target_clip_s": 32,
+        "clips_per_video": 3, "min_clip_s": 60, "max_clip_s": 90, "target_clip_s": 70,
         "min_gap_s": 60, "margin_s": 0.5, "min_speech_ratio": 0.5, "min_video_speech_ratio": 0.15,
         "weights": {"heatmap": 0.5, "audio": 0.25, "keywords": 0.25, "comments": 0.4},
         "skip_intro_s": 60, "skip_outro_s": 45,
@@ -68,8 +71,15 @@ def load_env(path: Path | None = None) -> None:
 
 def load_config() -> dict:
     p = config_path()
-    user = yaml.safe_load(p.read_text(encoding="utf-8")) if p.exists() else {}
-    return _merge(DEFAULTS, user or {})
+    user = (yaml.safe_load(p.read_text(encoding="utf-8")) if p.exists() else {}) or {}
+    cfg = _merge(DEFAULTS, user)
+    if user and int(user.get("version", 1)) < CONFIG_VERSION:
+        # mise à niveau unique d'un config.yaml existant (maj.bat ne le remplace pas) : clips de 60 à 90 s
+        m = cfg["moments"]
+        m["min_clip_s"], m["max_clip_s"], m["target_clip_s"] = 60, 90, 70
+        cfg["version"] = CONFIG_VERSION
+        save_config(cfg)
+    return cfg
 
 
 def save_config(cfg: dict) -> None:

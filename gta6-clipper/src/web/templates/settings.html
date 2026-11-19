@@ -41,9 +41,9 @@
       </select></label>
     <label>Durée des clips
       <select name="duration">
-        <option value="court" {% if duration == 'court' %}selected{% endif %}>Court (20-45 s)</option>
+        <option value="long" {% if duration == 'long' %}selected{% endif %}>1 minute et plus (60-90 s)</option>
         <option value="moyen" {% if duration == 'moyen' %}selected{% endif %}>Moyen (35-60 s)</option>
-        <option value="long" {% if duration == 'long' %}selected{% endif %}>Long (50-80 s, comme tes exemples)</option>
+        <option value="court" {% if duration == 'court' %}selected{% endif %}>Court (20-45 s)</option>
         {% if duration == 'perso' %}<option value="perso" selected>Personnalisée (config.yaml)</option>{% endif %}
       </select></label>
   </div>

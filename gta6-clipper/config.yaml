@@ -1,4 +1,5 @@
 # gta6-clipper : réglages. La page "Réglages" du site réécrit ce fichier (les commentaires sont alors perdus).
+version: 2
 search:
   queries:
     - GTA 6
@@ -20,9 +21,9 @@ search:
   channel_blacklist: []   # jamais traitées
 moments:
   clips_per_video: 3
-  min_clip_s: 20
-  max_clip_s: 45
-  target_clip_s: 32
+  min_clip_s: 60            # 1 minute minimum
+  max_clip_s: 90
+  target_clip_s: 70
   min_gap_s: 60
   margin_s: 0.5
   skip_intro_s: 60        # ignore l'intro et l'outro (vidéos de plus de 5 min)

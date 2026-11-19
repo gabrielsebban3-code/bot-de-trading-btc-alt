@@ -5,7 +5,7 @@ import numpy as np
 from src import scoring, search, vertical
 from src.config import DEFAULTS
 
-M = DEFAULTS["moments"]
+M = {**DEFAULTS["moments"], "min_clip_s": 20, "max_clip_s": 45, "target_clip_s": 32}  # données factices courtes
 
 
 def fake_segments(duration, every=6.0):
@@ -375,3 +375,27 @@ def test_build_ass_title_styles_and_layouts():
             ass = vertical.build_ass([], "Source : X", 30, title="Titre {test}", layout=layout, title_style=style)
             assert "Style: Title," in ass and "Titre (test)" in ass
     assert "Title,Titre" not in vertical.build_ass([], "Source : X", 30, title="")
+
+
+def test_default_clips_last_at_least_one_minute():
+    dur = 1800
+    segs = fake_segments(dur)
+    hm = [{"start_time": t, "end_time": t + 18, "value": 1.0 if t in (540, 1260) else 0.3} for t in range(0, dur, 18)]
+    moments = scoring.select_moments(dur, segs, hm, np.full(dur, -30.0), DEFAULTS["moments"])
+    assert moments and all(60 <= m["end"] - m["start"] <= 90 for m in moments)
+    assert all(m["aligned"] for m in moments)
+
+
+def test_old_config_upgraded_once_to_one_minute(tmp_path, monkeypatch):
+    import yaml
+    from src import config
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    (tmp_path / "config.yaml").write_text("moments:\n  min_clip_s: 20\n  max_clip_s: 45\n  target_clip_s: 32\n  clips_per_video: 2\n")
+    cfg = config.load_config()
+    assert (cfg["moments"]["min_clip_s"], cfg["moments"]["max_clip_s"]) == (60, 90)
+    assert cfg["moments"]["clips_per_video"] == 2            # les autres réglages sont gardés
+    saved = yaml.safe_load((tmp_path / "config.yaml").read_text(encoding="utf-8"))
+    assert saved["version"] == 2
+    saved["moments"]["min_clip_s"] = 35                        # un choix fait ensuite dans Réglages est respecté
+    (tmp_path / "config.yaml").write_text(yaml.safe_dump(saved))
+    assert config.load_config()["moments"]["min_clip_s"] == 35
