@@ -204,7 +204,7 @@ test('build-setups écrit setups.json et setups-court.json pour les paires suivi
   const out = JSON.parse(await readFile(join(dir, 'setups.json'), 'utf8'));
   // Le faux OKX liste BTC, ETH, SOL, DOGE, le Brent et le WTI : le WTI n'est pas suivi.
   assert.deepEqual(out.assets.map(a => a.symbol), ['BTC', 'ETH', 'SOL', 'DOGE', 'BZ']);
-  assert.equal(out.model, 'h1d1');
+  assert.equal(out.model, 'h1d1n');
   assert.equal(out.rules.barMs, 3600_000, 'signaux sur bougies 1h');
   assert.deepEqual(out.assets.filter(a => a.kind === 'commodity').map(a => a.symbol), ['BZ']);
   assert.ok(out.history.length >= 5, `historique trop court : ${out.history.length}`);
@@ -301,4 +301,16 @@ test('taille selon l’agitation : plus gros en marché calme, plus petit en mar
   const dc = dailyContext(Array.from({ length: 40 }, (_, k) => ({ t: k * 86_400_000, o: 100, h: 102, l: 98, c: 100 * (k % 2 ? 1.02 : 1) })));
   assert.equal(dc.vol[30], null);
   assert.ok(dc.vol[35] > 0.015 && dc.vol[35] < 0.025);
+});
+
+test('note des signaux : critères dans l\'ordre et seuil', async () => {
+  const { SCORE, SCORE_FEAT, scoreOf } = await import('../scripts/lib/setups.mjs');
+  assert.equal(SCORE.mu.length, SCORE_FEAT.length);
+  assert.equal(SCORE.w.length, SCORE_FEAT.length);
+  // un signal « moyen » a la note de base
+  assert.equal(scoreOf(SCORE.mu), Math.round(SCORE.b * 1000) / 1000);
+  // marché très agité : note plus basse (poids négatif sur l'agitation)
+  const agite = [...SCORE.mu]; agite[SCORE_FEAT.indexOf('volabs')] = SCORE.mu[SCORE_FEAT.indexOf('volabs')] + 3 * SCORE.sd[SCORE_FEAT.indexOf('volabs')];
+  assert.ok(scoreOf(agite) < scoreOf(SCORE.mu));
+  assert.equal(scoreOf(null), null);
 });

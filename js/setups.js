@@ -143,7 +143,8 @@ export function radarBody(a) {
     const near = Math.max(0, 1 - Math.abs(r.trigger.distance) / 0.1); // plein à 0 %, vide à 10 % ou plus
     return `<span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Achat' : 'Vente'}</b> si le prix clôture une bougie de ${unitWord()} ${word} <b>${px(r.trigger.price)}</b> (${plainPct(r.trigger.distance)})</span>
       <span class="meter" title="Distance au déclenchement"><i style="width:${Math.round(near * 100)}%"></i></span>
-      <span class="sm">C'est son ${NAMES[r.trigger.key] || esc(data.detectors[r.trigger.key])}. Stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)}).${r.macdReady ? ` Le signal peut aussi venir plus tôt si ${macd}.` : ''}</span>`;
+      <span class="sm">C'est son ${NAMES[r.trigger.key] || esc(data.detectors[r.trigger.key])}. Stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)}).${r.macdReady ? ` Le signal peut aussi venir plus tôt si ${macd}.` : ''}</span>
+      ${r.trigger.scoreOk === true ? '<span class="sm up">Note du moment : bonne, le signal serait gardé.</span>' : r.trigger.scoreOk === false ? '<span class="sm muted">Note du moment trop basse : pour l\'instant, ce signal serait ignoré.</span>' : ''}`;
   }
   return `<span class="state">Le prix est déjà ${up ? 'au-dessus de ses plus hauts' : 'sous ses plus bas'} ${isCourt() ? 'des derniers jours' : 'du mois'}.</span>
     <span class="sm">Prochain signal quand ${r.macdReady ? macd : `il fera une petite ${up ? 'baisse' : 'hausse'} puis repartira`}, s'il n'y a pas d'obstacle juste devant.</span>`;
@@ -169,12 +170,14 @@ function expectBox() {
   return `<div class="box expect"><b>Ce qu'on peut attendre${court ? ' du court terme' : ''}</b>
     <ul>
       ${e.yearPct ? `<li>En 2025-2026, en réinvestissant les gains : environ <b>+${e.yearPct} % par an</b>, frais compris (${esc(e.years)}). C'est une période qui n'a pas servi à régler la méthode, sur les 9 cryptos suivies.</li>
-      <li>Le risque de chaque trade suit l'agitation du marché : ${pctTxt(risk)} % du capital en temps normal, jusqu'au double quand le prix bouge peu, la moitié quand il s'agite. Le risque conseillé est écrit sur chaque carte. Sans cet ajustement, on gagnait nettement moins (environ +23 % par an à 1 % fixe).</li>`
+      ${e.score ? `<li>Le bot ne garde que les signaux les mieux notés, environ 4 sur 10. La note est bonne quand le marché est calme, que Bitcoin va dans le même sens et que tout le marché n'est pas déjà lancé. Sans ce tri : environ +${e.score.without.yearPct} % par an, ${e.score.without.perMonth} signaux par mois et un recul jusqu'à −${e.score.without.ddPct} %.</li>` : ''}
+      <li>Le risque de chaque trade suit l'agitation du marché : ${pctTxt(risk)} % du capital en temps normal, jusqu'au double quand le prix bouge peu, la moitié quand il s'agite. Le risque conseillé est écrit sur chaque carte. Sans cet ajustement, on gagnait moins (environ +${e.score?.fixedPct ?? 23} % par an à 1 % fixe).</li>`
       : `<li>En moyenne <b>+${fmt(e.perTrade * risk, 2)} %</b> du capital par trade, frais compris (${fmt(risk, 0)} % du compte risqué à chaque fois). C'est ce qu'a donné la méthode en 2025-2026 sur les 9 cryptos suivies, une période qui n'a pas servi à la régler (${esc(e.years)}).</li>`}
       <li>Seulement <b>${fmt(e.winRate * 100, 0)} % de trades gagnants</b> : la plupart finissent au stop, avec une petite perte. Quelques gros gains paient tout le reste.</li>
       <li>Environ <b>${e.perMonth} signaux par mois</b>${court ? ', soit 1 à 2 par jour' : ''}.</li>
       ${e.ddPct ? `<li class="down">Les pertes peuvent s'enchaîner : jusqu'à <b>${e.streak} stops d'affilée</b>, car plusieurs paires perdent en même temps. Le capital a reculé jusqu'à <b>−${e.ddPct} %</b> depuis son plus haut. Avec ${pctTxt(e.safe.base)} % de base au lieu de ${pctTxt(risk)} % : environ +${e.safe.yearPct} % par an, recul maximal −${e.safe.ddPct} %.</li>`
       : `<li class="down">Les pertes peuvent s'enchaîner : jusqu'à <b>${e.streak} stops d'affilée</b>, car plusieurs paires perdent en même temps. En risquant ${fmt(risk, 0)} % à chaque trade, la pire baisse a été de <b>${e.ddR} %</b>${e.ddR * risk >= 100 ? ' : le compte aurait été vidé' : ''}. Avec ${fmt(safe, 2).replace(/,?0+$/, '')} % par trade, elle aurait été d'environ ${Math.round(e.ddR * safe / risk)} %.</li>`}
+      ${e.score ? `<li class="down">Ces chiffres reposent sur ${e.score.trades} trades seulement : attends-toi à moins en vrai. Sur 2020-2024, la période qui a servi à apprendre la note, on trouve environ +${e.score.dev.yearPct} % par an avec un recul jusqu'à −${e.score.dev.ddPct} %, et 2023 a été une année à plat.</li>` : ''}
       ${court ? '<li>Chaque trade gagne moins qu\'en Setups et les frais pèsent plus lourd. Les bougies de 15 minutes ont été testées aussi : elles perdent à cause des frais, elles ne sont donc pas proposées.</li>' : ''}
     </ul>
     <p class="sm muted">Résultats passés, pas une promesse. Le pétrole n'a pas assez d'historique pour ce test. Ceci n'est pas un conseil financier.</p></div>`;
@@ -288,7 +291,7 @@ function waiting() {
   const rows = done.slice(0, 3).map(s => `<li><b class="mono">${esc(s.symbol)}</b> ${dirTag(s.dir)} <span class="muted">${parisDay(s.time)}</span>
     <span class="r ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r, s)} du capital</span></li>`).join('');
   return `<div class="box wait"><div class="empty"><b>Aucun trade en ce moment : la méthode attend un bon moment.</b>
-    C'est normal, la méthode attend une vraie cassure dans le sens de la tendance (environ ${data.expect?.perMonth ?? 'quelques'} signaux par mois). Les prix qui déclencheraient le prochain sont juste au-dessus.</div>
+    C'est normal, la méthode attend une vraie cassure dans le sens de la tendance (environ ${data.expect?.perMonth ?? 'quelques'} signaux par mois). Les prix qui pourraient déclencher le prochain sont juste au-dessus : le bot ne le gardera que s'il a une bonne note.</div>
     ${done.length ? `<p class="wait-sum">Sur les ${months} : <b>${done.length} trade${done.length > 1 ? 's' : ''} terminé${done.length > 1 ? 's' : ''}</b>, ${wins} gagnant${wins > 1 ? 's' : ''},
       <b class="${total > 0 ? 'up' : total < 0 ? 'down' : ''}">${cap(total)} du capital</b> au total (${baseRiskTxt()}).</p>
     <ul class="wait-list">${rows}</ul>` : ''}

@@ -41,7 +41,7 @@ export const DETECTORS = {
 export const MODES = {
   classic: { key: 'h4d1', E: BAR, T: DAY, rangeBars: 60, pocBars: 180, warmup: 60, backtestBars: 2190, idPrefix: '', exitDays: 7,
     eLabel: '4h', tLabel: 'jour', detectors: DETECTORS, r20: 'des 20 derniers jours', r10: 'des 10 derniers jours' },
-  swing: { key: 'h1d1', useScore: true, E: HOUR, T: DAY, rangeBars: 240, pocBars: 720, warmup: 240, backtestBars: 8760, idPrefix: '', exitDays: 10,
+  swing: { key: 'h1d1n', useScore: true, E: HOUR, T: DAY, rangeBars: 240, pocBars: 720, warmup: 240, backtestBars: 8760, idPrefix: '', exitDays: 10,
     eLabel: '1h', tLabel: 'jour', detectors: DETECTORS, r20: 'des 20 derniers jours', r10: 'des 10 derniers jours' },
   court: { key: 'h1h4', E: HOUR, T: 4 * HOUR, rangeBars: 40, pocBars: 120, warmup: 60, backtestBars: 8760, idPrefix: 'ct-', exitDays: 7,
     eLabel: '1h', tLabel: '4h', detectors: { range20: 'Cassure 3 jours', range10: 'Cassure 40 heures', macd: 'MACD' },
@@ -283,7 +283,8 @@ export function sizeFor(vol) {
 // (9 paires Binance), puis vérifiée sur 2025-2026. Elle préfère un marché calme, un prix pas trop loin de ses
 // moyennes et un marché qui ne part pas tout entier dans le même sens.
 export const SCORE_FEAT = ['ext50', 'gap', 'slope', 'ext20', 'volx', 'body', 'volreg', 'volabs', 'btc', 'breadth', 'mom7', 'rsi', 'isR20', 'isR10', 'isMacd', 'hourSin', 'hourCos'];
-export const SCORE = null;
+// Poids appris sur 2020-2024 (labo 8, 19 novembre 2026). Seuil : garder environ 4 signaux sur 10 parmi ceux qui passent les règles.
+export const SCORE = {"mu":[2.6811,0.9981,0.7342,2.4704,2.7761,1.2432,0.9562,0.0436,0.7973,0.6802,2.8912,66.104,0.3789,0.528,0.0931,-0.0309,0.0009],"sd":[1.3588,0.6458,0.4729,1.3033,2.7729,0.8239,0.1853,0.0212,0.5291,0.3828,2.304,8.7916,0.4851,0.4992,0.2906,0.6891,0.724],"w":[0.0835,0.0127,-0.0439,0.1628,0.0017,-0.0316,0.0735,-0.2088,0.2135,-0.1809,-0.1627,0.0417,0.0504,-0.0484,-0.0011,-0.0787,-0.0683],"b":-1.3571,"thr":-1.109};
 const TREND_NUM = { 'haussière': 1, 'baissière': -1, neutre: 0 };
 
 // Tendance journalière de chaque paire, jour par jour : { trends: Map(symbole → Map(début du jour → 1, 0 ou -1)), btc: 'BTC' }.
@@ -382,7 +383,7 @@ export function evaluate(sig, bars, i, daily, cfg = MODES.classic) {
 
 // Prix qui déclencheraient le prochain signal, dans le sens de la tendance, à partir des bougies fermées.
 // trigger = la cassure la plus proche (10 ou 20 jours), stop = celui qu'aurait le trade s'il partait de là.
-export function radar(bars, daily, cfg = MODES.classic) {
+export function radar(bars, daily, cfg = MODES.classic, market = null) {
   const closed = bars.filter(b => b.closed !== false);
   const i = closed.length - 1;
   const dc = dailyContext(daily);
@@ -402,9 +403,19 @@ export function radar(bars, daily, cfg = MODES.classic) {
   const ahead = levels.filter(l => (l.price - price) * s > 0).sort((a, b) => (a.price - b.price) * s);
   const next = ahead[0] ?? null;
   const h = macdHist(closed).at(-1);
+  // Note qu'aurait le signal s'il partait maintenant au prix de déclenchement (volume, bougie et heure pris dans la moyenne).
+  let scoreOk = null;
+  if (next && cfg.useScore && market && SCORE) {
+    const A = atr(closed);
+    const fake = [...closed, { t: closed[i].t + cfg.E, o: next.price, h: next.price, l: next.price, c: next.price, v: 0 }];
+    A.push(A[i]);
+    const f = signalFeatures({ bars: fake, i: i + 1, A, dc, j, s, key: next.key, market });
+    for (const k of ['volx', 'body', 'hourSin', 'hourCos']) f[SCORE_FEAT.indexOf(k)] = SCORE.mu[SCORE_FEAT.indexOf(k)];
+    scoreOk = scoreOf(f) >= SCORE.thr;
+  }
   return {
     ...out, dir, levels,
-    trigger: next && { ...next, distance: next.price / price - 1, stop: next.price - s * RULES.stopAtr * dc.atr[j] },
+    trigger: next && { ...next, distance: next.price / price - 1, stop: next.price - s * RULES.stopAtr * dc.atr[j], scoreOk },
     macdReady: s * h < 0, // l'histogramme est du mauvais côté : son retour de l'autre côté de zéro donnerait un signal
   };
 }
@@ -443,7 +454,7 @@ export function scanAsset(asset, { bars, daily, market = null }, cfg = MODES.cla
       detector: key, symbol: asset.symbol, dir: hit.dir,
       status: bars[i].closed ? 'confirmé' : 'en cours',
       time: bars[i].t, confirmedAt: bars[i].t + cfg.E, entry, sl: p.sl, tp: p.tp, tpLabels: p.tpLabels, rr: p.rr, atr: dc.atr[j],
-      why: `${hit.why} Signal pris car la tendance ${cfg.T === DAY ? 'journalière' : 'en 4h'} est ${trend}.`, trend,
+      why: `${hit.why} Signal pris car la tendance ${cfg.T === DAY ? 'journalière' : 'en 4h'} est ${trend}${score !== null ? ', et il fait partie des signaux les mieux notés par le bot' : ''}.`, trend,
       // Pour la fiche du trade : niveau cassé, clôture et moyennes de la dernière journée fermée, ATR 4h.
       ref: hit.ref, day: { t: daily[j].t, c: daily[j].c, e20: dc.e20[j], e50: dc.e50[j] }, atr4h: A[i],
       // Multiplicateur de taille : risque du trade = RULES.riskPct × sz. Testé sur les cryptos seulement : le pétrole reste à 1.

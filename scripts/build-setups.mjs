@@ -9,7 +9,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { fetchJson, mapLimit } from './lib/http.mjs';
-import { DETECTORS, MODES, RULES, dailyContext, detectorStats, indicatorState, legState, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
+import { DETECTORS, MODES, RULES, dailyContext, detectorStats, indicatorState, legState, marketOf, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
@@ -36,7 +36,9 @@ const SWING = MODES.swing, COURT = MODES.court;
 const EXPECT = {
   // Labo 5 (18 novembre 2026) : taille selon l'agitation du marché, risque de base 1 % (choix de Gabriel). perTrade en « R de base ».
   // Capital composé sur 2025-2026 : +42 %/an, pire baisse 42 % (sans ajuster la taille, à 1 % : +23 %/an, pire baisse 39 %).
-  swing: { perTrade: 0.48, winRate: 0.24, perMonth: 11, ddR: 46, streak: 30, yearPct: 42, ddPct: 42, years: '2025 : +10 % · 2026 : +73 %', safe: { base: 0.5, yearPct: 27, ddPct: 23 } },
+  // Avec la note des signaux (labo 8, 19 novembre 2026), vrai code du site rejoué sur Binance 2025-2026, 9 cryptos.
+  swing: { perTrade: 1.64, winRate: 0.38, perMonth: 4, ddR: 21, streak: 11, yearPct: 86, ddPct: 19, years: '2025 : +39 % · 2026 : +123 %', safe: { base: 0.5, yearPct: 42, ddPct: 10 },
+    score: { trades: 91, fixedPct: 51, without: { yearPct: 47, ddPct: 40, perMonth: 11 }, dev: { yearPct: 87, ddPct: 27 } } },
   court: { perTrade: 0.18, winRate: 0.22, perMonth: 48, ddR: 134, streak: 51, years: '2025 : +173 % · 2026 : +13 % · 12 derniers mois : à peu près zéro' },
 };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -91,13 +93,26 @@ async function main() {
   console.log(`Paires suivies : ${universe.map(a => a.symbol).join(' ')}`);
 
   let failed = 0;
-  const results = await mapLimit(universe, 3, async asset => {
+  const fetched = await mapLimit(universe, 3, async asset => {
     const instId = `${asset.symbol}-USDT-SWAP`;
     try {
       const h1 = await candles(instId, '1H', 90);      // ~13 mois : 1 an de signaux + le temps de chauffe
       const bars = await candles(instId, '4H', 20);    // ~13 mois : indicateurs, fiche paire, tendance du court terme
       const daily = await candles(instId, '1Dutc', 3); // ~20 mois : de quoi calculer la tendance et suivre les trades
-      const signals = scanAsset(asset, { bars: h1, daily }, SWING);
+      return { asset, instId, h1, bars, daily };
+    } catch (err) {
+      failed++;
+      console.warn(`⚠ ${asset.symbol} : ${err.message}`);
+      return null;
+    }
+  });
+  // Tendance de chaque crypto jour par jour : sert à la note des signaux (BTC et « tout le marché dans le même sens »).
+  const market = marketOf(Object.fromEntries(fetched.filter(x => x && x.asset.kind === 'crypto').map(x => [x.asset.symbol, x.daily])));
+  const results = fetched.map(x => {
+    if (!x) return null;
+    const { asset, instId, h1, bars, daily } = x;
+    try {
+      const signals = scanAsset(asset, { bars: h1, daily, market }, SWING);
       const court = scanAsset(asset, { bars: h1, daily: bars }, COURT);
       const tk = tick.get(instId);
       const last = tk ? Number(tk.last) : h1.at(-1).c;
@@ -107,7 +122,7 @@ async function main() {
           ...asset, instId, price: last,
           change24h: tk && Number(tk.open24h) ? last / Number(tk.open24h) - 1 : null,
           trend: trend1d(daily, now),
-          radar: radar(h1, daily, SWING),
+          radar: radar(h1, daily, SWING, asset.kind === 'crypto' ? market : null),
           ind: indicatorState(bars, daily),
           leg: legState(daily),
         },
@@ -143,7 +158,7 @@ async function main() {
     entry: s.entry, sl: s.sl, tp1: s.tp?.[0] ?? s.tp1, rr: s.rr, outcome: s.outcome, at: s.at, r: s.r, tpHit: s.tpHit ?? null,
     // Détail pour la fiche explicative du trade (absent des trades gardés d'anciennes versions).
     why: s.why, trend: s.trend, atr: s.atr, atr4h: s.atr4h, ref: s.ref, day: s.day, halfAt: s.halfAt ?? null, exitPx: s.exitPx ?? null, exitLvl: s.exitLvl ?? null,
-    sz: s.sz ?? 1,
+    sz: s.sz ?? 1, score: s.score ?? null,
   });
   const history = mergeHistory(previous?.history, confirmed.map(compact), freshStart, now, UNIVERSE.map(a => a.symbol));
   const stats = detectorStats(history, now);
