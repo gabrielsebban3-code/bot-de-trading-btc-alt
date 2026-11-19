@@ -38,11 +38,41 @@ def load_wav(wav_path):
         return np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768.0
 
 
-def detect_language(wav_path, tcfg, duration):
-    """Langue détectée sur 30 s prises après l'intro (évite la musique de début)."""
+def speech_spans(wav_path, vid, db):
+    """Zones de parole [début, fin] en secondes (VAD Silero de faster-whisper, rapide). None si indisponible."""
+    key = f"vad:{vid}"
+    cached = db.cache_get(key)
+    if cached is not None:
+        return cached
+    try:
+        from faster_whisper.vad import VadOptions, get_speech_timestamps
+
+        ts = get_speech_timestamps(load_wav(wav_path), VadOptions(min_silence_duration_ms=500, speech_pad_ms=200))
+    except Exception as e:  # le pipeline continue sans ce signal
+        log.warning("Détection de la parole indisponible : %s", e)
+        return None
+    spans = [[round(t["start"] / 16000, 2), round(t["end"] / 16000, 2)] for t in ts]
+    db.cache_set(key, spans)
+    return spans
+
+
+def detect_language(wav_path, tcfg, duration, spans=None):
+    """Langue détectée sur ~30 s de parole (à défaut : 30 s après l'intro)."""
     audio = load_wav(wav_path)
-    off = int(min(60, duration / 3) * 16000)
-    lang, prob, _ = get_model(tcfg).detect_language(audio=audio[off:off + 30 * 16000])
+    if spans:
+        import numpy as np
+
+        parts, total = [], 0
+        for s, e in spans:
+            parts.append(audio[int(s * 16000):int(e * 16000)])
+            total += e - s
+            if total >= 30:
+                break
+        sample = np.concatenate(parts)[:30 * 16000]
+    else:
+        off = int(min(60, duration / 3) * 16000)
+        sample = audio[off:off + 30 * 16000]
+    lang, prob, _ = get_model(tcfg).detect_language(audio=sample)
     return lang, prob
 
 

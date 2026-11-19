@@ -73,12 +73,19 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     wav = download.download_audio(vid, workdir)
     rms = scoring.audio_rms(wav)
     progress.log(f"Audio récupéré en {time.time() - t:.0f} s")
+    tcfg, mcfg = cfg["transcription"], cfg["moments"]
+    spans = transcribe.speech_spans(wav, vid, db)
+    speech = scoring.speech_signal(spans, cand["duration"]) if spans is not None else None
+    if speech is not None:
+        ratio = float(speech.mean()) if len(speech) else 0.0
+        progress.log(f"Parole détectée sur {ratio:.0%} de la vidéo")
+        if ratio < mcfg.get("min_video_speech_ratio", 0.15):
+            raise SkipVideo(f"presque personne ne parle ({ratio:.0%} du temps) : clips sans intérêt")
 
     progress.update(stage="transcription", detail="")
     t = time.time()
-    tcfg, mcfg = cfg["transcription"], cfg["moments"]
     if tcfg.get("check_language"):
-        lang, prob = transcribe.detect_language(wav, tcfg, cand["duration"])
+        lang, prob = transcribe.detect_language(wav, tcfg, cand["duration"], spans)
         if lang != tcfg["language"] and prob > 0.5:
             raise SkipVideo(f"langue détectée : {lang} ({prob:.0%})")
     regions = None
@@ -86,7 +93,8 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
         if heatmap:
             # mode rapide : candidats choisis sur heatmap + audio, on ne transcrit que leurs alentours
             mcfg = {**mcfg, "weights": {**mcfg["weights"], "keywords": 0}}
-            wins = scoring.candidate_windows(cand["duration"], heatmap, rms, mcfg, int(mcfg["clips_per_video"]) * 2)
+            wins = scoring.candidate_windows(cand["duration"], heatmap, rms, mcfg, int(mcfg["clips_per_video"]) * 2,
+                                             speech)
             regions = scoring.merge_regions(wins, cand["duration"])
             progress.log(f"Mode rapide : {sum(e - s for s, e in regions) / 60:.1f} min à transcrire "
                          f"sur {cand['duration'] / 60:.1f} min")
@@ -102,7 +110,7 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     progress.update(stage="découpe")
     if not heatmap:
         progress.log("Pas de heatmap : signaux audio + mots-clés uniquement")
-    moments = scoring.select_moments(cand["duration"], segments, heatmap, rms, mcfg)
+    moments = scoring.select_moments(cand["duration"], segments, heatmap, rms, mcfg, speech)
     moments = scoring.llm_rescore(moments, segments, mcfg, db)
     wav.unlink(missing_ok=True)
     if dry_run:

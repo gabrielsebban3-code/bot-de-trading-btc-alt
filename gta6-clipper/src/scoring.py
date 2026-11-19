@@ -147,7 +147,27 @@ def snap_to_sentences(t0, t1, segments, min_len, max_len, margin, duration, avoi
     return max(0.0, s - margin), min(float(duration), e + margin), aligned
 
 
-def select_moments(duration, segments, heatmap, rms, mcfg):
+def speech_signal(spans, duration):
+    """Part de chaque seconde où quelqu'un parle (0-1)."""
+    n = int(np.ceil(duration))
+    sig = np.zeros(n)
+    for s, e in spans or []:
+        a, b = int(s), min(n, int(np.ceil(e)))
+        sig[a:b] = 1.0
+    return sig
+
+
+def speech_adjust(ws, speech, length, min_ratio):
+    """Un clip sans parole ennuie : note multipliée par la part de parole, quasi éliminé sous min_ratio."""
+    if speech is None or not np.any(speech):
+        return ws
+    ratio = resize(window_scores(speech, length), len(ws))
+    adj = ws * (0.3 + 0.7 * ratio)
+    ok = ratio >= min_ratio
+    return np.where(ok, adj, adj * 0.01) if ok.any() else adj
+
+
+def select_moments(duration, segments, heatmap, rms, mcfg, speech=None):
     n = int(np.ceil(duration))
     signals = {
         "heatmap": heatmap_signal(heatmap, n),
@@ -156,7 +176,8 @@ def select_moments(duration, segments, heatmap, rms, mcfg):
     }
     sig = combine(signals, mcfg["weights"], n)
     length = int(mcfg["target_clip_s"])
-    ws = window_scores(sig, length)
+    ws = speech_adjust(window_scores(sig, length), resize(speech, n) if speech is not None else None,
+                       length, mcfg.get("min_speech_ratio", 0.5))
     k, gap = int(mcfg["clips_per_video"]), float(mcfg["min_gap_s"])
     out = []
     for t0, t1 in pick_windows(ws, k * 3, length, gap):
@@ -167,7 +188,7 @@ def select_moments(duration, segments, heatmap, rms, mcfg):
         if any(not _far_enough((s, e), (m["start"], m["end"]), gap) for m in out):
             continue
         detail = {name: round(float(np.mean(resize(v, n)[int(s):int(e) + 1])), 3)
-                  for name, v in signals.items() if v is not None and len(v)}
+                  for name, v in {**signals, "parole": speech}.items() if v is not None and len(v)}
         out.append({"start": round(s, 2), "end": round(e, 2), "score": round(float(ws[min(t0, len(ws) - 1)]), 4),
                     "aligned": aligned, "signals": detail})
         if len(out) >= k:
@@ -214,13 +235,15 @@ def llm_rescore(moments, segments, mcfg, db):
 
 
 # --- mode rapide : repérer les candidats avant toute transcription ---
-def candidate_windows(duration, heatmap, rms, mcfg, n):
+def candidate_windows(duration, heatmap, rms, mcfg, n, speech=None):
     """Mêmes fenêtres que select_moments quand le poids des mots-clés est nul."""
     size = int(np.ceil(duration))
     sig = combine({"heatmap": heatmap_signal(heatmap, size),
                    "audio": normalize(rms) if rms is not None and len(rms) else None}, mcfg["weights"], size)
     length = int(mcfg["target_clip_s"])
-    return pick_windows(window_scores(sig, length), n, length, float(mcfg["min_gap_s"]))
+    ws = speech_adjust(window_scores(sig, length), resize(speech, size) if speech is not None else None,
+                       length, mcfg.get("min_speech_ratio", 0.5))
+    return pick_windows(ws, n, length, float(mcfg["min_gap_s"]))
 
 
 def merge_regions(windows, duration, pad=20.0):

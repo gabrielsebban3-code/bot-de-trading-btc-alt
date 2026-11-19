@@ -15,7 +15,7 @@ DEFAULTS = {
     },
     "moments": {
         "clips_per_video": 3, "min_clip_s": 20, "max_clip_s": 45, "target_clip_s": 32,
-        "min_gap_s": 60, "margin_s": 0.5,
+        "min_gap_s": 60, "margin_s": 0.5, "min_speech_ratio": 0.5, "min_video_speech_ratio": 0.15,
         "weights": {"heatmap": 0.5, "audio": 0.25, "keywords": 0.25},
         "keywords": ["incroyable", "regardez", "énorme", "confirmé", "nouveau", "map", "date de sortie"],
         "llm": {"enabled": False, "model": "claude-haiku-5-5", "weight": 0.3},

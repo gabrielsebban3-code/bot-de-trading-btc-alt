@@ -241,3 +241,21 @@ def test_transcribe_regions_offsets_timestamps(tmp_path, monkeypatch):
     segs = transcribe.transcribe(wav, "v", tcfg, DB(tmp_path / "db.sqlite"), regions=[(10.0, 30.0), (60.0, 70.0)])
     assert calls == [(320000, 1), (160000, 1)]
     assert [s["start"] for s in segs] == [11.0, 61.0] and segs[1]["words"][0][:2] == [61.0, 61.5]
+
+
+def test_silent_loud_passage_loses_to_speech():
+    dur = 600
+    rms = np.full(dur, -35.0)
+    rms[100:140] = -3.0  # explosions sans commentaire
+    rms[400:440] = -12.0  # quelqu'un parle avec enthousiasme
+    spans = [[390, 450]]
+    speech = scoring.speech_signal(spans, dur)
+    without = scoring.select_moments(dur, [], None, rms, M)
+    with_speech = scoring.select_moments(dur, [], None, rms, M, speech)
+    assert without[0]["start"] < 140
+    assert 380 <= with_speech[0]["start"] <= 420 and with_speech[0]["signals"]["parole"] > 0.5
+
+
+def test_speech_adjust_no_speech_detected_leaves_scores():
+    ws = np.array([0.2, 0.8])
+    assert np.allclose(scoring.speech_adjust(ws, np.zeros(40), 30, 0.5), ws)
