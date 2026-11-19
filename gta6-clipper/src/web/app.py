@@ -239,6 +239,13 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
             return JSONResponse({"started": False, "error": "un traitement tourne déjà"}, status_code=409)
         return {"started": True}
 
+    @app.post("/api/cancel")
+    def cancel():
+        if not jobs.status().get("running"):
+            return JSONResponse({"cancelling": False, "error": "aucun traitement en cours"}, status_code=409)
+        (data / "cancel").write_text("1")  # lu par le pipeline, qu'il tourne ici ou dans un terminal
+        return {"cancelling": True}
+
     @app.get("/api/job")
     def job():
         return jobs.status()

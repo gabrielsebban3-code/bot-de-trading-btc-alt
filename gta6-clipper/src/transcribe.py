@@ -76,7 +76,7 @@ def detect_language(wav_path, tcfg, duration, spans=None):
     return lang, prob
 
 
-def transcribe(wav_path, vid, tcfg, db, on_progress=None, regions=None):
+def transcribe(wav_path, vid, tcfg, db, on_progress=None, regions=None, cancel_check=None):
     """Segments + horaires par mot. regions=[(début, fin)] : ne transcrit que ces zones (mode rapide).
     on_progress(pourcentage) tous les 5 %."""
     beam = mode_of(tcfg)[1]
@@ -95,6 +95,8 @@ def transcribe(wav_path, vid, tcfg, db, on_progress=None, regions=None):
         segs, _ = model.transcribe(chunk, language=tcfg["language"], vad_filter=True, word_timestamps=True,
                                    beam_size=beam)
         for s in segs:
+            if cancel_check:
+                cancel_check()  # lève une exception si l'utilisateur a annulé
             text = s.text.strip()
             if text:
                 words = [[round(w.start + rs, 2), round(w.end + rs, 2), w.word.strip()]

@@ -122,3 +122,35 @@ def test_external_job_state_visible_and_blocks_start(env):
     state["updated_at"] = time.time() - 120
     (data / "job.json").write_text(json.dumps(state))
     assert read_state(data / "job.json")["running"] is False
+
+
+def test_cancel_endpoint(env):
+    import json
+    data, _ = env
+    c = client(env)
+    assert c.post("/api/cancel").status_code == 409            # rien ne tourne
+    (data / "job.json").write_text(json.dumps({"running": True, "stages": [], "log": [], "updated_at": time.time()}))
+    assert c.post("/api/cancel").json() == {"cancelling": True}
+    assert (data / "cancel").exists()
+
+
+def test_pipeline_stops_on_cancel_and_keeps_video_unmarked(tmp_path, monkeypatch):
+    from src import jobs
+    from src.config import DEFAULTS
+    db = DB(tmp_path / "db.sqlite")
+    monkeypatch.setattr(jobs, "data_dir", lambda: tmp_path)
+    vids = [{"id": f"vid0000000{i}", "title": f"V{i}", "channel": "C", "duration": 300} for i in (1, 2)]
+    monkeypatch.setattr(jobs.search, "search_videos", lambda scfg, db: vids)
+    seen = []
+
+    def fake_process(cand, cfg, db, data, workdir, progress, dry_run=False):
+        seen.append(cand["id"])
+        jobs.cancel_file(data).write_text("1")      # l'utilisateur clique sur Annuler pendant la 1re vidéo
+        jobs.check_cancel(data, progress)
+
+    monkeypatch.setattr(jobs, "process_video", fake_process)
+    res = jobs.run_pipeline(DEFAULTS, db=db)
+    assert res.get("cancelled") and seen == ["vid00000001"]
+    assert db.list_videos() == []                   # ni « erreur » ni « traitée » : on pourra la relancer
+    assert not jobs.cancel_file(tmp_path).exists()  # la demande ne bloque pas le prochain traitement
+    assert jobs.read_state(tmp_path / "job.json")["running"] is False

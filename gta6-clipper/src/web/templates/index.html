@@ -3,6 +3,7 @@
 <section class="job" id="job" data-running="{{ 1 if job.running else 0 }}">
   <div class="job-actions">
     <button id="run-btn" class="primary" {% if job.running %}disabled{% endif %}>Lancer une recherche maintenant</button>
+    <button id="cancel-btn" class="danger" {% if not job.running %}hidden{% endif %}>Annuler le traitement</button>
     <form id="url-form" class="url-form">
       <input type="url" name="url" placeholder="ou colle un lien YouTube à traiter" required>
       <button {% if job.running %}disabled{% endif %}>Traiter cette vidéo</button>

@@ -329,3 +329,30 @@ def test_fast_mode_keywords_break_ties_between_candidates():
             s["text"] = "oh non c'est fou, j'y crois pas, mdr !"
     best = scoring.select_moments(dur, segs, hm, rms, m, regions=regions)[0]
     assert 880 <= best["start"] <= 935
+
+
+def test_transcribe_can_be_cancelled_mid_way(tmp_path, monkeypatch):
+    import wave
+    import pytest
+    from types import SimpleNamespace
+    from src import transcribe
+    from src.db import DB
+    wav = tmp_path / "a.wav"
+    with wave.open(str(wav), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(b"\x00\x00" * 16000 * 10)
+
+    class FakeModel:
+        def transcribe(self, audio, **kw):
+            return (SimpleNamespace(start=i, end=i + 1, text=" x", words=[]) for i in range(10)), None
+
+    monkeypatch.setattr(transcribe, "get_model", lambda tcfg: FakeModel())
+    calls = []
+
+    def check():
+        calls.append(1)
+        if len(calls) == 3:
+            raise RuntimeError("annulé")
+
+    with pytest.raises(RuntimeError):
+        transcribe.transcribe(wav, "v", DEFAULTS["transcription"], DB(tmp_path / "db.sqlite"), cancel_check=check)
+    assert len(calls) == 3

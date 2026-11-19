@@ -11,7 +11,7 @@
   const jobBox = $("job");
   if (jobBox) {
     const btn = $("run-btn"), info = $("job-info"), logEl = $("job-log"), urlForm = $("url-form");
-    const urlBtn = urlForm.querySelector("button");
+    const urlBtn = urlForm.querySelector("button"), cancelBtn = $("cancel-btn");
     let wasRunning = jobBox.dataset.running === "1", lastClips = null;
     const playerOpen = () => { const p = $("player"); return p && !p.hidden; };
     const render = (j) => {
@@ -21,7 +21,11 @@
         el.classList.toggle("done", j.running && i < idx);
       });
       btn.disabled = urlBtn.disabled = j.running;
+      cancelBtn.hidden = !j.running;
+      if (!j.running) cancelBtn.disabled = false;
+      if (j.cancelling) cancelBtn.disabled = true;
       const parts = [];
+      if (j.running && (j.cancelling || cancelBtn.disabled)) parts.push("Annulation en cours : arrêt à la fin de l'étape en cours…");
       if (j.running) parts.push(j.video_total ? `Vidéo ${j.video_index}/${j.video_total} : ${j.video}` : "Recherche en cours…");
       if (j.running && j.detail) parts.push(j.detail);
       if (j.clips) parts.push(`${j.clips} clip(s) créé(s)`);
@@ -50,6 +54,13 @@
       }).finally(poll);
     };
     btn.addEventListener("click", () => launch(new FormData()));
+    cancelBtn.addEventListener("click", () => {
+      if (!confirm("Annuler le traitement en cours ? Les clips déjà créés sont gardés.")) return;
+      cancelBtn.disabled = true;
+      fetch("/api/cancel", { method: "POST" }).then((r) => r.json()).then((r) => {
+        if (!r.cancelling) { cancelBtn.disabled = false; info.textContent = r.error || "Impossible d'annuler"; }
+      }).finally(poll);
+    });
     urlForm.addEventListener("submit", (e) => { e.preventDefault(); launch(new FormData(urlForm)); urlForm.reset(); });
     poll();
     setInterval(poll, 2000);

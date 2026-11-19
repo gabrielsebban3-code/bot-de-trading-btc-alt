@@ -18,6 +18,22 @@ class SkipVideo(Exception):
     pass
 
 
+class Cancelled(Exception):
+    pass
+
+
+def cancel_file(data: Path) -> Path:
+    return data / "cancel"
+
+
+def check_cancel(data: Path, progress=None):
+    """Annulation coopérative : le site dépose data/cancel, le pipeline s'arrête au prochain point de contrôle."""
+    if cancel_file(data).exists():
+        if progress:
+            progress.update(cancelling=True)
+        raise Cancelled()
+
+
 def read_state(path: Path):
     """État d'un job (lancé par le site ou le terminal). Sans battement depuis 60 s : considéré arrêté."""
     try:
@@ -34,7 +50,7 @@ class Progress:
         self.state_file = state_file
         self._lock = threading.Lock()
         self.state = {"running": False, "stage": None, "stages": STAGES, "video": "", "video_index": 0,
-                      "video_total": 0, "detail": "", "clips": 0, "errors": 0, "log": [], "error": None,
+                      "video_total": 0, "detail": "", "cancelling": False, "clips": 0, "errors": 0, "log": [], "error": None,
                       "started_at": None, "finished_at": None}
 
     def _save(self):
@@ -65,6 +81,7 @@ class Progress:
 
 def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     vid, t_video = cand["id"], time.time()
+    check_cancel(data, progress)
     progress.update(stage="téléchargement", detail="")
     t = time.time()
     heatmap = cand.get("heatmap")
@@ -86,6 +103,7 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     if comments is not None:
         progress.log(f"Commentaires : {len(comments)} moment(s) cité(s) par les spectateurs")
 
+    check_cancel(data, progress)
     progress.update(stage="transcription", detail="")
     t = time.time()
     if tcfg.get("check_language"):
@@ -105,12 +123,14 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
         else:
             progress.log("Pas de heatmap : transcription complète (le mode rapide en a besoin)")
     segments = transcribe.transcribe(wav, vid, tcfg, db, regions=regions,
+                                     cancel_check=lambda: check_cancel(data, progress),
                                      on_progress=lambda p: progress.update(detail=f"transcription {p} %"))
     progress.update(detail="")
     if not segments:
         progress.log("Transcription vide : découpe sur heatmap/audio uniquement", logging.WARNING)
     progress.log(f"Transcription : {len(segments)} segments en {time.time() - t:.0f} s")
 
+    check_cancel(data, progress)
     progress.update(stage="découpe")
     if not heatmap:
         progress.log("Pas de heatmap : signaux audio + mots-clés uniquement")
@@ -123,6 +143,7 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     progress.update(stage="rendu")
     made = []
     for m in moments:
+        check_cancel(data, progress)
         t = time.time()
         try:
             c = clip.make_clip(cand, m, segments, cfg, workdir, data)
@@ -151,7 +172,8 @@ def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep
     beat = threading.Event()
     threading.Thread(target=lambda: [progress.update() for _ in iter(lambda: beat.wait(10), True)],
                      daemon=True).start()
-    progress.update(running=True, stage="recherche", clips=0, errors=0, error=None, log=[],
+    cancel_file(data).unlink(missing_ok=True)  # demande d'annulation d'un traitement précédent
+    progress.update(running=True, stage="recherche", clips=0, errors=0, error=None, log=[], cancelling=False,
                     started_at=time.time(), finished_at=None, video="", video_index=0, video_total=0)
     workdir = data / "tmp" / f"run_{int(time.time())}"
     workdir.mkdir(parents=True, exist_ok=True)
@@ -166,6 +188,10 @@ def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep
         progress.log(f"Recherche : {len(cands)} vidéo(s) retenue(s) ({time.time() - t0:.0f}s)")
         progress.update(video_total=len(cands))
         for i, cand in enumerate(cands, 1):
+            if cancel_file(data).exists():
+                summary["cancelled"] = True
+                progress.log("Annulé : arrêt demandé", logging.WARNING)
+                break
             progress.update(video=f"{cand['title']} — {cand['channel']}", video_index=i)
             progress.log(f"[{i}/{len(cands)}] {cand['title']} ({cand['channel']})")
             try:
@@ -176,6 +202,12 @@ def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep
                 else:
                     summary["clips"] += len(res)
                     db.upsert_video(cand, "ok")
+            except Cancelled:
+                summary["cancelled"] = True
+                summary["clips"] = progress.snapshot()["clips"]  # clips finis avant l'arrêt
+                progress.log(f"Annulé : arrêt demandé, {progress.snapshot()['clips']} clip(s) déjà créé(s) gardé(s)",
+                             logging.WARNING)
+                break
             except (SkipVideo, download.VideoUnavailable) as e:
                 progress.log(f"Ignorée : {e}", logging.WARNING)
                 if not dry_run:
@@ -196,10 +228,11 @@ def run_pipeline(cfg=None, db=None, progress=None, dry_run=False, url=None, keep
         progress.log(f"Échec : {e}", logging.ERROR)
         summary["fatal"] = str(e)
     finally:
+        cancel_file(data).unlink(missing_ok=True)
         if not keep_temp:
             shutil.rmtree(workdir, ignore_errors=True)
         beat.set()
-        progress.update(running=False, stage=None, finished_at=time.time())
+        progress.update(running=False, stage=None, cancelling=False, finished_at=time.time())
         progress.log(f"Terminé : {summary['clips']} clip(s), {summary['errors']} erreur(s)")
     return summary
 
