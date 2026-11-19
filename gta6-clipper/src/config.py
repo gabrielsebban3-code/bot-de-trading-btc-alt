@@ -19,7 +19,7 @@ DEFAULTS = {
     "moments": {
         "clips_per_video": 3, "min_clip_s": 60, "max_clip_s": 90, "target_clip_s": 70,
         "min_gap_s": 60, "margin_s": 0.5, "learn_from_ratings": True, "min_speech_ratio": 0.5, "min_video_speech_ratio": 0.15,
-        "weights": {"heatmap": 0.5, "audio": 0.25, "keywords": 0.25, "comments": 0.4},
+        "weights": {"heatmap": 0.5, "audio": 0.25, "keywords": 0.25, "comments": 0.4, "chat": 0.6},
         "skip_intro_s": 60, "skip_outro_s": 45,
         # réactions orales (s'ajoutent à keywords, même si config.yaml a sa propre liste)
         "reaction_words": ["mdr", "ptdr", "wow", "waouh", "putain", "oh non", "oh là", "c'est fou", "c'est ouf",

@@ -444,22 +444,35 @@ def test_windows_scripts_are_crlf_ascii():
         assert raw.count(b"\n") == raw.count(b"\r\n") > 3
 
 
-def test_twitch_kick_and_heistclips_links():
-    from src.download import video_id, watch_url, moment_url, url_time
-    tw = "https://www.twitch.tv/videos/2933600681?t=0h40m52s"
-    assert video_id(tw) == "twitch-2933600681" and url_time(tw) == 2452
-    assert watch_url("twitch-2933600681") == "https://www.twitch.tv/videos/2933600681"
-    assert moment_url("twitch-2933600681", 2452) == "https://www.twitch.tv/videos/2933600681?t=0h40m52s"
-    hc = "https://heistclips.com/clip?q=2933600681&t=2452"
-    assert video_id(hc) == "twitch-2933600681" and url_time(hc) == 2452
-    kick = "https://kick.com/3li_boltx/videos/0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0"
-    kid = video_id(kick)
-    assert kid == "kick_3li_boltx_0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0" and watch_url(kid) == kick
-    assert video_id("https://youtu.be/Yf1o5Ccu6Lg?t=2480") == "Yf1o5Ccu6Lg"
-    assert moment_url("Yf1o5Ccu6Lg", 2480.7) == "https://youtu.be/Yf1o5Ccu6Lg?t=2480"
+def test_youtube_only_links():
     import pytest
+    from src.download import video_id, moment_url, url_time
+    assert video_id("https://youtu.be/Yf1o5Ccu6Lg?t=2480") == "Yf1o5Ccu6Lg" and url_time("https://youtu.be/Yf1o5Ccu6Lg?t=2480") == 2480
+    assert moment_url("Yf1o5Ccu6Lg", 2480.7) == "https://youtu.be/Yf1o5Ccu6Lg?t=2480"
     with pytest.raises(ValueError):
-        video_id("https://www.twitch.tv/squeezie")   # chaîne en direct : il faut une rediffusion
+        video_id("https://www.twitch.tv/videos/2933600681")
+
+
+def test_live_chat_parsed_and_burst_detected():
+    import json
+    from src.download import parse_live_chat
+
+    def line(ms, text):
+        item = {"replayChatItemAction": {"actions": [{"addChatItemAction": {"item": {"liveChatTextMessageRenderer": {
+            "message": {"runs": [{"text": text}]}}}}}], "videoOffsetTimeMsec": str(ms)}}
+        return json.dumps(item, ensure_ascii=False)
+
+    lines = [line(t * 1000, "on avance") for t in range(0, 1200, 4)]          # rythme normal
+    lines += [line(600_000 + i * 100, "MDRRR 😂") for i in range(60)]          # explosion à 10:00
+    lines.append('{"other": "sans horodatage"}')
+    msgs, fun = parse_live_chat(lines, 1200)
+    assert sum(msgs) == 300 + 60 and fun[603] > 0 and fun[100] == 0
+    sig = scoring.chat_signal({"messages": msgs, "reactions": fun}, 1200)
+    assert 590 <= int(np.argmax(sig)) <= 606                                    # avancé : réaction après le moment
+    dur = 1200
+    m = scoring.select_moments(dur, [], None, np.full(dur, -30.0), {**M, "clips_per_video": 1},
+                               chat={"messages": msgs, "reactions": fun})[0]
+    assert m["start"] <= 596 <= m["end"] and m["signals"]["chat"] > 0.1   # explosion de 6 s dans un clip de 33 s
 
 
 def test_transcribe_offset_shifts_timestamps(tmp_path, monkeypatch):
@@ -476,5 +489,5 @@ def test_transcribe_offset_shifts_timestamps(tmp_path, monkeypatch):
             return iter([SimpleNamespace(start=1.0, end=2.0, text=" mdr", words=[SimpleNamespace(start=1.0, end=1.4, word=" mdr")])]), None
 
     monkeypatch.setattr(transcribe, "get_model", lambda tcfg: FakeModel())
-    segs = transcribe.transcribe(wav, "twitch-1", DEFAULTS["transcription"], DB(tmp_path / "db.sqlite"), offset=2432.0)
+    segs = transcribe.transcribe(wav, "abcdefghijk", DEFAULTS["transcription"], DB(tmp_path / "db.sqlite"), offset=2432.0)
     assert segs[0]["start"] == 2433.0 and segs[0]["words"][0][:2] == [2433.0, 2433.4]

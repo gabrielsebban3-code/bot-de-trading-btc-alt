@@ -34,6 +34,7 @@ moments:
     heatmap: 0.5
     audio: 0.25
     keywords: 0.25
+    chat: 0.6             # rediffusions de lives : le chat qui s'emballe (« mdr », 😂, chat 5x plus rapide)
     comments: 0.4         # instants cités dans les commentaires (« 23:45 mdr »), quand il y en a
   keywords: [incroyable, regardez, regarde, énorme, enorme, confirmé, confirme, nouveau, nouvelle,
     map, carte, date de sortie, sortie, officiel, exclusif, fuite, leak, trailer, secret, dingue,

@@ -5,7 +5,7 @@
     <button id="run-btn" class="primary" {% if job.running %}disabled{% endif %}>Lancer une recherche maintenant</button>
     <button id="cancel-btn" class="danger" {% if not job.running %}hidden{% endif %}>Annuler le traitement</button>
     <form id="url-form" class="url-form">
-      <input type="url" name="url" placeholder="ou colle un lien YouTube, Twitch ou Kick (ou un lien heistclips)" required>
+      <input type="url" name="url" placeholder="ou colle un lien YouTube à traiter" required>
       <input type="text" name="at" class="at-input" placeholder="à 41:20 ? (facultatif)" title="Minutage d'un moment précis : un seul clip est créé autour. Un lien « partager à partir de » marche aussi.">
       <button {% if job.running %}disabled{% endif %}>Traiter cette vidéo</button>
     </form>

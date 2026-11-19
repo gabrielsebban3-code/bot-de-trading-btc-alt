@@ -38,51 +38,22 @@ def ffmpeg(*args, cwd=None):
         raise RuntimeError("ffmpeg : " + "\n".join(r.stderr.strip().splitlines()[-20:]))
 
 
-KICK_UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-
-
 def video_id(url_or_id: str) -> str:
-    """Identifiant interne : YouTube (11 car.), « twitch-<n> » (rediffusion Twitch, aussi les liens heistclips),
-    « kick_<chaîne>_<uuid> » (rediffusion Kick)."""
-    s = url_or_id or ""
-    m = re.search(r"twitch\.tv/videos/(\d+)", s) or re.search(r"heistclips\.com/clip\?q=(\d{6,})", s)
-    if m:
-        return f"twitch-{m.group(1)}"
-    m = re.search(r"kick\.com/([\w-]+)/videos/(" + KICK_UUID + ")", s)
-    if m:
-        return f"kick_{m.group(1)}_{m.group(2)}"
-    if re.fullmatch(r"twitch-\d+|kick_[\w-]+_" + KICK_UUID, s):
-        return s
-    m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([\w-]{11})", s)
+    m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([\w-]{11})", url_or_id or "")
     if m:
         return m.group(1)
-    if re.fullmatch(r"[\w-]{11}", s):
-        return s
-    raise ValueError(f"Lien non reconnu (YouTube, rediffusion Twitch ou Kick) : {url_or_id}")
-
-
-def platform(vid: str) -> str:
-    return "twitch" if vid.startswith("twitch-") else "kick" if vid.startswith("kick_") else "youtube"
+    if re.fullmatch(r"[\w-]{11}", url_or_id or ""):
+        return url_or_id
+    raise ValueError(f"Lien YouTube non reconnu : {url_or_id}")
 
 
 def watch_url(vid: str) -> str:
-    p = platform(vid)
-    if p == "twitch":
-        return f"https://www.twitch.tv/videos/{vid[7:]}"
-    if p == "kick":
-        return f"https://kick.com/{vid[5:-37]}/videos/{vid[-36:]}"
     return f"https://www.youtube.com/watch?v={vid}"
 
 
 def moment_url(vid: str, seconds: float) -> str:
-    """Lien vers la vidéo originale à cet instant."""
-    t = int(seconds)
-    p = platform(vid)
-    if p == "twitch":
-        return f"{watch_url(vid)}?t={t // 3600}h{t % 3600 // 60}m{t % 60}s"
-    if p == "kick":
-        return f"{watch_url(vid)}?t={t}"
-    return f"https://youtu.be/{vid}?t={t}"
+    """Lien vers la vidéo YouTube originale à cet instant."""
+    return f"https://youtu.be/{vid}?t={int(seconds)}"
 
 
 def fetch_info(url_or_id: str, db, max_age_h: float = 24) -> dict:
@@ -116,6 +87,7 @@ def info_to_candidate(info: dict) -> dict:
         "url": watch_url(info["id"]), "published_at": pub.isoformat() if pub else None,
         "duration": info.get("duration") or 0, "views": info.get("view_count") or 0, "likes": info.get("like_count") or 0,
         "live": info.get("live_status") in ("is_live", "is_upcoming"), "language": info.get("language"),
+        "was_live": info.get("live_status") == "was_live",
         "heatmap": info.get("heatmap"),
     }
 
@@ -214,3 +186,54 @@ def url_time(url):
     """Minutage d'un lien « partager à partir de » (…?t=2480 ou &t=41m20s)."""
     m = re.search(r"[?&#](?:t|start)=([\dhms.]+)", url or "")
     return parse_time(m.group(1)) if m else None
+
+
+# --- chat des rediffusions de lives YouTube (le signal de heistclips, en local) ---
+CHAT_FUN = re.compile(r"(?<!\w)(mdr+|ptdr+|x+d+|a?h+a+h+a*\w*|clip+|omg|wtf|ptn|gg+|oh+|no+n+)(?!\w)")
+CHAT_FUN_EMOJI = ("😂", "🤣", "💀", "face_with_tears_of_joy", "rolling_on_the_floor_laughing", "skull")
+CHAT_TIME = re.compile(r'"videoOffsetTimeMsec"\s*:\s*"(\d+)"')
+CHAT_TEXT = re.compile(r'"text"\s*:\s*"((?:[^"\\]|\\.)*)"')
+
+
+def parse_live_chat(lines, duration):
+    """Fichier live_chat.json de yt-dlp (une action par ligne) -> messages et réactions (« mdr », 😂…) par seconde."""
+    n = int(math.ceil(duration))
+    msgs, fun = [0] * n, [0] * n
+    for line in lines:
+        m = CHAT_TIME.search(line)
+        if not m or "addChatItemAction" not in line:
+            continue
+        t = int(m.group(1)) // 1000
+        if not 0 <= t < n:
+            continue
+        msgs[t] += 1
+        text = " ".join(CHAT_TEXT.findall(line)).lower()
+        if CHAT_FUN.search(text) or any(e in line for e in CHAT_FUN_EMOJI):
+            fun[t] += 1
+    return msgs, fun
+
+
+def fetch_chat_counts(vid, db, duration, workdir: Path):
+    """Chat d'une rediffusion de live YouTube, réduit à des comptes par seconde (mis en cache). None si absent."""
+    key = f"chat:{vid}"
+    cached = db.cache_get(key)
+    if cached is not None:
+        return cached or None
+    opts = {**BASE_OPTS, "skip_download": True, "writesubtitles": True, "subtitleslangs": ["live_chat"],
+            "outtmpl": str(workdir / f"{vid}_chat.%(ext)s")}
+    try:
+        with YoutubeDL(opts) as y:
+            y.download([watch_url(vid)])
+    except Exception as e:
+        log.warning("Chat du live indisponible : %s", str(e).splitlines()[0])
+        return None
+    f = next(workdir.glob(f"{vid}_chat*.json"), None)
+    if not f:
+        db.cache_set(key, {})
+        return None
+    with open(f, encoding="utf-8", errors="ignore") as fh:
+        msgs, fun = parse_live_chat(fh, duration)
+    f.unlink(missing_ok=True)
+    out = {"messages": msgs, "reactions": fun} if any(msgs) else {}
+    db.cache_set(key, out)
+    return out or None

@@ -53,7 +53,7 @@ def _int(v, lo, hi, default):
         return default
 
 
-REASON_LABELS = {"manuel": "choisi à la main", "heatmap": "très revu", "comments": "cité en commentaire", "audio": "voix qui s'emballe",
+REASON_LABELS = {"manuel": "choisi à la main", "heatmap": "très revu", "comments": "cité en commentaire", "chat": "chat qui s'emballe", "audio": "voix qui s'emballe",
                  "keywords": "mots forts", "parole": "parole", "llm": "note IA"}
 
 
@@ -290,8 +290,7 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
             try:
                 video_id(url)
             except ValueError:
-                return JSONResponse({"started": False, "error": "lien non reconnu (YouTube, rediffusion Twitch ou Kick)"},
-                                    status_code=400)
+                return JSONResponse({"started": False, "error": "lien YouTube non reconnu"}, status_code=400)
         if not jobs.start(url or None, at):
             return JSONResponse({"started": False, "error": "un traitement tourne déjà"}, status_code=409)
         return {"started": True}

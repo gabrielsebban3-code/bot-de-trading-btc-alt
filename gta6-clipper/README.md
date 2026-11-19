@@ -76,7 +76,6 @@ gta6-clipper doctor
 - `--url` : traite une seule vidéo, sans les filtres de recherche.
 - `serve` : ouvre le site sur http://127.0.0.1:8000.
 - `run --url <lien> --at 41:20` : un seul clip autour de ce minutage. Un lien YouTube « partager à partir de » (`?t=2480`) marche aussi, comme le champ « à 41:20 ? » du site.
-- **Twitch, Kick et heistclips** : le champ du site et `--url` acceptent aussi une rediffusion Twitch (`twitch.tv/videos/…?t=0h40m52s`), une rediffusion Kick (`kick.com/<chaîne>/videos/<id>`) et un lien « cut it » de heistclips.com (`heistclips.com/clip?q=…&t=…`). Avec un minutage, seul l'audio du passage est téléchargé, ce qui compte pour un stream de plusieurs heures. Un stream en direct n'est pas pris en charge, seulement sa rediffusion. L'outil ne contacte jamais heistclips : tu y repères les moments (le chat qui s'emballe) et tu colles le lien.
 - `doctor` : vérifie l'installation (Python, ffmpeg, bibliothèques, recherche YouTube, modèle, port 8000). À lancer en premier si quelque chose ne marche pas.
 
 ## Mise à jour (Windows)
@@ -168,6 +167,7 @@ Les fichiers vont dans `data/clips/<id>.mp4`, `data/thumbs/<id>.jpg` et `data/db
   - le titre se modifie dans le lecteur du site : le clip est refait en retéléchargeant seulement son segment, ce qui demande la transcription du passage gardée en base (clips créés après cette version) ;
   - durée : **1 minute minimum par défaut (60-90 s)**, ou moyenne (35-60 s) ou courte (20-45 s) dans la page Réglages. Un `config.yaml` existant passe automatiquement à 60-90 s une fois (`version: 2`).
 - **Notes 👍 / 👎** (boutons du lecteur, touches B et N) : dès 3 bons et 3 nuls, chaque traitement ajuste le poids de chaque signal. Un signal plus fort dans les bons clips que dans les nuls pèse plus, et inversement, avec un facteur entre 0,3 et 2. Les poids utilisés sont affichés dans Réglages et dans le journal. On le désactive avec `moments.learn_from_ratings: false`.
+- **Chat des lives YouTube** : pour la rediffusion d'un live, le chat est récupéré localement par yt-dlp et réduit à des comptes par seconde (gardés en cache). Le signal mesure la vitesse du chat par rapport à son rythme habituel (médiane sur 5 min), plus les réactions (« mdr », « ptdr », 😂, « clip »…), avancé de 6 s parce que les spectateurs réagissent après le moment. Poids `chat: 0.6`. C'est la méthode de heistclips, sans service tiers.
 - **Parole obligatoire** : un détecteur de voix (VAD Silero, inclus dans faster-whisper, quelques secondes) repère où quelqu'un parle. Un passage où l'on parle moins de 50 % du temps est quasi éliminé (`min_speech_ratio`). Une vidéo où l'on parle moins de 15 % du temps est ignorée (`min_video_speech_ratio`).
 - **Vitesse** (`transcription.mode`, réglable dans la page Réglages) :
   - `rapide` (défaut) : les candidats sont repérés avec la heatmap et l'audio, puis seuls leurs alentours (±20 s) sont transcrits. Le signal mots-clés ne sert alors plus au choix des moments. Sans heatmap, la transcription est complète.

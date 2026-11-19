@@ -102,6 +102,15 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     comments = download.fetch_comment_stamps(vid, db, cand["duration"]) if mcfg["weights"].get("comments") else None
     if comments is not None:
         progress.log(f"Commentaires : {len(comments)} moment(s) cité(s) par les spectateurs")
+    chat = None
+    if mcfg["weights"].get("chat"):
+        was_live = cand.get("was_live")
+        if was_live is None:
+            was_live = download.fetch_info(vid, db).get("live_status") == "was_live"
+        if was_live:  # rediffusion d'un live : le chat qui s'emballe est le meilleur indice
+            chat = download.fetch_chat_counts(vid, db, cand["duration"], workdir)
+            progress.log(f"Chat du live : {sum(chat['messages'])} messages analysés" if chat
+                         else "Chat du live indisponible")
 
     check_cancel(data, progress)
     progress.update(stage="transcription", detail="")
@@ -112,11 +121,11 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
             raise SkipVideo(f"langue détectée : {lang} ({prob:.0%})")
     regions = None
     if transcribe.mode_of(tcfg)[0]:
-        if heatmap:
+        if heatmap or chat:
             # mode rapide : candidats choisis sans transcription, on ne transcrit que leurs alentours,
             # puis les mots-clés départagent les candidats
             wins = scoring.candidate_windows(cand["duration"], heatmap, rms, mcfg, int(mcfg["clips_per_video"]) * 3,
-                                             speech, comments)
+                                             speech, comments, chat)
             regions = scoring.merge_regions(wins, cand["duration"])
             progress.log(f"Mode rapide : {sum(e - s for s, e in regions) / 60:.1f} min à transcrire "
                          f"sur {cand['duration'] / 60:.1f} min")
@@ -134,7 +143,7 @@ def process_video(cand, cfg, db, data, workdir, progress, dry_run=False):
     progress.update(stage="découpe")
     if not heatmap:
         progress.log("Pas de heatmap : signaux audio + mots-clés uniquement")
-    moments = scoring.select_moments(cand["duration"], segments, heatmap, rms, mcfg, speech, comments, regions)
+    moments = scoring.select_moments(cand["duration"], segments, heatmap, rms, mcfg, speech, comments, regions, chat)
     moments = scoring.llm_rescore(moments, segments, mcfg, db)
     wav.unlink(missing_ok=True)
     if dry_run:

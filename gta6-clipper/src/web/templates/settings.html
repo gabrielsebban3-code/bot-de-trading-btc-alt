@@ -7,7 +7,7 @@
   {{ learning.good }} clip(s) noté(s) bon(s), {{ learning.bad }} nul(s).
   {% if learning.learned %}
   Poids utilisés au prochain traitement :
-  {% for k, v in learning.weights.items() %}{{ {'heatmap': 'très revu', 'audio': 'voix', 'keywords': 'mots forts', 'comments': 'commentaires'}.get(k, k) }} {{ '%.2f'|format(v) }}{% if v != learning.base[k] %} (au lieu de {{ '%.2f'|format(learning.base[k]) }}){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
+  {% for k, v in learning.weights.items() %}{{ {'heatmap': 'très revu', 'audio': 'voix', 'keywords': 'mots forts', 'comments': 'commentaires', 'chat': 'chat du live'}.get(k, k) }} {{ '%.2f'|format(v) }}{% if v != learning.base[k] %} (au lieu de {{ '%.2f'|format(learning.base[k]) }}){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
   {% else %}
   Note au moins 3 bons et 3 nuls (boutons dans le lecteur) pour que l'outil adapte le choix des moments à tes goûts.
   {% endif %}

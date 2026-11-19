@@ -229,7 +229,21 @@ def edge_mask(count, length, duration, mcfg):
     return (t >= a) & (t + length <= duration - b)
 
 
-def score_windows(duration, segments, heatmap, rms, mcfg, speech=None, comments=None, regions=None):
+def chat_signal(chat, n, lag=6):
+    """Chat d'un live : vitesse par rapport à son rythme habituel (médiane sur 5 min) + réactions (« mdr », 😂).
+    Avancé de `lag` secondes : les spectateurs réagissent après le moment."""
+    if not chat or not any(chat.get("messages", [])) or n <= 0:
+        return None
+    k = np.ones(5) / 5
+    speed = np.convolve(resize(chat["messages"], n), k, "same")
+    fun = np.convolve(resize(chat.get("reactions", []), n), k, "same")
+    base = rolling_median(speed, 301) + 0.5
+    sig = np.clip(speed / base - 1, 0, None) + 2.0 * fun / base  # 0 = rythme normal ; 7 = chat 8x plus rapide
+    sig = np.concatenate([sig[lag:], np.zeros(min(lag, n))])[:n]
+    return normalize(sig)
+
+
+def score_windows(duration, segments, heatmap, rms, mcfg, speech=None, comments=None, regions=None, chat=None):
     """Note de chaque fenêtre de clip possible (-1 = interdite). Partagée par le mode rapide et la sélection."""
     n = int(np.ceil(duration))
     sp = resize(speech, n) if speech is not None else None
@@ -239,6 +253,7 @@ def score_windows(duration, segments, heatmap, rms, mcfg, speech=None, comments=
         "audio": voice_excitement(rms, sp),
         "keywords": keyword_signal(segments, n, words),
         "comments": comments_signal(comments, n),
+        "chat": chat_signal(chat, n),
     }
     sig = combine(signals, mcfg["weights"], n)
     length = int(mcfg["target_clip_s"])
@@ -254,9 +269,9 @@ def score_windows(duration, segments, heatmap, rms, mcfg, speech=None, comments=
     return ws, signals, length
 
 
-def select_moments(duration, segments, heatmap, rms, mcfg, speech=None, comments=None, regions=None):
+def select_moments(duration, segments, heatmap, rms, mcfg, speech=None, comments=None, regions=None, chat=None):
     n = int(np.ceil(duration))
-    ws, signals, length = score_windows(duration, segments, heatmap, rms, mcfg, speech, comments, regions)
+    ws, signals, length = score_windows(duration, segments, heatmap, rms, mcfg, speech, comments, regions, chat)
     k, gap = int(mcfg["clips_per_video"]), float(mcfg["min_gap_s"])
     out = []
     for t0, t1 in pick_windows(ws, k * 3, length, gap):
@@ -316,9 +331,9 @@ def llm_rescore(moments, segments, mcfg, db):
 
 
 # --- mode rapide : repérer les candidats avant toute transcription ---
-def candidate_windows(duration, heatmap, rms, mcfg, n, speech=None, comments=None):
+def candidate_windows(duration, heatmap, rms, mcfg, n, speech=None, comments=None, chat=None):
     """Candidats avant transcription (mode rapide) : mêmes notes que select_moments, sans les mots-clés."""
-    ws, _, length = score_windows(duration, [], heatmap, rms, mcfg, speech, comments)
+    ws, _, length = score_windows(duration, [], heatmap, rms, mcfg, speech, comments, chat=chat)
     return [w for w in pick_windows(ws, n, length, float(mcfg["min_gap_s"])) if ws[min(w[0], len(ws) - 1)] >= 0]
 
 
@@ -341,7 +356,7 @@ def manual_window(at, duration, mcfg):
 
 
 # ---------- apprentissage à partir des notes Bon / Nul ----------
-LEARNABLE = ("heatmap", "audio", "keywords", "comments")
+LEARNABLE = ("heatmap", "audio", "keywords", "comments", "chat")
 
 
 def learn_weights(rated, base, min_each=3):
