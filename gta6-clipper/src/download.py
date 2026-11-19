@@ -39,7 +39,7 @@ def ffmpeg(*args, cwd=None):
 
 
 def video_id(url_or_id: str) -> str:
-    m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([\w-]{11})", url_or_id or "")
+    m = re.search(r"(?:[?&]v=|youtu\.be/|shorts/|embed/|live/)([\w-]{11})(?![\w-])", url_or_id or "")
     if m:
         return m.group(1)
     if re.fullmatch(r"[\w-]{11}", url_or_id or ""):

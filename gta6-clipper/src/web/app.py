@@ -244,7 +244,7 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         path = cliplib.clip_paths(data, cid)[0]
         if not path.exists():
             raise HTTPException(404)
-        return FileResponse(path, media_type="video/mp4")
+        return FileResponse(path, media_type="video/mp4", headers={"Cache-Control": "no-cache"})
 
     @app.get("/thumbs/{cid}.jpg")
     def thumb(cid: str):
@@ -257,7 +257,8 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
     @app.get("/download/{cid}")
     def download(cid: str):
         get_clip_or_404(cid)
-        return FileResponse(cliplib.clip_paths(data, cid)[0], media_type="video/mp4", filename=f"{cid}.mp4")
+        return FileResponse(cliplib.clip_paths(data, cid)[0], media_type="video/mp4", filename=f"{cid}.mp4",
+                            headers={"Cache-Control": "no-store"})  # jamais l'ancienne version après un nouveau titre
 
     # --- API ---
     @app.post("/api/clips/{cid}/seen")
@@ -370,14 +371,15 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
             return JSONResponse({"started": False, "error": "minutage illisible (exemple : 41:20)"}, status_code=400)
         if at is not None and not url:
             return JSONResponse({"started": False, "error": "colle aussi le lien de la vidéo"}, status_code=400)
+        vid = None
         if url:
             try:
-                video_id(url)
+                vid = video_id(url)
             except ValueError:
                 return JSONResponse({"started": False, "error": "lien YouTube non reconnu"}, status_code=400)
         if not jobs.start(url or None, at):
             return JSONResponse({"started": False, "error": "un traitement tourne déjà"}, status_code=409)
-        return {"started": True}
+        return {"started": True, "video": vid if url else None}
 
     @app.post("/api/cancel")
     def cancel():

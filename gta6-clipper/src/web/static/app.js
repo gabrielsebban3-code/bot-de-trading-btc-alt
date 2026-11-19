@@ -52,7 +52,10 @@
       btn.disabled = urlBtn.disabled = true;
       return fetch("/api/run", { method: "POST", body }).then((r) => r.json()).then((r) => {
         if (!r.started) { notice = `⚠ ${r.error || "Impossible de lancer"}`; noticeUntil = Date.now() + 8000; }
-        else { notice = ""; wasRunning = true; lastClips = 0; }
+        else {
+          notice = r.video ? `✔ Vidéo reconnue : youtu.be/${r.video}` : ""; noticeUntil = Date.now() + 15000;
+          wasRunning = true; lastClips = 0;
+        }
         return r.started;
       }).catch(() => { notice = "⚠ Le site ne répond pas (est-il lancé ?)"; noticeUntil = Date.now() + 8000; })
         .finally(poll);
@@ -102,7 +105,7 @@
     $("p-why").textContent = c.why ? `Pourquoi : ${c.why}` : "";
     $("p-fav").textContent = c.favorite ? "★ Favori" : "☆ Favori";
     showRating(c);
-    $("p-dl").href = `/download/${encodeURIComponent(c.id)}`;
+    $("p-dl").href = `/download/${encodeURIComponent(c.id)}?v=${c.file_size}`;
     $("p-dl2").href = $("p-dl").href;
     $("p-caption").value = c.caption || "";
     $("tt-panel").hidden = true;
