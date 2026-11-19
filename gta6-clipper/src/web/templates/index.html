@@ -22,6 +22,8 @@
     <option value="all" {% if f.show == 'all' %}selected{% endif %}>Tous</option>
     <option value="unseen" {% if f.show == 'unseen' %}selected{% endif %}>Non vus</option>
     <option value="fav" {% if f.show == 'fav' %}selected{% endif %}>Favoris</option>
+    <option value="unposted" {% if f.show == 'unposted' %}selected{% endif %}>Pas encore publiés</option>
+    <option value="posted" {% if f.show == 'posted' %}selected{% endif %}>Publiés</option>
   </select>
   <select name="video">
     <option value="">Toutes les vidéos</option>
@@ -60,6 +62,7 @@
       <img src="/thumbs/{{ c.id }}.jpg?v={{ c.file_size }}" alt="" loading="lazy">
       {% if not c.seen %}<span class="badge">NOUVEAU</span>{% endif %}
       <span class="favmark">★</span>
+      {% if c.posted %}<span class="postedmark">PUBLIÉ</span>{% endif %}
       <span class="dur">{{ c.duration }} s</span>
     </div>
     <div class="meta">
@@ -93,6 +96,18 @@
           <button id="p-bad" title="Clip nul (N) : l'outil s'en inspire">👎 Nul</button>
         </div>
         <a id="p-dl" class="btn" href="#">Télécharger</a>
+        <button id="p-tt">📤 Publier sur TikTok</button>
+        <div id="tt-panel" class="tt-panel" hidden>
+          <label for="p-caption" class="p-sub">Légende (modifiable), à coller dans TikTok</label>
+          <textarea id="p-caption" rows="5"></textarea>
+          <div class="tt-actions">
+            <button id="p-copy">1. Copier la légende</button>
+            <a id="p-dl2" class="btn" href="#">2. Télécharger la vidéo</a>
+            <a class="btn" href="https://www.tiktok.com/upload" target="_blank" rel="noopener noreferrer">3. Ouvrir TikTok</a>
+            <button id="p-posted">4. Marquer comme publié</button>
+          </div>
+          <p class="p-sub">Le site n'envoie rien à TikTok : c'est toi qui publies. Clips d'autres créateurs : le crédit ne remplace pas leur accord.</p>
+        </div>
         <a id="p-yt" class="btn" href="#" target="_blank" rel="noopener noreferrer">Voir la vidéo originale à ce moment</a>
         <button id="p-del" class="danger" title="Supprimer (Suppr)">Supprimer</button>
         <button id="p-close" title="Fermer (Échap)">Fermer</button>

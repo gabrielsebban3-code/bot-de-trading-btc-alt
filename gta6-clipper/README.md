@@ -101,6 +101,12 @@ La session est un cookie signé (HttpOnly, 30 jours). En mode local (`127.0.0.1`
 - La page Réglages modifie les requêtes, le nombre de vidéos et de clips, les listes de chaînes, les sous-titres et le nettoyage.
 - Aucun CDN, aucune police externe, aucun tracker. Une CSP `default-src 'self'` le garantit.
 
+## Publier sur TikTok (manuellement)
+
+Dans le lecteur, le bouton **« 📤 Publier sur TikTok »** prépare tout. Il propose une légende modifiable (titre, crédit avec le lien vers la vidéo originale au bon moment, hashtags réglables dans Réglages), un bouton pour la copier, le téléchargement de la vidéo et l'ouverture de tiktok.com/upload. **Le site n'envoie rien à TikTok** : c'est toi qui publies. « Marquer comme publié » ajoute un badge et permet de filtrer « Pas encore publiés / Publiés ».
+
+⚠️ Publier les clips d'autres créateurs, même crédités, n'équivaut pas à leur accord : TikTok peut retirer les vidéos ou sanctionner le compte. Une publication directe par l'API officielle de TikTok demanderait une application développeur, et elle est limitée à la visibilité privée tant que TikTok n'a pas audité l'application.
+
 ## Planification
 
 **Windows** : double-clique sur `planifier.bat`, puis choisis l'heure (18:00 par défaut). Un traitement est programmé chaque jour dans le Planificateur de tâches, via `lancer_run.bat`, avec un journal dans `data\run.log`. Il tourne si le PC est allumé et ta session ouverte. Pour l'arrêter : `schtasks /Delete /TN gta6-clipper /F`.

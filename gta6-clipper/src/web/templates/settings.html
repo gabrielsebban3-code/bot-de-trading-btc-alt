@@ -57,6 +57,8 @@
         {% if duration == 'perso' %}<option value="perso" selected>Personnalisée (config.yaml)</option>{% endif %}
       </select></label>
   </div>
+  <label>Hashtags ajoutés à la légende TikTok
+    <input type="text" name="hashtags" value="{{ cfg.publish.hashtags if cfg.publish else '' }}"></label>
   <label class="check"><input type="checkbox" name="jump_cuts" {% if cfg.render.jump_cuts %}checked{% endif %}> Couper les blancs et les « euh » (montage dynamique)</label>
   <label class="check"><input type="checkbox" name="subtitles" {% if cfg.render.subtitles %}checked{% endif %}> Sous-titres incrustés</label>
   <label class="check"><input type="checkbox" name="highlight" {% if cfg.render.subtitle_highlight %}checked{% endif %}> Mot prononcé surligné en jaune</label>

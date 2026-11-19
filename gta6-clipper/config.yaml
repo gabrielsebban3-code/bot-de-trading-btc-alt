@@ -64,6 +64,8 @@ render:
   preset: veryfast        # même qualité (CRF), encodage 2-3x plus rapide, fichiers un peu plus gros
   max_source_height: 1080
   font: DejaVu Sans
+publish:
+  hashtags: "#gta6 #gta6fr #gtavi #gta"   # ajoutés à la légende préparée pour TikTok
 cleanup:
   enabled: true
   max_age_days: 30

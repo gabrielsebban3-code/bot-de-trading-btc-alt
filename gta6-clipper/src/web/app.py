@@ -73,6 +73,12 @@ def duration_preset(m: dict) -> str:
     return next((k for k, v in DURATIONS.items() if v[:2] == cur), "perso")
 
 
+def tiktok_caption(c: dict, hashtags: str) -> str:
+    """Légende prête à coller : titre, crédit avec le lien vers la vidéo originale, hashtags."""
+    title = c.get("hook") or c["video_title"]
+    return f"{title}\n\n🎥 Source : {c['channel']} — {moment_url(c['video_id'], c['start'])}\n{hashtags}".strip()
+
+
 def clip_view(c: dict) -> dict:
     return {**c, "duration": round(c["end"] - c["start"]), "why": why(c.get("reasons")),
             "yt": moment_url(c["video_id"], c["start"]),
@@ -151,10 +157,12 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
     # --- pages ---
     @app.get("/")
     def index(request: Request, show: str = "all", video: str = "", channel: str = "", sort: str = "date"):
-        clips = [clip_view(c) for c in db.list_clips(show, video or None, channel or None, sort)]
+        hashtags = load_config().get("publish", {}).get("hashtags", "")
+        clips = [{**clip_view(c), "caption": tiktok_caption(c, hashtags)}
+                 for c in db.list_clips(show, video or None, channel or None, sort)]
         videos, channels = db.facets()
         js = [{k: c.get(k) for k in ("id", "video_title", "channel", "duration", "score", "favorite", "seen", "yt", "why",
-                                      "hook", "file_size", "rating")}
+                                      "hook", "file_size", "rating", "posted", "caption")}
               for c in clips]
         return page(request, "index.html", clips=clips, clips_js=js, videos=videos, channels=channels,
                     f={"show": show, "video": video, "channel": channel, "sort": sort}, job=jobs.status())
@@ -203,6 +211,7 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
             cfg["render"]["title"] = form.get("title")
         if form.get("duration") in DURATIONS:
             m["min_clip_s"], m["max_clip_s"], m["target_clip_s"] = DURATIONS[form.get("duration")]
+        cfg.setdefault("publish", {})["hashtags"] = str(form.get("hashtags", cfg.get("publish", {}).get("hashtags", ""))).strip()[:200]
         cfg["render"]["subtitles"] = form.get("subtitles") == "on"
         cfg["render"]["jump_cuts"] = form.get("jump_cuts") == "on"
         cfg["render"]["subtitle_highlight"] = form.get("highlight") == "on"
@@ -247,6 +256,13 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         v = 0 if c["favorite"] else 1
         db.set_flag(cid, "favorite", v)
         return {"favorite": v}
+
+    @app.post("/api/clips/{cid}/posted")
+    def posted(cid: str):
+        c = get_clip_or_404(cid)
+        v = 0 if c.get("posted") else 1
+        db.set_flag(cid, "posted", v)
+        return {"posted": v}
 
     @app.post("/api/clips/{cid}/rate")
     async def rate(cid: str, request: Request):

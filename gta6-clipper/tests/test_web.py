@@ -228,3 +228,17 @@ def test_manual_clip_pipeline(tmp_path, monkeypatch):
     assert db.list_videos() == []          # la recherche automatique pourra encore traiter la vidéo
     a, b = sections[0]                     # seul l'audio autour du moment est téléchargé
     assert a <= made[0]["start"] and made[0]["end"] <= b and b - a < 200
+
+
+def test_tiktok_caption_and_posted(env):
+    import json, re
+    data, db = env
+    c = client(env)
+    page = c.get("/").text
+    clips = json.loads(re.search(r'id="clips-data">(.*?)</script>', page, re.S).group(1))
+    cap = clips[0]["caption"]
+    assert "Source : Chaîne" in cap and "youtu.be/abcdefghijk?t=" in cap and "#gta6" in cap
+    assert c.post("/api/clips/abcdefghijk_0/posted").json() == {"posted": 1}
+    assert 'data-id="abcdefghijk_0"' in c.get("/?show=posted").text
+    assert 'data-id="abcdefghijk_0"' not in c.get("/?show=unposted").text
+    assert c.post("/api/clips/abcdefghijk_0/posted").json() == {"posted": 0}

@@ -33,6 +33,8 @@ class DB:
                     c.execute(f"ALTER TABLE clips ADD COLUMN {col} TEXT")
             if "rating" not in have:
                 c.execute("ALTER TABLE clips ADD COLUMN rating INTEGER DEFAULT 0")
+            if "posted" not in have:
+                c.execute("ALTER TABLE clips ADD COLUMN posted INTEGER DEFAULT 0")
 
     @contextmanager
     def conn(self):
@@ -104,6 +106,10 @@ class DB:
             q += " AND seen=0"
         elif show == "fav":
             q += " AND favorite=1"
+        elif show == "unposted":
+            q += " AND posted=0"
+        elif show == "posted":
+            q += " AND posted=1"
         if video:
             q += " AND video_id=?"
             args.append(video)
@@ -121,7 +127,7 @@ class DB:
         return videos, channels
 
     def set_flag(self, cid: str, flag: str, value: int) -> None:
-        assert flag in ("seen", "favorite", "rating")
+        assert flag in ("seen", "favorite", "rating", "posted")
         with self.conn() as c:
             c.execute(f"UPDATE clips SET {flag}=? WHERE id=?", (value, cid))
 

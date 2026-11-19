@@ -33,6 +33,8 @@ DEFAULTS = {
     "render": {"layout": "zoom", "title": "auto", "title_style": "encadre", "subtitles": True, "subtitle_max_words": 3, "subtitle_highlight": True,
                "subtitle_uppercase": True, "jump_cuts": True, "jump_cut_min_silence": 0.7, "crf": 21, "preset": "veryfast", "max_source_height": 1080, "font": "DejaVu Sans"},
     "cleanup": {"enabled": True, "max_age_days": 30, "max_total_gb": 10},
+    # publication MANUELLE : le site prépare la légende, l'utilisateur publie lui-même (rien n'est envoyé à TikTok)
+    "publish": {"hashtags": "#gta6 #gta6fr #gtavi #gta"},
 }
 
 

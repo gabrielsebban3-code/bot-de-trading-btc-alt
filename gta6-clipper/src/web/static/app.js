@@ -89,10 +89,32 @@
     $("p-fav").textContent = c.favorite ? "★ Favori" : "☆ Favori";
     showRating(c);
     $("p-dl").href = `/download/${encodeURIComponent(c.id)}`;
+    $("p-dl2").href = $("p-dl").href;
+    $("p-caption").value = c.caption || "";
+    $("tt-panel").hidden = true;
+    showPosted(c);
     $("p-yt").href = c.yt;
     player.hidden = false;
   };
   const close = () => { video.pause(); video.removeAttribute("src"); video.load(); player.hidden = true; cur = -1; };
+  const showPosted = (c) => { $("p-posted").textContent = c.posted ? "✔ Publié (annuler)" : "4. Marquer comme publié"; };
+  const copyCaption = () => {
+    const ta = $("p-caption"), done = () => { $("p-copy").textContent = "✔ Copiée"; setTimeout(() => { $("p-copy").textContent = "1. Copier la légende"; }, 1500); };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(ta.value).then(done);
+    else { ta.select(); document.execCommand("copy"); done(); }  // accès depuis le téléphone (http) : pas d'API presse-papiers
+  };
+  const togglePosted = () => {
+    const c = clips[cur];
+    post(`/api/clips/${encodeURIComponent(c.id)}/posted`).then((r) => {
+      c.posted = r.posted; showPosted(c);
+      const el = card(c.id);
+      if (el) {
+        let m = el.querySelector(".postedmark");
+        if (r.posted && !m) { m = document.createElement("span"); m.className = "postedmark"; m.textContent = "PUBLIÉ"; el.querySelector(".thumb").appendChild(m); }
+        if (!r.posted && m) m.remove();
+      }
+    });
+  };
   const showRating = (c) => {
     $("p-good").classList.toggle("on", c.rating === 1);
     $("p-bad").classList.toggle("on", c.rating === -1);
@@ -140,6 +162,9 @@
   $("p-fav").addEventListener("click", toggleFav);
   $("p-del").addEventListener("click", del);
   $("p-good").addEventListener("click", () => rate(1));
+  $("p-tt").addEventListener("click", () => { $("tt-panel").hidden = !$("tt-panel").hidden; });
+  $("p-copy").addEventListener("click", copyCaption);
+  $("p-posted").addEventListener("click", togglePosted);
   $("p-bad").addEventListener("click", () => rate(-1));
   $("p-close").addEventListener("click", close);
   $("hook-form").addEventListener("submit", (e) => {
