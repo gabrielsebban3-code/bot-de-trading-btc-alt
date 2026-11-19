@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block main %}
+<section class="job" id="job" data-running="{{ 1 if job.running else 0 }}">
+  <button id="run-btn" class="primary" {% if job.running %}disabled{% endif %}>Lancer une recherche maintenant</button>
+  <div class="stages" id="stages">
+    {% for s in job.stages %}<span class="stage" data-stage="{{ s }}">{{ s }}</span>{% endfor %}
+  </div>
+  <div class="job-info" id="job-info"></div>
+  <pre class="job-log" id="job-log" hidden></pre>
+</section>
+
+<form class="filters" method="get" action="/" id="filters">
+  <select name="show">
+    <option value="all" {% if f.show == 'all' %}selected{% endif %}>Tous</option>
+    <option value="unseen" {% if f.show == 'unseen' %}selected{% endif %}>Non vus</option>
+    <option value="fav" {% if f.show == 'fav' %}selected{% endif %}>Favoris</option>
+  </select>
+  <select name="video">
+    <option value="">Toutes les vidéos</option>
+    {% for v in videos %}<option value="{{ v.video_id }}" {% if f.video == v.video_id %}selected{% endif %}>{{ v.video_title[:60] }}</option>{% endfor %}
+  </select>
+  <select name="channel">
+    <option value="">Toutes les chaînes</option>
+    {% for c in channels %}<option value="{{ c }}" {% if f.channel == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+  </select>
+  <select name="sort">
+    <option value="date" {% if f.sort == 'date' %}selected{% endif %}>Plus récents</option>
+    <option value="old" {% if f.sort == 'old' %}selected{% endif %}>Plus anciens</option>
+    <option value="score" {% if f.sort == 'score' %}selected{% endif %}>Meilleur score</option>
+  </select>
+  <noscript><button>Filtrer</button></noscript>
+</form>
+
+{% if not clips %}
+<p class="empty">Aucun clip pour l'instant. Lance une recherche ou <code>gta6-clipper run</code>.</p>
+{% endif %}
+
+<div class="grid" id="grid">
+  {% for c in clips %}
+  <article class="card{% if not c.seen %} unseen{% endif %}{% if c.favorite %} fav{% endif %}" data-index="{{ loop.index0 }}" data-id="{{ c.id }}" tabindex="0">
+    <div class="thumb">
+      <img src="/thumbs/{{ c.id }}.jpg" alt="" loading="lazy">
+      {% if not c.seen %}<span class="badge">NOUVEAU</span>{% endif %}
+      <span class="favmark">★</span>
+      <span class="dur">{{ c.duration }} s</span>
+    </div>
+    <div class="meta">
+      <div class="title">{{ c.video_title }}</div>
+      <div class="sub">{{ c.channel }}</div>
+      <div class="sub">score {{ '%.2f'|format(c.score) }} · {{ c.date }}</div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+<div class="player" id="player" hidden>
+  <div class="player-inner">
+    <video id="video" playsinline controls preload="auto"></video>
+    <aside class="player-side">
+      <div class="p-title" id="p-title"></div>
+      <div class="p-sub" id="p-sub"></div>
+      <div class="p-actions">
+        <button id="p-prev" title="Précédent (↓)">▼ Préc.</button>
+        <button id="p-next" title="Suivant (↑)">▲ Suiv.</button>
+        <button id="p-fav" title="Favori (F)">☆ Favori</button>
+        <a id="p-dl" class="btn" href="#">Télécharger</a>
+        <a id="p-yt" class="btn" href="#" target="_blank" rel="noopener noreferrer">Voir la vidéo originale à ce moment</a>
+        <button id="p-del" class="danger" title="Supprimer (Suppr)">Supprimer</button>
+        <button id="p-close" title="Fermer (Échap)">Fermer</button>
+      </div>
+      <p class="hint">↑ suivant · ↓ précédent · F favori · Suppr supprimer · Échap fermer</p>
+    </aside>
+  </div>
+</div>
+<script type="application/json" id="clips-data">{{ clips_js|tojson }}</script>
+{% endblock %}

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gta6-clipper"
+version = "0.1.0"
+requires-python = ">=3.11"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools]
+packages = ["src", "src.web"]
+
+[tool.setuptools.package-data]
+"src.web" = ["templates/*.html", "static/*"]
+
+[project.scripts]
+gta6-clipper = "src.main:cli"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

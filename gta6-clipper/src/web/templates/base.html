@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>GTA6 Clipper</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">GTA6 Clipper</a>
+  {% if footer %}<nav>
+    <a href="/">Clips</a>
+    <a href="/settings">Réglages</a>
+    {% if auth %}<form method="post" action="/logout" class="inline"><button class="link">Déconnexion</button></form>{% endif %}
+  </nav>{% endif %}
+</header>
+<main>{% block main %}{% endblock %}</main>
+{% if footer %}<footer class="foot">
+  {{ footer.clips }} clips · {{ footer.unseen }} non vus · {{ footer.favorites }} favoris · {{ footer.videos }} vidéos traitées · Espace utilisé : {{ footer.disk }}
+</footer>{% endif %}
+<script src="/static/app.js"></script>
+</body>
+</html>

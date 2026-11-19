@@ -1,0 +1,73 @@
+import copy
+import os
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(os.environ.get("GTA6_CLIPPER_HOME", Path(__file__).resolve().parents[1]))
+
+DEFAULTS = {
+    "search": {
+        "queries": ["GTA 6", "GTA VI gameplay", "GTA 6 trailer analyse", "GTA 6 test", "GTA 6 avis", "GTA 6 map"],
+        "days": 7, "min_duration_min": 3, "max_duration_min": 40, "min_views": 5000, "top_n": 5,
+        "results_per_query": 15, "max_candidates": 20, "cache_hours": 6,
+        "channel_whitelist": [], "channel_blacklist": [],
+    },
+    "moments": {
+        "clips_per_video": 3, "min_clip_s": 20, "max_clip_s": 45, "target_clip_s": 32,
+        "min_gap_s": 60, "margin_s": 0.5,
+        "weights": {"heatmap": 0.5, "audio": 0.25, "keywords": 0.25},
+        "keywords": ["incroyable", "regardez", "énorme", "confirmé", "nouveau", "map", "date de sortie"],
+        "llm": {"enabled": False, "model": "claude-haiku-5-5", "weight": 0.3},
+    },
+    "transcription": {"model": "small", "language": "fr", "compute_type": "int8", "check_language": True},
+    "render": {"subtitles": True, "crf": 21, "preset": "medium", "max_source_height": 1080, "font": "DejaVu Sans"},
+    "cleanup": {"enabled": True, "max_age_days": 30, "max_total_gb": 10},
+}
+
+
+def _merge(base, over):
+    out = copy.deepcopy(base)
+    for k, v in (over or {}).items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def config_path() -> Path:
+    return ROOT / "config.yaml"
+
+
+def data_dir() -> Path:
+    d = Path(os.environ.get("GTA6_CLIPPER_DATA", ROOT / "data"))
+    for sub in ("clips", "thumbs", "tmp"):
+        (d / sub).mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def load_env(path: Path | None = None) -> None:
+    """Parseur .env minimal (KEY=VALUE), ne remplace pas les variables déjà définies."""
+    path = path or ROOT / ".env"
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        v = v.strip().strip('"').strip("'")
+        if v:
+            os.environ.setdefault(k.strip(), v)
+
+
+def load_config() -> dict:
+    p = config_path()
+    user = yaml.safe_load(p.read_text(encoding="utf-8")) if p.exists() else {}
+    return _merge(DEFAULTS, user or {})
+
+
+def save_config(cfg: dict) -> None:
+    text = "# gta6-clipper : réglages (réécrit par la page Réglages du site)\n"
+    text += yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False)
+    tmp = config_path().with_suffix(".yaml.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(config_path())

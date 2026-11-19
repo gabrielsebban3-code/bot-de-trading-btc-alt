@@ -1,0 +1,52 @@
+# gta6-clipper : réglages. La page "Réglages" du site réécrit ce fichier (les commentaires sont alors perdus).
+search:
+  queries:
+    - GTA 6
+    - GTA VI gameplay
+    - GTA 6 trailer analyse
+    - GTA 6 test
+    - GTA 6 avis
+    - GTA 6 map
+  days: 7                 # publiées sur les N derniers jours
+  min_duration_min: 3
+  max_duration_min: 40
+  min_views: 5000
+  top_n: 5                # vidéos gardées par exécution
+  results_per_query: 15
+  max_candidates: 20      # extractions détaillées max (coûteuses) par exécution
+  cache_hours: 6
+  channel_whitelist: []   # prioritaires (bonus de score, ignorent min_views)
+  channel_blacklist: []   # jamais traitées
+moments:
+  clips_per_video: 3
+  min_clip_s: 20
+  max_clip_s: 45
+  target_clip_s: 32
+  min_gap_s: 60
+  margin_s: 0.5
+  weights:
+    heatmap: 0.5
+    audio: 0.25
+    keywords: 0.25
+  keywords: [incroyable, regardez, regarde, énorme, enorme, confirmé, confirme, nouveau, nouvelle,
+    map, carte, date de sortie, sortie, officiel, exclusif, fuite, leak, trailer, secret, dingue,
+    fou, ouf, choquant, jamais vu, vice city, lucia, jason, prix, gameplay, attention, révélé, détail]
+  llm:
+    enabled: false        # envoie 2-3 passages présélectionnés à l'API Anthropic si activé
+    model: claude-haiku-5-5
+    weight: 0.3
+transcription:
+  model: small            # small ou medium
+  language: fr
+  compute_type: int8
+  check_language: true
+render:
+  subtitles: true
+  crf: 21
+  preset: medium
+  max_source_height: 1080
+  font: DejaVu Sans
+cleanup:
+  enabled: true
+  max_age_days: 30
+  max_total_gb: 10
