@@ -36,6 +36,22 @@ function farside(issuers, days, scale, seed) {
 
 const SYMS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'BNB', 'ADA', 'LINK', 'AVAX', 'SUI'];
 
+// Bougies quotidiennes au format Bitstamp, du 1er janvier 2016 jusqu'à END (bougie du jour comprise).
+function candles(seed, start, limit) {
+  const first = Date.UTC(2016, 0, 1) / DAY;
+  const r = rand(seed);
+  const out = [];
+  let p = 400;
+  for (let d = first; d <= END; d++) {
+    const o = p;
+    p *= Math.exp((r() - 0.495) * 0.08);
+    const hi = Math.max(o, p) * (1 + r() * 0.02);
+    const lo = Math.min(o, p) * (1 - r() * 0.02);
+    if (d >= start && out.length < limit) out.push({ timestamp: String(d * 86400), open: o.toFixed(2), high: hi.toFixed(2), low: lo.toFixed(2), close: p.toFixed(2), volume: '1' });
+  }
+  return out;
+}
+
 export function routeOutils(url) {
   const u = new URL(url);
   const q = k => u.searchParams.get(k);
@@ -69,6 +85,11 @@ export function routeOutils(url) {
   }
   if (u.host === 'api.hyperliquid.xyz') {
     return [{ universe: SYMS.map(name => ({ name })) }, SYMS.map((_, i) => ({ funding: String((0.0000125 - i * 0.000004).toFixed(7)) }))];
+  }
+  if (u.host === 'www.bitstamp.net') {
+    const m = u.pathname.match(/^\/api\/v2\/ohlc\/(btcusd|ethusd)\/$/);
+    if (!m) return undefined;
+    return { data: { pair: m[1], ohlc: candles(m[1] === 'btcusd' ? 29 : 31, Math.floor(Number(q('start')) / 86400), Number(q('limit'))) } };
   }
   if (u.host === 'api.frankfurter.app') return { amount: 1, base: 'EUR', date: '2026-10-02', rates: { USD: 1.1225 } };
   return undefined;

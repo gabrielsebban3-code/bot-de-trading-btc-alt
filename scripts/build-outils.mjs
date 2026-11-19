@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { attempt, fetchJson, fetchText, mapLimit } from './lib/http.mjs';
 import { mergeFlows, parseFarside } from '../js/outils-data.js';
 import { mergePoints } from '../js/marche-lib.js';
+import { candleStats } from '../js/bougie-lib.js';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
@@ -100,6 +101,35 @@ async function taker(ccy) {
     .filter(([, b, s]) => b + s > 0).map(([d, b, s]) => [d, b / (b + s) * 100]).sort((a, b) => a[0] - b[0]);
 }
 
+// Bougies quotidiennes de Bitstamp (gratuit, sans clé, BTC depuis 2011) : [jour, ouverture, haut, bas, clôture].
+// 1 000 jours par demande ; la dernière bougie est celle du jour, encore en cours.
+async function bitstamp(pair, from) {
+  const rows = new Map();
+  const today = Math.floor(Date.now() / 86_400_000);
+  let start = from;
+  for (let i = 0; i < 12 && start <= today; i++) {
+    const r = await fetchJson(`https://www.bitstamp.net/api/v2/ohlc/${pair}/?step=86400&limit=1000&start=${start * 86400}`, { retries: 2 });
+    const list = r?.data?.ohlc || [];
+    for (const c of list) {
+      const d = Math.floor(Number(c.timestamp) / 86400);
+      const v = [Number(c.open), Number(c.high), Number(c.low), Number(c.close)];
+      if (v.every(x => x > 0) && v[1] > v[2]) rows.set(d, [d, ...v]); // jour sans échange (haut = bas) : ignoré
+    }
+    const last = list.length ? Math.floor(Number(list.at(-1).timestamp) / 86400) : start + 999;
+    start = Math.max(start + 1, last + 1);
+    await sleep(300);
+  }
+  const out = [...rows.values()].sort((a, b) => a[0] - b[0]);
+  if (out.length < 400) throw new Error(`Bitstamp ${pair} : seulement ${out.length} jours`);
+  return out;
+}
+
+// Bougie du mois et de la semaine en cours, comparée aux bougies passées (js/bougie-lib.js).
+async function bougies(pair, from) {
+  const candles = await bitstamp(pair, from);
+  return { since: candles[0][0], last: candles.at(-1)[0], m: candleStats(candles, 'm'), w: candleStats(candles, 'w') };
+}
+
 async function main() {
   const now = new Date();
   console.log(`Dinexo · Outils (données) · ${now.toISOString()}`);
@@ -116,6 +146,8 @@ async function main() {
   const topEth = take('gros traders ETH (OKX)', await attempt('Gros traders ETH', () => topTraders('ETH')));
   const tkBtc = take('acheteurs / vendeurs BTC (OKX)', await attempt('Acheteurs BTC', () => taker('BTC')));
   const tkEth = take('acheteurs / vendeurs ETH (OKX)', await attempt('Acheteurs ETH', () => taker('ETH')));
+  const bgBtc = take('bougies BTC (Bitstamp)', await attempt('Bougies BTC', () => bougies('btcusd', Date.UTC(2012, 0, 1) / 86_400_000)));
+  const bgEth = take('bougies ETH (Bitstamp)', await attempt('Bougies ETH', () => bougies('ethusd', Date.UTC(2017, 7, 1) / 86_400_000)));
   const eur = take('euro (BCE via frankfurter.app)', await attempt('Euro', () => fetchJson('https://api.frankfurter.app/latest?from=EUR&to=USD', { retries: 2 })));
 
   const old = previous?.etf || {};
@@ -134,6 +166,7 @@ async function main() {
     topTraders: { btc: keep(previous?.topTraders?.btc, topBtc), eth: keep(previous?.topTraders?.eth, topEth) },
     taker: { btc: keep(previous?.taker?.btc, tkBtc), eth: keep(previous?.taker?.eth, tkEth) },
     eur: eur?.rates?.USD ? { usd: eur.rates.USD, date: eur.date } : previous?.eur ?? null,
+    bougie: { btc: bgBtc ?? previous?.bougie?.btc ?? null, eth: bgEth ?? previous?.bougie?.eth ?? null },
   };
   await mkdir(OUT, { recursive: true });
   await writeFile(join(OUT, 'outils.json'), JSON.stringify(out));
@@ -146,6 +179,10 @@ async function main() {
   console.log(`Long/short : BTC ${out.longShort.btc.length} jours (dernier ${out.longShort.btc.at(-1)?.[1]}), ETH ${out.longShort.eth.length}`);
   for (const k of ['topTraders', 'taker']) console.log(`${k} : BTC ${out[k].btc.length} jours (dernier ${JSON.stringify(out[k].btc.at(-1))}), ETH ${out[k].eth.length}`);
   console.log(`Euro : ${JSON.stringify(out.eur)}`);
+  for (const a of ['btc', 'eth']) {
+    const b = out.bougie[a];
+    for (const k of ['m', 'w']) if (b?.[k]) console.log(`Bougie ${a} ${k} : jour ${b[k].k}/${b[k].len}, ${b[k].periods} périodes, plus haut dépassé ${b[k].similar.high?.toFixed(0)} %, plus bas ${b[k].similar.low?.toFixed(0)} %, vert ${b[k].similar.green?.toFixed(0)} %`);
+  }
   // Sur une branche de test, une copie allégée part dans le journal pour les aperçus (bêta) : le total de chaque jour,
   // le détail par ETF sur les 20 derniers jours seulement, avec des sommes de contrôle pour vérifier la recopie.
   if (process.env.PUBLISH === 'false') {
@@ -160,6 +197,7 @@ async function main() {
       topTraders: out.topTraders,
       taker: out.taker,
       eur: out.eur,
+      bougie: out.bougie,
     };
     // Courbes de l'onglet Marché (prix, peur et avidité, open interest, funding), si elles sont déjà prêtes à ce passage.
     const marche = await readFile(join(OUT, 'marche.json'), 'utf8').then(JSON.parse).catch(() => null);
