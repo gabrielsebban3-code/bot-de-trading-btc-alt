@@ -127,17 +127,43 @@ def build_ass(events, credit: str, duration: float, font="DejaVu Sans", title: s
     return head + "\n".join(lines) + "\n"
 
 
-def render_vertical(src, out, ass_name, workdir, rcfg, keep=None):
+def has_audio(path) -> bool:
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index",
+                        "-of", "csv=p=0", str(path)], capture_output=True, text=True)
+    return bool(r.stdout.strip())
+
+
+def render_vertical(src, out, ass_name, workdir, rcfg, keep=None, music=None, duration=None):
     """ass_name : nom de fichier relatif à workdir (évite l'échappement des chemins dans le filtre).
-    keep : [(début, fin)] en secondes du fichier source à garder (coupes des blancs) ; None = tout."""
+    keep : [(début, fin)] en secondes du fichier source à garder (coupes des blancs) ; None = tout.
+    music : {"path", "offset", "volume"} musique d'ambiance baissée automatiquement sous la voix.
+    duration : durée finale (fondus de fin)."""
     graph = LAYOUTS.get(rcfg.get("layout", "zoom"), LAYOUTS["zoom"])["filter"].format(ass=ass_name)
-    audio = "loudnorm=I=-14:TP=-1.5:LRA=11"
+    pre_a, loud = "", "loudnorm=I=-14:TP=-1.5:LRA=11"
     if keep:
         expr = "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in keep)
         graph = graph.replace("[0:v]", f"[0:v]select='{expr}',setpts=N/FRAME_RATE/TB,", 1)
-        audio = f"aselect='{expr}',asetpts=N/SR/TB," + audio
-    ffmpeg("-i", src, "-filter_complex", graph, "-map", "[v]", "-map", "0:a?",
-           "-af", audio, "-ar", 48000,
+        pre_a = f"aselect='{expr}',asetpts=N/SR/TB,"
+    fades = "fade=t=in:st=0:d=0.3"
+    if duration and duration > 2:
+        fades += f",fade=t=out:st={duration - 0.4:.2f}:d=0.4"
+    graph = graph.replace("[v]", f",{fades}[v]")
+    inputs = ["-i", src]
+    if music:
+        inputs += ["-stream_loop", "-1", "-ss", f"{music['offset']:.2f}", "-i", music["path"]]
+        end = max(0.0, (duration or 60) - 1.5)
+        mus = f"[1:a]volume={music['volume']:.3f},afade=t=in:d=1.5,afade=t=out:st={end:.2f}:d=1.5"
+        if has_audio(src):
+            # la musique baisse dès que la voix (ou le jeu) monte : sidechaincompress
+            graph += (f";[0:a]{pre_a}asplit=2[va][vb];{mus}[mus];"
+                      f"[mus][vb]sidechaincompress=threshold=0.02:ratio=8:attack=20:release=400[duck];"
+                      f"[va][duck]amix=inputs=2:duration=first:normalize=0,{loud}[a]")
+        else:
+            graph += f";{mus},atrim=0:{duration or 60:.2f}[a]"
+        maps = ["-map", "[v]", "-map", "[a]"]
+    else:
+        maps = ["-map", "[v]", "-map", "0:a?", "-af", pre_a + loud]
+    ffmpeg(*inputs, "-filter_complex", graph, *maps, "-ar", 48000,
            "-c:v", "libx264", "-preset", rcfg["preset"], "-crf", rcfg["crf"], "-pix_fmt", "yuv420p", "-r", 30,
            "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", out, cwd=workdir)
 

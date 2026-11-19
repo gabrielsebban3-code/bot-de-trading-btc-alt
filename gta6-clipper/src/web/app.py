@@ -187,7 +187,7 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
                     "learned": learned and cfg["moments"].get("learn_from_ratings", True),
                     "weights": weights, "base": cfg["moments"]["weights"]}
         return page(request, "settings.html", cfg=cfg, saved=saved, duration=duration_preset(cfg["moments"]),
-                    learning=learning)
+                    learning=learning, music_count=len(cliplib.music_files(data)), music_dir=str(data / "music"))
 
     @app.post("/settings")
     async def settings_save(request: Request):
@@ -214,6 +214,9 @@ def create_app(require_auth: bool = False, password: str | None = None, data: Pa
         cfg.setdefault("publish", {})["hashtags"] = str(form.get("hashtags", cfg.get("publish", {}).get("hashtags", ""))).strip()[:200]
         cfg["render"]["subtitles"] = form.get("subtitles") == "on"
         cfg["render"]["jump_cuts"] = form.get("jump_cuts") == "on"
+        cfg["render"]["music"] = form.get("music") == "on"
+        if form.get("music_volume") in ("0.10", "0.18", "0.28"):
+            cfg["render"]["music_volume"] = float(form.get("music_volume"))
         cfg["render"]["subtitle_highlight"] = form.get("highlight") == "on"
         cfg["render"]["subtitle_uppercase"] = form.get("uppercase") == "on"
         cfg["cleanup"]["max_age_days"] = _int(form.get("max_age_days"), 1, 3650, cfg["cleanup"]["max_age_days"])

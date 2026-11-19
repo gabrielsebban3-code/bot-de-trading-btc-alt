@@ -108,6 +108,29 @@ def cut_timeline(segments, start, end, cuts):
     return out, sum(b - a for a, b in keep), keep
 
 
+MUSIC_EXT = {".mp3", ".m4a", ".aac", ".wav", ".ogg", ".flac", ".opus"}
+
+
+def music_files(data: Path):
+    folder = data / "music"
+    return sorted(p for p in folder.glob("*") if p.suffix.lower() in MUSIC_EXT) if folder.exists() else []
+
+
+def pick_music(data: Path, cid: str, duration: float, rcfg):
+    """Musique d'ambiance choisie de façon stable par clip (le même titre au rendu suivant), départ varié."""
+    if not rcfg.get("music", True):
+        return None
+    files = music_files(data)
+    if not files:
+        return None
+    import zlib
+    h = zlib.crc32(cid.encode())
+    path = files[h % len(files)]
+    length = vertical.probe_duration(path)
+    offset = (h // len(files)) % int(max(1, length - duration - 5)) if length > duration + 10 else 0
+    return {"path": str(path.resolve()), "offset": float(offset), "volume": float(rcfg.get("music_volume", 0.18))}
+
+
 def make_clip(video: dict, moment: dict, segments, cfg, workdir: Path, data: Path, source=None, title=None) -> dict:
     """source : fichier déjà découpé (tests) ; sinon seul le segment est téléchargé.
     title : titre imposé ("" = aucun) ; None = titre automatique selon render.title."""
@@ -132,7 +155,8 @@ def make_clip(video: dict, moment: dict, segments, cfg, workdir: Path, data: Pat
         encoding="utf-8")
     out = data / "clips" / f"{cid}.mp4"
     tmp = workdir / f"{cid}.render.mp4"
-    vertical.render_vertical(Path(src).resolve(), tmp.resolve(), ass_name, workdir, cfg["render"], keep)
+    music = pick_music(data, cid, duration, r)
+    vertical.render_vertical(Path(src).resolve(), tmp.resolve(), ass_name, workdir, cfg["render"], keep, music, duration)
     tmp.replace(out)  # le fichier n'apparaît sur le site qu'une fois complet
     vertical.thumbnail(out, data / "thumbs" / f"{cid}.jpg", duration / 2)
     return {"id": cid, "video_id": video["id"], "video_title": video["title"], "channel": video["channel"],

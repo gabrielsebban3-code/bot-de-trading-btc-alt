@@ -31,7 +31,7 @@ DEFAULTS = {
     "transcription": {"model": "small", "language": "fr", "compute_type": "int8", "check_language": True,
                       "mode": "rapide", "cpu_threads": 0},
     "render": {"layout": "zoom", "title": "auto", "title_style": "encadre", "subtitles": True, "subtitle_max_words": 3, "subtitle_highlight": True,
-               "subtitle_uppercase": True, "jump_cuts": True, "jump_cut_min_silence": 0.7, "crf": 21, "preset": "veryfast", "max_source_height": 1080, "font": "DejaVu Sans"},
+               "subtitle_uppercase": True, "jump_cuts": True, "jump_cut_min_silence": 0.7, "music": True, "music_volume": 0.18, "crf": 21, "preset": "veryfast", "max_source_height": 1080, "font": "DejaVu Sans"},
     "cleanup": {"enabled": True, "max_age_days": 30, "max_total_gb": 10},
     # publication MANUELLE : le site prépare la légende, l'utilisateur publie lui-même (rien n'est envoyé à TikTok)
     "publish": {"hashtags": "#gta6 #gta6fr #gtavi #gta"},
@@ -51,7 +51,7 @@ def config_path() -> Path:
 
 def data_dir() -> Path:
     d = Path(os.environ.get("GTA6_CLIPPER_DATA", ROOT / "data"))
-    for sub in ("clips", "thumbs", "tmp"):
+    for sub in ("clips", "thumbs", "tmp", "music"):
         (d / sub).mkdir(parents=True, exist_ok=True)
     return d
 

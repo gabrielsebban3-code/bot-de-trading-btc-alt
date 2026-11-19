@@ -521,3 +521,17 @@ def test_hook_title_stays_short():
     longue = [{"start": 0, "end": 5, "text": "Vice City a l'air incroyable dans cette version !"}]
     assert hook_title(longue, 0, 10, video, "auto", M).endswith("…")  # phrase > 42 car. : titre de la vidéo raccourci
     assert len(hook_title([], 0, 10, video, "auto", M)) <= 51
+
+
+def test_pick_music_stable_and_optional(tmp_path):
+    import subprocess
+    from src.clip import pick_music
+    (tmp_path / "music").mkdir()
+    r = {"music": True, "music_volume": 0.18}
+    assert pick_music(tmp_path, "abc_1", 60, r) is None                     # dossier vide : pas de musique
+    for name in ("a.mp3", "b.mp3"):
+        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "anoisesrc=d=100", str(tmp_path / "music" / name)], check=True)
+    (tmp_path / "music" / "notes.txt").write_text("pas une musique")
+    m1, m2 = pick_music(tmp_path, "abc_1", 60, r), pick_music(tmp_path, "abc_1", 60, r)
+    assert m1 == m2 and m1["path"].endswith(".mp3") and 0 <= m1["offset"] <= 35 and m1["volume"] == 0.18
+    assert pick_music(tmp_path, "abc_1", 60, {**r, "music": False}) is None

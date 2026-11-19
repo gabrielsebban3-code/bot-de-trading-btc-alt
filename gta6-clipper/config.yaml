@@ -60,6 +60,8 @@ render:
   subtitle_uppercase: true
   jump_cuts: true           # coupe les blancs et les « euh » (montage dynamique)
   jump_cut_min_silence: 0.7 # silence minimum coupé, en secondes
+  music: true               # musique d'ambiance (fichiers libres de droits dans data/music), baissée sous la voix
+  music_volume: 0.18        # 0.10 discret, 0.18 moyen, 0.28 présent
   crf: 21
   preset: veryfast        # même qualité (CRF), encodage 2-3x plus rapide, fichiers un peu plus gros
   max_source_height: 1080
