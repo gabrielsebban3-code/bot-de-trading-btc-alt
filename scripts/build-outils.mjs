@@ -137,19 +137,28 @@ const HL = 'https://api.hyperliquid.xyz/info';
 const hlPost = body => fetchJson(HL, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' }, retries: 2 });
 async function liquidations(previous) {
   const board = await fetchJson('https://stats-data.hyperliquid.xyz/Mainnet/leaderboard', { retries: 2, timeout: 60_000 });
-  const rows = (board?.leaderboardRows || []).map(r => ({ user: r.ethAddress, value: Number(r.accountValue) || 0 })).filter(r => /^0x[0-9a-fA-F]{40}$/.test(r.user));
+  // Volume de la semaine d'un compte (classement public) : les traders actifs utilisent plus de levier que les plus riches.
+  const weekVol = r => Number((r.windowPerformances || []).find(w => w?.[0] === 'week')?.[1]?.vlm) || 0;
+  const rows = (board?.leaderboardRows || []).map(r => ({ user: r.ethAddress, value: Number(r.accountValue) || 0, vol: weekVol(r) })).filter(r => /^0x[0-9a-fA-F]{40}$/.test(r.user));
   if (rows.length < 50) throw new Error(`classement Hyperliquid : ${rows.length} comptes`);
-  const accounts = rows.sort((a, b) => b.value - a.value).slice(0, Number(process.env.DINEXO_HL_ACCOUNTS || 500));
+  // Les plus gros comptes (souvent peu de levier) + les plus actifs de la semaine (souvent beaucoup de levier).
+  const nRich = Number(process.env.DINEXO_HL_RICH || 300);
+  const nActive = Number(process.env.DINEXO_HL_ACTIVE || 900);
+  const picked = new Map();
+  for (const r of [...rows].sort((a, b) => b.value - a.value).slice(0, nRich)) picked.set(r.user, r);
+  for (const r of [...rows].filter(r => r.value >= 1000).sort((a, b) => b.vol - a.vol)) { if (picked.size >= nRich + nActive) break; picked.set(r.user, r); }
+  const accounts = [...picked.values()];
   const [meta, ctxs] = await hlPost({ type: 'metaAndAssetCtxs' });
   const ctx = Object.fromEntries(meta.universe.map((u, i) => [u.name, ctxs[i]]));
   const pos = { BTC: [], ETH: [] };
   let failed = 0;
-  await mapLimit(accounts, 3, async a => {
+  // Hyperliquid accepte environ 600 lectures de compte par minute : 4 en parallèle, une pause entre chaque.
+  await mapLimit(accounts, 4, async a => {
     try {
       const st = await hlPost({ type: 'clearinghouseState', user: a.user });
       for (const coin of Object.keys(pos)) for (const p of positionsOf(st, coin)) pos[coin].push({ ...p, account: a.user });
     } catch { failed++; }
-    if (process.env.DINEXO_FAST !== '1') await sleep(150);
+    if (process.env.DINEXO_FAST !== '1') await sleep(350);
   });
   const today = Math.floor(Date.now() / 86_400_000);
   const out = { accounts: accounts.length, failed, board: rows.length };
@@ -224,7 +233,7 @@ async function main() {
     console.log(`Liquidations : ${L.accounts} comptes lus sur ${L.board} (${L.failed} erreurs)`);
     for (const k of ['btc', 'eth']) {
       const x = L[k];
-      if (x) console.log(`Liquidations ${k} : prix ${x.price}, vu ${Math.round(x.seen / 1e6)} M$ sur ${Math.round(x.oi / 1e6)} M$ ouverts, ${x.accounts} comptes, sans prix de liquidation ${Math.round(x.noLiq / 1e6)} M$, ±5 % : longs ${Math.round(x.near[1][1] / 1e6)} M$ / shorts ${Math.round(x.near[1][2] / 1e6)} M$, zones longs ${JSON.stringify(x.topLong)}, shorts ${JSON.stringify(x.topShort)}`);
+      if (x) console.log(`Liquidations ${k} : prix ${x.price}, vu ${Math.round(x.seen / 1e6)} M$ sur ${Math.round(x.oi / 1e6)} M$ ouverts, ${x.accounts} comptes, sans prix de liquidation ${Math.round(x.noLiq / 1e6)} M$, au-delà de 25 % ${Math.round(x.far / 1e6)} M$, ±10 % : longs ${Math.round(x.near[2][1] / 1e6)} M$ / shorts ${Math.round(x.near[2][2] / 1e6)} M$, ±5 % : longs ${Math.round(x.near[1][1] / 1e6)} M$ / shorts ${Math.round(x.near[1][2] / 1e6)} M$, zones longs ${JSON.stringify(x.topLong)}, shorts ${JSON.stringify(x.topShort)}`);
     }
   }
   for (const a of ['btc', 'eth']) {
