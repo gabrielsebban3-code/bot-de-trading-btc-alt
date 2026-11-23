@@ -37,7 +37,9 @@ const EXPECT = {
   // Labo 5 (18 novembre 2026) : taille selon l'agitation du marché, risque de base 1 % (choix de Gabriel). perTrade en « R de base ».
   // Capital composé sur 2025-2026 : +42 %/an, pire baisse 42 % (sans ajuster la taille, à 1 % : +23 %/an, pire baisse 39 %).
   // Avec la note des signaux (labo 8, 19 novembre 2026), vrai code du site rejoué sur Binance 2025-2026, 9 cryptos.
-  swing: { perTrade: 1.64, winRate: 0.38, perMonth: 4, ddR: 21, streak: 11, yearPct: 86, ddPct: 19, years: '2025 : +39 % · 2026 : +123 %', safe: { base: 0.5, yearPct: 42, ddPct: 10 },
+  // Avec la règle des gros traders (labo 9, 23 novembre 2026, mode 'half') : vrai code du site rejoué sur Binance 2025-2026.
+  swing: { perTrade: 1.52, winRate: 0.38, perMonth: 4, ddR: 14, streak: 11, yearPct: 80, ddPct: 14, years: '2025 : +33 % · 2026 : +134 %', safe: { base: 0.5, yearPct: 39, ddPct: 7 },
+    gros: { without: { yearPct: 86, ddPct: 19 } },
     score: { trades: 91, fixedPct: 51, without: { yearPct: 47, ddPct: 40, perMonth: 11 }, dev: { yearPct: 87, ddPct: 27 } } },
   court: { perTrade: 0.18, winRate: 0.22, perMonth: 48, ddR: 134, streak: 51, years: '2025 : +173 % · 2026 : +13 % · 12 derniers mois : à peu près zéro' },
 };
@@ -45,7 +47,7 @@ const EXPECT = {
 // réglage sur 2020-2024 (ou depuis que la donnée existe), vérification sur 2025-2026 et face au hasard.
 // helps = la donnée a amélioré les résultats sur les deux périodes et mieux que le hasard. Texte affiché tel quel.
 const CONTEXT_TEST = {
-  gros: { helps: true, text: 'Testé : utile. Quand les gros traders sont déjà très acheteurs (1,65 achat pour 1 vente ou plus), les achats ont très peu rapporté : le bot les prend avec moitié moins de risque. En 2025-2026 : pire recul −14 % au lieu de −19 %, pour un gain presque égal (+80 % par an au lieu de +85 %).' },
+  gros: { helps: true, text: 'Testé : utile. Quand les gros traders sont déjà très acheteurs (1,65 achat pour 1 vente ou plus), les achats ont très peu rapporté : le bot les prend avec moitié moins de risque. En 2025-2026 : pire recul −14 % au lieu de −19 %, pour un gain un peu plus faible (+80 % par an au lieu de +86 %).' },
   oi: { helps: false, text: 'Testé : n\'améliore pas les signaux (2025-2026 : pas mieux que d\'écarter des signaux au hasard).' },
   crowd: { helps: false, text: 'Testé : n\'améliore pas les signaux. Le réglage trouvé sur 2021-2024 a fait pire en 2025-2026.' },
   taker: { helps: false, text: 'Testé : n\'améliore pas les signaux.' },

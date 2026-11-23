@@ -174,6 +174,7 @@ function expectBox() {
     <ul>
       ${e.yearPct ? `<li>En 2025-2026, en réinvestissant les gains : environ <b>+${e.yearPct} % par an</b>, frais compris (${esc(e.years)}). C'est une période qui n'a pas servi à régler la méthode, sur les 9 cryptos suivies.</li>
       ${e.score ? `<li>Le bot ne garde que les signaux les mieux notés, environ 4 sur 10. La note est bonne quand le marché est calme, que Bitcoin va dans le même sens et que tout le marché n'est pas déjà lancé. Sans ce tri : environ +${e.score.without.yearPct} % par an, ${e.score.without.perMonth} signaux par mois et un recul jusqu'à −${e.score.without.ddPct} %.</li>` : ''}
+      ${e.gros ? `<li>Quand les gros traders de Binance sont déjà très acheteurs (au moins ${fmt(data.rules.grosMax ?? 1.65, 2)} achat pour 1 vente), le bot prend les achats avec moitié moins de risque : ces achats ont très peu rapporté dans nos tests. Sans cette règle : environ +${e.gros.without.yearPct} % par an, mais un recul jusqu'à −${e.gros.without.ddPct} %. C'est la seule des 17 données testées (open interest, funding, peur et avidité, options…) qui aide vraiment.</li>` : ''}
       <li>Le risque de chaque trade suit l'agitation du marché : ${pctTxt(risk)} % du capital en temps normal, jusqu'au double quand le prix bouge peu, la moitié quand il s'agite. Le risque conseillé est écrit sur chaque carte. Sans cet ajustement, on gagnait moins (environ +${e.score?.fixedPct ?? 23} % par an à 1 % fixe).</li>`
       : `<li>En moyenne <b>+${fmt(e.perTrade * risk, 2)} %</b> du capital par trade, frais compris (${fmt(risk, 0)} % du compte risqué à chaque fois). C'est ce qu'a donné la méthode en 2025-2026 sur les 9 cryptos suivies, une période qui n'a pas servi à la régler (${esc(e.years)}).</li>`}
       <li>Seulement <b>${fmt(e.winRate * 100, 0)} % de trades gagnants</b> : la plupart finissent au stop, avec une petite perte. Quelques gros gains paient tout le reste.</li>
@@ -474,23 +475,23 @@ export function contextItems(a) {
   const out = [];
   if (c.gros) {
     const hot = c.gros >= (data.rules.grosMax ?? 1.65);
-    out.push(ctxItem('gros', 'Gros traders (Binance, hier soir)', `${fmt(c.gros, 2)} achat pour 1 vente`,
-      hot ? 'Ils sont déjà très acheteurs. Un achat maintenant arrive souvent tard : le bot le prend avec moitié moins de risque.'
+    out.push(ctxItem('gros', 'Gros traders : achats pour 1 vente (Binance, hier soir)', `${fmt(c.gros, 2)} pour 1`,
+      hot ? (a.radar?.dir === 'short' ? 'Ils sont déjà très acheteurs. La règle ne joue que pour les achats : en ce moment, le bot cherche des ventes.' : 'Ils sont déjà très acheteurs. Un achat maintenant arrive souvent tard : le bot le prend avec moitié moins de risque.')
         : c.gros < 1 ? 'Ils sont plutôt vendeurs.' : 'Ils sont un peu plus acheteurs que vendeurs, sans excès.', hot ? 'down' : ''));
   }
-  if (c.oi) out.push(ctxItem('oi', 'Positions ouvertes (open interest OKX)', `${c.oi.ch1 === null ? '—' : pctPlain(c.oi.ch1)} en 24 h`,
+  if (c.oi) out.push(ctxItem('oi', 'Positions ouvertes sur 24 h (open interest OKX)', `${c.oi.ch1 === null ? '—' : pctPlain(c.oi.ch1)}`,
     `${c.oi.ch7 === null ? '' : `${pctPlain(c.oi.ch7)} en 7 jours. `}${c.oi.ch7 > 0.1 ? 'Beaucoup de nouveaux paris arrivent : le mouvement attire du monde, mais il peut aussi se retourner d\'un coup.' : c.oi.ch7 < -0.1 ? 'Beaucoup de traders ferment leurs positions.' : 'Pas de grand changement.'}`));
-  if (c.crowd) out.push(ctxItem('crowd', 'Foule (comptes OKX)', `${fmt(c.crowd, 2)} acheteur pour 1 vendeur`,
+  if (c.crowd) out.push(ctxItem('crowd', 'Foule : acheteurs pour 1 vendeur (comptes OKX)', `${fmt(c.crowd, 2)} pour 1`,
     c.crowd >= 2 ? 'La plupart des petits comptes parient sur la hausse.' : c.crowd <= 0.8 ? 'La plupart des petits comptes parient sur la baisse.' : 'La foule est partagée.'));
-  if (c.taker) out.push(ctxItem('taker', 'Achats pressés sur 24 h (OKX)', `${fmt(c.taker * 100, 0)} % d'achats`,
+  if (c.taker) out.push(ctxItem('taker', 'Part des achats pressés sur 24 h (OKX)', `${fmt(c.taker * 100, 0)} %`,
     c.taker >= 0.53 ? 'Les acheteurs pressés dominent.' : c.taker <= 0.47 ? 'Les vendeurs pressés dominent.' : 'Équilibre entre acheteurs et vendeurs pressés.'));
-  if (c.funding !== undefined && c.funding !== null) out.push(ctxItem('funding', 'Funding moyen sur 7 jours (OKX)', `${sgn(c.funding)}${fmt(Math.abs(c.funding) * 100, 3)} %`,
+  if (c.funding !== undefined && c.funding !== null) out.push(ctxItem('funding', 'Funding moyen sur 7 jours (OKX)', `${sgn(c.funding)}${fmt(Math.abs(c.funding) * 100, 4)} %`,
     c.funding > 0.0002 ? 'Les acheteurs paient cher pour rester : beaucoup de paris à la hausse.' : c.funding < 0 ? 'Les vendeurs paient : beaucoup de paris à la baisse.' : 'Normal.', c.funding > 0.0002 ? 'down' : ''));
   if (g.fng) out.push(ctxItem('fng', 'Peur et avidité (tout le marché)', `${g.fng.value} / 100`,
     `${g.fng.value >= 75 ? 'Avidité extrême' : g.fng.value >= 55 ? 'Avidité' : g.fng.value > 45 ? 'Neutre' : g.fng.value > 25 ? 'Peur' : 'Peur extrême'}${g.fng.week !== null ? ` (${g.fng.week} il y a une semaine)` : ''}.`));
   const dv = g.dvol?.[a.symbol === 'ETH' ? 'ETH' : 'BTC'];
-  if (dv) out.push(ctxItem('dvol', `Agitation attendue par les options (${a.symbol === 'ETH' ? 'ETH' : 'BTC'})`, `${fmt(dv.value, 0)} %/an`,
-    `Les options parient sur des mouvements d'environ ${fmt(dv.value / Math.sqrt(365), 1)} % par jour${dv.week ? `, ${dv.value > dv.week * 1.05 ? 'en hausse' : dv.value < dv.week * 0.95 ? 'en baisse' : 'stable'} sur une semaine` : ''}.`));
+  if (dv) out.push(ctxItem('dvol', `Agitation attendue par les options (${a.symbol === 'ETH' ? 'ETH' : 'BTC'})`, `${fmt(dv.value, 0)} %`,
+    `Sur un an (indice DVOL de Deribit). Les options parient sur des mouvements d'environ ${fmt(dv.value / Math.sqrt(365), 1)} % par jour${dv.week ? `, ${dv.value > dv.week * 1.05 ? 'en hausse' : dv.value < dv.week * 0.95 ? 'en baisse' : 'stable'} sur une semaine` : ''}.`));
   const z = c.zones;
   if (z?.top?.length) {
     const near = [...z.top].sort((x, y) => Math.abs(x.distance) - Math.abs(y.distance))[0];
