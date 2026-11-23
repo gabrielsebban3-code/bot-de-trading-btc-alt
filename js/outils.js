@@ -786,20 +786,20 @@ function bougieMethod() {
 }
 
 // Liquidations Hyperliquid : préparées chaque heure par le script de données (js/liquidations-lib.js).
-const mUsd = n => (n >= 1e9 ? `${fmt(n / 1e9, 2)} Md$` : n >= 1e6 ? `${fmt(n / 1e6, n >= 1e8 ? 0 : 1)} M$` : `${fmt(n / 1e3, 0)} k$`);
+const mUsd = n => (n >= 1e9 ? `${fmt(n / 1e9, 2)} Md$` : n >= 1e6 ? `${fmt(n / 1e6, n >= 1e8 ? 0 : 1)} M$` : n >= 1e3 ? `${fmt(n / 1e3, 0)} k$` : `${fmt(n, 0)} $`);
 function liqTool() {
   const L = state.outils?.liquidations;
   const x = L?.[state.v.lsAsset];
   if (!x?.buckets?.length) return noData();
   const sym = state.v.lsAsset.toUpperCase();
-  const show = 15; // % affichés de chaque côté
+  const show = x.range; // % affichés de chaque côté
   const n = x.buckets.length / 2;
   const k = Math.round(show / x.step);
   const shown = x.buckets.slice(n - k, n + k);
   const pctOf = p => (p / x.price - 1) * 100;
   const label = i => { const b = shown[Math.round(i)]; return b ? `${px(b[0])} $ (${pctOf(b[0]) >= 0 ? '+' : '−'}${fmt(Math.abs(pctOf(b[0])), 1)} %)` : ''; };
-  // Graduations aux niveaux ronds : −10 %, −5 %, prix actuel, +5 %, +10 %.
-  const ticks = (start, end, width) => (width < 260 ? [-10, 0, 10] : [-10, -5, 0, 5, 10])
+  // Graduations aux niveaux ronds : −20 %, −10 %, prix actuel, +10 %, +20 %.
+  const ticks = (start, end, width) => (width < 260 ? [-20, 0, 20] : [-20, -10, 0, 10, 20])
     .map(pc => [k + pc / x.step - 0.5, pc === 0 ? 'prix' : `${pc > 0 ? '+' : '−'}${Math.abs(pc)} %`]);
   const zone = z => (z ? `${px(z.price)} $ (${spc(pctOf(z.price), 1)}) · ${mUsd(z.value)}` : 'aucune dans les 25 %');
   const seenPct = x.oi > 0 ? x.seen / x.oi * 100 : null;
@@ -824,7 +824,7 @@ function liqTool() {
     rows([
       ['Positions lues', `${mUsd(x.seen)} chez ${fmt(x.accounts)} comptes${seenPct != null ? `, soit ${fmt(Math.min(100, seenPct), 0)} % de tout ce qui est ouvert sur ${sym} chez Hyperliquid (${mUsd(x.oi)})` : ''}`],
       ['Sans prix de liquidation', `${mUsd(x.noLiq)} : positions avec très peu de levier ou beaucoup de marge, presque impossibles à liquider`],
-      ['Liquidées à plus de 25 %', mUsd(x.far)],
+      ['Liquidées à plus de 25 % du prix', `${mUsd(x.far)} : trop loin pour compter, elles ne sont pas sur la carte`],
     ]),
     `<h3 class="t-h3">Est-ce que le prix va chercher ces zones ?</h3>
     <div class="t-imp"><span class="k">Pas encore vérifié</span>
