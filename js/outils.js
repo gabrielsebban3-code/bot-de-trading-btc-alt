@@ -121,6 +121,14 @@ const TOOLS = [
       "L'idée : acheter quand les autres ont peur, être prudent quand tout le monde est euphorique.",
       "Il suit surtout le prix : il dit où en est l'humeur, pas où va le prix demain.",
     ] },
+  { id: 'liq', cat: 'data', name: 'Liquidations', calc: liqTool, fields: () => ['lsAsset'],
+    intro: () => "Les prix où des positions à levier seraient fermées de force (liquidées). Ce sont les vrais prix de liquidation, pas une estimation : sur Hyperliquid, chaque compte est public. On lit les positions des 500 plus gros comptes.",
+    how: [
+      'Barre rouge, sous le prix : des acheteurs à levier (longs) liquidés si le prix descend jusque-là. Leur fermeture forcée vend, ce qui peut accélérer la baisse.',
+      'Barre verte, au-dessus du prix : des vendeurs à levier (shorts) liquidés si le prix monte jusque-là. Leur fermeture forcée achète, ce qui peut accélérer la hausse.',
+      "Plus la barre est haute, plus il y a d'argent en jeu à ce niveau.",
+      "Seulement Hyperliquid : Binance, OKX et les autres ne publient pas les positions de leurs clients.",
+    ] },
   { id: 'oi', cat: 'data', name: 'Open interest', calc: oiTool, fields: () => [],
     intro: () => "L'open interest, c'est la somme de tous les contrats à levier encore ouverts sur le bitcoin (OKX), en dollars. S'il monte, de nouveaux traders entrent avec du levier ; s'il baisse, ils sortent.",
     how: [
@@ -775,6 +783,58 @@ function bougieMethod() {
     ['La fourchette du graphique', 'Pour chaque jour qui reste, on classe les prix de ces cas (rapportés au prix actuel) du plus bas au plus haut : la courbe du bas laisse 1 cas sur 10 en dessous, celle du haut 1 cas sur 10 au-dessus.'],
     ['Le test', `On refait tout ça pour chaque ${W.unit} depuis 2016 en ne regardant que le passé de ce moment-là, puis on compare les % annoncés avec ce qui est arrivé. C'est le cadre « Est-ce que ça marche ? ».`],
   ];
+}
+
+// Liquidations Hyperliquid : préparées chaque heure par le script de données (js/liquidations-lib.js).
+const mUsd = n => (n >= 1e9 ? `${fmt(n / 1e9, 2)} Md$` : n >= 1e6 ? `${fmt(n / 1e6, n >= 1e8 ? 0 : 1)} M$` : `${fmt(n / 1e3, 0)} k$`);
+function liqTool() {
+  const L = state.outils?.liquidations;
+  const x = L?.[state.v.lsAsset];
+  if (!x?.buckets?.length) return noData();
+  const sym = state.v.lsAsset.toUpperCase();
+  const show = 15; // % affichés de chaque côté
+  const n = x.buckets.length / 2;
+  const k = Math.round(show / x.step);
+  const shown = x.buckets.slice(n - k, n + k);
+  const pctOf = p => (p / x.price - 1) * 100;
+  const label = i => { const b = shown[Math.round(i)]; return b ? `${px(b[0])} $ (${pctOf(b[0]) >= 0 ? '+' : '−'}${fmt(Math.abs(pctOf(b[0])), 1)} %)` : ''; };
+  // Graduations aux niveaux ronds : −10 %, −5 %, prix actuel, +5 %, +10 %.
+  const ticks = (start, end, width) => (width < 260 ? [-10, 0, 10] : [-10, -5, 0, 5, 10])
+    .map(pc => [k + pc / x.step - 0.5, pc === 0 ? 'prix' : `${pc > 0 ? '+' : '−'}${Math.abs(pc)} %`]);
+  const zone = z => (z ? `${px(z.price)} $ (${spc(pctOf(z.price), 1)}) · ${mUsd(z.value)}` : 'aucune dans les 25 %');
+  const seenPct = x.oi > 0 ? x.seen / x.oi * 100 : null;
+  const [d2, d5, d10] = x.near;
+  const bigger = d5[1] > d5[2] * 1.5 ? 'Il y a nettement plus de longs que de shorts à liquider près du prix : une baisse rapide pourrait s\'emballer plus facilement qu\'une hausse.'
+    : d5[2] > d5[1] * 1.5 ? 'Il y a nettement plus de shorts que de longs à liquider près du prix : une hausse rapide pourrait s\'emballer plus facilement qu\'une baisse.'
+      : 'Longs et shorts à liquider près du prix sont du même ordre : pas de côté plus fragile que l\'autre.';
+  const days = x.history?.length || 0;
+  return [
+    hero(`Si ${sym} baisse de 5 %`, mUsd(d5[1]), `de longs liquidés · s'il monte de 5 % : ${mUsd(d5[2])} de shorts liquidés · prix ${px(x.price)} $`),
+    rows([
+      ['À 2 % du prix', `longs ${mUsd(d2[1])} · shorts ${mUsd(d2[2])}`],
+      ['À 10 % du prix', `longs ${mUsd(d10[1])} · shorts ${mUsd(d10[2])}`],
+      ['Plus grosse zone de longs', zone(x.topLong[0])],
+      ['Plus grosse zone de shorts', zone(x.topShort[0])],
+    ]),
+    note(bigger),
+    chart([{ name: 'Liquidations', bars: true, pts: shown.map((b, i) => [i, b[2] - b[1]]) }],
+      { title: `Montant liquidé par niveau de prix (${sym}, Hyperliquid)`, y: v => `${v < 0 ? 'longs ' : v > 0 ? 'shorts ' : ''}${mUsd(Math.abs(v))}`, axis: v => mUsd(Math.abs(v)), x: label, ticks, marks: [k - 0.5] }),
+    note(`Au milieu, le pointillé : le prix actuel. Chaque barre couvre ${fmt(x.step, 1)} % de prix. En rouge sous le prix : longs liquidés si le prix baisse jusque-là. En vert au-dessus : shorts liquidés s'il monte.`),
+    `<div class="t-sub">Ce qu'on voit, et ce qu'on ne voit pas</div>`,
+    rows([
+      ['Positions lues', `${mUsd(x.seen)} chez ${fmt(x.accounts)} comptes${seenPct != null ? `, soit ${fmt(Math.min(100, seenPct), 0)} % de tout ce qui est ouvert sur ${sym} chez Hyperliquid (${mUsd(x.oi)})` : ''}`],
+      ['Sans prix de liquidation', `${mUsd(x.noLiq)} : positions avec très peu de levier ou beaucoup de marge, presque impossibles à liquider`],
+      ['Liquidées à plus de 25 %', mUsd(x.far)],
+    ]),
+    `<h3 class="t-h3">Est-ce que le prix va chercher ces zones ?</h3>
+    <div class="t-imp"><span class="k">Pas encore vérifié</span>
+      <p><b>Ce qu'on entend souvent</b>Le prix serait « aimanté » par les grosses zones de liquidation, parce que de gros traders auraient intérêt à les déclencher. C'est une idée très répandue, mais personne ne l'a prouvée sérieusement.</p>
+      <p><b>Ce qu'on fait</b>On garde une photo des zones chaque jour (${days} jour${days > 1 ? 's' : ''} pour l'instant). Dans quelques semaines, on pourra compter combien de fois le prix est vraiment allé toucher la plus grosse zone, et l'écrire ici.</p>
+      <p><b>Ce qui est sûr</b>Si le prix atteint une grosse zone, des positions seront fermées de force, et ces ventes ou achats forcés peuvent accélérer le mouvement. La carte dit où ça arriverait, pas si le prix ira.</p>
+      <p><b>Limite</b>On ne voit que Hyperliquid. Binance et OKX pèsent beaucoup plus lourd et ne publient pas les positions de leurs clients.</p>
+    </div>`,
+    note(`Source : Hyperliquid (positions publiques des ${fmt(L.accounts)} plus gros comptes du classement). Mis à jour ${ago(state.outils.generatedAt)}.`),
+  ].join('');
 }
 
 // Une phrase honnête : après la zone du jour, le prix a-t-il fait mieux, moins bien ou pareil que d'habitude ?
