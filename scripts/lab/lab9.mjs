@@ -279,3 +279,16 @@ for (const k of ['top', 'topLag']) {
     console.log(`9B|${k} ${d}|gros traders peu de notre côté : réglage ${g(keep, dvP)} · 2025-26 ${g(keep, TEST)}|très de notre côté : réglage ${g(x => !keep(x), dvP)} · 2025-26 ${g(x => !keep(x), TEST)}`);
   }
 }
+
+// ---------- Vrai code du site avec la règle des gros traders (valeur de 23 h UTC chaque jour) ----------
+{
+  const { RULES } = await import('../lib/setups.mjs');
+  const gros = {};
+  for (const s of SYMS) gros[s] = metrics[s].top.filter(([t]) => new Date(t).getUTCHours() === 23).map(([t, v]) => [Math.floor(t / D) * D, Math.round(Math.exp(v) * 1e4) / 1e4]);
+  const mk = { ...market, gros };
+  for (const mode of ['off', 'half', 'skip']) {
+    const tr = SYMS.flatMap(s => scanAsset({ symbol: s, kind: 'crypto' }, { ...DATA[s], market: mk }, { ...MODES.swing, backtestBars: 1e9, grosMode: mode })).filter(x => x.outcome !== 'open').map(x => ({ ...x, rn: net(x), w: x.sz }));
+    for (const [nm, P] of [['2022-24', [Date.UTC(2022, 0, 1), DV[1]]], ['2025-26', TEST]]) console.log(`SITE|${mode}|${nm}|${fmt(stats(tr.filter(x => x.time >= P[0] && x.time < P[1]), P))}`);
+  }
+  console.log(`SITE|seuil ${RULES.grosMax}`);
+}
