@@ -24,6 +24,10 @@ export const RULES = {
   volRef: 0.0374,         // agitation de référence : écart-type médian des variations journalières sur 30 jours (9 paires, 2020-2024)
   sizeMin: 0.5, sizeMax: 2, // la taille va de la moitié au double du risque de base
   roomAtr: 1.5,           // marge minimale avant le prochain niveau : 2 × 1,5 ATR 4h
+  // Gros traders (labo 9, 23 novembre 2026) : un achat pris quand les gros traders de Binance étaient déjà très acheteurs
+  // la veille (au moins 1,65 position acheteuse pour 1 vendeuse) a très peu rapporté. 'half' = risque divisé par 2,
+  // 'skip' = signal ignoré, 'off' = règle coupée.
+  grosMax: 1.65, grosMode: 'half',
   showHours: 24,          // un trade terminé reste affiché 24 h
   statsDays: 365,
 };
@@ -324,6 +328,21 @@ export function scoreOf(f, model = SCORE) {
   return Math.round(z * 1000) / 1000;
 }
 
+// Ratio acheteurs / vendeurs des gros traders de Binance à la fin de la veille (UTC) du temps T, ou null.
+// series : [[début du jour, ratio], ...] trié (une valeur par jour : celle de 23 h UTC).
+export function grosAt(series, T) {
+  if (!series?.length) return null;
+  const want = Math.floor(T / DAY) * DAY - DAY;
+  let lo = 0, hi = series.length - 1, v = null;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (series[m][0] <= want) { if (series[m][0] === want) v = series[m][1]; lo = m + 1; } else hi = m - 1; }
+  return v;
+}
+// Règle des gros traders pour un signal : 1 (rien), 0.5 (moitié du risque) ou 0 (ignoré).
+export function grosFactor(dir, ratio, mode = RULES.grosMode) {
+  if (mode === 'off' || dir !== 'long' || !(ratio >= RULES.grosMax)) return 1;
+  return mode === 'skip' ? 0 : 0.5;
+}
+
 // ---------- Plan de trade : stop à 0,75 ATR journalier, moitié à 5R ----------
 
 export function plan(dir, entry, atrD) {
@@ -383,7 +402,7 @@ export function evaluate(sig, bars, i, daily, cfg = MODES.classic) {
 
 // Prix qui déclencheraient le prochain signal, dans le sens de la tendance, à partir des bougies fermées.
 // trigger = la cassure la plus proche (10 ou 20 jours), stop = celui qu'aurait le trade s'il partait de là.
-export function radar(bars, daily, cfg = MODES.classic, market = null) {
+export function radar(bars, daily, cfg = MODES.classic, market = null, gros = null) {
   const closed = bars.filter(b => b.closed !== false);
   const i = closed.length - 1;
   const dc = dailyContext(daily);
@@ -415,7 +434,8 @@ export function radar(bars, daily, cfg = MODES.classic, market = null) {
   }
   return {
     ...out, dir, levels,
-    trigger: next && { ...next, distance: next.price / price - 1, stop: next.price - s * RULES.stopAtr * dc.atr[j], scoreOk },
+    trigger: next && { ...next, distance: next.price / price - 1, stop: next.price - s * RULES.stopAtr * dc.atr[j], scoreOk,
+      gros: gros ?? null, grosCut: next && gros !== null ? grosFactor(dir, gros) : 1 },
     macdReady: s * h < 0, // l'histogramme est du mauvais côté : son retour de l'autre côté de zéro donnerait un signal
   };
 }
@@ -447,6 +467,10 @@ export function scanAsset(asset, { bars, daily, market = null }, cfg = MODES.cla
     const f = cfg.useScore && market && asset.kind !== 'commodity' ? signalFeatures({ bars, i, A, dc, j, s, key, market }) : null;
     const score = scoreOf(f, model);
     if (score !== null && score < model.thr && !cfg.allSignals) continue;
+    // Gros traders déjà très acheteurs la veille : achat ignoré ou pris avec moitié moins de risque (cryptos, onglet Setups).
+    const gros = cfg.useScore && asset.kind !== 'commodity' ? grosAt(market?.gros?.[asset.symbol], bars[i].t + cfg.E) : null;
+    const gf = grosFactor(hit.dir, gros, cfg.grosMode);
+    if (gf === 0 && !cfg.allSignals) continue;
     const entry = bars[i].c;
     const p = plan(hit.dir, entry, dc.atr[j]);
     const sig = {
@@ -458,8 +482,8 @@ export function scanAsset(asset, { bars, daily, market = null }, cfg = MODES.cla
       // Pour la fiche du trade : niveau cassé, clôture et moyennes de la dernière journée fermée, ATR 4h.
       ref: hit.ref, day: { t: daily[j].t, c: daily[j].c, e20: dc.e20[j], e50: dc.e50[j] }, atr4h: A[i],
       // Multiplicateur de taille : risque du trade = RULES.riskPct × sz. Testé sur les cryptos seulement : le pétrole reste à 1.
-      sz: asset.kind === 'commodity' ? 1 : sizeFor(dc.vol[j]),
-      score,
+      sz: asset.kind === 'commodity' ? 1 : Math.round(sizeFor(dc.vol[j]) * gf * 100) / 100,
+      score, gros, grosCut: gf < 1 ? gf : undefined,
     };
     if (cfg.keepFeatures) sig.f = f;
     Object.assign(sig, bars[i].closed ? evaluate(sig, bars, i, daily, cfg) : { outcome: 'open', at: null, r: null, tpHit: 0 });
@@ -618,4 +642,31 @@ export function legState(dailyAll) {
   if (daily.length < LEG.slow * 3) return null;
   const r = legSummary(daily);
   return r && { ...r, days: r.bars };
+}
+
+// ---------- Contexte du marché sur les cartes Setups (labo 9, 23 novembre 2026) ----------
+
+// Zones de prix les plus échangées sur les n dernières bougies (30 jours de bougies 1h) : les 3 plus grosses,
+// et la plus proche devant le prix dans le sens du trade. Une zone très échangée freine souvent le prix.
+export function volumeZones(barsAll, dir = null, n = 720, bins = 60) {
+  const bars = barsAll.filter(b => b.closed !== false).slice(-n);
+  if (bars.length < 100) return null;
+  const lo = Math.min(...bars.map(b => b.l)), hi = Math.max(...bars.map(b => b.h));
+  if (!(hi > lo)) return null;
+  const vol = new Array(bins).fill(0);
+  for (const b of bars) vol[Math.min(bins - 1, Math.max(0, Math.floor(((b.h + b.l + b.c) / 3 - lo) / (hi - lo) * bins)))] += b.v;
+  const mean = vol.reduce((a, b) => a + b, 0) / bins;
+  const price = barsAll.at(-1).c;
+  const mid = k => lo + (k + 0.5) / bins * (hi - lo);
+  // Pics locaux de volume (zone plus échangée que ses voisines et au moins 1,5 fois la moyenne)
+  const peaks = [];
+  for (let k = 0; k < bins; k++) {
+    if (vol[k] < 1.5 * mean) continue;
+    if ((k > 0 && vol[k - 1] > vol[k]) || (k < bins - 1 && vol[k + 1] >= vol[k])) continue;
+    peaks.push({ price: mid(k), strength: Math.round(vol[k] / mean * 10) / 10, distance: mid(k) / price - 1 });
+  }
+  peaks.sort((a, b) => b.strength - a.strength);
+  const s = dir === 'long' ? 1 : dir === 'short' ? -1 : 0;
+  const ahead = s ? peaks.filter(p => p.distance * s > 0.002).sort((a, b) => Math.abs(a.distance) - Math.abs(b.distance))[0] ?? null : null;
+  return { top: peaks.slice(0, 3), ahead, lo, hi, days: Math.round(bars.length / 24) };
 }

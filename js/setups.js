@@ -103,7 +103,7 @@ function card(s, link = true) {
       <span class="when">${s.status === 'en cours' ? 'bougie en cours' : ago(new Date(s.time + barMs()).toISOString())}</span></span>
     <span class="why">${esc(s.why)}</span>
     <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(s.sl)}</span><span><i>Moitié à ${fmt(data.rules.partialR ?? s.rr, 0)}R</i>${px(s.tp[0])}</span>${s.exitAt ? `<span><i>Sortie</i>${px(s.exitAt)}</span>` : `<span><i>R:R</i>1:${fmt(s.rr, 1)}</span>`}</span>
-    <span class="sm">Risque conseillé : <b>${pctTxt(Math.round(riskOf(s) * 20) / 20)} % du capital</b> (${moodOf(s)})</span>
+    <span class="sm">Risque conseillé : <b>${pctTxt(Math.round(riskOf(s) * 20) / 20)} % du capital</b> (${moodOf(s)}${s.grosCut ? ', moitié moins car les gros traders étaient déjà très acheteurs' : ''})</span>
     <span class="wr">${winLine(s.detector)}</span>
     ${newsLink(s, 'span')}
   </${link ? 'a' : 'div'}>`;
@@ -144,6 +144,7 @@ export function radarBody(a) {
     return `<span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Achat' : 'Vente'}</b> si le prix clôture une bougie de ${unitWord()} ${word} <b>${px(r.trigger.price)}</b> (${plainPct(r.trigger.distance)})</span>
       <span class="meter" title="Distance au déclenchement"><i style="width:${Math.round(near * 100)}%"></i></span>
       <span class="sm">C'est son ${NAMES[r.trigger.key] || esc(data.detectors[r.trigger.key])}. Stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)}).${r.macdReady ? ` Le signal peut aussi venir plus tôt si ${macd}.` : ''}</span>
+      ${r.trigger.grosCut === 0.5 ? `<span class="sm down">Les gros traders sont déjà très acheteurs (${fmt(r.trigger.gros, 2)} achat pour 1 vente) : cet achat serait pris avec moitié moins de risque.</span>` : ''}
       ${r.trigger.scoreOk === true ? '<span class="sm up">Note du moment : bonne, le signal serait gardé.</span>' : r.trigger.scoreOk === false ? '<span class="sm muted">Note du moment trop basse : pour l\'instant, ce signal serait ignoré.</span>' : ''}`;
   }
   return `<span class="state">Le prix est déjà ${up ? 'au-dessus de ses plus hauts' : 'sous ses plus bas'} ${isCourt() ? 'des derniers jours' : 'du mois'}.</span>
@@ -155,7 +156,9 @@ function radarCard(a, link = true) {
   const last = lastTradeOf(a.symbol);
   const head = `<span class="hd"><b class="mono">${esc(a.symbol)}</b><span class="muted">${esc(a.name)}</span>
     ${r ? `<span class="tag ${TREND[r.trend]}">Tendance ${esc(r.trend)}</span>` : ''}<span class="px">${px(a.price)}</span></span>`;
-  const lastLine = last ? `<span class="sm">Dernier trade : ${esc(OUTCOME[last.outcome][0].toLowerCase())} le ${parisDay(last.at)} (${cap(last.r, last)})</span>` : '';
+  const g = a.ctx?.gros;
+  const grosLine = g && r?.trend !== 'neutre' && !liveOf(a.symbol) && r?.trigger?.grosCut !== 0.5 ? `<span class="sm">Gros traders : ${fmt(g, 2)} achat pour 1 vente${g >= (data.rules.grosMax ?? 1.65) ? ' <b class="down">(déjà très acheteurs)</b>' : ''}</span>` : '';
+  const lastLine = grosLine + (last ? `<span class="sm">Dernier trade : ${esc(OUTCOME[last.outcome][0].toLowerCase())} le ${parisDay(last.at)} (${cap(last.r, last)})</span>` : '');
   if (!link) return `<div class="card">${head}${radarBody(a)}${lastLine}</div>`;
   return `<a class="card" href="#paire/${encodeURIComponent(a.symbol)}">${head}${radarBody(a)}${lastLine}<span class="go">Voir la fiche ${esc(a.symbol)} →</span></a>`;
 }
@@ -171,6 +174,7 @@ function expectBox() {
     <ul>
       ${e.yearPct ? `<li>En 2025-2026, en réinvestissant les gains : environ <b>+${e.yearPct} % par an</b>, frais compris (${esc(e.years)}). C'est une période qui n'a pas servi à régler la méthode, sur les 9 cryptos suivies.</li>
       ${e.score ? `<li>Le bot ne garde que les signaux les mieux notés, environ 4 sur 10. La note est bonne quand le marché est calme, que Bitcoin va dans le même sens et que tout le marché n'est pas déjà lancé. Sans ce tri : environ +${e.score.without.yearPct} % par an, ${e.score.without.perMonth} signaux par mois et un recul jusqu'à −${e.score.without.ddPct} %.</li>` : ''}
+      ${e.gros ? `<li>Quand les gros traders de Binance sont déjà très acheteurs (au moins ${fmt(data.rules.grosMax ?? 1.65, 2)} achat pour 1 vente), le bot prend les achats avec moitié moins de risque : ces achats ont très peu rapporté dans nos tests. Sans cette règle : environ +${e.gros.without.yearPct} % par an, mais un recul jusqu'à −${e.gros.without.ddPct} %. C'est la seule des 17 données testées (open interest, funding, peur et avidité, options…) qui aide vraiment.</li>` : ''}
       <li>Le risque de chaque trade suit l'agitation du marché : ${pctTxt(risk)} % du capital en temps normal, jusqu'au double quand le prix bouge peu, la moitié quand il s'agite. Le risque conseillé est écrit sur chaque carte. Sans cet ajustement, on gagnait moins (environ +${e.score?.fixedPct ?? 23} % par an à 1 % fixe).</li>`
       : `<li>En moyenne <b>+${fmt(e.perTrade * risk, 2)} %</b> du capital par trade, frais compris (${fmt(risk, 0)} % du compte risqué à chaque fois). C'est ce qu'a donné la méthode en 2025-2026 sur les 9 cryptos suivies, une période qui n'a pas servi à la régler (${esc(e.years)}).</li>`}
       <li>Seulement <b>${fmt(e.winRate * 100, 0)} % de trades gagnants</b> : la plupart finissent au stop, avec une petite perte. Quelques gros gains paient tout le reste.</li>
@@ -450,4 +454,60 @@ export function setupsUnavailable() {
   document.getElementById('history-body').innerHTML = `<tr><td colspan="6">${msg}</td></tr>`;
   document.getElementById('history-list').innerHTML = '';
   document.getElementById('resume-setups').innerHTML = '<div class="soon">Setups pas encore disponibles.</div>';
+}
+
+// ---------- Contexte du marché (labo 9, novembre 2026) ----------
+// Chaque donnée en mots simples, avec ce que le test a donné : utile pour trier les signaux, ou seulement à titre d'info.
+const sgn = x => (x > 0 ? '+' : x < 0 ? '−' : '');
+const pctPlain = (x, d = 1) => `${sgn(x)}${fmt(Math.abs(x) * 100, d)} %`;
+function testLine(key) {
+  const t = data?.context?.test?.[key];
+  if (!t) return '';
+  return `<span class="it ctx-t ${t.helps ? 'ok' : t.helps === false ? 'no' : ''}">${t.helps ? '✔ ' : t.helps === false ? '✗ ' : '… '}${esc(t.text)}</span>`;
+}
+function ctxItem(key, label, value, text, tone = '', testKey = key) {
+  return `<li><span class="ik">${esc(label)}</span><span class="iv ${tone}">${value}</span><span class="it">${text}</span>${testLine(testKey)}</li>`;
+}
+export function contextItems(a) {
+  const c = a.ctx;
+  if (!c || a.kind === 'commodity') return [];
+  const g = data?.context ?? {};
+  const out = [];
+  if (c.gros) {
+    const hot = c.gros >= (data.rules.grosMax ?? 1.65);
+    out.push(ctxItem('gros', 'Gros traders : achats pour 1 vente (Binance, hier soir)', `${fmt(c.gros, 2)} pour 1`,
+      hot ? (a.radar?.dir === 'short' ? 'Ils sont déjà très acheteurs. La règle ne joue que pour les achats : en ce moment, le bot cherche des ventes.' : 'Ils sont déjà très acheteurs. Un achat maintenant arrive souvent tard : le bot le prend avec moitié moins de risque.')
+        : c.gros < 1 ? 'Ils sont plutôt vendeurs.' : 'Ils sont un peu plus acheteurs que vendeurs, sans excès.', hot ? 'down' : ''));
+  }
+  if (c.oi) out.push(ctxItem('oi', 'Positions ouvertes sur 24 h (open interest OKX)', `${c.oi.ch1 === null ? '—' : pctPlain(c.oi.ch1)}`,
+    `${c.oi.ch7 === null ? '' : `${pctPlain(c.oi.ch7)} en 7 jours. `}${c.oi.ch7 > 0.1 ? 'Beaucoup de nouveaux paris arrivent : le mouvement attire du monde, mais il peut aussi se retourner d\'un coup.' : c.oi.ch7 < -0.1 ? 'Beaucoup de traders ferment leurs positions.' : 'Pas de grand changement.'}`));
+  if (c.crowd) out.push(ctxItem('crowd', 'Foule : acheteurs pour 1 vendeur (comptes OKX)', `${fmt(c.crowd, 2)} pour 1`,
+    c.crowd >= 2 ? 'La plupart des petits comptes parient sur la hausse.' : c.crowd <= 0.8 ? 'La plupart des petits comptes parient sur la baisse.' : 'La foule est partagée.'));
+  if (c.taker) out.push(ctxItem('taker', 'Part des achats pressés sur 24 h (OKX)', `${fmt(c.taker * 100, 0)} %`,
+    c.taker >= 0.53 ? 'Les acheteurs pressés dominent.' : c.taker <= 0.47 ? 'Les vendeurs pressés dominent.' : 'Équilibre entre acheteurs et vendeurs pressés.'));
+  if (c.funding !== undefined && c.funding !== null) out.push(ctxItem('funding', 'Funding moyen sur 7 jours (OKX)', `${sgn(c.funding)}${fmt(Math.abs(c.funding) * 100, 4)} %`,
+    c.funding > 0.0002 ? 'Les acheteurs paient cher pour rester : beaucoup de paris à la hausse.' : c.funding < 0 ? 'Les vendeurs paient : beaucoup de paris à la baisse.' : 'Normal.', c.funding > 0.0002 ? 'down' : ''));
+  if (g.fng) out.push(ctxItem('fng', 'Peur et avidité (tout le marché)', `${g.fng.value} / 100`,
+    `${g.fng.value >= 75 ? 'Avidité extrême' : g.fng.value >= 55 ? 'Avidité' : g.fng.value > 45 ? 'Neutre' : g.fng.value > 25 ? 'Peur' : 'Peur extrême'}${g.fng.week !== null ? ` (${g.fng.week} il y a une semaine)` : ''}.`));
+  const dv = g.dvol?.[a.symbol === 'ETH' ? 'ETH' : 'BTC'];
+  if (dv) out.push(ctxItem('dvol', `Agitation attendue par les options (${a.symbol === 'ETH' ? 'ETH' : 'BTC'})`, `${fmt(dv.value, 0)} %`,
+    `Sur un an (indice DVOL de Deribit). Les options parient sur des mouvements d'environ ${fmt(dv.value / Math.sqrt(365), 1)} % par jour${dv.week ? `, ${dv.value > dv.week * 1.05 ? 'en hausse' : dv.value < dv.week * 0.95 ? 'en baisse' : 'stable'} sur une semaine` : ''}.`));
+  const z = c.zones;
+  if (z?.top?.length) {
+    const near = [...z.top].sort((x, y) => Math.abs(x.distance) - Math.abs(y.distance))[0];
+    out.push(ctxItem('zones', `Prix les plus échangés (${z.days} derniers jours)`, `${px(near.price)}`,
+      `Zone la plus proche à ${pctPlain(near.distance)} du prix. ${z.top.length > 1 ? `Autres : ${z.top.filter(x => x !== near).map(x => px(x.price)).join(', ')}. ` : ''}Le prix ralentit souvent dans ces zones.`));
+  }
+  return out;
+}
+export function contextBox(a) {
+  const items = contextItems(a);
+  if (!items.length) return '';
+  const t = data?.context?.test ?? {};
+  return `<div class="box ctx-box"><h2>Contexte du marché</h2>
+    <p class="txt">Ces données ont toutes été testées sur les signaux du bot (2020-2026, frais compris). Une seule aide vraiment : les gros traders. Les autres sont là pour comprendre le marché, pas pour décider.</p>
+    <ul class="ind-list">${items.join('')}</ul>
+    ${t.season ? `<p class="fine">✗ ${esc(t.season.text)}</p>` : ''}
+    ${t.liq ? `<p class="fine">… Liquidations : ${esc(t.liq.text)}</p>` : ''}
+    <p class="fine">Sources gratuites : Binance (fichiers publics), OKX, alternative.me, Deribit. Mis à jour toutes les heures.</p></div>`;
 }
