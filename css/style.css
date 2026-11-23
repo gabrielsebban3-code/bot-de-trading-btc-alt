@@ -1032,6 +1032,7 @@ body.jb-locked { overflow: hidden; }
 .t-zones b { color: var(--fg); font-weight: 600; font-size: 13px; }
 .t-zones .r { color: var(--muted); font-size: 11px; }
 .t-after td small { display: block; font: 11px var(--sans); color: var(--muted); }
+.t-after th small { font: 400 11px var(--sans); color: var(--muted); }
 .t-after tr.on td { background: var(--bg); }
 .t-after tr.on td.l { box-shadow: inset 3px 0 0 var(--accent); }
 .t-after tr.ref td { color: var(--muted); }
