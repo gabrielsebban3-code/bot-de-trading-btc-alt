@@ -9,7 +9,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { fetchJson, mapLimit } from './lib/http.mjs';
-import { DETECTORS, MODES, RULES, dailyContext, detectorStats, indicatorState, legState, marketOf, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
+import { DETECTORS, MODES, RULES, dailyContext, detectorStats, indicatorState, legState, marketOf, volumeZones, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
@@ -41,6 +41,8 @@ const EXPECT = {
     score: { trades: 91, fixedPct: 51, without: { yearPct: 47, ddPct: 40, perMonth: 11 }, dev: { yearPct: 87, ddPct: 27 } } },
   court: { perTrade: 0.18, winRate: 0.22, perMonth: 48, ddR: 134, streak: 51, years: '2025 : +173 % · 2026 : +13 % · 12 derniers mois : à peu près zéro' },
 };
+// Résultat du labo 9 (23 novembre 2026) pour chaque donnée de contexte : rempli après le test.
+const CONTEXT_TEST = {};
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // OKX limite le nombre de requêtes par seconde : on espace les appels.
@@ -60,6 +62,58 @@ async function okx(path) {
   const r = await fetchJson(`${OKX}${path}`, { retries: 2 });
   if (r.code !== '0') throw new Error(`OKX ${path} : ${r.msg || r.code}`);
   return r.data;
+}
+
+// Contexte du marché pour chaque paire (OKX, gratuit) : open interest, gros traders, foule, achats/ventes pressés, funding.
+// Montré sur les cartes et la fiche paire. Labo 9 (23 novembre 2026) : voir CONTEXT_TEST pour ce que ces données valent.
+async function pairContext(sym) {
+  const num = (rows, k) => rows.map(r => [Number(r[0]), Number(r[k])]).filter(([, v]) => v > 0).sort((a, b) => a[0] - b[0]);
+  const valAt = (pts, t) => { let v = null; for (const [ts, x] of pts) if (ts <= t) v = x; return v; };
+  const out = {};
+  const tryIt = async (name, fn) => { try { await fn(); } catch (err) { console.warn(`Contexte ${sym} ${name} : ${err.message}`); } };
+  await tryIt('open interest', async () => {
+    const oi = num(await okx(`/rubik/stat/contracts/open-interest-volume?ccy=${sym}&period=1H`), 1);
+    const last = oi.at(-1);
+    if (!last) return;
+    const d1 = valAt(oi, last[0] - 86_400_000), d7 = valAt(oi, last[0] - 7 * 86_400_000);
+    out.oi = { usd: last[1], ch1: d1 ? last[1] / d1 - 1 : null, ch7: d7 ? last[1] / d7 - 1 : null };
+  });
+  await tryIt('gros traders', async () => {
+    const r = num(await okx(`/rubik/stat/contracts/long-short-position-ratio-contract-top-trader?instId=${sym}-USDT-SWAP&period=1H&limit=24`), 1);
+    if (r.length) out.top = r.at(-1)[1];
+  });
+  await tryIt('foule', async () => {
+    const r = num(await okx(`/rubik/stat/contracts/long-short-account-ratio?ccy=${sym}&period=1H`), 1);
+    if (r.length) out.crowd = r.at(-1)[1];
+  });
+  await tryIt('acheteurs pressés', async () => {
+    const rows = (await okx(`/rubik/stat/taker-volume?ccy=${sym}&instType=CONTRACTS&period=1H`)).map(r => [Number(r[0]), Number(r[1]), Number(r[2])]).sort((a, b) => a[0] - b[0]).slice(-24);
+    const sell = rows.reduce((a, r) => a + r[1], 0), buy = rows.reduce((a, r) => a + r[2], 0);
+    if (buy + sell > 0) out.taker = buy / (buy + sell);
+  });
+  await tryIt('funding', async () => {
+    const rows = await okx(`/public/funding-rate-history?instId=${sym}-USDT-SWAP&limit=21`);
+    if (rows.length) out.funding = rows.reduce((a, r) => a + Number(r.fundingRate), 0) / rows.length;
+  });
+  return out;
+}
+
+// Contexte commun à toutes les paires : peur et avidité (alternative.me) et volatilité attendue des options (Deribit DVOL).
+async function globalContext(now) {
+  const out = {};
+  try {
+    const f = await fetchJson('https://api.alternative.me/fng/?limit=8', { retries: 1 });
+    const d = f.data ?? [];
+    if (d.length) out.fng = { value: Number(d[0].value), label: d[0].value_classification, week: d[7] ? Number(d[7].value) : null };
+  } catch (err) { console.warn(`Peur et avidité : ${err.message}`); }
+  for (const c of ['BTC', 'ETH']) {
+    try {
+      const r = await fetchJson(`https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${c}&start_timestamp=${now - 10 * 86_400_000}&end_timestamp=${now}&resolution=1D`, { retries: 1 });
+      const pts = (r.result?.data ?? []).map(x => [x[0], x[4]]).sort((a, b) => a[0] - b[0]);
+      if (pts.length) (out.dvol ??= {})[c] = { value: pts.at(-1)[1], week: pts.length >= 8 ? pts.at(-8)[1] : null };
+    } catch (err) { console.warn(`DVOL ${c} : ${err.message}`); }
+  }
+  return out;
 }
 
 const toBar = row => ({ t: Number(row[0]), o: Number(row[1]), h: Number(row[2]), l: Number(row[3]), c: Number(row[4]), v: Number(row[7]), closed: row[8] === '1' });
@@ -106,6 +160,14 @@ async function main() {
       return null;
     }
   });
+  // Contexte du marché (OKX, alternative.me, Deribit) : une donnée qui manque n'empêche pas le reste.
+  const ctxBySym = new Map();
+  if (!args.sample) {
+    const list = fetched.filter(x => x && x.asset.kind === 'crypto');
+    const ctxs = await mapLimit(list, 3, x => pairContext(x.asset.symbol).catch(() => ({})));
+    list.forEach((x, k) => ctxBySym.set(x.asset.symbol, ctxs[k]));
+  }
+  const globalCtx = args.sample ? {} : await globalContext(now);
   // Tendance de chaque crypto jour par jour : sert à la note des signaux (BTC et « tout le marché dans le même sens »).
   const market = marketOf(Object.fromEntries(fetched.filter(x => x && x.asset.kind === 'crypto').map(x => [x.asset.symbol, x.daily])));
   const results = fetched.map(x => {
@@ -117,12 +179,15 @@ async function main() {
       const tk = tick.get(instId);
       const last = tk ? Number(tk.last) : h1.at(-1).c;
       const c4 = dailyContext(bars.filter(b => b.closed !== false));
+      const rd = radar(h1, daily, SWING, asset.kind === 'crypto' ? market : null);
+      const liveSig = signals.find(s => s.outcome === 'open');
+      const ctx = { ...(ctxBySym.get(asset.symbol) ?? {}), zones: volumeZones(h1, liveSig?.dir ?? rd?.dir ?? null) };
       return {
         asset: {
           ...asset, instId, price: last,
           change24h: tk && Number(tk.open24h) ? last / Number(tk.open24h) - 1 : null,
           trend: trend1d(daily, now),
-          radar: radar(h1, daily, SWING, asset.kind === 'crypto' ? market : null),
+          radar: rd, ctx,
           ind: indicatorState(bars, daily),
           leg: legState(daily),
         },
@@ -190,7 +255,7 @@ async function main() {
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), sources, warnings, model: SWING.key,
     rules: rulesOf(SWING), expect: EXPECT.swing,
     detectors: DETECTORS, freshStart,
-    assets: ok.map(r => r.asset), live: shown, stats, history, charts,
+    assets: ok.map(r => r.asset), live: shown, stats, history, charts, context: { ...globalCtx, test: CONTEXT_TEST },
   }));
   await writeFile(join(OUT, 'setups-court.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), model: COURT.key,

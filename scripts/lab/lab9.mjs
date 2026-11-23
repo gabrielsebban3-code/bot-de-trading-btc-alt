@@ -101,6 +101,8 @@ for (const s of SYMS) {
     f.oi1 = oiN && oi1 ? oiN / oi1 - 1 : null;
     f.oi7 = oiN && oi7 ? oiN / oi7 - 1 : null;
     const top = at(m.top, T), crowd = at(m.crowd, T);
+    const topLag = at(m.top, Math.floor(T / D) * D - 1);
+    f.topLag = topLag === null ? null : sg * topLag;
     f.top = top === null ? null : sg * top;                      // gros traders de notre côté (+) ou contre (−)
     f.crowd = crowd === null ? null : sg * crowd;                // foule de notre côté
     f.topVsCrowd = top === null || crowd === null ? null : sg * (top - crowd);
@@ -183,7 +185,7 @@ function randomPct(fracKept, P, value, metric) {
 
 // ---------- Chaque donnée en filtre ----------
 const FEATS = {
-  oi1: 'open interest 24 h', oi7: 'open interest 7 j', top: 'gros traders de notre côté', crowd: 'foule de notre côté', topVsCrowd: 'gros traders vs foule',
+  topLag: 'gros traders (fichier de la veille)', oi1: 'open interest 24 h', oi7: 'open interest 7 j', top: 'gros traders de notre côté', crowd: 'foule de notre côté', topVsCrowd: 'gros traders vs foule',
   taker: 'acheteurs/vendeurs pressés 24 h', fund7: 'funding 7 j dans notre sens', fng: 'peur et avidité dans notre sens',
   dvol: 'volatilité attendue (options)', dvol7: 'volatilité attendue, variation 7 j', dvolVsReal: 'volatilité attendue / réelle',
   vpAhead: 'volume échangé juste devant le prix', vpBehind: 'part du volume derrière le prix', weekend: 'week-end', dow: 'jour de la semaine', monthQ: 'trimestre', dom: 'jour du mois',
@@ -240,4 +242,40 @@ for (const [k, label] of Object.entries(FEATS)) {
   const v = xs.map(x => x.f[k]).sort((a, b) => a - b), q1 = v[Math.floor(v.length / 3)], q2 = v[Math.floor(2 * v.length / 3)];
   const g = (lo, hi, P) => { const z = xs.filter(x => x.f[k] >= lo && x.f[k] < hi && x.time >= P[0] && x.time < P[1]); return z.length ? `${(z.reduce((a, x) => a + x.rn, 0) / z.length).toFixed(2)} (${z.length})` : '—'; };
   console.log(`TIERS|${label}|bas <${q1.toPrecision(3)} : réglage ${g(-Infinity, q1, DV)} · 2025-26 ${g(-Infinity, q1, TEST)}|milieu : ${g(q1, q2, DV)} · ${g(q1, q2, TEST)}|haut ≥${q2.toPrecision(3)} : ${g(q2, Infinity, DV)} · ${g(q2, Infinity, TEST)}`);
+}
+
+// ---------- Labo 9b : solidité du filtre « gros traders » ----------
+for (const k of ['top', 'topLag']) {
+  const has = x => Number.isFinite(x.f[k]);
+  const first = sigs.find(has).time, dvP = [first, DV[1]];
+  const bD = stats(replay(all, dvP), dvP);
+  console.log(`9B|${k}|base réglage ${fmt(bD)}`);
+  for (const thr of [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7]) {
+    const keep = x => !has(x) || x.f[k] <= thr;
+    const half = x => (keep(x) ? 1 : 0.5);
+    const a = stats(replay(keep, dvP), dvP), b = stats(replay(keep, TEST), TEST), h = stats(replay(all, TEST, half), TEST), hd = stats(replay(all, dvP, half), dvP);
+    console.log(`9B|${k} <= ${thr}|réglage ${fmt(a)}|2025-26 ${fmt(b)}|moitié taille : réglage ratio ${hd.ratio.toFixed(2)} ${pc(hd.cagr)}/an baisse ${Math.round(hd.edd * 100)} % · 2025-26 ratio ${h.ratio.toFixed(2)} ${pc(h.cagr)}/an baisse ${Math.round(h.edd * 100)} %`);
+  }
+  // Hasard à sens égal : on écarte au hasard autant d'achats et de ventes que le filtre (seuil 0,45)
+  for (const P of [dvP, TEST]) {
+    const keep = x => !has(x) || x.f[k] <= 0.45;
+    const inP = sigs.filter(x => x.time >= P[0] && x.time < P[1]);
+    const kl = inP.filter(x => x.dir === 'long'), ks = inP.filter(x => x.dir === 'short');
+    const fl = kl.filter(keep).length / kl.length, fs = ks.filter(keep).length / ks.length;
+    const real = stats(replay(keep, P), P).ratio; const vals = [];
+    for (let r = 0; r < 400; r++) { const pick = new Map(inP.map(x => [x.id, rnd() < (x.dir === 'long' ? fl : fs)])); vals.push(stats(replay(x => pick.get(x.id), P), P).ratio); }
+    console.log(`9B|${k} hasard à sens égal ${P === TEST ? '2025-26' : 'réglage'}|garde ${Math.round(fl * 100)} % des achats, ${Math.round(fs * 100)} % des ventes|bat ${Math.round(vals.filter(v => v < real).length / vals.length * 100)} % des tirages`);
+  }
+  // Par année, par sens
+  const keep = x => !has(x) || x.f[k] <= 0.45;
+  for (const y of [2021, 2022, 2023, 2024, 2025, 2026]) {
+    const P = [Date.UTC(y, 0, 1), Date.UTC(y + 1, 0, 1)];
+    const b = stats(replay(all, P), P), f = stats(replay(keep, P), P);
+    console.log(`9B|${k} ${y}|sans ${b.n} tr ${b.totR.toFixed(0)} R baisse ${b.ddR.toFixed(0)} R|avec ${f.n} tr ${f.totR.toFixed(0)} R baisse ${f.ddR.toFixed(0)} R`);
+  }
+  for (const d of ['long', 'short']) {
+    const xs = sigs.filter(x => x.dir === d && has(x));
+    const g = (c, P) => { const z = xs.filter(x => c(x) && x.time >= P[0] && x.time < P[1]); return `${z.length ? (z.reduce((a, x) => a + x.rn, 0) / z.length).toFixed(2) : '—'} (${z.length})`; };
+    console.log(`9B|${k} ${d}|gros traders peu de notre côté : réglage ${g(keep, dvP)} · 2025-26 ${g(keep, TEST)}|très de notre côté : réglage ${g(x => !keep(x), dvP)} · 2025-26 ${g(x => !keep(x), TEST)}`);
+  }
 }

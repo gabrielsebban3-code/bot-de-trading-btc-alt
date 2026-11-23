@@ -619,3 +619,30 @@ export function legState(dailyAll) {
   const r = legSummary(daily);
   return r && { ...r, days: r.bars };
 }
+
+// ---------- Contexte du marché sur les cartes Setups (labo 9, 23 novembre 2026) ----------
+
+// Zones de prix les plus échangées sur les n dernières bougies (30 jours de bougies 1h) : les 3 plus grosses,
+// et la plus proche devant le prix dans le sens du trade. Une zone très échangée freine souvent le prix.
+export function volumeZones(barsAll, dir = null, n = 720, bins = 60) {
+  const bars = barsAll.filter(b => b.closed !== false).slice(-n);
+  if (bars.length < 100) return null;
+  const lo = Math.min(...bars.map(b => b.l)), hi = Math.max(...bars.map(b => b.h));
+  if (!(hi > lo)) return null;
+  const vol = new Array(bins).fill(0);
+  for (const b of bars) vol[Math.min(bins - 1, Math.max(0, Math.floor(((b.h + b.l + b.c) / 3 - lo) / (hi - lo) * bins)))] += b.v;
+  const mean = vol.reduce((a, b) => a + b, 0) / bins;
+  const price = barsAll.at(-1).c;
+  const mid = k => lo + (k + 0.5) / bins * (hi - lo);
+  // Pics locaux de volume (zone plus échangée que ses voisines et au moins 1,5 fois la moyenne)
+  const peaks = [];
+  for (let k = 0; k < bins; k++) {
+    if (vol[k] < 1.5 * mean) continue;
+    if ((k > 0 && vol[k - 1] > vol[k]) || (k < bins - 1 && vol[k + 1] >= vol[k])) continue;
+    peaks.push({ price: mid(k), strength: Math.round(vol[k] / mean * 10) / 10, distance: mid(k) / price - 1 });
+  }
+  peaks.sort((a, b) => b.strength - a.strength);
+  const s = dir === 'long' ? 1 : dir === 'short' ? -1 : 0;
+  const ahead = s ? peaks.filter(p => p.distance * s > 0.002).sort((a, b) => Math.abs(a.distance) - Math.abs(b.distance))[0] ?? null : null;
+  return { top: peaks.slice(0, 3), ahead, lo, hi, days: Math.round(bars.length / 24) };
+}
