@@ -152,6 +152,7 @@ function replay(keep, P, sizeOf = () => 1) {
   }
   return tr;
 }
+let RISK = 0.01;
 function stats(tr, P) {
   const byClose = [...tr].sort((a, b) => a.at - b.at);
   let cum = 0, pk = 0, dd = 0; for (const t of byClose) { cum += t.rn * t.w; pk = Math.max(pk, cum); dd = Math.max(dd, pk - cum); }
@@ -160,7 +161,7 @@ function stats(tr, P) {
   for (const t of [...tr].sort((a, b) => a.time - b.time)) {
     open.sort((a, b) => a.at - b.at);
     while (open.length && open[0].at <= t.time) { const c = open.shift(); eq += c.amt * c.rn; ep = Math.max(ep, eq); edd = Math.max(edd, 1 - eq / ep); }
-    open.push({ at: t.at, amt: eq * 0.01 * t.w, rn: t.rn });
+    open.push({ at: t.at, amt: eq * RISK * t.w, rn: t.rn });
   }
   for (const c of open.sort((a, b) => a.at - b.at)) { eq += c.amt * c.rn; ep = Math.max(ep, eq); edd = Math.max(edd, 1 - eq / ep); }
   const yrs = (Math.min(P[1], LAST) - P[0]) / (365.25 * D);
@@ -291,4 +292,12 @@ for (const k of ['top', 'topLag']) {
     for (const [nm, P] of [['2022-24', [Date.UTC(2022, 0, 1), DV[1]]], ['2025-26', TEST]]) console.log(`SITE|${mode}|${nm}|${fmt(stats(tr.filter(x => x.time >= P[0] && x.time < P[1]), P))}`);
   }
   console.log(`SITE|seuil ${RULES.grosMax}`);
+  for (const mode of ['off', 'half', 'skip']) {
+    const tr = SYMS.flatMap(s => scanAsset({ symbol: s, kind: 'crypto' }, { ...DATA[s], market: mk }, { ...MODES.swing, backtestBars: 1e9, grosMode: mode })).filter(x => x.outcome !== 'open').map(x => ({ ...x, rn: net(x), w: x.sz }));
+    const t2 = tr.filter(x => x.time >= TEST[0]);
+    RISK = 0.005; const safe = stats(t2, TEST); RISK = 0.01;
+    const ys = [2025, 2026].map(y => { const P = [Date.UTC(y, 0, 1), Date.UTC(y + 1, 0, 1)]; const st = stats(tr.filter(x => x.time >= P[0] && x.time < P[1]), P); return `${y} ${pc(st.cagr * Math.min(1, (Math.min(P[1], LAST) - P[0]) / (365.25 * D)))}`; });
+    let st = 0, mx = 0; for (const x of [...t2].sort((a, b) => a.at - b.at)) { st = x.r > 0 ? 0 : st + 1; mx = Math.max(mx, st); }
+    console.log(`EXPECT|${mode}|0,5 % : ${pc(safe.cagr)}/an baisse ${Math.round(safe.edd * 100)} %|années ${ys.join(' · ')}|série ${mx}|R/tr avec taille ${(t2.reduce((a, x) => a + x.rn * x.w, 0) / t2.length).toFixed(2)}`);
+  }
 }

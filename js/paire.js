@@ -6,7 +6,7 @@ import { partnersBox } from './partners.js';
 import { macdOf } from './crypto-lib.js';
 import { star } from './watchlist.js';
 import { delayed, historyDays } from './premium.js';
-import { OUTCOME, TREND, cap, dirTag, pctTxt, sumR, lastTradeOf, liveOf, okxUrl, outcomeCls, parisDay, plainPct, px, radarBody, setupsData } from './setups.js';
+import { OUTCOME, TREND, cap, dirTag, pctTxt, sumR, lastTradeOf, liveOf, okxUrl, outcomeCls, parisDay, plainPct, px, radarBody, setupsData, contextBox } from './setups.js';
 
 const $ = id => document.getElementById(id);
 const DAY = 86_400_000;
@@ -67,6 +67,7 @@ function page(a, d) {
       <span class="muted">perpétuel OKX · mis à jour ${ago(data.generatedAt)}</span></div>
     <div class="box pa-now"><h2>En ce moment</h2><div class="pa-state">${radarBody(a)}
       ${live ? `<a class="chip" href="#setup/${encodeURIComponent(live.id)}">Voir le trade en jeu →</a>` : ''}</div></div>
+    ${contextBox(a)}
     <div class="box mk cx-box">
       <div class="tools" id="pa-periods" role="group" aria-label="Période">${PERIODS.map(([l]) => `<button type="button" class="chip" data-pap="${l}" aria-pressed="${state.period === l}">${l}</button>`).join('')}</div>
       <div class="cx-chart" id="pa-chart">${d ? '' : '<div class="empty">Chargement du graphique…</div>'}</div>
@@ -134,6 +135,7 @@ function rulesBox(a, d) {
     <li>${ok(null)}<div><b>3. Pas d'obstacle proche</b><span>Le signal est ignoré si un ancien ${up ? 'sommet' : 'creux'} ou un chiffre rond est juste ${up ? 'au-dessus' : 'en dessous'} du prix.</span></div></li>
     <li>${ok(!live)}<div><b>4. Un seul trade à la fois sur ${esc(a.symbol)}</b><span>${live ? 'Un trade est déjà en cours : pas de nouveau signal avant sa fin.' : 'Aucun trade en cours : la paire est libre.'}</span></div></li>
     ${scored ? `<li>${ok(r?.trigger?.scoreOk ?? null)}<div><b>5. Une bonne note</b><span>Le bot note chaque signal et ne garde que les meilleurs, environ 4 sur 10 : marché calme, Bitcoin dans le même sens, tout le marché pas déjà lancé.${r?.trigger?.scoreOk === true ? ' En ce moment, la note serait bonne.' : r?.trigger?.scoreOk === false ? ' En ce moment, la note serait trop basse.' : ''}</span></div></li>` : ''}
+    ${scored && a.ctx?.gros ? `<li>${ok(r?.dir === 'long' ? a.ctx.gros < (setupsData().rules.grosMax ?? 1.65) : true)}<div><b>6. Gros traders pas déjà tous acheteurs</b><span>Pour un achat seulement : si les gros traders de Binance avaient déjà au moins ${fmt(setupsData().rules.grosMax ?? 1.65, 2)} position acheteuse pour 1 vendeuse la veille, le bot prend l'achat avec moitié moins de risque (ces achats ont très peu rapporté dans nos tests). Hier soir : ${fmt(a.ctx.gros, 2)} pour 1.</span></div></li>` : ''}
   </ol><p class="txt muted">Il faut les ${scored ? 5 : 4} en même temps : c'est rare exprès, environ 4 signaux par mois sur les 9 cryptos suivies.</p></div>`;
 }
 

@@ -6,10 +6,10 @@
 // Lancé toutes les heures par GitHub Actions (.github/workflows/deploy.yml).
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { gzipSync } from 'node:zlib';
+import { gzipSync, inflateRawSync } from 'node:zlib';
 import { join } from 'node:path';
 import { fetchJson, mapLimit } from './lib/http.mjs';
-import { DETECTORS, MODES, RULES, dailyContext, detectorStats, indicatorState, legState, marketOf, volumeZones, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
+import { DETECTORS, MODES, RULES, dailyContext, detectorStats, indicatorState, grosAt, legState, marketOf, volumeZones, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
 
 const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.flatMap((a, i) => (a.startsWith('--') ? [[a.slice(2), argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true]] : [])));
@@ -41,8 +41,21 @@ const EXPECT = {
     score: { trades: 91, fixedPct: 51, without: { yearPct: 47, ddPct: 40, perMonth: 11 }, dev: { yearPct: 87, ddPct: 27 } } },
   court: { perTrade: 0.18, winRate: 0.22, perMonth: 48, ddR: 134, streak: 51, years: '2025 : +173 % · 2026 : +13 % · 12 derniers mois : à peu près zéro' },
 };
-// Résultat du labo 9 (23 novembre 2026) pour chaque donnée de contexte : rempli après le test.
-const CONTEXT_TEST = {};
+// Labo 9 (23 novembre 2026) : chaque donnée testée comme tri des signaux Setups, vrai code du site, 9 cryptos Binance,
+// réglage sur 2020-2024 (ou depuis que la donnée existe), vérification sur 2025-2026 et face au hasard.
+// helps = la donnée a amélioré les résultats sur les deux périodes et mieux que le hasard. Texte affiché tel quel.
+const CONTEXT_TEST = {
+  gros: { helps: true, text: 'Testé : utile. Quand les gros traders sont déjà très acheteurs (1,65 achat pour 1 vente ou plus), les achats ont très peu rapporté : le bot les prend avec moitié moins de risque. En 2025-2026 : pire recul −14 % au lieu de −19 %, pour un gain presque égal (+80 % par an au lieu de +85 %).' },
+  oi: { helps: false, text: 'Testé : n\'améliore pas les signaux (2025-2026 : pas mieux que d\'écarter des signaux au hasard).' },
+  crowd: { helps: false, text: 'Testé : n\'améliore pas les signaux. Le réglage trouvé sur 2021-2024 a fait pire en 2025-2026.' },
+  taker: { helps: false, text: 'Testé : n\'améliore pas les signaux.' },
+  funding: { helps: false, text: 'Testé : n\'améliore pas les signaux (le réglage de 2020-2024 perdait en 2025-2026).' },
+  fng: { helps: false, text: 'Testé : n\'améliore pas les signaux (le réglage de 2020-2024 a fait bien pire en 2025-2026).' },
+  dvol: { helps: false, text: 'Testé : n\'améliore pas les signaux de façon sûre (rien de mieux sur 2021-2024, mieux en 2025-2026 seulement).' },
+  zones: { helps: false, text: 'Testé : ne sert pas à trier ces signaux. Une cassure sort par définition de la zone du mois : il n\'y a jamais de zone devant.' },
+  season: { helps: false, text: 'Jour de la semaine, week-end, jour du mois, trimestre : testés, aucun n\'aide.' },
+  liq: { helps: null, text: 'Pas encore testable : les prix de liquidation ne sont enregistrés que depuis quelques jours. On pourra tester dans quelques mois.' },
+};
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // OKX limite le nombre de requêtes par seconde : on espace les appels.
@@ -95,6 +108,40 @@ async function pairContext(sym) {
     const rows = await okx(`/public/funding-rate-history?instId=${sym}-USDT-SWAP&limit=21`);
     if (rows.length) out.funding = rows.reduce((a, r) => a + Number(r.fundingRate), 0) / rows.length;
   });
+  return out;
+}
+
+// Gros traders de Binance : ratio positions acheteuses / vendeuses des 20 % de comptes aux plus grosses marges,
+// lu dans le fichier quotidien gratuit de data.binance.vision (publié le lendemain). On garde la valeur de 23 h UTC.
+// L'historique déjà publié est repris : à chaque passage, seuls les jours manquants sont téléchargés.
+function unzipFirst(buf) {
+  // Fin du répertoire central, puis la première entrée (taille compressée et position de l'en-tête local).
+  let e = buf.length - 22;
+  while (e >= 0 && buf.readUInt32LE(e) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('zip illisible');
+  const cd = buf.readUInt32LE(e + 16);
+  const method = buf.readUInt16LE(cd + 10), size = buf.readUInt32LE(cd + 20), off = buf.readUInt32LE(cd + 42);
+  const start = off + 30 + buf.readUInt16LE(off + 26) + buf.readUInt16LE(off + 28);
+  const data = buf.subarray(start, start + size);
+  return (method === 8 ? inflateRawSync(data) : data).toString('utf8');
+}
+async function grosDay(sym, dayStart) {
+  const d = new Date(dayStart).toISOString().slice(0, 10);
+  const res = await fetch(`https://data.binance.vision/data/futures/um/daily/metrics/${sym}USDT/${sym}USDT-metrics-${d}.zip`, { headers: { 'User-Agent': 'Dinexo/1.0' }, signal: AbortSignal.timeout(20_000) });
+  if (!res.ok) return null;
+  const rows = unzipFirst(Buffer.from(await res.arrayBuffer())).split('\n').map(l => l.split(',')).filter(p => p[0]?.includes(' 23:00:00'));
+  const v = rows.length ? Number(rows[0][5]) : NaN;
+  return v > 0 ? Math.round(v * 1e4) / 1e4 : null;
+}
+async function grosHistory(symbols, previous, now) {
+  const today = Math.floor(now / 86_400_000) * 86_400_000;
+  const known = new Map(symbols.map(sym => [sym, new Map((previous?.[sym] ?? []).filter(([t]) => t >= today - 420 * 86_400_000))]));
+  const want = [];
+  for (const sym of symbols) for (let t = today - 400 * 86_400_000; t < today; t += 86_400_000) if (!known.get(sym).has(t)) want.push([sym, t]);
+  const got = await mapLimit(want, 32, ([sym, t]) => grosDay(sym, t).catch(() => null));
+  want.forEach(([sym, t], k) => { if (got[k] !== null) known.get(sym).set(t, got[k]); });
+  const out = Object.fromEntries(symbols.map(sym => [sym, [...known.get(sym)].sort((x, y) => x[0] - y[0])]));
+  console.log(`Gros traders (Binance) : ${got.filter(x => x !== null).length}/${want.length} jours ajoutés · ${symbols.map(sym => `${sym} ${out[sym].at(-1)?.[1] ?? '—'}`).join(' · ')}`);
   return out;
 }
 
@@ -160,6 +207,9 @@ async function main() {
       return null;
     }
   });
+  const prevRaw = args.previous ? await readFile(args.previous, 'utf8').then(JSON.parse).catch(() => null) : null;
+  const cryptoSyms = fetched.filter(x => x && x.asset.kind === 'crypto').map(x => x.asset.symbol);
+  const gros = args.sample ? {} : await grosHistory(cryptoSyms, prevRaw?.gros, now).catch(err => { console.warn(`Gros traders : ${err.message}`); return prevRaw?.gros ?? {}; });
   // Contexte du marché (OKX, alternative.me, Deribit) : une donnée qui manque n'empêche pas le reste.
   const ctxBySym = new Map();
   if (!args.sample) {
@@ -169,7 +219,7 @@ async function main() {
   }
   const globalCtx = args.sample ? {} : await globalContext(now);
   // Tendance de chaque crypto jour par jour : sert à la note des signaux (BTC et « tout le marché dans le même sens »).
-  const market = marketOf(Object.fromEntries(fetched.filter(x => x && x.asset.kind === 'crypto').map(x => [x.asset.symbol, x.daily])));
+  const market = { ...marketOf(Object.fromEntries(fetched.filter(x => x && x.asset.kind === 'crypto').map(x => [x.asset.symbol, x.daily]))), gros };
   const results = fetched.map(x => {
     if (!x) return null;
     const { asset, instId, h1, bars, daily } = x;
@@ -179,9 +229,10 @@ async function main() {
       const tk = tick.get(instId);
       const last = tk ? Number(tk.last) : h1.at(-1).c;
       const c4 = dailyContext(bars.filter(b => b.closed !== false));
-      const rd = radar(h1, daily, SWING, asset.kind === 'crypto' ? market : null);
+      const grosNow = asset.kind === 'crypto' ? grosAt(gros[asset.symbol], now) ?? grosAt(gros[asset.symbol], now - 86_400_000) : null;
+      const rd = radar(h1, daily, SWING, asset.kind === 'crypto' ? market : null, grosNow);
       const liveSig = signals.find(s => s.outcome === 'open');
-      const ctx = { ...(ctxBySym.get(asset.symbol) ?? {}), zones: volumeZones(h1, liveSig?.dir ?? rd?.dir ?? null) };
+      const ctx = { ...(ctxBySym.get(asset.symbol) ?? {}), zones: volumeZones(h1, liveSig?.dir ?? rd?.dir ?? null), gros: grosNow };
       return {
         asset: {
           ...asset, instId, price: last,
@@ -215,7 +266,7 @@ async function main() {
     if (starts.length) freshStart[key] = Math.min(...starts);
   }
   let previous = null;
-  if (args.previous) previous = await readFile(args.previous, 'utf8').then(JSON.parse).catch(() => null);
+  previous = prevRaw;
   // Changement d'unité de temps (4h → 1h, novembre 2026) : l'ancien historique ne suit pas les mêmes règles, on repart de zéro.
   if (previous?.model !== SWING.key) previous = null;
   const compact = s => ({
@@ -223,7 +274,7 @@ async function main() {
     entry: s.entry, sl: s.sl, tp1: s.tp?.[0] ?? s.tp1, rr: s.rr, outcome: s.outcome, at: s.at, r: s.r, tpHit: s.tpHit ?? null,
     // Détail pour la fiche explicative du trade (absent des trades gardés d'anciennes versions).
     why: s.why, trend: s.trend, atr: s.atr, atr4h: s.atr4h, ref: s.ref, day: s.day, halfAt: s.halfAt ?? null, exitPx: s.exitPx ?? null, exitLvl: s.exitLvl ?? null,
-    sz: s.sz ?? 1, score: s.score ?? null,
+    sz: s.sz ?? 1, score: s.score ?? null, gros: s.gros ?? null, grosCut: s.grosCut ?? null,
   });
   const history = mergeHistory(previous?.history, confirmed.map(compact), freshStart, now, UNIVERSE.map(a => a.symbol));
   const stats = detectorStats(history, now);
@@ -250,12 +301,12 @@ async function main() {
   }
 
   await mkdir(OUT, { recursive: true });
-  const rulesOf = cfg => ({ minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: cfg.exitDays ?? RULES.exitDays, barMs: cfg.E, trendMs: cfg.T, riskPct: RULES.riskPct, sizeMin: RULES.sizeMin, sizeMax: RULES.sizeMax, showHours: RULES.showHours, statsDays: RULES.statsDays });
+  const rulesOf = cfg => ({ minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: cfg.exitDays ?? RULES.exitDays, barMs: cfg.E, trendMs: cfg.T, riskPct: RULES.riskPct, grosMax: RULES.grosMax, grosMode: RULES.grosMode, sizeMin: RULES.sizeMin, sizeMax: RULES.sizeMax, showHours: RULES.showHours, statsDays: RULES.statsDays });
   await writeFile(join(OUT, 'setups.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), sources, warnings, model: SWING.key,
     rules: rulesOf(SWING), expect: EXPECT.swing,
     detectors: DETECTORS, freshStart,
-    assets: ok.map(r => r.asset), live: shown, stats, history, charts, context: { ...globalCtx, test: CONTEXT_TEST },
+    assets: ok.map(r => r.asset), live: shown, stats, history, charts, context: { ...globalCtx, test: CONTEXT_TEST }, gros,
   }));
   await writeFile(join(OUT, 'setups-court.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), model: COURT.key,

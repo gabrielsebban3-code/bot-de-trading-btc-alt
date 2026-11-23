@@ -120,6 +120,7 @@ function whyBox(s) {
     ${li('Pas d\'obstacle proche', `Aucun ancien ${up ? 'sommet' : 'creux'} ni chiffre rond juste ${up ? 'au-dessus' : 'en dessous'} : le prix avait de la place pour ${up ? 'monter' : 'baisser'}.`)}
     ${li('Un seul trade à la fois', `Aucun autre trade n'était ouvert sur ${esc(s.symbol)}.`)}
     ${s.score != null ? li('Une bonne note', 'Le bot note chaque signal et ne garde que les meilleurs, environ 4 sur 10. Celui-ci en faisait partie.', 'La note est meilleure quand le marché est calme, que Bitcoin va dans le même sens et que tout le marché n\'est pas déjà lancé.') : ''}
+    ${s.gros != null && s.dir === 'long' ? li('Les gros traders', s.grosCut ? `Les gros traders de Binance étaient déjà très acheteurs la veille (${fmt(s.gros, 2)} achat pour 1 vente) : le bot a pris ce trade avec moitié moins de risque.` : `Les gros traders de Binance n'étaient pas déjà tous acheteurs la veille (${fmt(s.gros, 2)} achat pour 1 vente) : risque normal.`, 'Dans nos tests, les achats pris quand les gros traders avaient déjà 1,65 achat pour 1 vente ou plus ont très peu rapporté.') : ''}
   </ol></div>`;
 }
 

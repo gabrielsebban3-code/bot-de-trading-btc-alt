@@ -1038,3 +1038,8 @@ body.jb-locked { overflow: hidden; }
 .t-after tr.ref td { color: var(--muted); }
 .t-after th, .t-after td { padding: 8px 10px; white-space: normal; vertical-align: top; }
 .t-after th:not(.l) { width: 30%; }
+/* Contexte du marché (Setups, fiche paire) */
+.ctx-box .ctx-t { font-size: 11px; }
+.ctx-box .ctx-t.ok { color: var(--up); }
+.ctx-box .ctx-t.no { color: var(--muted); opacity: .85; }
+.ctx-box > .txt { margin: 0 0 8px; }
