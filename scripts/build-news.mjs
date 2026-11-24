@@ -140,7 +140,9 @@ const ENGINES = [
 // Petites retouches de l'anglais avant traduction (le titre anglais d'origine reste la clé du cache).
 const forTranslation = t => t
   .replace(/\bcrypto(?![.\w-])/gi, m => (m[0] === 'C' ? 'Cryptocurrency' : 'cryptocurrency'))
-  .replace(/\bahead of\b/gi, m => (m[0] === 'A' ? 'Before' : 'before'));
+  .replace(/\bahead of\b/gi, m => (m[0] === 'A' ? 'Before' : 'before'))
+  // « moves to » (une proposition, un projet) sortait en « décide de » : on garde la nuance avec « cherche à ».
+  .replace(/\bmoves to\b/gi, m => (m[0] === 'M' ? 'Seeks to' : 'seeks to'));
 
 async function translate(english) {
   const text = forTranslation(english);

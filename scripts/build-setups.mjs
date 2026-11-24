@@ -9,6 +9,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { gzipSync, inflateRawSync } from 'node:zlib';
 import { join } from 'node:path';
 import { fetchJson, mapLimit } from './lib/http.mjs';
+import { updateJournal } from '../js/journal-lib.js';
 import { DETECTORS, MODES, RULES, dailyContext, detectorStats, indicatorState, grosAt, legState, marketOf, volumeZones, mergeHistory, radar, scanAsset, trend1d } from './lib/setups.mjs';
 
 const argv = process.argv.slice(2);
@@ -30,6 +31,12 @@ const UNIVERSE = [
   { symbol: 'BZ', name: 'Pétrole Brent', kind: 'commodity' },
 ];
 const SWING = MODES.swing, COURT = MODES.court;
+// Règles gelées : plus aucun réglage des Setups pendant 3 mois, le temps d'avoir de vrais résultats dans le journal.
+// Changer une règle avant cette date rendrait le journal impossible à juger.
+const RULES_FROZEN = { since: '2026-11-24', until: '2027-02-24' };
+// Estimation prudente (test le plus sévère, 20 paires Binance, 2025-2026) : environ +0,4 fois le risque par trade.
+// La période 2025-2026 a été regardée dans 6 labos avant de choisir les réglages : les chiffres d'EXPECT sont trop beaux.
+const PRUDENT = { perTrade: 0.4, yearPct: 20 };
 // Chiffres honnêtes affichés sur l'onglet : scripts/lab/honest.mjs (même moteur que le site, bougies Binance,
 // frais et glissement compris), sur les 9 cryptos suivies, en 2025-2026 (période qui n'a pas servi aux réglages).
 // Le Brent n'a pas assez d'historique pour ce test.
@@ -38,7 +45,7 @@ const EXPECT = {
   // Capital composé sur 2025-2026 : +42 %/an, pire baisse 42 % (sans ajuster la taille, à 1 % : +23 %/an, pire baisse 39 %).
   // Avec la note des signaux (labo 8, 19 novembre 2026), vrai code du site rejoué sur Binance 2025-2026, 9 cryptos.
   // Avec la règle des gros traders (labo 9, 23 novembre 2026, mode 'half') : vrai code du site rejoué sur Binance 2025-2026.
-  swing: { perTrade: 1.52, winRate: 0.38, perMonth: 4, ddR: 14, streak: 11, yearPct: 80, ddPct: 14, years: '2025 : +33 % · 2026 : +134 %', safe: { base: 0.5, yearPct: 39, ddPct: 7 },
+  swing: { prudent: PRUDENT, perTrade: 1.52, winRate: 0.38, perMonth: 4, ddR: 14, streak: 11, yearPct: 80, ddPct: 14, years: '2025 : +33 % · 2026 : +134 %', safe: { base: 0.5, yearPct: 39, ddPct: 7 },
     gros: { without: { yearPct: 86, ddPct: 19 } },
     score: { trades: 91, fixedPct: 51, without: { yearPct: 47, ddPct: 40, perMonth: 11 }, dev: { yearPct: 87, ddPct: 27 } } },
   court: { perTrade: 0.18, winRate: 0.22, perMonth: 48, ddR: 134, streak: 51, years: '2025 : +173 % · 2026 : +13 % · 12 derniers mois : à peu près zéro' },
@@ -210,6 +217,10 @@ async function main() {
     }
   });
   const prevRaw = args.previous ? await readFile(args.previous, 'utf8').then(JSON.parse).catch(() => null) : null;
+  // Sans la version en ligne, le journal figé des signaux serait perdu : on s'arrête, et le site garde l'ancienne version.
+  if (process.env.PUBLISH === 'true' && !args.sample && !prevRaw && process.env.JOURNAL_RESET !== '1') {
+    throw new Error('setups.json en ligne illisible : le journal des vrais signaux serait perdu. Version en ligne conservée.');
+  }
   const cryptoSyms = fetched.filter(x => x && x.asset.kind === 'crypto').map(x => x.asset.symbol);
   const gros = args.sample ? {} : await grosHistory(cryptoSyms, prevRaw?.gros, now).catch(err => { console.warn(`Gros traders : ${err.message}`); return prevRaw?.gros ?? {}; });
   // Contexte du marché (OKX, alternative.me, Deribit) : une donnée qui manque n'empêche pas le reste.
@@ -280,6 +291,9 @@ async function main() {
   });
   const history = mergeHistory(previous?.history, confirmed.map(compact), freshStart, now, UNIVERSE.map(a => a.symbol));
   const stats = detectorStats(history, now);
+  // Journal figé : jamais remis à zéro, même quand les règles changent (contrairement à l'historique ci-dessus).
+  const prices = Object.fromEntries(ok.map(r => [r.asset.symbol, r.asset.price]));
+  const journal = updateJournal(prevRaw?.journal ?? null, all, prices, now, SWING.key);
 
   // Signaux affichés : bougie en cours, trade encore en jeu, ou trade terminé depuis moins de 24 h.
   const isShown = s => s.status === 'en cours' || s.outcome === 'open' || (s.at !== null && s.at + SWING.E >= now - RULES.showHours * 3600_000);
@@ -306,8 +320,8 @@ async function main() {
   const rulesOf = cfg => ({ minRR: RULES.minRR, stopAtr: RULES.stopAtr, partialR: RULES.partialR, exitDays: cfg.exitDays ?? RULES.exitDays, barMs: cfg.E, trendMs: cfg.T, riskPct: RULES.riskPct, grosMax: RULES.grosMax, grosMode: RULES.grosMode, sizeMin: RULES.sizeMin, sizeMax: RULES.sizeMax, showHours: RULES.showHours, statsDays: RULES.statsDays });
   await writeFile(join(OUT, 'setups.json'), JSON.stringify({
     generatedAt: new Date(now).toISOString(), sample: Boolean(args.sample), sources, warnings, model: SWING.key,
-    rules: rulesOf(SWING), expect: EXPECT.swing,
-    detectors: DETECTORS, freshStart,
+    rules: { ...rulesOf(SWING), frozenSince: RULES_FROZEN.since, frozenUntil: RULES_FROZEN.until }, expect: EXPECT.swing,
+    detectors: DETECTORS, freshStart, journal,
     assets: ok.map(r => r.asset), live: shown, stats, history, charts, context: { ...globalCtx, test: CONTEXT_TEST }, gros,
   }));
   await writeFile(join(OUT, 'setups-court.json'), JSON.stringify({
@@ -336,6 +350,7 @@ async function main() {
     await writeFile('paire-gz.txt', `${lines.join('\n')}\n`);
   }
 
+  console.log(`Journal des vrais signaux : ${journal.entries.length} depuis le ${new Date(journal.start).toISOString().slice(0, 10)}.`);
   console.log(`Court terme : ${courtShown.length} affichés, ${courtHistory.length} signaux dans l'historique.`);
   console.log(`\n${shown.length} setups affichés (${shown.filter(s => s.outcome === 'open').length} en jeu), ${history.length} signaux dans l'historique.`);
   for (const [key, s] of Object.entries(stats)) {
