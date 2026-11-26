@@ -4,6 +4,7 @@ import { ago, esc, fmt } from './format.js';
 import { linkedNews, linkedText } from './news.js';
 import { watchlist } from './watchlist.js';
 import { mountLegs, showLegs } from './jambe.js';
+import { journalStats, openRisk } from './journal-lib.js';
 import { delayed, historyDays, hoursText, isPremium, onTier, visibleIn } from './premium.js';
 
 const BAR = 4 * 3600_000;
@@ -62,9 +63,12 @@ export const baseRiskTxt = () => `risque de base ${pctTxt(data.rules.riskPct ?? 
 export const sumR = list => Math.round(list.reduce((t, s) => t + s.r * (s.sz ?? 1), 0) * 10) / 10;
 export const outcomeCls = s => (s.outcome === 'exit' ? (s.r > 0 ? 'up' : s.r < 0 ? 'down' : '') : OUTCOME[s.outcome][1]);
 
+// Sous 20 trades terminés, un pourcentage de gagnants ne veut rien dire : on donne le nombre et le gain, sans taux.
+export const MIN_TRADES = 20;
 function winLine(key) {
   const s = data.stats[key];
   if (!s || s.winRate === null) return `${esc(data.detectors[key])} : pas encore assez de trades pour un bilan`;
+  if (s.resolved < MIN_TRADES) return `${esc(data.detectors[key])} : ${s.resolved} trade${s.resolved > 1 ? 's' : ''} terminé${s.resolved > 1 ? 's' : ''} sur 12 mois, trop peu pour juger (${cap(s.totalR)} du capital)`;
   return `${esc(data.detectors[key])} : ${fmt(s.winRate * 100, 0)} % de trades gagnants sur ${s.resolved}, ${cap(s.totalR)} du capital sur 12 mois (${baseRiskTxt()})`;
 }
 
@@ -172,11 +176,12 @@ function expectBox() {
   const safe = court ? 0.25 : 0.5;
   return `<div class="box expect"><b>Ce qu'on peut attendre${court ? ' du court terme' : ''}</b>
     <ul>
-      ${e.yearPct ? `<li>En 2025-2026, en réinvestissant les gains : environ <b>+${e.yearPct} % par an</b>, frais compris (${esc(e.years)}). C'est une période qui n'a pas servi à régler la méthode, sur les 9 cryptos suivies.</li>
+      ${e.prudent ? `<li><b>Estimation prudente : environ +${fmt(e.prudent.perTrade * risk, 1)} % du capital par trade</b>, soit autour de <b>+${e.prudent.yearPct} % par an</b>. Elle vient du test le plus sévère (20 cryptos, 2025-2026, frais compris). C'est le chiffre à garder en tête.</li>` : ''}
+      ${e.yearPct ? `<li>Le haut de la fourchette : environ +${e.yearPct} % par an en 2025-2026 sur les 9 cryptos suivies, en réinvestissant les gains (${esc(e.years)}). Ce chiffre est sûrement trop beau : on a regardé cette période plusieurs fois avant de choisir les réglages, donc les règles lui sont un peu « taillées sur mesure ».</li>
       ${e.score ? `<li>Le bot ne garde que les signaux les mieux notés, environ 4 sur 10. La note est bonne quand le marché est calme, que Bitcoin va dans le même sens et que tout le marché n'est pas déjà lancé. Sans ce tri : environ +${e.score.without.yearPct} % par an, ${e.score.without.perMonth} signaux par mois et un recul jusqu'à −${e.score.without.ddPct} %.</li>` : ''}
       ${e.gros ? `<li>Quand les gros traders de Binance sont déjà très acheteurs (au moins ${fmt(data.rules.grosMax ?? 1.65, 2)} achat pour 1 vente), le bot prend les achats avec moitié moins de risque : ces achats ont très peu rapporté dans nos tests. Sans cette règle : environ +${e.gros.without.yearPct} % par an, mais un recul jusqu'à −${e.gros.without.ddPct} %. C'est la seule des 17 données testées (open interest, funding, peur et avidité, options…) qui aide vraiment.</li>` : ''}
       <li>Le risque de chaque trade suit l'agitation du marché : ${pctTxt(risk)} % du capital en temps normal, jusqu'au double quand le prix bouge peu, la moitié quand il s'agite. Le risque conseillé est écrit sur chaque carte. Sans cet ajustement, on gagnait moins (environ +${e.score?.fixedPct ?? 23} % par an à 1 % fixe).</li>`
-      : `<li>En moyenne <b>+${fmt(e.perTrade * risk, 2)} %</b> du capital par trade, frais compris (${fmt(risk, 0)} % du compte risqué à chaque fois). C'est ce qu'a donné la méthode en 2025-2026 sur les 9 cryptos suivies, une période qui n'a pas servi à la régler (${esc(e.years)}).</li>`}
+      : `<li>En moyenne <b>+${fmt(e.perTrade * risk, 2)} %</b> du capital par trade, frais compris (${fmt(risk, 0)} % du compte risqué à chaque fois). C'est ce qu'a donné la méthode en 2025-2026 sur les 9 cryptos suivies (${esc(e.years)}).</li>`}
       <li>Seulement <b>${fmt(e.winRate * 100, 0)} % de trades gagnants</b> : la plupart finissent au stop, avec une petite perte. Quelques gros gains paient tout le reste.</li>
       <li>Environ <b>${e.perMonth} signaux par mois</b>${court ? ', soit 1 à 2 par jour' : ''}.</li>
       ${e.ddPct ? `<li class="down">Les pertes peuvent s'enchaîner : jusqu'à <b>${e.streak} stops d'affilée</b>, car plusieurs paires perdent en même temps. Le capital a reculé jusqu'à <b>−${e.ddPct} %</b> depuis son plus haut. Avec ${pctTxt(e.safe.base)} % de base au lieu de ${pctTxt(risk)} % : environ +${e.safe.yearPct} % par an, recul maximal −${e.safe.ddPct} %.</li>`
@@ -285,6 +290,76 @@ function renderList() {
       : `<div class="box"><div class="empty">${state.watch ? 'Aucun setup en ce moment sur les actifs de ta watchlist.' : 'Aucun setup ne correspond à ces filtres.'} <a href="#historique">Voir l'historique →</a></div></div>`;
 }
 
+// Bilan public des 12 derniers mois et série en cours (gains ou stops d'affilée), du trade fermé le plus récent au plus ancien.
+// Les pertes restent visibles pour tout le monde : c'est ce qui permet de juger la méthode.
+export function trackRecord(history, now = Date.now()) {
+  const done = history.filter(s => s.outcome !== 'open' && s.at && now - s.at < 365 * 86_400_000).sort((a, b) => b.at - a.at);
+  const wins = done.filter(s => s.r > 0).length;
+  const total = Math.round(done.reduce((t, s) => t + s.r * (s.sz ?? 1), 0) * 10) / 10;
+  const first = done[0];
+  let streak = { kind: null, n: 0, sum: 0, since: null };
+  if (first && first.r !== 0) {
+    const kind = first.r > 0 ? 'win' : 'loss';
+    let i = 0;
+    while (i < done.length && (kind === 'win' ? done[i].r > 0 : done[i].r < 0)) { streak.sum += done[i].r * (done[i].sz ?? 1); i++; }
+    // Depuis quand : la date du dernier trade de l'autre sorte (le dernier gain pour une série de stops).
+    streak = { kind, n: i, sum: Math.round(streak.sum * 10) / 10, since: done[i]?.at ?? null };
+  }
+  return { n: done.length, wins, total, streak };
+}
+
+const dayFr = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
+
+// Encadré de confiance : les vrais signaux (journal figé), le bilan rejoué sur 12 mois et le risque total en cours.
+function renderTrack() {
+  const el = document.getElementById('setups-track');
+  if (!el) return;
+  const risk = data.rules.riskPct ?? 1;
+  const j = journalStats(data.journal);
+  const t = trackRecord(data.history);
+  const o = openRisk(data.live, risk);
+  const parts = [];
+
+  // 1. Le risque total en cours : plusieurs trades dans le même sens = un seul gros pari.
+  if (o.atRisk >= 2) {
+    const same = Math.max(o.dirs.long, o.dirs.short);
+    const sens = o.dirs.long >= o.dirs.short ? 'achats' : 'ventes';
+    const safe = o.open - o.atRisk;
+    parts.push(`<p class="risk-now"><b>Risque total en ce moment : −${pctTxt(o.pct)} % du compte</b> si tous les trades ouverts touchent leur stop en même temps. ${same >= 2 ? `Ce sont ${same} ${sens} sur des cryptos qui bougent souvent ensemble : en pratique, c'est presque un seul pari${same >= 3 ? ', pas plusieurs petits' : ''}.` : ''}${safe ? ` ${safe} autre${safe > 1 ? 's' : ''} trade${safe > 1 ? 's ont' : ' a'} déjà ${safe > 1 ? 'leur' : 'son'} stop au prix d'entrée : ${safe > 1 ? 'ils ne peuvent' : 'il ne peut'} plus rien faire perdre.` : ''}</p>`);
+  } else if (o.atRisk === 1) {
+    parts.push(`<p class="risk-now">Risque total en ce moment : −${pctTxt(o.pct)} % du compte (un seul trade ouvert qui peut encore toucher son stop).</p>`);
+  }
+
+  // 2. Les vrais signaux, notés au moment où ils ont été publiés et jamais recalculés.
+  if (j.start) {
+    const since = dayFr(j.start);
+    const body = !j.signals ? `Aucun signal publié depuis le ${since}. Le prochain sera noté ici.`
+      : !j.done ? `${j.signals} ${j.signals > 1 ? 'signaux' : 'signal'} publié${j.signals > 1 ? 's' : ''} depuis le ${since}, encore en cours.`
+        : `Depuis le ${since} : <b>${j.signals} ${j.signals > 1 ? 'signaux' : 'signal'}</b>, ${j.done} terminé${j.done > 1 ? 's' : ''} dont ${j.wins} gagnant${j.wins > 1 ? 's' : ''}, <b class="${j.total > 0 ? 'up' : j.total < 0 ? 'down' : ''}">${j.total > 0 ? '+' : ''}${fmt(j.total * risk, 1)} % du capital</b>${j.open ? `, ${j.open} encore en cours` : ''}.`;
+    parts.push(`<p><b>Les vrais signaux</b> · ${body}</p>
+      <p class="sm muted">Chaque signal est noté au moment où le site le publie : prix d'entrée, stop et taille. Ces chiffres ne sont plus jamais recalculés, même si les règles changent. C'est la seule vraie preuve${j.done < MIN_TRADES ? ` : il faut au moins ${MIN_TRADES} trades terminés avant de juger` : ''}.${j.orphans ? ` ${j.orphans} trade${j.orphans > 1 ? 's' : ''} n'${j.orphans > 1 ? 'ont' : 'a'} pas pu être suivi${j.orphans > 1 ? 's' : ''} jusqu'au bout et ne compte${j.orphans > 1 ? 'nt' : ''} pas.` : ''}</p>`);
+  }
+
+  // 3. Le bilan rejoué avec les règles actuelles (utile, mais ce n'est pas du vrai).
+  if (t.n) {
+    const st = t.streak;
+    const day = new Date(st.since || 0).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Europe/Paris' });
+    const serie = st.n >= 3 && st.kind === 'loss'
+      ? ` <b>Série en cours : ${st.n} stops d'affilée</b>${st.since ? ` depuis le dernier gain du ${day}` : ''} (<b class="down">${cap(st.sum)} du capital</b>). C'est normal pour cette méthode : la plupart des trades perdent un peu, quelques-uns gagnent beaucoup.`
+      : st.n >= 2 && st.kind === 'win' ? ` <b>Série en cours : ${st.n} gains d'affilée</b>. Les séries de stops reviennent toujours : garde le même risque.` : '';
+    parts.push(`<p><b>Rejoué sur 12 mois</b> · ${t.n} trades terminés, ${t.wins} gagnants, <b class="${t.total > 0 ? 'up' : t.total < 0 ? 'down' : ''}">${cap(t.total)} du capital</b>.${serie}</p>
+      <p class="sm muted">Ce bilan applique les règles d'aujourd'hui au passé. Il est recalculé à chaque mise à jour : il montre comment la méthode se comporte, pas ce qu'elle a vraiment donné.</p>`);
+  }
+
+  if (data.rules.frozenUntil) {
+    parts.push(`<p class="sm">Règles gelées jusqu'au ${dayFr(data.rules.frozenUntil + 'T12:00:00Z')} : aucun réglage ne sera changé d'ici là, pour pouvoir juger les vrais signaux honnêtement.</p>`);
+  }
+  if (!parts.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="box track"><h2>Le bilan réel des signaux</h2>${parts.join('')}
+    <p class="sm muted">Avec un effet de levier, une petite variation peut effacer toute ta mise. Ne risque jamais plus que le risque conseillé sur chaque carte.</p>
+    <p><a href="#historique">Voir tous les trades →</a></p></div>`;
+}
+
 // Aucun trade ouvert : on le dit simplement et on montre les derniers trades terminés, pour que la page ne paraisse pas vide.
 function waiting() {
   const from = Date.now() - historyDays() * 86_400_000;
@@ -354,6 +429,7 @@ export function initSetups(setupsData, projects) {
   renderIndicators();
   renderRadar();
   renderList();
+  renderTrack();
   renderHistory();
   renderResume();
   // Statut Premium connu après la connexion : on redessine ce qui en dépend.
@@ -376,7 +452,7 @@ function renderResume() {
   if (best && focus) {
     const html = `<a class="card" data-sfocus href="#setup/${encodeURIComponent(best.id)}"><span class="k">SETUP DANS LE SENS DE LA TENDANCE</span>
       <span class="hd"><b class="mono">${esc(best.symbol)}</b><span class="tag">${esc(data.detectors[best.detector])}</span>${dirTag(best.dir)}</span>
-      <span class="why">${esc(best.why)} R:R 1:${fmt(best.rr, 1)}.</span></a>`;
+      <span class="why">${esc(best.why)} Gain visé : ${fmt(best.rr, 0)} fois la perte possible.</span></a>`;
     if (focus.querySelector('.card .why')?.textContent.startsWith('Rien de particulier')) focus.innerHTML = html;
     else focus.insertAdjacentHTML('afterbegin', html);
     while (focus.children.length > 4) focus.lastElementChild.remove();

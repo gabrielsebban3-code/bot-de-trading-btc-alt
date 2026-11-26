@@ -54,7 +54,7 @@ jobs:
         run: |
           mkdir -p previous
           for f in projects market setups setups-court news alerts marche outils scanner; do
-            curl -fsSL "${{ steps.pages.outputs.base_url }}/data/$f.json" -o "previous/$f.json" || echo "Pas encore de $f.json en ligne."
+            curl -fsSL --retry 3 --retry-all-errors "${{ steps.pages.outputs.base_url }}/data/$f.json" -o "previous/$f.json" || echo "Pas encore de $f.json en ligne."
           done
           # Fiches paire déjà en ligne (onglet Setups) : reprises si les setups échouent à ce passage.
           mkdir -p previous/paire
