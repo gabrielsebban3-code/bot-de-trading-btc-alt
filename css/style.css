@@ -1008,6 +1008,13 @@ body.jb-locked { overflow: hidden; }
 .ac-score { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .ac-chev { transition: none; } }
 
+/* Setups : ce qu'on peut attendre (chiffres honnêtes) */
+.expect { padding: 12px 16px; margin: 0 0 14px; font-size: 14px; color: var(--fg2); }
+.expect > b { color: var(--fg); font-size: 15px; }
+.expect ul { margin: 8px 0 6px; padding-left: 18px; display: grid; gap: 6px; }
+.expect li.down { color: var(--down); }
+.expect li.down b { color: inherit; }
+.expect .sm { margin: 0; font-size: 12px; }
 /* Setups : aucun trade ouvert, derniers trades terminés */
 .wait .empty { padding: 16px 16px 10px; text-align: left; color: var(--fg2); }
 .wait .wait-sum { margin: 0; padding: 0 16px 12px; font-size: 13px; color: var(--fg2); }
@@ -1025,6 +1032,7 @@ body.jb-locked { overflow: hidden; }
 .t-zones b { color: var(--fg); font-weight: 600; font-size: 13px; }
 .t-zones .r { color: var(--muted); font-size: 11px; }
 .t-after td small { display: block; font: 11px var(--sans); color: var(--muted); }
+.t-after th small { font: 400 11px var(--sans); color: var(--muted); }
 .t-after tr.on td { background: var(--bg); }
 .t-after tr.on td.l { box-shadow: inset 3px 0 0 var(--accent); }
 .t-after tr.ref td { color: var(--muted); }
@@ -1041,3 +1049,8 @@ body.jb-locked { overflow: hidden; }
 .row.inv .d { flex-basis: 100%; }
 .row.inv input { flex-basis: 100%; min-width: 0; background: var(--bg); color: var(--fg); border: 1px solid var(--accent-line); border-radius: 8px; padding: 7px 10px; font-size: 13px; }
 .row.inv .links { padding: 0; }
+/* Contexte du marché (Setups, fiche paire) */
+.ctx-box .ctx-t { font-size: 11px; }
+.ctx-box .ctx-t.ok { color: var(--up); }
+.ctx-box .ctx-t.no { color: var(--muted); opacity: .85; }
+.ctx-box > .txt { margin: 0 0 8px; }

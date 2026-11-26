@@ -18,7 +18,7 @@ const DEFAULTS = {
   rate: '2', months: '36', monthly: '0', goal: '50000',
   buys: JSON.stringify([['100000', '1000'], ['90000', '1000'], ['80000', '1000']]), now: '85000', avgTarget: '87000',
   convAmount: '1', convFrom: 'BTC', convTo: 'EUR',
-  etfAsset: 'btc', etfPeriod: '90', lsAsset: 'btc',
+  etfAsset: 'btc', etfPeriod: '90', lsAsset: 'btc', bgKind: 'm',
 };
 
 const F = {
@@ -52,9 +52,10 @@ const F = {
   etfAsset: { label: 'ETF', choice: [['btc', 'Bitcoin'], ['eth', 'Ether']] },
   etfPeriod: { label: 'Période', choice: [['30', '1 mois'], ['90', '3 mois'], ['365', '1 an'], ['all', 'Tout']] },
   lsAsset: { label: 'Actif', choice: [['btc', 'BTC'], ['eth', 'ETH']] },
+  bgKind: { label: 'Bougie', choice: [['m', 'Du mois'], ['w', 'De la semaine']], sub: ['bougie mensuelle', 'du lundi au dimanche'] },
 };
 
-const CATS = [['sim', 'Simulateurs'], ['data', 'Données du marché']];
+const CATS = [['sim', 'Simulateurs'], ['data', 'Données du marché'], ['proba', 'Probabilités']];
 const TOOLS = [
   { id: 'dca', cat: 'sim', name: 'Simulateur DCA', calc: dcaTool, method: dcaMethod, mode: 'dcaMode',
     fields: () => (state.v.dcaMode === 'future' ? ['asset', 'amount', 'every', 'years', 'drift', 'spotFee'] : ['asset', 'amount', 'every', 'since', 'spotFee']),
@@ -127,6 +128,8 @@ const TOOLS = [
       'Contrats en hausse et prix en hausse : argent frais à l\'achat. Contrats en hausse et prix en baisse : nouveaux vendeurs.',
       'Un record de contrats ouverts = beaucoup de levier dans le marché : les mouvements brutaux deviennent plus probables, dans les deux sens.',
     ] },
+  { id: 'bougie', cat: 'proba', name: 'Bougie du mois', calc: bougieTool, method: bougieMethod, mode: 'bgKind', fields: () => ['lsAsset'],
+    intro: () => `Où en est la bougie ${state.v.bgKind === 'w' ? 'de la semaine' : 'du mois'}, et ce qu'ont fait ensuite ${state.v.bgKind === 'w' ? 'les semaines passées qui en étaient' : 'les mois passés qui en étaient'} au même point : le plus haut sera-t-il dépassé ? Le plus bas cassé ? Jusqu'où le prix va-t-il en général ?` },
 ];
 
 const state = { tool: 'dca', v: { ...DEFAULTS }, marche: null, outils: null };
@@ -668,6 +671,110 @@ function oiTool() {
     note(`Source : OKX. Mis à jour ${ago(state.marche.generatedAt)}.`),
     implies(ZONES.oi, { pts: days, zoneOf: z => z }, 'btc', `${pts.length} jours de données OKX`),
   ].join('');
+}
+
+// Bougie du mois ou de la semaine : calculée chaque heure par le script de données (js/bougie-lib.js).
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const monthName = d => { const t = new Date(d * 86_400_000); return `${MOIS[t.getUTCMonth()]} ${t.getUTCFullYear()}`; };
+const dayMonth = d => new Date(d * 86_400_000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' }).replace(/^1 /, '1er ');
+// Les mots qui changent entre le mois (masculin) et la semaine (féminin).
+const bgWords = w => (w
+  ? { one: 'la semaine', these: 'les semaines', all: 'Toutes les semaines', like: 'Semaines qui ressemblent', unit: 'semaine', units: 'semaines', the: 'de la semaine', past: 'passées' }
+  : { one: 'le mois', these: 'les mois', all: 'Tous les mois', like: 'Mois qui ressemblent', unit: 'mois', units: 'mois', the: 'du mois', past: 'passés' });
+const pct0 = v => (v == null ? '—' : `${fmt(Math.round(v), 0)} %`);
+const jours = n => `${n} jour${n > 1 ? 's' : ''}`;
+
+function bgData() {
+  const b = state.outils?.bougie?.[state.v.lsAsset];
+  return b?.[state.v.bgKind] ? { b, r: b[state.v.bgKind] } : null;
+}
+
+function bougieTool() {
+  const got = bgData();
+  if (!got) return noData();
+  const { r } = got;
+  const w = r.kind === 'w';
+  const W = bgWords(w);
+  const sym = state.v.lsAsset.toUpperCase();
+  const today = r.first + r.k - 1;
+  const title = w ? `Semaine du ${dayMonth(r.first)}` : `Bougie de ${monthName(r.first)}`;
+  const vsOpen = (r.close / r.open - 1) * 100;
+  const S = r.similar, A = r.all;
+  const at = (p, v) => `${px(p * (1 + v))} $`;
+  const row = (label, a, b, warn = '') => `<tr${warn ? ' class="ref"' : ''}><td class="l">${label}</td><td class="num"><b>${pct0(a)}</b></td><td class="num">${pct0(b)}</td></tr>`;
+  const t = r.test;
+  // Pour la phrase de test : la tranche « environ 70 % » si elle a assez de cas, sinon la plus remplie au-dessus de 20 %.
+  const cal = t && (t.calib.find(c => c.from === 60 && c.n >= 15) || t.calib.filter(c => c.from >= 20 && c.n).sort((a, b) => b.n - a.n)[0]);
+  const gain = t && Math.round((1 - (t.brier.high.similar + t.brier.low.similar) / (t.brier.high.all + t.brier.low.all)) * 100);
+  // Écart trop petit pour ne pas être de la chance (deux fois l'erreur normale d'un pile ou face sur ce nombre de cas).
+  const coin = t && t.direction.hit - t.direction.alwaysUp < Math.max(3, 100 / Math.sqrt(t.tests));
+  const bandPts = k => [[today, r.close], ...r.band.map(b => [b[0], b[k]])];
+  const span = [r.first, r.first + r.len - 1];
+  const flat = v => span.map(d => [d, v]);
+  return [
+    hero(`${title} · ${sym} · jour ${r.k} sur ${r.len}`, spc(vsOpen, 1), `depuis l'ouverture (${px(r.open)} $) · prix actuel ${px(r.close)} $ · encore ${jours(r.left)}`),
+    rows([
+      [`Plus haut ${W.the}`, `${px(r.high)} $ le ${dayMonth(r.highDay)}`],
+      [`Plus bas ${W.the}`, `${px(r.low)} $ le ${dayMonth(r.lowDay)}`],
+    ]),
+    `<h3 class="t-h3">D'ici la fin ${W.the} (${jours(r.left)})</h3>`,
+    `<div class="wrap flat"><table class="static t-after"><thead><tr><th class="l">Ce qui s'est passé ensuite</th><th>${W.like}<br><small>${S.n} cas</small></th><th>${W.all}<br><small>${A.n} cas</small></th></tr></thead><tbody>
+      ${row(`Le prix est repassé au-dessus du plus haut (${px(r.high)} $)`, S.high, A.high)}
+      ${row(`Le prix est passé sous le plus bas (${px(r.low)} $)`, S.low, A.low)}
+      ${row(`${w ? 'La semaine a fini' : 'Le mois a fini'} en bougie verte, au-dessus de l'ouverture (${px(r.open)} $)`, S.green, A.green)}
+      ${row(`Le prix a fini plus haut qu'aujourd'hui (${px(r.close)} $)`, S.restUp, A.restUp, 'warn')}
+    </tbody></table></div>`,
+    note(`« ${W.like} » : les ${S.n} ${W.units} ${W.past} qui, avec ${jours(r.left)} restants, étaient le plus près de la même situation : même écart avec l'ouverture, le plus haut et le plus bas, en tenant compte de l'agitation du marché à ce moment-là. Données Bitstamp depuis ${monthName(r.since)} (${r.periods} ${W.units}).`),
+    `<div class="t-sub">Jusqu'où le prix est allé ensuite, dans ${W.these} qui ressemblent</div>`,
+    rows([
+      ['Plus forte hausse (1 cas sur 2 entre)', `${spc(S.up[0] * 100, 1)} et ${spc(S.up[2] * 100, 1)} · ${at(r.close, S.up[0])} à ${at(r.close, S.up[2])}`],
+      ['Plus forte baisse (1 cas sur 2 entre)', `${spc(S.down[0] * 100, 1)} et ${spc(S.down[2] * 100, 1)} · ${at(r.close, S.down[0])} à ${at(r.close, S.down[2])}`],
+      [`Prix à la fin ${W.the} (8 cas sur 10 entre)`, `${at(r.close, S.rest[0])} et ${at(r.close, S.rest[2])}`],
+    ]),
+    chart([
+      { name: 'Prix', key: 'price', cls: 'c-price', pts: r.closes },
+      { name: 'Milieu', cls: 'c-main', pts: bandPts(2) },
+      { name: 'Haut de fourchette', cls: 'c-high', pts: bandPts(3) },
+      { name: 'Bas de fourchette', cls: 'c-low', pts: bandPts(1) },
+      { name: 'Ouverture', cls: 'c-paid', pts: flat(r.open) },
+    ], { title: `${sym} : prix de clôture et fourchette des cas qui ressemblent`, y: d => `${px(d)} $`, axis: usdAxis, x: day, dates: true, marks: [today], snap: span[0] <= span[1] ? Array.from({ length: r.len }, (_, i) => r.first + i) : undefined, tolerance: 0 }),
+    note(`À gauche du pointillé, le vrai prix de clôture de ${W.one === 'le mois' ? 'ce mois' : 'cette semaine'}. À droite : 8 cas sur 10 sont restés entre la courbe du haut et celle du bas, la courbe du milieu coupe les cas en deux.`),
+    `<div class="t-sub">Les ${r.closest.length} ${W.units} ${W.past} qui ressemblaient le plus</div>
+    <div class="wrap flat"><table class="static t-after"><thead><tr><th class="l">${w ? 'Semaine du' : 'Mois'}</th><th>Ensuite</th><th>${w ? 'Semaine entière' : 'Mois entier'}</th></tr></thead><tbody>
+      ${r.closest.map(c => `<tr><td class="l">${w ? day(c.first) : monthName(c.first)}<small>${spc(c.now * 100, 1)} au jour ${r.k}</small></td><td class="num">${spc(c.rest * 100, 1)}</td><td class="num">${spc(c.end * 100, 1)}</td></tr>`).join('')}
+    </tbody></table></div>`,
+    note(`Sous la date : où en était ${W.one === 'le mois' ? 'ce mois' : 'cette semaine'} au jour ${r.k}, depuis l'ouverture. « Ensuite » : du jour ${r.k} jusqu'à la clôture. « ${w ? 'Semaine entière' : 'Mois entier'} » : de l'ouverture à la clôture.`),
+    `<div class="t-sub">${W.all}, sans tri</div>`,
+    rows([
+      [`Plus haut ${W.the} déjà fait au jour ${r.k}`, `${pct0(r.already.high)} des ${W.units}`],
+      [`Plus bas ${W.the} déjà fait au jour ${r.k}`, `${pct0(r.already.low)} des ${W.units}`],
+    ]),
+    t ? `<h3 class="t-h3">Est-ce que ça marche ? Nos tests</h3>
+    <div class="t-imp"><span class="k">Testé sur ${t.tests} ${W.units}, de ${new Date(t.from * 86_400_000).getUTCFullYear()} à aujourd'hui</span>
+      <p><b>La méthode</b>Pour chaque ${W.unit}, on refait le calcul en ne regardant que ${W.these} d'avant, comme si on y était, puis on compare avec ce qui s'est vraiment passé.</p>
+      <p><b>Plus haut et plus bas : les % sont fiables</b>${cal ? `Quand l'outil annonçait en moyenne ${pct0(cal.said)}, c'est arrivé ${pct0(cal.real)} du temps (${cal.n} cas). ` : ''}Il se trompe ${gain > 0 ? `environ ${gain} % de moins` : 'à peu près autant'} qu'en prenant ${W.all.toLowerCase()} sans tri.</p>
+      <p><b>Le sens du prix : ${coin ? 'pile ou face' : 'un petit avantage'}</b>Suivre le sens le plus fréquent des cas qui ressemblent a deviné juste ${pct0(t.direction.hit)} du temps. Parier toujours sur le même sens faisait ${pct0(t.direction.alwaysUp)}. ${coin ? `Donc la ligne « fini plus haut qu'aujourd'hui » ne prédit rien : ne t'en sers pas pour choisir entre achat et vente.` : 'C\'est peu, et ça peut changer : à prendre comme un indice, pas comme un signal.'}</p>
+      <p><b>Pourquoi cette différence</b>Les % sur le plus haut et le plus bas viennent surtout de la distance à parcourir et du temps qui reste. Exemple : loin sous l'ouverture à quelques jours de la fin, finir en bougie verte demande une très forte hausse, c'est donc rare. L'outil dit jusqu'où le prix va d'habitude, pas où il va.</p>
+      <p><b>Comment t'en servir</b>Pour placer tes niveaux : un objectif dans la fourchette habituelle est plus réaliste qu'un objectif au-delà. Si le plus bas a de grandes chances d'être cassé, un stop placé juste en dessous a de grandes chances d'être touché : mets-le plus loin ou réduis la taille de la position.</p>
+    </div>` : '',
+    note(`Source : bougies quotidiennes de Bitstamp (heure UTC). Mis à jour ${ago(state.outils.generatedAt)}. Le passé ne garantit pas l'avenir.`),
+  ].join('');
+}
+
+function bougieMethod() {
+  const got = bgData();
+  if (!got) return null;
+  const { r } = got;
+  const W = bgWords(r.kind === 'w');
+  return [
+    ['Les données', `Les bougies quotidiennes ${state.v.lsAsset === 'eth' ? "de l'ETH" : 'du BTC'} sur Bitstamp (ouverture, plus haut, plus bas, clôture), depuis ${monthName(r.since)}. Un jour commence à minuit UTC (1 h du matin à Paris en hiver).`],
+    ['La bougie en cours', `${W.one === 'le mois' ? 'Le mois commence le 1er' : 'La semaine commence le lundi'}. Aujourd'hui, c'est le jour ${r.k} sur ${r.len} : on note l'ouverture, le plus haut et le plus bas déjà faits, et le prix actuel.`],
+    ['Comparer ce qui est comparable', `On prend tous ${W.these} ${W.past} au même moment, avec ${jours(r.left)} restants. Pour chacun, on mesure l'écart entre son prix et son ouverture, son plus haut et son plus bas.`],
+    ["Tenir compte de l'agitation", `Une baisse de 10 % ne veut pas dire la même chose quand le marché bouge de 5 % par jour ou de 1 %. Chaque écart est donc divisé par l'agitation normale du moment (l'écart habituel entre deux jours, sur les 30 jours d'avant) et par le temps qui reste.`],
+    [`Les ${r.similar.n} plus proches`, `On garde les ${r.similar.n} ${W.units} dont les trois écarts ressemblent le plus à ceux d'aujourd'hui, puis on compte ce qui leur est arrivé ensuite : plus haut dépassé, plus bas cassé, bougie verte ou rouge, plus forte hausse et plus forte baisse.`],
+    ['La fourchette du graphique', 'Pour chaque jour qui reste, on classe les prix de ces cas (rapportés au prix actuel) du plus bas au plus haut : la courbe du bas laisse 1 cas sur 10 en dessous, celle du haut 1 cas sur 10 au-dessus.'],
+    ['Le test', `On refait tout ça pour chaque ${W.unit} depuis 2016 en ne regardant que le passé de ce moment-là, puis on compare les % annoncés avec ce qui est arrivé. C'est le cadre « Est-ce que ça marche ? ».`],
+  ];
 }
 
 // Une phrase honnête : après la zone du jour, le prix a-t-il fait mieux, moins bien ou pareil que d'habitude ?

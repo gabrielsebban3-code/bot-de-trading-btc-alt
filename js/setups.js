@@ -1,4 +1,5 @@
-// Onglets Setups et Historique : 3 indicateurs dans le sens de la tendance (BTC, ETH, SOL, Brent), fiche détaillée avec graphique, bilan sur 12 mois.
+// Onglets Setups et Historique : 3 indicateurs dans le sens de la tendance (9 cryptos et le Brent), fiche détaillée avec graphique, bilan sur 12 mois.
+// Catégorie Court terme : mêmes règles, tendance sur bougies de 4 h (data/setups-court.json).
 import { ago, esc, fmt } from './format.js';
 import { linkedNews, linkedText } from './news.js';
 import { watchlist } from './watchlist.js';
@@ -15,7 +16,18 @@ export const OUTCOME = {
 export const TREND = { haussière: 'up', baissière: 'down', neutre: '' };
 
 let data = null;
+let courtData = null;
+const COURT_ON = false;
 let projectsBySymbol = new Map();
+// Les fonctions d'affichage lisent `data` : on le remplace le temps de dessiner le Court terme.
+function withData(d, fn) {
+  const keep = data;
+  data = d;
+  try { return fn(); } finally { data = keep; }
+}
+const barMs = () => data?.rules?.barMs ?? BAR;
+const isCourt = () => data?.model === 'h1h4';
+const unitWord = () => (barMs() === 3600_000 ? '1 h' : '4 h');
 const state = { detectors: null, kind: 'all', dir: 'all', watch: false, cat: 'setups' };
 const store = {
   get() { try { return JSON.parse(localStorage.getItem('dinexo-setups')) || {}; } catch { return {}; } },
@@ -37,14 +49,23 @@ const asset = sym => data.assets.find(a => a.symbol === sym) || { symbol: sym, n
 export const okxUrl = sym => `https://www.okx.com/trade-swap/${sym.toLowerCase()}-usdt-swap`;
 export const parisDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
-// Résultat en % du capital : chaque trade risque data.rules.riskPct % du compte (1 % par défaut), donc 1R = 1 %.
-export const cap = r => `${r > 0 ? '+' : ''}${fmt(r * (data.rules.riskPct ?? 1), r * (data.rules.riskPct ?? 1) >= 10 || r * (data.rules.riskPct ?? 1) <= -10 ? 0 : 1)} %`;
+// Résultat en % du capital. Risque de base data.rules.riskPct % du compte, multiplié par la taille du trade (s.sz) :
+// on risque plus quand le marché est calme, moins quand il est agité (entre la moitié et le double).
+export const cap = (r, s = null) => { const x = r * (data.rules.riskPct ?? 1) * (s?.sz ?? 1); return `${x > 0 ? '+' : ''}${fmt(x, x >= 10 || x <= -10 ? 0 : 1)} %`; };
+// Un pourcentage sans zéros inutiles : 0,75 · 1 · 1,5.
+export const pctTxt = x => fmt(x, Math.abs(x - Math.round(x)) < 1e-9 ? 0 : Math.abs(x * 10 - Math.round(x * 10)) < 1e-9 ? 1 : 2);
+// Risque conseillé pour un trade, en % du capital, et l'état du marché qui l'explique.
+export const riskOf = s => (data.rules.riskPct ?? 1) * (s?.sz ?? 1);
+export const moodOf = s => ((s?.sz ?? 1) >= 1.2 ? 'marché calme' : (s?.sz ?? 1) <= 0.83 ? 'marché agité' : 'marché normal');
+export const baseRiskTxt = () => `risque de base ${pctTxt(data.rules.riskPct ?? 1)} %, ajusté selon l'agitation du marché`;
+// Somme des résultats en « R de base » (taille comprise), à passer à cap().
+export const sumR = list => Math.round(list.reduce((t, s) => t + s.r * (s.sz ?? 1), 0) * 10) / 10;
 export const outcomeCls = s => (s.outcome === 'exit' ? (s.r > 0 ? 'up' : s.r < 0 ? 'down' : '') : OUTCOME[s.outcome][1]);
 
 function winLine(key) {
   const s = data.stats[key];
   if (!s || s.winRate === null) return `${esc(data.detectors[key])} : pas encore assez de trades pour un bilan`;
-  return `${esc(data.detectors[key])} : ${fmt(s.winRate * 100, 0)} % de trades gagnants sur ${s.resolved}, ${cap(s.totalR)} du capital sur 12 mois (${fmt(data.rules.riskPct ?? 1, 0)} % risqué par trade)`;
+  return `${esc(data.detectors[key])} : ${fmt(s.winRate * 100, 0)} % de trades gagnants sur ${s.resolved}, ${cap(s.totalR)} du capital sur 12 mois (${baseRiskTxt()})`;
 }
 
 export function projectLink(sym) {
@@ -72,18 +93,20 @@ function lockedCard(s) {
   </a>`;
 }
 
-function card(s) {
+function card(s, link = true) {
   if (delayed(s)) return lockedCard(s);
   const a = asset(s.symbol);
-  return `<a class="card setup" href="#setup/${encodeURIComponent(s.id)}">
+  const tag = link ? `a class="card setup" href="#setup/${encodeURIComponent(s.id)}"` : 'div class="card setup"';
+  return `<${tag}>
     <span class="hd"><b class="mono">${esc(s.symbol)}</b><span class="muted">${esc(a.name)}</span>${dirTag(s.dir)}${statusTag(s)}${outcomeTag(s)}</span>
-    <span class="tags"><span class="tag">${esc(data.detectors[s.detector])}</span><span class="tag ${TREND[s.trend]}">Tendance 1D ${esc(s.trend)}</span>
-      <span class="when">${s.status === 'en cours' ? 'bougie en cours' : ago(new Date(s.time + BAR).toISOString())}</span></span>
+    <span class="tags"><span class="tag">${esc(data.detectors[s.detector])}</span><span class="tag ${TREND[s.trend]}">Tendance ${isCourt() ? '4h' : '1D'} ${esc(s.trend)}</span>
+      <span class="when">${s.status === 'en cours' ? 'bougie en cours' : ago(new Date(s.time + barMs()).toISOString())}</span></span>
     <span class="why">${esc(s.why)}</span>
     <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(s.sl)}</span><span><i>Moitié à ${fmt(data.rules.partialR ?? s.rr, 0)}R</i>${px(s.tp[0])}</span>${s.exitAt ? `<span><i>Sortie</i>${px(s.exitAt)}</span>` : `<span><i>R:R</i>1:${fmt(s.rr, 1)}</span>`}</span>
+    <span class="sm">Risque conseillé : <b>${pctTxt(Math.round(riskOf(s) * 20) / 20)} % du capital</b> (${moodOf(s)}${s.grosCut ? ', moitié moins car les gros traders étaient déjà très acheteurs' : ''})</span>
     <span class="wr">${winLine(s.detector)}</span>
     ${newsLink(s, 'span')}
-  </a>`;
+  </${link ? 'a' : 'div'}>`;
 }
 
 // Radar : une carte par paire, même sans signal. Trade en jeu, sinon le prix qui déclencherait le prochain signal.
@@ -105,7 +128,7 @@ export function radarBody(a) {
     const move = (a.price - live.entry) / Math.abs(live.entry - live.sl) * (live.dir === 'long' ? 1 : -1);
     const r0 = live.tpHit ? ((data.rules.partialR ?? 5) + move) / 2 : move; // moitié déjà prise à 5R
     return `<span class="state">${dirTag(live.dir)} <b>Trade en cours</b> depuis le ${parisDay(live.time)}</span>
-      <span class="sm">Entrée ${px(live.entry)}, stop ${px(live.stop ?? live.sl)}. En ce moment <b class="${r0 >= 0 ? 'up' : 'down'}">${cap(r0)}</b> du capital</span>`;
+      <span class="sm">Entrée ${px(live.entry)}, stop ${px(live.stop ?? live.sl)}. En ce moment <b class="${r0 >= 0 ? 'up' : 'down'}">${cap(r0, live)}</b> du capital</span>`;
   }
   if (!r) return '<span class="state">Pas assez de données pour le moment.</span>';
   if (r.trend === 'neutre') return `<span class="state">Pas de trade : le marché n'a pas de direction claire.</span>
@@ -113,24 +136,81 @@ export function radarBody(a) {
   const up = r.dir === 'long';
   const word = up ? 'au-dessus de' : 'sous';
   const macd = `le prix repart ${up ? 'à la hausse après une petite baisse' : 'à la baisse après une petite hausse'}`;
-  const NAMES = { range20: `${up ? 'plus haut' : 'plus bas'} du dernier mois`, range10: `${up ? 'plus haut' : 'plus bas'} des 10 derniers jours` };
+  const NAMES = isCourt()
+    ? { range20: `${up ? 'plus haut' : 'plus bas'} des 3 derniers jours`, range10: `${up ? 'plus haut' : 'plus bas'} des 40 dernières heures` }
+    : { range20: `${up ? 'plus haut' : 'plus bas'} du dernier mois`, range10: `${up ? 'plus haut' : 'plus bas'} des 10 derniers jours` };
   if (r.trigger) {
     const near = Math.max(0, 1 - Math.abs(r.trigger.distance) / 0.1); // plein à 0 %, vide à 10 % ou plus
-    return `<span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Achat' : 'Vente'}</b> si le prix clôture une bougie de 4 h ${word} <b>${px(r.trigger.price)}</b> (${plainPct(r.trigger.distance)})</span>
+    return `<span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Achat' : 'Vente'}</b> si le prix clôture une bougie de ${unitWord()} ${word} <b>${px(r.trigger.price)}</b> (${plainPct(r.trigger.distance)})</span>
       <span class="meter" title="Distance au déclenchement"><i style="width:${Math.round(near * 100)}%"></i></span>
-      <span class="sm">C'est son ${NAMES[r.trigger.key] || esc(data.detectors[r.trigger.key])}. Stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)}).${r.macdReady ? ` Le signal peut aussi venir plus tôt si ${macd}.` : ''}</span>`;
+      <span class="sm">C'est son ${NAMES[r.trigger.key] || esc(data.detectors[r.trigger.key])}. Stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)}).${r.macdReady ? ` Le signal peut aussi venir plus tôt si ${macd}.` : ''}</span>
+      ${r.trigger.grosCut === 0.5 ? `<span class="sm down">Les gros traders sont déjà très acheteurs (${fmt(r.trigger.gros, 2)} achat pour 1 vente) : cet achat serait pris avec moitié moins de risque.</span>` : ''}
+      ${r.trigger.scoreOk === true ? '<span class="sm up">Note du moment : bonne, le signal serait gardé.</span>' : r.trigger.scoreOk === false ? '<span class="sm muted">Note du moment trop basse : pour l\'instant, ce signal serait ignoré.</span>' : ''}`;
   }
-  return `<span class="state">Le prix est déjà ${up ? 'au-dessus de ses plus hauts' : 'sous ses plus bas'} du mois.</span>
+  return `<span class="state">Le prix est déjà ${up ? 'au-dessus de ses plus hauts' : 'sous ses plus bas'} ${isCourt() ? 'des derniers jours' : 'du mois'}.</span>
     <span class="sm">Prochain signal quand ${r.macdReady ? macd : `il fera une petite ${up ? 'baisse' : 'hausse'} puis repartira`}, s'il n'y a pas d'obstacle juste devant.</span>`;
 }
 
-function radarCard(a) {
+function radarCard(a, link = true) {
   const r = a.radar;
   const last = lastTradeOf(a.symbol);
   const head = `<span class="hd"><b class="mono">${esc(a.symbol)}</b><span class="muted">${esc(a.name)}</span>
     ${r ? `<span class="tag ${TREND[r.trend]}">Tendance ${esc(r.trend)}</span>` : ''}<span class="px">${px(a.price)}</span></span>`;
-  const lastLine = last ? `<span class="sm">Dernier trade : ${esc(OUTCOME[last.outcome][0].toLowerCase())} le ${parisDay(last.at)} (${cap(last.r)})</span>` : '';
+  const g = a.ctx?.gros;
+  const grosLine = g && r?.trend !== 'neutre' && !liveOf(a.symbol) && r?.trigger?.grosCut !== 0.5 ? `<span class="sm">Gros traders : ${fmt(g, 2)} achat pour 1 vente${g >= (data.rules.grosMax ?? 1.65) ? ' <b class="down">(déjà très acheteurs)</b>' : ''}</span>` : '';
+  const lastLine = grosLine + (last ? `<span class="sm">Dernier trade : ${esc(OUTCOME[last.outcome][0].toLowerCase())} le ${parisDay(last.at)} (${cap(last.r, last)})</span>` : '');
+  if (!link) return `<div class="card">${head}${radarBody(a)}${lastLine}</div>`;
   return `<a class="card" href="#paire/${encodeURIComponent(a.symbol)}">${head}${radarBody(a)}${lastLine}<span class="go">Voir la fiche ${esc(a.symbol)} →</span></a>`;
+}
+
+// Ce qu'on peut attendre de la méthode, en chiffres honnêtes (test sur 2020-2026, frais compris), à la place d'un seul gros chiffre.
+function expectBox() {
+  const e = data.expect;
+  if (!e) return '';
+  const risk = data.rules.riskPct ?? 1;
+  const court = isCourt();
+  const safe = court ? 0.25 : 0.5;
+  return `<div class="box expect"><b>Ce qu'on peut attendre${court ? ' du court terme' : ''}</b>
+    <ul>
+      ${e.yearPct ? `<li>En 2025-2026, en réinvestissant les gains : environ <b>+${e.yearPct} % par an</b>, frais compris (${esc(e.years)}). C'est une période qui n'a pas servi à régler la méthode, sur les 9 cryptos suivies.</li>
+      ${e.score ? `<li>Le bot ne garde que les signaux les mieux notés, environ 4 sur 10. La note est bonne quand le marché est calme, que Bitcoin va dans le même sens et que tout le marché n'est pas déjà lancé. Sans ce tri : environ +${e.score.without.yearPct} % par an, ${e.score.without.perMonth} signaux par mois et un recul jusqu'à −${e.score.without.ddPct} %.</li>` : ''}
+      ${e.gros ? `<li>Quand les gros traders de Binance sont déjà très acheteurs (au moins ${fmt(data.rules.grosMax ?? 1.65, 2)} achat pour 1 vente), le bot prend les achats avec moitié moins de risque : ces achats ont très peu rapporté dans nos tests. Sans cette règle : environ +${e.gros.without.yearPct} % par an, mais un recul jusqu'à −${e.gros.without.ddPct} %. C'est la seule des 17 données testées (open interest, funding, peur et avidité, options…) qui aide vraiment.</li>` : ''}
+      <li>Le risque de chaque trade suit l'agitation du marché : ${pctTxt(risk)} % du capital en temps normal, jusqu'au double quand le prix bouge peu, la moitié quand il s'agite. Le risque conseillé est écrit sur chaque carte. Sans cet ajustement, on gagnait moins (environ +${e.score?.fixedPct ?? 23} % par an à 1 % fixe).</li>`
+      : `<li>En moyenne <b>+${fmt(e.perTrade * risk, 2)} %</b> du capital par trade, frais compris (${fmt(risk, 0)} % du compte risqué à chaque fois). C'est ce qu'a donné la méthode en 2025-2026 sur les 9 cryptos suivies, une période qui n'a pas servi à la régler (${esc(e.years)}).</li>`}
+      <li>Seulement <b>${fmt(e.winRate * 100, 0)} % de trades gagnants</b> : la plupart finissent au stop, avec une petite perte. Quelques gros gains paient tout le reste.</li>
+      <li>Environ <b>${e.perMonth} signaux par mois</b>${court ? ', soit 1 à 2 par jour' : ''}.</li>
+      ${e.ddPct ? `<li class="down">Les pertes peuvent s'enchaîner : jusqu'à <b>${e.streak} stops d'affilée</b>, car plusieurs paires perdent en même temps. Le capital a reculé jusqu'à <b>−${e.ddPct} %</b> depuis son plus haut. Avec ${pctTxt(e.safe.base)} % de base au lieu de ${pctTxt(risk)} % : environ +${e.safe.yearPct} % par an, recul maximal −${e.safe.ddPct} %.</li>`
+      : `<li class="down">Les pertes peuvent s'enchaîner : jusqu'à <b>${e.streak} stops d'affilée</b>, car plusieurs paires perdent en même temps. En risquant ${fmt(risk, 0)} % à chaque trade, la pire baisse a été de <b>${e.ddR} %</b>${e.ddR * risk >= 100 ? ' : le compte aurait été vidé' : ''}. Avec ${fmt(safe, 2).replace(/,?0+$/, '')} % par trade, elle aurait été d'environ ${Math.round(e.ddR * safe / risk)} %.</li>`}
+      ${e.score ? `<li class="down">Ces chiffres reposent sur ${e.score.trades} trades seulement : attends-toi à moins en vrai. Sur 2020-2024, la période qui a servi à apprendre la note, on trouve environ +${e.score.dev.yearPct} % par an avec un recul jusqu'à −${e.score.dev.ddPct} %, et 2023 a été une année à plat.</li>` : ''}
+      ${court ? '<li>Chaque trade gagne moins qu\'en Setups et les frais pèsent plus lourd. Les bougies de 15 minutes ont été testées aussi : elles perdent à cause des frais, elles ne sont donc pas proposées.</li>' : ''}
+    </ul>
+    <p class="sm muted">Résultats passés, pas une promesse. Le pétrole n'a pas assez d'historique pour ce test. Ceci n'est pas un conseil financier.</p></div>`;
+}
+
+// Catégorie Court terme : radar, signaux en jeu et bilan, depuis data/setups-court.json.
+function renderCourt() {
+  const box = document.getElementById('court-grid');
+  if (!box) return;
+  if (!courtData) {
+    box.innerHTML = '<div class="box"><div class="empty">Le court terme n\'est pas encore disponible. Il est calculé toutes les heures : reviens dans quelques minutes.</div></div>';
+    return;
+  }
+  withData(courtData, () => {
+    document.getElementById('court-expect').innerHTML = expectBox();
+    document.getElementById('court-radar').innerHTML = data.assets.map(a => radarCard(a, false)).join('');
+    const live = data.live;
+    document.getElementById('court-count').textContent = `${live.length} signal${live.length > 1 ? 's' : ''} · ${data.assets.length} marchés surveillés`;
+    box.innerHTML = live.length ? live.map(s => card(s, false)).join('')
+      : '<div class="box"><div class="empty">Aucun trade court terme en ce moment. Les prix qui déclencheraient le prochain sont dans les cartes au-dessus.</div></div>';
+    const from = Date.now() - historyDays() * 86_400_000;
+    const done = data.history.filter(s => s.status === 'confirmé' && s.outcome !== 'open' && s.time >= from && !delayed(s));
+    const total = sumR(done);
+    const wins = done.filter(s => s.r > 0).length;
+    const rows = done.slice(0, 30).map(s => `<tr><td class="l">${parisDay(s.time)}</td><td class="l"><b class="mono">${esc(s.symbol)}</b></td><td class="l">${esc(data.detectors[s.detector])}</td><td class="l">${dirTag(s.dir)}</td><td class="n">${px(s.entry)}</td><td class="l"><span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span></td><td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r, s)}</td></tr>`).join('');
+    document.getElementById('court-bilan').innerHTML = `<p class="wait-sum">Sur les ${historyDays() > 100 ? '12 derniers mois' : '3 derniers mois'} : <b>${done.length} trades terminés</b>, ${wins} gagnant${wins > 1 ? 's' : ''},
+      <b class="${total > 0 ? 'up' : total < 0 ? 'down' : ''}">${cap(total)} du capital</b> au total, avant frais.</p>
+      ${rows ? `<div class="tbl"><table><thead><tr><th class="l">Date</th><th class="l">Paire</th><th class="l">Signal</th><th class="l">Sens</th><th>Entrée</th><th class="l">Résultat</th><th>Capital</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}`;
+  });
 }
 
 // Catégorie Indicateurs : une carte par paire avec l'état de ses indicateurs, sans signal de trade.
@@ -178,6 +258,8 @@ function renderCat() {
   for (const b of document.querySelectorAll('#setups-cats .chip')) b.setAttribute('aria-pressed', String(b.dataset.cat === state.cat));
   document.getElementById('setups-cat-setups').hidden = state.cat !== 'setups';
   document.getElementById('setups-cat-ind').hidden = state.cat !== 'ind';
+  const court = document.getElementById('setups-cat-court');
+  if (court) court.hidden = state.cat !== 'court';
   if (data) renderIndicators();
 }
 
@@ -207,21 +289,23 @@ function renderList() {
 function waiting() {
   const from = Date.now() - historyDays() * 86_400_000;
   const done = data.history.filter(s => s.status === 'confirmé' && s.outcome !== 'open' && s.time >= from && !delayed(s));
-  const total = Math.round(done.reduce((t, s) => t + s.r, 0) * 10) / 10;
+  const total = sumR(done);
   const wins = done.filter(s => s.r > 0).length;
   const months = historyDays() > 100 ? '12 derniers mois' : '3 derniers mois';
   const rows = done.slice(0, 3).map(s => `<li><b class="mono">${esc(s.symbol)}</b> ${dirTag(s.dir)} <span class="muted">${parisDay(s.time)}</span>
-    <span class="r ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r)} du capital</span></li>`).join('');
+    <span class="r ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r, s)} du capital</span></li>`).join('');
   return `<div class="box wait"><div class="empty"><b>Aucun trade en ce moment : la méthode attend un bon moment.</b>
-    C'est normal, le signal est rare exprès (environ deux par mois sur les 4 paires). Les prix qui déclencheraient le prochain sont juste au-dessus.</div>
+    C'est normal, la méthode attend une vraie cassure dans le sens de la tendance (environ ${data.expect?.perMonth ?? 'quelques'} signaux par mois). Les prix qui pourraient déclencher le prochain sont juste au-dessus : le bot ne le gardera que s'il a une bonne note.</div>
     ${done.length ? `<p class="wait-sum">Sur les ${months} : <b>${done.length} trade${done.length > 1 ? 's' : ''} terminé${done.length > 1 ? 's' : ''}</b>, ${wins} gagnant${wins > 1 ? 's' : ''},
-      <b class="${total > 0 ? 'up' : total < 0 ? 'down' : ''}">${cap(total)} du capital</b> au total (${fmt(data.rules.riskPct ?? 1, 0)} % du compte risqué par trade).</p>
+      <b class="${total > 0 ? 'up' : total < 0 ? 'down' : ''}">${cap(total)} du capital</b> au total (${baseRiskTxt()}).</p>
     <ul class="wait-list">${rows}</ul>` : ''}
     <p class="wait-sum"><a href="#historique">Voir tout l'historique →</a></p></div>`;
 }
 
 export function initSetups(setupsData, projects) {
   data = setupsData;
+  // Court terme gardé hors ligne pour l'instant (décision du 18 novembre 2026) : COURT_ON passe à true pour le montrer.
+  if (COURT_ON) fetch('data/setups-court.json').then(r => (r.ok ? r.json() : null)).catch(() => null).then(d => { courtData = d; renderCourt(); });
   projectsBySymbol = new Map((projects?.projects || []).filter(p => p.symbol).map(p => [p.symbol.toUpperCase(), p]));
   const keys = Object.keys(data.detectors);
   Object.assign(state, store.get());
@@ -263,7 +347,8 @@ export function initSetups(setupsData, projects) {
   });
   watchlist.subscribe(() => { if (state.watch) renderList(); });
   document.getElementById('setups-warnings').innerHTML = (data.warnings || []).map(w => `<p class="warn">⚠ ${esc(w)}</p>`).join('');
-  if (!['setups', 'ind'].includes(state.cat)) state.cat = 'setups';
+  if (!['setups', ...(COURT_ON ? ['court'] : []), 'ind'].includes(state.cat)) state.cat = 'setups';
+  document.getElementById('setups-expect').innerHTML = expectBox();
   chips();
   renderCat();
   renderIndicators();
@@ -272,7 +357,7 @@ export function initSetups(setupsData, projects) {
   renderHistory();
   renderResume();
   // Statut Premium connu après la connexion : on redessine ce qui en dépend.
-  onTier(() => { renderRadar(); renderList(); renderHistory(); renderResume(); });
+  onTier(() => { renderRadar(); renderList(); renderHistory(); renderResume(); if (COURT_ON) renderCourt(); });
 }
 
 function renderResume() {
@@ -358,7 +443,7 @@ function renderHistory() {
       <td class="n">${px(s.entry)}</td>
       <td class="n">1:${fmt(s.rr, 1)}</td>
       <td class="l"><span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span></td>
-      <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r)}</td>
+      <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r, s)}</td>
     </tr>`).join('') : '<tr><td colspan="8"><div class="empty">Aucun signal terminé pour le moment.</div></td></tr>';
 }
 
@@ -369,4 +454,60 @@ export function setupsUnavailable() {
   document.getElementById('history-body').innerHTML = `<tr><td colspan="6">${msg}</td></tr>`;
   document.getElementById('history-list').innerHTML = '';
   document.getElementById('resume-setups').innerHTML = '<div class="soon">Setups pas encore disponibles.</div>';
+}
+
+// ---------- Contexte du marché (labo 9, novembre 2026) ----------
+// Chaque donnée en mots simples, avec ce que le test a donné : utile pour trier les signaux, ou seulement à titre d'info.
+const sgn = x => (x > 0 ? '+' : x < 0 ? '−' : '');
+const pctPlain = (x, d = 1) => `${sgn(x)}${fmt(Math.abs(x) * 100, d)} %`;
+function testLine(key) {
+  const t = data?.context?.test?.[key];
+  if (!t) return '';
+  return `<span class="it ctx-t ${t.helps ? 'ok' : t.helps === false ? 'no' : ''}">${t.helps ? '✔ ' : t.helps === false ? '✗ ' : '… '}${esc(t.text)}</span>`;
+}
+function ctxItem(key, label, value, text, tone = '', testKey = key) {
+  return `<li><span class="ik">${esc(label)}</span><span class="iv ${tone}">${value}</span><span class="it">${text}</span>${testLine(testKey)}</li>`;
+}
+export function contextItems(a) {
+  const c = a.ctx;
+  if (!c || a.kind === 'commodity') return [];
+  const g = data?.context ?? {};
+  const out = [];
+  if (c.gros) {
+    const hot = c.gros >= (data.rules.grosMax ?? 1.65);
+    out.push(ctxItem('gros', 'Gros traders : achats pour 1 vente (Binance, hier soir)', `${fmt(c.gros, 2)} pour 1`,
+      hot ? (a.radar?.dir === 'short' ? 'Ils sont déjà très acheteurs. La règle ne joue que pour les achats : en ce moment, le bot cherche des ventes.' : 'Ils sont déjà très acheteurs. Un achat maintenant arrive souvent tard : le bot le prend avec moitié moins de risque.')
+        : c.gros < 1 ? 'Ils sont plutôt vendeurs.' : 'Ils sont un peu plus acheteurs que vendeurs, sans excès.', hot ? 'down' : ''));
+  }
+  if (c.oi) out.push(ctxItem('oi', 'Positions ouvertes sur 24 h (open interest OKX)', `${c.oi.ch1 === null ? '—' : pctPlain(c.oi.ch1)}`,
+    `${c.oi.ch7 === null ? '' : `${pctPlain(c.oi.ch7)} en 7 jours. `}${c.oi.ch7 > 0.1 ? 'Beaucoup de nouveaux paris arrivent : le mouvement attire du monde, mais il peut aussi se retourner d\'un coup.' : c.oi.ch7 < -0.1 ? 'Beaucoup de traders ferment leurs positions.' : 'Pas de grand changement.'}`));
+  if (c.crowd) out.push(ctxItem('crowd', 'Foule : acheteurs pour 1 vendeur (comptes OKX)', `${fmt(c.crowd, 2)} pour 1`,
+    c.crowd >= 2 ? 'La plupart des petits comptes parient sur la hausse.' : c.crowd <= 0.8 ? 'La plupart des petits comptes parient sur la baisse.' : 'La foule est partagée.'));
+  if (c.taker) out.push(ctxItem('taker', 'Part des achats pressés sur 24 h (OKX)', `${fmt(c.taker * 100, 0)} %`,
+    c.taker >= 0.53 ? 'Les acheteurs pressés dominent.' : c.taker <= 0.47 ? 'Les vendeurs pressés dominent.' : 'Équilibre entre acheteurs et vendeurs pressés.'));
+  if (c.funding !== undefined && c.funding !== null) out.push(ctxItem('funding', 'Funding moyen sur 7 jours (OKX)', `${sgn(c.funding)}${fmt(Math.abs(c.funding) * 100, 4)} %`,
+    c.funding > 0.0002 ? 'Les acheteurs paient cher pour rester : beaucoup de paris à la hausse.' : c.funding < 0 ? 'Les vendeurs paient : beaucoup de paris à la baisse.' : 'Normal.', c.funding > 0.0002 ? 'down' : ''));
+  if (g.fng) out.push(ctxItem('fng', 'Peur et avidité (tout le marché)', `${g.fng.value} / 100`,
+    `${g.fng.value >= 75 ? 'Avidité extrême' : g.fng.value >= 55 ? 'Avidité' : g.fng.value > 45 ? 'Neutre' : g.fng.value > 25 ? 'Peur' : 'Peur extrême'}${g.fng.week !== null ? ` (${g.fng.week} il y a une semaine)` : ''}.`));
+  const dv = g.dvol?.[a.symbol === 'ETH' ? 'ETH' : 'BTC'];
+  if (dv) out.push(ctxItem('dvol', `Agitation attendue par les options (${a.symbol === 'ETH' ? 'ETH' : 'BTC'})`, `${fmt(dv.value, 0)} %`,
+    `Sur un an (indice DVOL de Deribit). Les options parient sur des mouvements d'environ ${fmt(dv.value / Math.sqrt(365), 1)} % par jour${dv.week ? `, ${dv.value > dv.week * 1.05 ? 'en hausse' : dv.value < dv.week * 0.95 ? 'en baisse' : 'stable'} sur une semaine` : ''}.`));
+  const z = c.zones;
+  if (z?.top?.length) {
+    const near = [...z.top].sort((x, y) => Math.abs(x.distance) - Math.abs(y.distance))[0];
+    out.push(ctxItem('zones', `Prix les plus échangés (${z.days} derniers jours)`, `${px(near.price)}`,
+      `Zone la plus proche à ${pctPlain(near.distance)} du prix. ${z.top.length > 1 ? `Autres : ${z.top.filter(x => x !== near).map(x => px(x.price)).join(', ')}. ` : ''}Le prix ralentit souvent dans ces zones.`));
+  }
+  return out;
+}
+export function contextBox(a) {
+  const items = contextItems(a);
+  if (!items.length) return '';
+  const t = data?.context?.test ?? {};
+  return `<div class="box ctx-box"><h2>Contexte du marché</h2>
+    <p class="txt">Ces données ont toutes été testées sur les signaux du bot (2020-2026, frais compris). Une seule aide vraiment : les gros traders. Les autres sont là pour comprendre le marché, pas pour décider.</p>
+    <ul class="ind-list">${items.join('')}</ul>
+    ${t.season ? `<p class="fine">✗ ${esc(t.season.text)}</p>` : ''}
+    ${t.liq ? `<p class="fine">… Liquidations : ${esc(t.liq.text)}</p>` : ''}
+    <p class="fine">Sources gratuites : Binance (fichiers publics), OKX, alternative.me, Deribit. Mis à jour toutes les heures.</p></div>`;
 }

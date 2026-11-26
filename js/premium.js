@@ -2,7 +2,7 @@
 // tant que le paiement en ligne n'existe pas) : js/account.js le lit à la connexion et appelle setPremium.
 // Le bridage est visuel : les fichiers data/*.json restent publics, comme pour l'historique réservé aux membres.
 const DAY = 86_400_000;
-const BAR = 4 * 3600_000;
+const BAR = 3600_000; // bougie d'entrée des setups (1h depuis novembre 2026)
 
 export const PRICE = '9,90 €'; // prix affiché sur la page Premium, par mois
 export const FREE_LIVE = ['BTC', 'ETH']; // paires en direct pour tout le monde
@@ -23,7 +23,7 @@ export function setPremium(on) {
   subs.forEach(fn => fn(on));
 }
 
-// Un signal compte à la clôture de sa bougie 4h. Sans Premium, SOL et le pétrole n'apparaissent que 24 h après.
+// Un signal compte à la clôture de sa bougie 1h. Sans Premium, SOL et le pétrole n'apparaissent que 24 h après.
 export const delayed = (s, now = Date.now()) => !premium && !FREE_LIVE.includes(s.symbol) && now - (s.time + BAR) < DELAY;
 export const visibleIn = (s, now = Date.now()) => Math.max(0, s.time + BAR + DELAY - now);
 export const historyDays = () => (premium ? HISTORY_DAYS.premium : HISTORY_DAYS.free);

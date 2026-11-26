@@ -57,12 +57,24 @@ export function setupRoutes(now = Date.now()) {
     const funding = Array.from({ length: 90 }, (_, k) => ({ fundingTime: String(Math.floor(now / (8 * 3600_000)) * 8 * 3600_000 - k * 8 * 3600_000), realizedRate: String((r() - 0.3) * (sym === 'DOGE' ? 0.0012 : 0.0002)) }));
     let oi = 1e6;
     const oiRows = Array.from({ length: 100 }, (_, k) => [String(end4h - (99 - k) * BAR), '0', String((oi *= 1 + (sym === 'DOGE' ? 0.025 : (r() - 0.5) * 0.02))), '0']).reverse();
-    data[sym] = { bars, days: days.reverse(), funding, oiRows, last: Number(bars[0][4]), open24h: Number(bars[6][1]) };
+    // Bougies 1h : chaque bougie 4h coupée en 4 (prix interpolés), la dernière heure encore ouverte.
+    const hours = [];
+    w.forEach(([o, h, l, c, v], i) => {
+      const t = end4h - (n - 1 - i) * BAR;
+      for (let q = 0; q < 4; q++) {
+        const ho = o + (c - o) * q / 4, hc = o + (c - o) * (q + 1) / 4;
+        const hh = q === 1 ? h : Math.max(ho, hc), hl = q === 2 ? l : Math.min(ho, hc);
+        if (t + q * 3600_000 > now) break;
+        hours.push([String(t + q * 3600_000), String(ho), String(hh), String(hl), String(hc), String(v / 4), String(v / 4 / hc), String(v / 4), '1']);
+      }
+    });
+    hours.at(-1)[8] = '0';
+    data[sym] = { bars, hours: hours.reverse(), days: days.reverse(), funding, oiRows, last: Number(bars[0][4]), open24h: Number(bars[6][1]) };
   }
   return data;
 }
 
-const rows = (d, bar) => (bar === '1Dutc' ? d.days : d.bars);
+const rows = (d, bar) => (bar === '1Dutc' ? d.days : bar === '1H' ? d.hours : d.bars);
 
 export function routeSetups(data, url) {
   const u = new URL(url);

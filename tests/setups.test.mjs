@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
   BAR, RULES, atr, dailyContext, detectMacd, detectRange10, detectRange20, detectorStats, evaluate,
-  exitLevel, fmtPx, hasRoom, indicatorState, legState, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, trend1d,
+  exitLevel, fmtPx, hasRoom, indicatorState, legState, mergeHistory, plan, priorLevels, radar, roundStep, scanAsset, sizeFor, trend1d,
 } from '../scripts/lib/setups.mjs';
 
 const DAY = 86_400_000;
@@ -193,7 +193,7 @@ test('detectorStats : gagnant = trade fini en gain, et mergeHistory retire les a
   assert.deepEqual(merged.map(x => x.id), ['f1', 'p1'], 'recalcul prioritaire, ancien détecteur swing et altcoin retirés');
 });
 
-test('build-setups écrit setups.json pour BTC, ETH, SOL et le Brent seulement', async () => {
+test('build-setups écrit setups.json et setups-court.json pour les paires suivies seulement', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'dinexo-setups-'));
   await writeFile(join(dir, 'prev.json'), JSON.stringify({ history: [
     { id: 'old', detector: 'tendance', symbol: 'BTC', status: 'confirmé', time: Date.now() - 60 * DAY, outcome: 'exit', r: 2 },
@@ -202,11 +202,14 @@ test('build-setups écrit setups.json pour BTC, ETH, SOL et le Brent seulement',
   ] }));
   await promisify(execFile)('node', ['--import', './tests/mock-fetch.mjs', 'scripts/build-setups.mjs', '--out', dir, '--previous', join(dir, 'prev.json'), '--sample']);
   const out = JSON.parse(await readFile(join(dir, 'setups.json'), 'utf8'));
-  assert.deepEqual(out.assets.map(a => a.symbol), ['BTC', 'ETH', 'SOL', 'BZ']);
+  // Le faux OKX liste BTC, ETH, SOL, DOGE, le Brent et le WTI : le WTI n'est pas suivi.
+  assert.deepEqual(out.assets.map(a => a.symbol), ['BTC', 'ETH', 'SOL', 'DOGE', 'BZ']);
+  assert.equal(out.model, 'h1d1n');
+  assert.equal(out.rules.barMs, 3600_000, 'signaux sur bougies 1h');
   assert.deepEqual(out.assets.filter(a => a.kind === 'commodity').map(a => a.symbol), ['BZ']);
   assert.ok(out.history.length >= 5, `historique trop court : ${out.history.length}`);
   assert.ok(!out.history.some(h => ['old', 'swing', 'alt'].includes(h.id)), 'anciens détecteurs et altcoins retirés');
-  assert.ok(out.history.every(h => ['BTC', 'ETH', 'SOL', 'BZ'].includes(h.symbol) && Object.keys(out.detectors).includes(h.detector)));
+  assert.ok(out.history.every(h => ['BTC', 'ETH', 'SOL', 'DOGE', 'BZ'].includes(h.symbol) && Object.keys(out.detectors).includes(h.detector)));
   for (const s of out.live) {
     assert.ok(s.rr >= RULES.minRR);
     assert.ok(out.charts[s.symbol]);
@@ -214,10 +217,18 @@ test('build-setups écrit setups.json pour BTC, ETH, SOL et le Brent seulement',
   }
   for (const s of out.history) assert.ok(['sl', 'be', 'exit', 'open'].includes(s.outcome));
   assert.deepEqual(Object.keys(out.stats), ['range20', 'range10', 'macd']);
-  assert.equal(out.rules.exitDays, 7);
+  assert.equal(out.rules.exitDays, 10);
   // Peu de signaux : un trade à la fois par actif, des trades de plusieurs jours.
   const spanDays = (Math.max(...out.history.map(h => h.time)) - Math.min(...out.history.map(h => h.time))) / DAY;
-  assert.ok(out.history.length <= spanDays / 3, `${out.history.length} signaux sur ${Math.round(spanDays)} jours`);
+  assert.ok(out.history.length <= spanDays, `${out.history.length} signaux sur ${Math.round(spanDays)} jours`);
+  // Court terme : même format, unité 1h / 4h, identifiants à part.
+  const court = JSON.parse(await readFile(join(dir, 'setups-court.json'), 'utf8'));
+  assert.equal(court.model, 'h1h4');
+  assert.equal(court.rules.trendMs, 4 * 3600_000);
+  assert.deepEqual(court.assets.map(a => a.symbol), out.assets.map(a => a.symbol));
+  assert.ok(court.history.length >= out.history.length, 'plus de signaux en court terme');
+  assert.ok(court.history.every(h => h.id.startsWith('ct-')));
+  assert.equal(court.detectors.range20, 'Cassure 3 jours');
 });
 
 test('indicatorState décrit une paire en tendance haussière, sans signal', () => {
@@ -279,4 +290,27 @@ test('legDetails mesure le retard sur le creux et le résultat de chaque jambe',
   assert.ok(cur.lagMs > 0 && cur.fromOrigin > 0, 'le signal arrive après le creux, plus haut que lui');
   assert.equal(cur.result, 220 / cur.signal.price - 1);
   assert.equal(cur.exit, null);
+});
+
+test('taille selon l’agitation : plus gros en marché calme, plus petit en marché agité, bornée', () => {
+  assert.equal(sizeFor(RULES.volRef), 1);
+  assert.equal(sizeFor(RULES.volRef / 1.5), 1.5);
+  assert.equal(sizeFor(RULES.volRef / 10), RULES.sizeMax);
+  assert.equal(sizeFor(RULES.volRef * 10), RULES.sizeMin);
+  assert.equal(sizeFor(null), 1);
+  const dc = dailyContext(Array.from({ length: 40 }, (_, k) => ({ t: k * 86_400_000, o: 100, h: 102, l: 98, c: 100 * (k % 2 ? 1.02 : 1) })));
+  assert.equal(dc.vol[30], null);
+  assert.ok(dc.vol[35] > 0.015 && dc.vol[35] < 0.025);
+});
+
+test('note des signaux : critères dans l\'ordre et seuil', async () => {
+  const { SCORE, SCORE_FEAT, scoreOf } = await import('../scripts/lib/setups.mjs');
+  assert.equal(SCORE.mu.length, SCORE_FEAT.length);
+  assert.equal(SCORE.w.length, SCORE_FEAT.length);
+  // un signal « moyen » a la note de base
+  assert.equal(scoreOf(SCORE.mu), Math.round(SCORE.b * 1000) / 1000);
+  // marché très agité : note plus basse (poids négatif sur l'agitation)
+  const agite = [...SCORE.mu]; agite[SCORE_FEAT.indexOf('volabs')] = SCORE.mu[SCORE_FEAT.indexOf('volabs')] + 3 * SCORE.sd[SCORE_FEAT.indexOf('volabs')];
+  assert.ok(scoreOf(agite) < scoreOf(SCORE.mu));
+  assert.equal(scoreOf(null), null);
 });
