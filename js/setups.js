@@ -48,11 +48,12 @@ export const statusTag = s => `<span class="tag ${s.status === 'confirmé' ? 'ac
 export const outcomeTag = s => (s.status === 'confirmé' && s.outcome !== 'open' ? `<span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span>` : '');
 const asset = sym => data.assets.find(a => a.symbol === sym) || { symbol: sym, name: sym };
 export const okxUrl = sym => `https://www.okx.com/trade-swap/${sym.toLowerCase()}-usdt-swap`;
+const shortDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 export const parisDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 // Résultat en % du capital. Risque de base data.rules.riskPct % du compte, multiplié par la taille du trade (s.sz) :
 // on risque plus quand le marché est calme, moins quand il est agité (entre la moitié et le double).
-export const cap = (r, s = null) => { const x = r * (data.rules.riskPct ?? 1) * (s?.sz ?? 1); return `${x > 0 ? '+' : ''}${fmt(x, x >= 10 || x <= -10 ? 0 : 1)} %`; };
+export const cap = (r, s = null) => { const x = r * (data.rules.riskPct ?? 1) * (s?.sz ?? 1); return `${x > 0 ? '+' : x < 0 ? '−' : ''}${fmt(Math.abs(x), x >= 10 || x <= -10 ? 0 : 1)} %`; };
 // Un pourcentage sans zéros inutiles : 0,75 · 1 · 1,5.
 export const pctTxt = x => fmt(x, Math.abs(x - Math.round(x)) < 1e-9 ? 0 : Math.abs(x * 10 - Math.round(x * 10)) < 1e-9 ? 1 : 2);
 // Risque conseillé pour un trade, en % du capital, et l'état du marché qui l'explique.
@@ -62,6 +63,31 @@ export const baseRiskTxt = () => `risque de base ${pctTxt(data.rules.riskPct ?? 
 // Somme des résultats en « R de base » (taille comprise), à passer à cap().
 export const sumR = list => Math.round(list.reduce((t, s) => t + s.r * (s.sz ?? 1), 0) * 10) / 10;
 export const outcomeCls = s => (s.outcome === 'exit' ? (s.r > 0 ? 'up' : s.r < 0 ? 'down' : '') : OUTCOME[s.outcome][1]);
+
+// Pourquoi ce signal, en mots simples. Construit à l'affichage depuis le détecteur, le sens et le niveau cassé :
+// le texte du serveur (« Clôture 1h sous… ») reste dans les données, les règles ne changent pas.
+export function whyText(s) {
+  const up = s.dir === 'long';
+  const unit = barMs() === 3600_000 ? 'd\'une heure' : 'de 4 heures';
+  const trend = `Le marché ${up ? 'monte' : 'baisse'} : le bot ne cherche que des ${up ? 'achats' : 'ventes'}.`;
+  const lvl = s.ref ? ` (${px(s.ref)})` : '';
+  const days = { range20: isCourt() ? '3 derniers jours' : '20 derniers jours', range10: isCourt() ? '40 dernières heures' : '10 derniers jours' }[s.detector];
+  const what = days
+    ? `Une bougie ${unit} a fermé ${up ? 'au-dessus du plus haut' : 'sous le plus bas'} des ${days}${lvl} : ${up ? 'les acheteurs prennent le dessus' : 'les vendeurs prennent le dessus'}.`
+    : s.detector === 'macd' ? `Le prix repart ${up ? 'à la hausse après une petite pause' : 'à la baisse après un petit rebond'} (indicateur MACD).` : esc(s.why);
+  return `${what} ${trend}`;
+}
+
+// Où en est un trade ouvert : résultat en %, moitié déjà prise, stop remonté, et s'il est encore temps de le copier.
+export function liveState(s, price) {
+  const risk = Math.abs(s.entry - s.sl);
+  const move = Number.isFinite(price) && risk ? (price - s.entry) / risk * (s.dir === 'long' ? 1 : -1) : null;
+  const stop = s.stop ?? s.sl;
+  const safe = s.tpHit > 0 || Math.abs(stop - s.entry) < risk * 0.01;
+  const now = move === null ? null : s.tpHit ? ((data.rules.partialR ?? 5) + move) / 2 : move;
+  const priceMove = Number.isFinite(price) ? (price - s.entry) / s.entry : null;
+  return { move, stop, safe, now, priceMove, late: move !== null && Math.abs(move) >= 1 };
+}
 
 // Sous 20 trades terminés, un pourcentage de gagnants ne veut rien dire : on donne le nombre et le gain, sans taux.
 export const MIN_TRADES = 20;
@@ -101,13 +127,32 @@ function card(s, link = true) {
   if (delayed(s)) return lockedCard(s);
   const a = asset(s.symbol);
   const tag = link ? `a class="card setup" href="#setup/${encodeURIComponent(s.id)}"` : 'div class="card setup"';
+  const open = s.outcome === 'open';
+  const st = liveState(s, a.price);
+  const half = s.tp?.[0] ?? s.tp1;
+  // Ligne d'état : le résultat en ce moment, et si copier le trade maintenant a encore un sens.
+  let now = '';
+  if (open && st.now !== null) {
+    const res = `<b class="${st.now >= 0 ? 'up' : 'down'}">${cap(st.now, s)}</b> du capital en ce moment (prix ${px(a.price)})`;
+    const late = st.safe ? 'Trop tard pour copier ce trade : attends le prochain signal.'
+      : st.late && st.move > 0 ? `Le prix a déjà fait ${plainPct(Math.abs(st.priceMove))} depuis l'entrée : trop tard pour le copier au même prix.`
+        : st.late ? 'Le prix est revenu contre le trade, près du stop.'
+          : 'Le prix est encore proche de l\'entrée.';
+    now = `<span class="sm now">${res}. ${late}</span>`;
+  }
+  const sens = s.dir === 'long' ? 'sous' : 'au-dessus de';
+  const exit = s.exitAt ? ` ${s.tpHit ? 'Le reste sort' : 'Le trade sort'} si une journée ferme ${sens} ${px(s.exitAt)}.` : '';
+  const risk = open && st.safe
+    ? `<span class="sm"><b class="up">Plus aucun risque</b> : ${s.tpHit ? `moitié prise le ${shortDay(s.halfAt ?? s.time)}, ` : ''}stop remonté au prix d'entrée.${exit}</span>`
+    : `<span class="sm">Risque conseillé : <b>${pctTxt(Math.round(riskOf(s) * 20) / 20)} % du capital</b> (${moodOf(s)}${s.grosCut ? ', moitié moins car les gros traders étaient déjà très acheteurs' : ''}).${open ? exit : ''}</span>`;
   return `<${tag}>
     <span class="hd"><b class="mono">${esc(s.symbol)}</b><span class="muted">${esc(a.name)}</span>${dirTag(s.dir)}${statusTag(s)}${outcomeTag(s)}</span>
-    <span class="tags"><span class="tag">${esc(data.detectors[s.detector])}</span><span class="tag ${TREND[s.trend]}">Tendance ${isCourt() ? '4h' : '1D'} ${esc(s.trend)}</span>
-      <span class="when">${s.status === 'en cours' ? 'bougie en cours' : ago(new Date(s.time + barMs()).toISOString())}</span></span>
-    <span class="why">${esc(s.why)}</span>
-    <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(s.sl)}</span><span><i>Moitié à ${fmt(data.rules.partialR ?? s.rr, 0)}R</i>${px(s.tp[0])}</span>${s.exitAt ? `<span><i>Sortie</i>${px(s.exitAt)}</span>` : `<span><i>R:R</i>1:${fmt(s.rr, 1)}</span>`}</span>
-    <span class="sm">Risque conseillé : <b>${pctTxt(Math.round(riskOf(s) * 20) / 20)} % du capital</b> (${moodOf(s)}${s.grosCut ? ', moitié moins car les gros traders étaient déjà très acheteurs' : ''})</span>
+    <span class="tags"><span class="tag">${esc(data.detectors[s.detector])}</span><span class="tag ${TREND[s.trend]}">Tendance ${esc(s.trend)}</span>
+      <span class="when">${s.status === 'en cours' ? 'bougie en cours' : `signal du ${shortDay(s.time + barMs())}`}</span></span>
+    <span class="why">${whyText(s)}</span>
+    <span class="lv"><span><i>Entrée</i>${px(s.entry)}</span><span><i>Stop</i>${px(open ? st.stop : s.sl)}</span><span><i>${s.tpHit ? 'Moitié prise' : 'Objectif (moitié)'}</i>${px(half)}</span>${s.exitAt ? `<span><i>${s.tpHit ? 'Sortie du reste' : 'Sortie'}</i>${px(s.exitAt)}</span>` : `<span><i>Gain visé</i>${fmt(s.rr, 0)} × le risque</span>`}</span>
+    ${now}
+    ${risk}
     <span class="wr">${winLine(s.detector)}</span>
     ${newsLink(s, 'span')}
   </${link ? 'a' : 'div'}>`;
@@ -129,10 +174,10 @@ export function radarBody(a) {
       <span class="sm">Il sera visible pour tout le monde dans ${hoursText(visibleIn(live))}. Avec Premium, tu le vois tout de suite.</span>`;
   }
   if (live) {
-    const move = (a.price - live.entry) / Math.abs(live.entry - live.sl) * (live.dir === 'long' ? 1 : -1);
-    const r0 = live.tpHit ? ((data.rules.partialR ?? 5) + move) / 2 : move; // moitié déjà prise à 5R
+    const st = liveState(live, a.price);
+    const r0 = st.now ?? 0;
     return `<span class="state">${dirTag(live.dir)} <b>Trade en cours</b> depuis le ${parisDay(live.time)}</span>
-      <span class="sm">Entrée ${px(live.entry)}, stop ${px(live.stop ?? live.sl)}. En ce moment <b class="${r0 >= 0 ? 'up' : 'down'}">${cap(r0, live)}</b> du capital</span>`;
+      <span class="sm">En ce moment <b class="${r0 >= 0 ? 'up' : 'down'}">${cap(r0, live)}</b> du capital. Entrée ${px(live.entry)}, ${st.safe ? `stop remonté au prix d'entrée : ${live.tpHit ? 'moitié déjà prise, ' : ''}plus aucun risque` : `stop ${px(st.stop)}`}.</span>`;
   }
   if (!r) return '<span class="state">Pas assez de données pour le moment.</span>';
   if (r.trend === 'neutre') return `<span class="state">Pas de trade : le marché n'a pas de direction claire.</span>
@@ -146,7 +191,7 @@ export function radarBody(a) {
   if (r.trigger) {
     const near = Math.max(0, 1 - Math.abs(r.trigger.distance) / 0.1); // plein à 0 %, vide à 10 % ou plus
     return `<span class="state"><b class="${up ? 'up' : 'down'}">${up ? 'Achat' : 'Vente'}</b> si le prix clôture une bougie de ${unitWord()} ${word} <b>${px(r.trigger.price)}</b> (${plainPct(r.trigger.distance)})</span>
-      <span class="meter" title="Distance au déclenchement"><i style="width:${Math.round(near * 100)}%"></i></span>
+      ${near > 0 ? `<span class="meter" title="Plus la barre est pleine, plus le prix est proche du déclenchement"><i style="width:${Math.round(near * 100)}%"></i></span>` : ''}
       <span class="sm">C'est son ${NAMES[r.trigger.key] || esc(data.detectors[r.trigger.key])}. Stop prévu vers ${px(r.trigger.stop)} (${plainPct((r.trigger.stop - r.trigger.price) / r.trigger.price)}).${r.macdReady ? ` Le signal peut aussi venir plus tôt si ${macd}.` : ''}</span>
       ${r.trigger.grosCut === 0.5 ? `<span class="sm down">Les gros traders sont déjà très acheteurs (${fmt(r.trigger.gros, 2)} achat pour 1 vente) : cet achat serait pris avec moitié moins de risque.</span>` : ''}
       ${r.trigger.scoreOk === true ? '<span class="sm up">Note du moment : bonne, le signal serait gardé.</span>' : r.trigger.scoreOk === false ? '<span class="sm muted">Note du moment trop basse : pour l\'instant, ce signal serait ignoré.</span>' : ''}`;
@@ -161,34 +206,44 @@ function radarCard(a, link = true) {
   const head = `<span class="hd"><b class="mono">${esc(a.symbol)}</b><span class="muted">${esc(a.name)}</span>
     ${r ? `<span class="tag ${TREND[r.trend]}">Tendance ${esc(r.trend)}</span>` : ''}<span class="px">${px(a.price)}</span></span>`;
   const g = a.ctx?.gros;
-  const grosLine = g && r?.trend !== 'neutre' && !liveOf(a.symbol) && r?.trigger?.grosCut !== 0.5 ? `<span class="sm">Gros traders : ${fmt(g, 2)} achat pour 1 vente${g >= (data.rules.grosMax ?? 1.65) ? ' <b class="down">(déjà très acheteurs)</b>' : ''}</span>` : '';
+  // La règle des gros traders ne joue que sur les achats : on ne l'affiche que quand le bot cherche un achat.
+  const grosLine = g && r?.dir === 'long' && r?.trend !== 'neutre' && !liveOf(a.symbol) && r?.trigger?.grosCut !== 0.5 ? `<span class="sm">Gros traders : ${fmt(g, 2)} achat pour 1 vente${g >= (data.rules.grosMax ?? 1.65) ? ' <b class="down">(déjà très acheteurs)</b>' : ''}</span>` : '';
   const lastLine = grosLine + (last ? `<span class="sm">Dernier trade : ${esc(OUTCOME[last.outcome][0].toLowerCase())} le ${parisDay(last.at)} (${cap(last.r, last)})</span>` : '');
   if (!link) return `<div class="card">${head}${radarBody(a)}${lastLine}</div>`;
   return `<a class="card" href="#paire/${encodeURIComponent(a.symbol)}">${head}${radarBody(a)}${lastLine}<span class="go">Voir la fiche ${esc(a.symbol)} →</span></a>`;
 }
 
 // Ce qu'on peut attendre de la méthode, en chiffres honnêtes (test sur 2020-2026, frais compris), à la place d'un seul gros chiffre.
+// 4 lignes à retenir, le détail du test est replié : sur iPhone, la page restait un long mur de texte.
 function expectBox() {
   const e = data.expect;
   if (!e) return '';
   const risk = data.rules.riskPct ?? 1;
   const court = isCourt();
   const safe = court ? 0.25 : 0.5;
+  const losers = Math.round((1 - e.winRate) * 10);
+  const key = [
+    e.prudent ? `<li><b>Environ +${e.prudent.yearPct} % par an</b> en estimation prudente (+${fmt(e.prudent.perTrade * risk, 1)} % du capital par trade, frais compris). C'est le chiffre à garder en tête.</li>`
+      : `<li>En moyenne <b>+${fmt(e.perTrade * risk, 2)} %</b> du capital par trade, frais compris (${esc(e.years)}).</li>`,
+    `<li><b>${losers} trades sur 10 perdent</b>, avec une petite perte (le stop). Quelques gros gains paient tout le reste.</li>`,
+    `<li>Environ <b>${e.perMonth} signaux par mois</b>${court ? ', soit 1 à 2 par jour' : ''}.</li>`,
+    e.ddPct ? `<li class="down">Les pertes s'enchaînent parfois : jusqu'à <b>${e.streak} stops d'affilée</b>, et un recul jusqu'à <b>−${e.ddPct} %</b> du capital.</li>`
+      : `<li class="down">Les pertes s'enchaînent parfois : jusqu'à <b>${e.streak} stops d'affilée</b>.</li>`,
+  ];
+  const more = [
+    e.prudent ? `<li>L'estimation prudente vient du test le plus sévère : 20 cryptos, 2025-2026, frais compris.</li>` : '',
+    e.yearPct && e.prudent ? `<li>Le haut de la fourchette : environ +${e.yearPct} % par an en 2025-2026 sur les 9 cryptos suivies, en réinvestissant les gains (${esc(e.years)}). Ce chiffre est sûrement trop beau : cette période a été regardée plusieurs fois avant de choisir les réglages.</li>` : '',
+    e.score ? `<li>Le bot ne garde que les signaux les mieux notés, environ 4 sur 10. La note est bonne quand le marché est calme, que Bitcoin va dans le même sens et que tout le marché n'est pas déjà lancé. Sans ce tri : environ +${e.score.without.yearPct} % par an, ${e.score.without.perMonth} signaux par mois et un recul jusqu'à −${e.score.without.ddPct} %.</li>` : '',
+    e.gros ? `<li>Quand les gros traders de Binance sont déjà très acheteurs (au moins ${fmt(data.rules.grosMax ?? 1.65, 2)} achat pour 1 vente), le bot prend les achats avec moitié moins de risque : ces achats ont très peu rapporté dans les tests. Le gain baisse un peu (+${e.yearPct} % par an au lieu de +${e.gros.without.yearPct} %), mais le pire recul passe de −${e.gros.without.ddPct} % à −${e.ddPct} %. C'est la seule des 17 données testées (open interest, funding, peur et avidité, options…) qui aide vraiment.</li>` : '',
+    e.score ? `<li>Le risque de chaque trade suit l'agitation du marché : ${pctTxt(risk)} % du capital en temps normal, jusqu'au double quand le prix bouge peu, la moitié quand il s'agite. Le risque conseillé est écrit sur chaque carte. À ${pctTxt(risk)} % fixe : environ +${e.score.fixedPct ?? 23} % par an.</li>` : '',
+    e.ddPct && e.safe ? `<li>Plusieurs paires perdent souvent en même temps, d'où les séries de stops. Avec ${pctTxt(e.safe.base)} % de risque de base au lieu de ${pctTxt(risk)} % : environ +${e.safe.yearPct} % par an, recul maximal −${e.safe.ddPct} %.</li>`
+      : !e.ddPct ? `<li>En risquant ${fmt(risk, 0)} % à chaque trade, la pire baisse a été de ${e.ddR} %${e.ddR * risk >= 100 ? ' : le compte aurait été vidé' : ''}. Avec ${fmt(safe, 2).replace(/,?0+$/, '')} % par trade, elle aurait été d'environ ${Math.round(e.ddR * safe / risk)} %.</li>` : '',
+    e.score ? `<li>Ces chiffres reposent sur ${e.score.trades} trades seulement : attends-toi à moins en vrai. Sur 2020-2024, la période qui a servi à apprendre la note : environ +${e.score.dev.yearPct} % par an, un recul jusqu'à −${e.score.dev.ddPct} %, et 2023 à plat.</li>` : '',
+    court ? '<li>Chaque trade gagne moins qu\'en Setups et les frais pèsent plus lourd. Les bougies de 15 minutes ont été testées aussi : elles perdent à cause des frais.</li>' : '',
+  ].filter(Boolean);
   return `<div class="box expect"><b>Ce qu'on peut attendre${court ? ' du court terme' : ''}</b>
-    <ul>
-      ${e.prudent ? `<li><b>Estimation prudente : environ +${fmt(e.prudent.perTrade * risk, 1)} % du capital par trade</b>, soit autour de <b>+${e.prudent.yearPct} % par an</b>. Elle vient du test le plus sévère (20 cryptos, 2025-2026, frais compris). C'est le chiffre à garder en tête.</li>` : ''}
-      ${e.yearPct ? `<li>Le haut de la fourchette : environ +${e.yearPct} % par an en 2025-2026 sur les 9 cryptos suivies, en réinvestissant les gains (${esc(e.years)}). Ce chiffre est sûrement trop beau : on a regardé cette période plusieurs fois avant de choisir les réglages, donc les règles lui sont un peu « taillées sur mesure ».</li>
-      ${e.score ? `<li>Le bot ne garde que les signaux les mieux notés, environ 4 sur 10. La note est bonne quand le marché est calme, que Bitcoin va dans le même sens et que tout le marché n'est pas déjà lancé. Sans ce tri : environ +${e.score.without.yearPct} % par an, ${e.score.without.perMonth} signaux par mois et un recul jusqu'à −${e.score.without.ddPct} %.</li>` : ''}
-      ${e.gros ? `<li>Quand les gros traders de Binance sont déjà très acheteurs (au moins ${fmt(data.rules.grosMax ?? 1.65, 2)} achat pour 1 vente), le bot prend les achats avec moitié moins de risque : ces achats ont très peu rapporté dans nos tests. Sans cette règle : environ +${e.gros.without.yearPct} % par an, mais un recul jusqu'à −${e.gros.without.ddPct} %. C'est la seule des 17 données testées (open interest, funding, peur et avidité, options…) qui aide vraiment.</li>` : ''}
-      <li>Le risque de chaque trade suit l'agitation du marché : ${pctTxt(risk)} % du capital en temps normal, jusqu'au double quand le prix bouge peu, la moitié quand il s'agite. Le risque conseillé est écrit sur chaque carte. Sans cet ajustement, on gagnait moins (environ +${e.score?.fixedPct ?? 23} % par an à 1 % fixe).</li>`
-      : `<li>En moyenne <b>+${fmt(e.perTrade * risk, 2)} %</b> du capital par trade, frais compris (${fmt(risk, 0)} % du compte risqué à chaque fois). C'est ce qu'a donné la méthode en 2025-2026 sur les 9 cryptos suivies (${esc(e.years)}).</li>`}
-      <li>Seulement <b>${fmt(e.winRate * 100, 0)} % de trades gagnants</b> : la plupart finissent au stop, avec une petite perte. Quelques gros gains paient tout le reste.</li>
-      <li>Environ <b>${e.perMonth} signaux par mois</b>${court ? ', soit 1 à 2 par jour' : ''}.</li>
-      ${e.ddPct ? `<li class="down">Les pertes peuvent s'enchaîner : jusqu'à <b>${e.streak} stops d'affilée</b>, car plusieurs paires perdent en même temps. Le capital a reculé jusqu'à <b>−${e.ddPct} %</b> depuis son plus haut. Avec ${pctTxt(e.safe.base)} % de base au lieu de ${pctTxt(risk)} % : environ +${e.safe.yearPct} % par an, recul maximal −${e.safe.ddPct} %.</li>`
-      : `<li class="down">Les pertes peuvent s'enchaîner : jusqu'à <b>${e.streak} stops d'affilée</b>, car plusieurs paires perdent en même temps. En risquant ${fmt(risk, 0)} % à chaque trade, la pire baisse a été de <b>${e.ddR} %</b>${e.ddR * risk >= 100 ? ' : le compte aurait été vidé' : ''}. Avec ${fmt(safe, 2).replace(/,?0+$/, '')} % par trade, elle aurait été d'environ ${Math.round(e.ddR * safe / risk)} %.</li>`}
-      ${e.score ? `<li class="down">Ces chiffres reposent sur ${e.score.trades} trades seulement : attends-toi à moins en vrai. Sur 2020-2024, la période qui a servi à apprendre la note, on trouve environ +${e.score.dev.yearPct} % par an avec un recul jusqu'à −${e.score.dev.ddPct} %, et 2023 a été une année à plat.</li>` : ''}
-      ${court ? '<li>Chaque trade gagne moins qu\'en Setups et les frais pèsent plus lourd. Les bougies de 15 minutes ont été testées aussi : elles perdent à cause des frais, elles ne sont donc pas proposées.</li>' : ''}
-    </ul>
+    <ul>${key.join('')}</ul>
+    ${more.length ? `<details class="more"><summary>Tous les chiffres du test</summary><ul>${more.join('')}</ul></details>` : ''}
     <p class="sm muted">Résultats passés, pas une promesse. Le pétrole n'a pas assez d'historique pour ce test. Ceci n'est pas un conseil financier.</p></div>`;
 }
 
@@ -222,7 +277,6 @@ function renderCourt() {
 const VERDICT = { 'plutôt haussier': 'up', 'plutôt baissier': 'down', partagé: '' };
 // Indicateur Jambe : petit graphique des 6 derniers mois, vert en jambe haussière, rouge en jambe baissière,
 // avec le creux (ou le sommet) d'où part la jambe en cours et l'extrême atteint depuis.
-const shortDay = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 export function legBlock(leg, sym) {
   if (!leg) return '';
   const up = leg.dir === 'up';
@@ -269,7 +323,7 @@ function renderCat() {
 }
 
 function renderRadar() {
-  document.getElementById('setups-radar').innerHTML = data.assets.map(radarCard).join('');
+  document.getElementById('setups-radar').innerHTML = data.assets.map(a => radarCard(a)).join('');
 }
 
 function filtered() {
@@ -331,13 +385,14 @@ function renderTrack() {
   }
 
   // 2. Les vrais signaux, notés au moment où ils ont été publiés et jamais recalculés.
+  const notes = [];
   if (j.start) {
     const since = dayFr(j.start);
-    const body = !j.signals ? `Aucun signal publié depuis le ${since}. Le prochain sera noté ici.`
+    const body = !j.signals ? `aucun signal publié depuis le ${since}. Le prochain sera noté ici.`
       : !j.done ? `${j.signals} ${j.signals > 1 ? 'signaux' : 'signal'} publié${j.signals > 1 ? 's' : ''} depuis le ${since}, encore en cours.`
-        : `Depuis le ${since} : <b>${j.signals} ${j.signals > 1 ? 'signaux' : 'signal'}</b>, ${j.done} terminé${j.done > 1 ? 's' : ''} dont ${j.wins} gagnant${j.wins > 1 ? 's' : ''}, <b class="${j.total > 0 ? 'up' : j.total < 0 ? 'down' : ''}">${j.total > 0 ? '+' : ''}${fmt(j.total * risk, 1)} % du capital</b>${j.open ? `, ${j.open} encore en cours` : ''}.`;
-    parts.push(`<p><b>Les vrais signaux</b> · ${body}</p>
-      <p class="sm muted">Chaque signal est noté au moment où le site le publie : prix d'entrée, stop et taille. Ces chiffres ne sont plus jamais recalculés, même si les règles changent. C'est la seule vraie preuve${j.done < MIN_TRADES ? ` : il faut au moins ${MIN_TRADES} trades terminés avant de juger` : ''}.${j.orphans ? ` ${j.orphans} trade${j.orphans > 1 ? 's' : ''} n'${j.orphans > 1 ? 'ont' : 'a'} pas pu être suivi${j.orphans > 1 ? 's' : ''} jusqu'au bout et ne compte${j.orphans > 1 ? 'nt' : ''} pas.` : ''}</p>`);
+        : `depuis le ${since} : <b>${j.signals} ${j.signals > 1 ? 'signaux' : 'signal'}</b>, ${j.done} terminé${j.done > 1 ? 's' : ''} dont ${j.wins} gagnant${j.wins > 1 ? 's' : ''}, <b class="${j.total > 0 ? 'up' : j.total < 0 ? 'down' : ''}">${j.total > 0 ? '+' : j.total < 0 ? '−' : ''}${fmt(Math.abs(j.total * risk), 1)} % du capital</b>${j.open ? `, ${j.open} encore en cours` : ''}.`;
+    parts.push(`<p><b>Les vrais signaux</b> : ${body}${j.done < MIN_TRADES ? ` <span class="muted">Il faut au moins ${MIN_TRADES} trades terminés pour juger (${j.done}/${MIN_TRADES}).</span>` : ''}</p>`);
+    notes.push(`<b>Les vrais signaux</b> sont notés au moment où le site les publie : prix d'entrée, stop et taille. Ils ne sont plus jamais recalculés, même si les règles changent. C'est la seule vraie preuve.${j.orphans ? ` ${j.orphans} trade${j.orphans > 1 ? 's' : ''} n'${j.orphans > 1 ? 'ont' : 'a'} pas pu être suivi${j.orphans > 1 ? 's' : ''} jusqu'au bout et ne compte${j.orphans > 1 ? 'nt' : ''} pas.` : ''}`);
   }
 
   // 3. Le bilan rejoué avec les règles actuelles (utile, mais ce n'est pas du vrai).
@@ -345,18 +400,19 @@ function renderTrack() {
     const st = t.streak;
     const day = new Date(st.since || 0).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Europe/Paris' });
     const serie = st.n >= 3 && st.kind === 'loss'
-      ? ` <b>Série en cours : ${st.n} stops d'affilée</b>${st.since ? ` depuis le dernier gain du ${day}` : ''} (<b class="down">${cap(st.sum)} du capital</b>). C'est normal pour cette méthode : la plupart des trades perdent un peu, quelques-uns gagnent beaucoup.`
-      : st.n >= 2 && st.kind === 'win' ? ` <b>Série en cours : ${st.n} gains d'affilée</b>. Les séries de stops reviennent toujours : garde le même risque.` : '';
-    parts.push(`<p><b>Rejoué sur 12 mois</b> · ${t.n} trades terminés, ${t.wins} gagnants, <b class="${t.total > 0 ? 'up' : t.total < 0 ? 'down' : ''}">${cap(t.total)} du capital</b>.${serie}</p>
-      <p class="sm muted">Ce bilan applique les règles d'aujourd'hui au passé. Il est recalculé à chaque mise à jour : il montre comment la méthode se comporte, pas ce qu'elle a vraiment donné.</p>`);
+      ? ` <b>En ce moment : ${st.n} stops d'affilée</b>${st.since ? ` depuis le dernier gain du ${day}` : ''} (<b class="down">${cap(st.sum)}</b>).`
+      : st.n >= 2 && st.kind === 'win' ? ` <b>En ce moment : ${st.n} gains d'affilée</b>.` : '';
+    parts.push(`<p><b>Rejoué sur 12 mois</b> : ${t.n} trades terminés, ${t.wins} gagnants, <b class="${t.total > 0 ? 'up' : t.total < 0 ? 'down' : ''}">${cap(t.total)} du capital</b>.${serie}</p>`);
+    notes.push(`<b>Rejoué sur 12 mois</b> applique les règles d'aujourd'hui au passé. Il est recalculé à chaque mise à jour : il montre comment la méthode se comporte, pas ce qu'elle a vraiment donné.${st.n >= 3 && st.kind === 'loss' ? ' Les séries de stops sont normales pour cette méthode : la plupart des trades perdent un peu, quelques-uns gagnent beaucoup.' : st.n >= 2 && st.kind === 'win' ? ' Les séries de stops reviennent toujours : garde le même risque.' : ''}`);
   }
 
   if (data.rules.frozenUntil) {
-    parts.push(`<p class="sm">Règles gelées jusqu'au ${dayFr(data.rules.frozenUntil + 'T12:00:00Z')} : aucun réglage ne sera changé d'ici là, pour pouvoir juger les vrais signaux honnêtement.</p>`);
+    notes.push(`<b>Règles gelées jusqu'au ${dayFr(data.rules.frozenUntil + 'T12:00:00Z')}</b> : aucun réglage ne sera changé d'ici là, pour juger les vrais signaux honnêtement.`);
   }
+  notes.push('Avec un effet de levier, une petite variation peut effacer toute ta mise. Ne risque jamais plus que le risque conseillé sur chaque carte.');
   if (!parts.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="box track"><h2>Le bilan réel des signaux</h2>${parts.join('')}
-    <p class="sm muted">Avec un effet de levier, une petite variation peut effacer toute ta mise. Ne risque jamais plus que le risque conseillé sur chaque carte.</p>
+    <details class="more"><summary>Comment lire ces chiffres</summary>${notes.map(n => `<p class="sm">${n}</p>`).join('')}</details>
     <p><a href="#historique">Voir tous les trades →</a></p></div>`;
 }
 
@@ -442,7 +498,7 @@ function renderResume() {
   const locked = open.filter(s => delayed(s)).map(s => `
     <a class="row" href="#premium"><span class="t">${esc(s.symbol)}</span><span class="d">Nouveau signal · visible dans ${hoursText(visibleIn(s))}</span><span class="r"><span class="ptag">Premium</span></span></a>`);
   document.getElementById('resume-setups').innerHTML = [...live.slice(0, 5).map(s => `
-    <a class="row" href="#setup/${encodeURIComponent(s.id)}"><span class="t">${esc(s.symbol)}</span><span class="d">${esc(data.detectors[s.detector])} · ${s.status}</span><span class="r ${s.dir === 'long' ? 'up' : 'down'}">${s.dir === 'long' ? '▲' : '▼'} 1:${fmt(s.rr, 1)}</span></a>`), ...locked].join('')
+    <a class="row" href="#setup/${encodeURIComponent(s.id)}"><span class="t">${esc(s.symbol)}</span><span class="d">${esc(data.detectors[s.detector])} · ${s.status} · ${s.tpHit ? 'moitié prise' : `depuis le ${shortDay(s.time)}`}</span><span class="r ${s.dir === 'long' ? 'up' : 'down'}">${s.dir === 'long' ? '▲ Long' : '▼ Short'}</span></a>`), ...locked].join('')
     || '<div class="soon">Aucun setup en jeu pour le moment.</div>';
   // Bloc « À regarder maintenant » : le setup confirmé du détecteur le plus fiable.
   const rate = s => data.stats[s.detector]?.winRate ?? 0;
@@ -470,7 +526,7 @@ export function statsOf(history, detectors, from) {
     const bySymbol = {};
     for (const s of done) (bySymbol[s.symbol] ??= []).push(s);
     const best = Object.entries(bySymbol)
-      .filter(([, l]) => l.length >= 3)
+      .filter(([, l]) => l.length >= 3 && l.some(s => s.r > 0))
       .map(([sym, l]) => ({ symbol: sym, n: l.length, winRate: l.filter(s => s.r > 0).length / l.length }))
       .sort((x, y) => y.winRate - x.winRate || y.n - x.n)[0] || null;
     stats[key] = {
@@ -479,7 +535,7 @@ export function statsOf(history, detectors, from) {
       tp1: done.filter(s => s.tpHit > 0).length,
       winRate: done.length ? wins / done.length : null,
       avgR: done.length ? done.reduce((t, s) => t + s.r, 0) / done.length : null,
-      totalR: Math.round(done.reduce((t, s) => t + s.r, 0) * 10) / 10,
+      totalR: Math.round(done.reduce((t, s) => t + s.r * (s.sz ?? 1), 0) * 10) / 10, // taille comprise, comme le serveur
       best,
     };
   }
@@ -496,13 +552,13 @@ function renderHistory() {
   const stats = isPremium() ? data.stats : statsOf(shown, data.detectors, from);
   document.getElementById('history-period').textContent = days > 100 ? '12 derniers mois' : '3 derniers mois';
   document.getElementById('history-more').hidden = isPremium();
-  document.getElementById('history-sub').textContent = `Un trade est gagnant s'il finit en gain. La moitié est prise à ${data.rules.partialR ?? 5}R, le reste sort quand une journée clôture au-delà du plus bas (ou du plus haut pour un short) des ${data.rules.exitDays ?? 7} derniers jours. `
+  document.getElementById('history-sub').textContent = `Un trade est gagnant s'il finit en gain. La moitié est prise quand le gain atteint ${data.rules.partialR ?? 5} fois le risque, le reste sort quand une journée clôture au-delà du plus bas (ou du plus haut pour un short) des ${data.rules.exitDays ?? 7} derniers jours. `
     + (Number.isFinite(since) ? `Calculé sur les bougies OKX depuis le ${new Date(since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' })}.` : '');
   document.getElementById('history-body').innerHTML = keys.map(k => {
     const s = stats[k];
     const w = s.winRate === null ? null : Math.round(s.winRate * 100);
     return `<tr>
-      <td class="l"><b>${esc(data.detectors[k])}</b><br><span class="muted" style="font-size:12px">dans le sens de la tendance 1D</span></td>
+      <td class="l"><b>${esc(data.detectors[k])}</b><br><span class="muted" style="font-size:12px">dans le sens de la tendance</span></td>
       <td class="n">${s.signals}</td>
       <td class="n">${w === null ? '—' : `<span class="score"><i style="--w:${w}%"></i>${w} %</span>`}</td>
       <td class="n"><span class="up">${s.tp1}</span> / <span class="down">${s.losses}</span></td>
@@ -517,7 +573,7 @@ function renderHistory() {
       <td class="l">${esc(data.detectors[s.detector])}</td>
       <td class="l">${dirTag(s.dir)}</td>
       <td class="n">${px(s.entry)}</td>
-      <td class="n">1:${fmt(s.rr, 1)}</td>
+      <td class="n">×${fmt(s.rr, 0)}</td>
       <td class="l"><span class="tag ${outcomeCls(s)}">${OUTCOME[s.outcome][0]}</span></td>
       <td class="n ${s.r > 0 ? 'up' : s.r < 0 ? 'down' : ''}">${cap(s.r, s)}</td>
     </tr>`).join('') : '<tr><td colspan="8"><div class="empty">Aucun signal terminé pour le moment.</div></td></tr>';

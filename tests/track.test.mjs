@@ -21,3 +21,12 @@ test('série de gains et cas sans dernier gain', () => {
   assert.deepEqual(all.streak, { kind: 'loss', n: 2, sum: -2, since: null });
   assert.equal(trackRecord([], now).streak.n, 0);
 });
+
+test('bilan 3 mois (formule gratuite) : taille du trade comprise, pas de « meilleur actif » sans gain', async () => {
+  const { statsOf } = await import('../js/setups.js');
+  const s = (sym, r, sz) => ({ detector: 'range20', status: 'confirmé', time: now, symbol: sym, outcome: r < 0 ? 'sl' : 'exit', r, sz });
+  const h = [s('BZ', -1, 1), s('BZ', -1, 1), s('BZ', -1, 1), s('BNB', -1, 1.8), s('AVAX', 3, 0.5)];
+  const st = statsOf(h, { range20: 'Cassure 20 jours' }, 0).range20;
+  assert.equal(st.totalR, -3.3); // -3 - 1,8 + 1,5 : comme detectorStats côté serveur
+  assert.equal(st.best, null); // BZ 0 gagnant sur 3 n'est pas un « meilleur actif »
+});

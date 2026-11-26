@@ -186,7 +186,7 @@
     <!-- Setups -->
     <section class="page" id="page-setups">
       <div class="intro" data-intro="setups"><span class="i">i</span>
-        <p>Des signaux pour acheter ou vendre <b>9 grandes cryptos et le pétrole</b>, <b>toujours dans le sens de la tendance</b>. <span>3 indicateurs vérifiés à la clôture de chaque bougie de 1 heure (Cassure 20 jours, Cassure 10 jours, MACD) sur les perpétuels OKX. Un signal ne compte que s'il va dans le sens de la tendance journalière : long (pari à la hausse) quand le marché monte, short (pari à la baisse) quand il baisse. Cassure 20 jours : une bougie 1h clôture au-dessus du plus haut des 20 derniers jours (sous le plus bas pour un short). Cassure 10 jours : pareil sur 10 jours. MACD : l'histogramme 1h repasse au-dessus de zéro (en dessous pour un short). Un seul trade à la fois par paire, et seulement s'il y a au moins 2R de marge avant le prochain niveau. Stop serré à 0,75 ATR journalier. À 5R on prend la moitié et le stop remonte au prix d'entrée. Le reste sort quand une journée clôture sous le plus bas des 10 derniers jours (au-dessus du plus haut pour un short). Beaucoup de petits stops, quelques gros gains qui les paient. « En cours » : la bougie 1h n'est pas fermée, le signal peut disparaître. La catégorie Court terme applique les mêmes règles avec une tendance sur bougies de 4 h : des trades de 2 à 3 jours, plus nombreux, qui gagnent moins chacun.</span></p>
+        <p>Des signaux pour acheter ou vendre <b>9 grandes cryptos et le pétrole</b>, <b>toujours dans le sens de la tendance</b>. <span>Le bot regarde les prix toutes les heures (contrats perpétuels OKX). Il n'achète que si le marché monte depuis plusieurs semaines, et ne vend à découvert (short, un pari à la baisse) que s'il baisse. Il attend alors que le prix casse son plus haut des 20 ou des 10 derniers jours (son plus bas pour un short), ou qu'il reparte après une petite pause (MACD). Il ne garde que les signaux les mieux notés, un seul trade à la fois par paire, et seulement s'il n'y a pas d'obstacle juste devant. Le stop est proche : environ les trois quarts de ce que le prix bouge en une journée normale. Quand le gain atteint 5 fois le risque, on prend la moitié et le stop remonte au prix d'entrée : le trade ne peut plus perdre. Le reste sort quand une journée ferme sous le plus bas des 10 derniers jours (au-dessus du plus haut pour un short). Résultat : beaucoup de petits stops, et quelques gros gains qui les paient. « En cours » veut dire que la bougie de l'heure n'est pas fermée : le signal peut encore disparaître.</span></p>
         <button type="button">Compris</button></div>
       <h1>Setups dans le sens de la tendance · 9 cryptos et le pétrole</h1>
       <div class="tools cats" id="setups-cats" role="group" aria-label="Catégorie">
@@ -304,7 +304,7 @@
       <h2 class="section">Derniers signaux terminés <span class="muted">clique sur un trade pour son explication complète</span></h2>
       <div class="wrap" tabindex="0" role="region" aria-label="Derniers signaux terminés">
         <table class="static">
-          <thead><tr><th class="l">Signal</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>R:R</th><th class="l">Résultat</th><th>Capital</th></tr></thead>
+          <thead><tr><th class="l">Signal</th><th class="l">Actif</th><th class="l">Détecteur</th><th class="l">Sens</th><th>Entrée</th><th>Gain visé</th><th class="l">Résultat</th><th>Capital</th></tr></thead>
           <tbody id="history-list"></tbody>
         </table>
       </div>
