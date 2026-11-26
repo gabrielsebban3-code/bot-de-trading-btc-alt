@@ -1060,3 +1060,10 @@ body.jb-locked { overflow: hidden; }
 .ctx-box > .txt { margin: 0 0 8px; }
 .box.track .risk-now { padding: 8px 10px; border-radius: 8px; background: var(--panel2); border-left: 3px solid var(--down); }
 .box.track .sm { font-size: 12.5px; }
+
+/* Setups : détails repliés (bilan réel, ce qu'on peut attendre) et ligne « en ce moment » des cartes */
+.box details.more { margin-top: 8px; }
+.box details.more > summary { cursor: pointer; font-size: 13px; color: var(--accent-ink); font-weight: 500; padding: 6px 0; list-style-position: inside; }
+.box details.more[open] > summary { margin-bottom: 4px; }
+.box details.more p.sm { margin: 6px 0; }
+.card.setup .sm.now { color: var(--fg); }
