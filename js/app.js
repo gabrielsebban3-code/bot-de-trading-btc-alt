@@ -8,13 +8,14 @@ import { starTitle, watchlist } from './watchlist.js';
 import { initMarche, marcheUnavailable, renderIndicator } from './marche.js';
 import { renderCrypto, setCryptoContext } from './crypto.js';
 import { renderPaire } from './paire.js';
-import { alertSymbols, initAccount, refreshAccount, setFeed } from './account.js';
+import { alertSymbols, initAccount, refreshAccount, setFeed, takeInvite } from './account.js';
 import './heatmap.js';
 import { setOutilsData, showTool } from './outils.js';
 import { renderPlans } from './plans.js';
 import { renderImpots } from './fiscal.js';
 import { renderScanner } from './scanner.js';
 import { onTier } from './premium.js';
+import { inviteFromHash } from './invite.js';
 import { renderAcademie } from './academie.js';
 
 const $ = id => document.getElementById(id);
@@ -58,6 +59,9 @@ function route() {
   if (target === 'actu' && id && newsReady) focusNews(decodeURIComponent(id));
   if (target === 'outils') showTool(decodeURIComponent(id || ''));
   if (target === 'impots') renderImpots();
+  // Lien d'invitation Premium (#premium/CODE) : gardé, puis activé à la connexion ; l'adresse redevient #premium.
+  const code = inviteFromHash(location.hash);
+  if (code) { history.replaceState(null, '', `${location.pathname}#premium`); takeInvite(code); }
   if (target === 'scanner') renderScanner();
   if (target === 'academie') renderAcademie(decodeURIComponent(id || ''));
 }
