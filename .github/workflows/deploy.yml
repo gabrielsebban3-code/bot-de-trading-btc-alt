@@ -86,7 +86,7 @@ jobs:
           if [ "$news_only" = true ] && [ "$PUBLISH" = true ]; then
             limit=$(( $(date +%s) - 90 * 60 ))
             for f in setups scanner marche; do
-              at=$(jq -r '.generatedAt // empty' "previous/$f.json" 2>/dev/null)
+              at=$(jq -r '.generatedAt // empty' "previous/$f.json" 2>/dev/null) || true
               t=$( [ -n "$at" ] && date -d "$at" +%s 2>/dev/null || echo 0)
               if [ "$t" -lt "$limit" ]; then
                 echo "$f.json absent ou vieux de plus de 90 min : passage complet."

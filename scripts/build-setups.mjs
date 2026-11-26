@@ -216,11 +216,14 @@ async function main() {
       return null;
     }
   });
-  const prevRaw = args.previous ? await readFile(args.previous, 'utf8').then(JSON.parse).catch(() => null) : null;
-  // Sans la version en ligne, le journal figé des signaux serait perdu : on s'arrête, et le site garde l'ancienne version.
-  if (process.env.PUBLISH === 'true' && !args.sample && !prevRaw && process.env.JOURNAL_RESET !== '1') {
+  const prevText = args.previous ? await readFile(args.previous, 'utf8').catch(() => null) : null;
+  const prevRaw = prevText ? (() => { try { return JSON.parse(prevText); } catch { return null; } })() : null;
+  // Version en ligne récupérée mais abîmée : on s'arrête plutôt que de perdre le journal figé, le site garde l'ancienne version.
+  // Version en ligne absente (site vide, première mise en ligne) : on continue, sinon l'onglet Setups resterait vide.
+  if (process.env.PUBLISH === 'true' && !args.sample && prevText && !prevRaw && process.env.JOURNAL_RESET !== '1') {
     throw new Error('setups.json en ligne illisible : le journal des vrais signaux serait perdu. Version en ligne conservée.');
   }
+  if (process.env.PUBLISH === 'true' && !args.sample && !prevText) console.warn('⚠ setups.json en ligne introuvable : le journal des vrais signaux repart de zéro.');
   const cryptoSyms = fetched.filter(x => x && x.asset.kind === 'crypto').map(x => x.asset.symbol);
   const gros = args.sample ? {} : await grosHistory(cryptoSyms, prevRaw?.gros, now).catch(err => { console.warn(`Gros traders : ${err.message}`); return prevRaw?.gros ?? {}; });
   // Contexte du marché (OKX, alternative.me, Deribit) : une donnée qui manque n'empêche pas le reste.
