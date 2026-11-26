@@ -52,7 +52,7 @@ function candles(seed, start, limit) {
   return out;
 }
 
-export function routeOutils(url) {
+export function routeOutils(url, opts) {
   const u = new URL(url);
   const q = k => u.searchParams.get(k);
   const ok = d => ({ code: '0', msg: '', data: d });
@@ -83,8 +83,20 @@ export function routeOutils(url) {
     }
     return undefined;
   }
+  if (u.host === 'stats-data.hyperliquid.xyz') {
+    return { leaderboardRows: Array.from({ length: 80 }, (_, i) => ({ ethAddress: `0x${(i + 1).toString(16).padStart(40, '0')}`, accountValue: String(1e7 / (i + 1)), displayName: null })) };
+  }
   if (u.host === 'api.hyperliquid.xyz') {
-    return [{ universe: SYMS.map(name => ({ name })) }, SYMS.map((_, i) => ({ funding: String((0.0000125 - i * 0.000004).toFixed(7)) }))];
+    const body = JSON.parse(opts?.body || '{}');
+    if (body.type === 'clearinghouseState') {
+      // Chaque compte : un long BTC et un short ETH, prix de liquidation étalés selon l'adresse.
+      const i = parseInt(body.user.slice(2), 16);
+      return { assetPositions: [
+        { type: 'oneWay', position: { coin: 'BTC', szi: String(2 / i), entryPx: '64000', positionValue: String(124000 / i), liquidationPx: String(62000 * (1 - (i % 20) / 100)), leverage: { type: 'cross', value: 10 } } },
+        { type: 'oneWay', position: { coin: 'ETH', szi: String(-50 / i), entryPx: '1750', positionValue: String(90000 / i), liquidationPx: i % 7 ? String(1800 * (1 + (i % 15) / 100)) : null, leverage: { type: 'cross', value: 5 } } },
+      ] };
+    }
+    return [{ universe: SYMS.map(name => ({ name })) }, SYMS.map((_, i) => ({ funding: String((0.0000125 - i * 0.000004).toFixed(7)), markPx: i === 0 ? '62000' : i === 1 ? '1800' : '1', openInterest: i === 0 ? '30000' : i === 1 ? '500000' : '1' }))];
   }
   if (u.host === 'www.bitstamp.net') {
     const m = u.pathname.match(/^\/api\/v2\/ohlc\/(btcusd|ethusd)\/$/);

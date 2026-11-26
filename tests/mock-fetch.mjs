@@ -18,8 +18,8 @@ const setups = setupRoutes();
 const marche = marcheRoutes();
 const crypto = cryptoRoutes();
 const prix = process.env.DINEXO_MOCK_PRIX === '1' ? prixRoutes() : null;
-globalThis.fetch = async url => {
-  const body = (prix ? routePrix(prix, String(url)) : undefined) ?? routeCrypto(crypto, String(url)) ?? routeOutils(String(url)) ?? routeMarche(marche, String(url)) ?? routeNews(String(url)) ?? routeSetups(setups, String(url)) ?? route(routes, String(url));
+globalThis.fetch = async (url, opts) => {
+  const body = (prix ? routePrix(prix, String(url)) : undefined) ?? routeCrypto(crypto, String(url)) ?? routeOutils(String(url), opts) ?? routeMarche(marche, String(url)) ?? routeNews(String(url)) ?? routeSetups(setups, String(url)) ?? route(routes, String(url));
   return {
     ok: body !== undefined,
     status: body !== undefined ? 200 : 404,

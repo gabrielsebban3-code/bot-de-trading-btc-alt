@@ -135,7 +135,7 @@ jobs:
         id: outils
         if: env.NEWS_ONLY != 'true'
         continue-on-error: true
-        timeout-minutes: 5
+        timeout-minutes: 8
         run: node scripts/build-outils.mjs --out _site/data --previous previous/outils.json
       # Une fiche par crypto du tableau de l'onglet Marché (#crypto/<id>) : bougies, levier OKX, chiffres clés.
       - name: Fiches crypto
