@@ -122,7 +122,7 @@ const TOOLS = [
       "Il suit surtout le prix : il dit où en est l'humeur, pas où va le prix demain.",
     ] },
   { id: 'liq', cat: 'data', name: 'Liquidations', calc: liqTool, fields: () => ['lsAsset'],
-    intro: () => "Les prix où des positions à levier seraient fermées de force (liquidées). Ce sont les vrais prix de liquidation, pas une estimation : sur Hyperliquid, chaque compte est public. On lit les positions des 500 plus gros comptes.",
+    intro: () => "Les prix où des positions à levier seraient fermées de force (liquidées). Ce sont les vrais prix de liquidation, pas une estimation : sur Hyperliquid, chaque compte est public. On lit les positions d'environ 1 200 comptes : les plus gros et les plus actifs de la semaine.",
     how: [
       'Barre rouge, sous le prix : des acheteurs à levier (longs) liquidés si le prix descend jusque-là. Leur fermeture forcée vend, ce qui peut accélérer la baisse.',
       'Barre verte, au-dessus du prix : des vendeurs à levier (shorts) liquidés si le prix monte jusque-là. Leur fermeture forcée achète, ce qui peut accélérer la hausse.',
@@ -833,7 +833,7 @@ function liqTool() {
       <p><b>Ce qui est sûr</b>Si le prix atteint une grosse zone, des positions seront fermées de force, et ces ventes ou achats forcés peuvent accélérer le mouvement. La carte dit où ça arriverait, pas si le prix ira.</p>
       <p><b>Limite</b>On ne voit que Hyperliquid. Binance et OKX pèsent beaucoup plus lourd et ne publient pas les positions de leurs clients.</p>
     </div>`,
-    note(`Source : Hyperliquid (positions publiques des ${fmt(L.accounts)} plus gros comptes du classement). Mis à jour ${ago(state.outils.generatedAt)}.`),
+    note(`Source : Hyperliquid (positions publiques de ${fmt(L.accounts)} comptes du classement : les plus gros et les plus actifs de la semaine). Mis à jour ${ago(state.outils.generatedAt)}.`),
   ].join('');
 }
 
