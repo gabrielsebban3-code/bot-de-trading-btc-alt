@@ -334,8 +334,8 @@ function renderTrack() {
   if (j.start) {
     const since = dayFr(j.start);
     const body = !j.signals ? `Aucun signal publié depuis le ${since}. Le prochain sera noté ici.`
-      : !j.done ? `${j.signals} signal${j.signals > 1 ? 's' : ''} publié${j.signals > 1 ? 's' : ''} depuis le ${since}, encore en cours.`
-        : `Depuis le ${since} : <b>${j.signals} signal${j.signals > 1 ? 's' : ''}</b>, ${j.done} terminé${j.done > 1 ? 's' : ''} dont ${j.wins} gagnant${j.wins > 1 ? 's' : ''}, <b class="${j.total > 0 ? 'up' : j.total < 0 ? 'down' : ''}">${j.total > 0 ? '+' : ''}${fmt(j.total * risk, 1)} % du capital</b>${j.open ? `, ${j.open} encore en cours` : ''}.`;
+      : !j.done ? `${j.signals} ${j.signals > 1 ? 'signaux' : 'signal'} publié${j.signals > 1 ? 's' : ''} depuis le ${since}, encore en cours.`
+        : `Depuis le ${since} : <b>${j.signals} ${j.signals > 1 ? 'signaux' : 'signal'}</b>, ${j.done} terminé${j.done > 1 ? 's' : ''} dont ${j.wins} gagnant${j.wins > 1 ? 's' : ''}, <b class="${j.total > 0 ? 'up' : j.total < 0 ? 'down' : ''}">${j.total > 0 ? '+' : ''}${fmt(j.total * risk, 1)} % du capital</b>${j.open ? `, ${j.open} encore en cours` : ''}.`;
     parts.push(`<p><b>Les vrais signaux</b> · ${body}</p>
       <p class="sm muted">Chaque signal est noté au moment où le site le publie : prix d'entrée, stop et taille. Ces chiffres ne sont plus jamais recalculés, même si les règles changent. C'est la seule vraie preuve${j.done < MIN_TRADES ? ` : il faut au moins ${MIN_TRADES} trades terminés avant de juger` : ''}.${j.orphans ? ` ${j.orphans} trade${j.orphans > 1 ? 's' : ''} n'${j.orphans > 1 ? 'ont' : 'a'} pas pu être suivi${j.orphans > 1 ? 's' : ''} jusqu'au bout et ne compte${j.orphans > 1 ? 'nt' : ''} pas.` : ''}</p>`);
   }
